@@ -10,3 +10,5 @@ __pycache__/
 .idea/
 .vscode/
 *.code-workspace
+claude.md
+vpn_cookie.json
