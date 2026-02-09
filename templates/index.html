@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>URP教务助手</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <!-- 侧边栏导航菜单 -->
+    <div id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+            <h2>URP教务助手</h2>
+            <button class="close-btn" onclick="closeSidebar()">×</button>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="#" class="nav-item active" data-page="home">
+                <span class="icon">🏠</span>
+                <span>首页</span>
+            </a>
+            <a href="#" class="nav-item" data-page="schedule">
+                <span class="icon">📅</span>
+                <span>课程表</span>
+            </a>
+            <a href="#" class="nav-item" data-page="exams">
+                <span class="icon">📝</span>
+                <span>考试安排</span>
+            </a>
+            <a href="#" class="nav-item" data-page="grades">
+                <span class="icon">📊</span>
+                <span>学分绩点查询</span>
+            </a>
+            <a href="#" class="nav-item" data-page="experiments">
+                <span class="icon">🔬</span>
+                <span>实验系统</span>
+            </a>
+            <a href="#" class="nav-item" data-page="evaluation">
+                <span class="icon">⭐</span>
+                <span>教务评价</span>
+            </a>
+            <a href="#" class="nav-item" data-page="paper">
+                <span class="icon">📄</span>
+                <span>论文生成</span>
+            </a>
+            <a href="#" class="nav-item" data-page="announcements">
+                <span class="icon">📢</span>
+                <span>系统公告</span>
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <button class="rebind-btn" onclick="showRebindDialog()">换绑账号</button>
+            <p class="user-info">当前用户: <span id="sidebar-username">未登录</span></p>
+        </div>
+    </div>
+
+    <!-- 主内容区域 -->
+    <div id="main-content" class="main-content">
+        <!-- 顶部导航栏 -->
+        <header class="header">
+            <button class="menu-btn" onclick="openSidebar()">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <h1 id="page-title">首页</h1>
+            <!-- 登录状态指示器 -->
+            <div id="login-status-indicator" class="login-status-indicator">
+                <span class="status-dot status-checking"></span>
+                <span class="status-text">检查中</span>
+            </div>
+        </header>
+
+        <!-- 页面内容容器 -->
+        <div class="content-wrapper">
+            <!-- 首页：紧急事项提示 -->
+            <div id="page-home" class="page active">
+                <div class="urgent-card">
+                    <div class="urgent-header">
+                        <h2>接下来最紧急的事情</h2>
+                        <button class="refresh-btn" onclick="refreshUrgentEvent()">🔄</button>
+                    </div>
+                    <div id="urgent-content" class="urgent-content">
+                        <div class="loading">加载中...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 课程表页面 -->
+            <div id="page-schedule" class="page">
+                <div class="schedule-container">
+                    <!-- 周次切换器 -->
+                    <div class="week-selector">
+                        <button class="week-btn" onclick="changeWeek(-1)">◀ 上周</button>
+                        <span class="current-week">第 <span id="current-week">1</span> 周</span>
+                        <button class="week-btn" onclick="changeWeek(1)">下周 ▶</button>
+                    </div>
+
+                    <!-- 更新按钮 -->
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <button class="update-schedule-btn" onclick="updateSchedule()">🔄 更新课程表</button>
+                    </div>
+
+                    <!-- 课程表内容 -->
+                    <div id="schedule-content" class="schedule-content">
+                        <p style="text-align:center;color:#999;padding:40px;">点击"更新课程表"按钮加载数据</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 考试安排页面 -->
+            <div id="page-exams" class="page">
+                <div class="exams-container">
+                    <h2>考试安排</h2>
+                    <div id="exams-content" class="exams-content">
+                        <div class="loading">加载中...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 成绩查询页面 -->
+            <div id="page-grades" class="page">
+                <div class="grades-container">
+                    <h2>学分绩点查询</h2>
+                    <div id="grades-content" class="grades-content">
+                        <div class="loading">加载中...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 实验系统页面 -->
+            <div id="page-experiments" class="page">
+                <div class="experiments-container">
+                    <h2>实验系统</h2>
+                    <div id="experiments-content" class="experiments-content">
+                        <div class="loading">加载中...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 教务评价页面 -->
+            <div id="page-evaluation" class="page">
+                <div class="evaluation-container">
+                    <h2>教务评价</h2>
+                    <!-- 刷新查询按钮 -->
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <button class="update-schedule-btn" onclick="checkUnevaluatedCourses()">🔄 刷新查询</button>
+                        <button class="update-schedule-btn" id="one-click-eval-btn" onclick="oneClickEvaluation()" style="margin-left: 10px; background-color: #4caf50;">一键评教</button>
+                    </div>
+                    <div id="evaluation-result" class="evaluation-result"></div>
+                </div>
+            </div>
+
+            <!-- 论文生成页面 -->
+            <div id="page-paper" class="page">
+                <div class="paper-container">
+                    <h2>论文生成</h2>
+                    <!-- 免责提醒 -->
+                    <div class="paper-warning">
+                        <span class="warning-icon">⚠️</span>
+                        <span class="warning-text">本功能仅适用于应付日常课程作业，毕业论文、学位论文等重要学术成果请勿使用，后果自负</span>
+                    </div>
+                    <!-- 模式切换 -->
+                    <div class="paper-mode-tabs">
+                        <button class="paper-mode-tab active" data-mode="simple" onclick="switchPaperMode('simple')">简单生成</button>
+                        <button class="paper-mode-tab" data-mode="complex" onclick="switchPaperMode('complex')">复杂生成</button>
+                    </div>
+
+                    <!-- 简单模式表单 -->
+                    <div id="simple-mode-form" class="paper-content">
+                        <div class="mode-description simple-desc">
+                            <div class="desc-title">💡 简单生成模式</div>
+                            <div class="desc-content">固定模板 + 快速生成，内容较为模式化，适合各类水课、通识课的结课小论文</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="paper-template">论文模板</label>
+                            <select id="paper-template" class="form-select">
+                                <option value="simple">简单报告 (摘要→引言→正文→结论→参考文献)</option>
+                                <option value="standard">标准学术论文 (摘要→引言→文献综述→研究方法→结果分析→结论→参考文献)</option>
+                                <option value="graduation">毕业论文 (摘要→绪论→文献综述→理论基础→研究设计→实证分析→结论与建议→参考文献)</option>
+                                <option value="experiment">实验报告 (摘要→实验目的→实验原理→实验步骤→实验结果→结论→参考文献)</option>
+                                <option value="research">调研报告 (摘要→引言→调研背景→调研方法→调研结果→分析讨论→结论建议→参考文献)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="paper-title">论文标题</label>
+                            <input type="text" id="paper-title" placeholder="请输入论文标题">
+                        </div>
+                        <div class="form-group">
+                            <label for="paper-subject">论文学科/方向</label>
+                            <input type="text" id="paper-subject" placeholder="例如：计算机科学、经济学、心理学">
+                        </div>
+                        <div class="form-group">
+                            <label for="paper-requirements">内容要求</label>
+                            <textarea id="paper-requirements" rows="5" placeholder="请输入论文的具体要求，如字数、结构、重点内容等"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="paper-keywords">关键词</label>
+                            <input type="text" id="paper-keywords" placeholder="多个关键词用逗号分隔">
+                        </div>
+                        <div class="form-group">
+                            <label for="paper-wordcount">论文字数</label>
+                            <select id="paper-wordcount" class="form-select">
+                                <option value="1000">1000字</option>
+                                <option value="1500">1500字</option>
+                                <option value="2000" selected>2000字</option>
+                                <option value="3000">3000字</option>
+                                <option value="5000">5000字</option>
+                            </select>
+                        </div>
+                        <div class="paper-actions">
+                            <button class="update-schedule-btn" id="generate-paper-btn" onclick="generatePaper()" style="background-color: #4caf50;">生成论文</button>
+                        </div>
+                        <div id="paper-result" class="paper-result" style="margin-top: 20px;"></div>
+                    </div>
+
+                    <!-- 复杂模式表单 -->
+                    <div id="complex-mode-form" class="paper-content" style="display: none;">
+                        <div class="mode-description complex-desc">
+                            <div class="desc-title">🚀 复杂生成模式</div>
+                            <div class="desc-content">定制化模板 + Claude Opus4.6  满血顶配模型，质量有保障。提交需求后人工审核生成，不满意可反馈修改，适合专业课结课论文</div>
+                        </div>
+                        <!-- 示例论文下载 -->
+                        <div class="sample-paper-box">
+                            <span class="sample-paper-icon">📄</span>
+                            <span class="sample-paper-text">查看生成效果：</span>
+                            <a href="/static/samples/sample_paper.docx" download class="sample-paper-link">下载示例论文</a>
+                        </div>
+                        <div class="form-group">
+                            <label for="complex-title">论文标题</label>
+                            <input type="text" id="complex-title" placeholder="请输入论文标题">
+                        </div>
+                        <div class="form-group">
+                            <label for="complex-requirements">具体要求（包含字数要求）</label>
+                            <textarea id="complex-requirements" rows="8" placeholder="请详细描述论文要求，包括：&#10;1. 论文字数要求&#10;2. 论文结构要求&#10;3. 研究方向和重点&#10;4. 其他特殊要求"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>或上传要求文件</label>
+                            <div class="file-upload-box">
+                                <input type="file" id="complex-file" accept=".txt,.doc,.docx,.pdf" onchange="handleFileSelect(event)">
+                                <div class="file-upload-hint">支持 .txt, .doc, .docx, .pdf 格式</div>
+                            </div>
+                            <div id="uploaded-file-info" class="uploaded-file-info" style="display: none;"></div>
+                        </div>
+                        <div class="paper-actions">
+                            <button class="update-schedule-btn" onclick="saveComplexRequest()" style="background-color: #2196f3;">保存需求</button>
+                        </div>
+                        <!-- 已保存需求列表 -->
+                        <div id="complex-requests-list" class="paper-drafts-list" style="display: none;">
+                            <h4>已保存的需求</h4>
+                            <div id="requests-container"></div>
+                        </div>
+                        <div id="complex-result" class="paper-result" style="margin-top: 20px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 系统公告页面 -->
+            <div id="page-announcements" class="page">
+                <div class="announcements-container">
+                    <h2>系统公告</h2>
+                    <div id="announcements-list-content" class="announcements-list-content">
+                        <div class="loading">加载中...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 登录/绑定弹窗 -->
+    <div id="login-modal" class="modal">
+        <div class="modal-content">
+            <h2>绑定教务账号</h2>
+            <p class="modal-desc">首次使用需要绑定您的教务系统账号</p>
+            <form id="login-form" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label for="username">学号</label>
+                    <input type="text" id="username" name="username" required placeholder="请输入学号">
+                </div>
+                <div class="form-group">
+                    <label for="password">密码</label>
+                    <input type="password" id="password" name="password" required placeholder="请输入密码">
+                </div>
+                <button type="submit" class="submit-btn">绑定账号</button>
+            </form>
+            <div id="login-error" class="error-message"></div>
+        </div>
+    </div>
+
+    <!-- 换绑申请弹窗 -->
+    <div id="rebind-modal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeRebindDialog()">×</button>
+            <h2>申请换绑账号</h2>
+            <p class="modal-desc">换绑需要管理员审批</p>
+            <form id="rebind-form" onsubmit="handleRebind(event)">
+                <div class="form-group">
+                    <label for="new-username">新学号</label>
+                    <input type="text" id="new-username" name="new_username" required placeholder="请输入新学号">
+                </div>
+                <div class="form-group">
+                    <label for="reason">换绑原因</label>
+                    <textarea id="reason" name="reason" required placeholder="请说明换绑原因"></textarea>
+                </div>
+                <button type="submit" class="submit-btn">提交申请</button>
+            </form>
+            <div id="rebind-error" class="error-message"></div>
+        </div>
+    </div>
+
+    <!-- 公告弹窗 -->
+    <div id="announcement-popup" class="modal announcement-popup">
+        <div class="modal-content announcement-modal-content">
+            <button class="modal-close" onclick="closeAnnouncementPopup()">×</button>
+            <h2 id="announcement-popup-title">系统公告</h2>
+            <div id="announcement-popup-content" class="announcement-popup-content"></div>
+            <div class="announcement-popup-footer">
+                <label class="never-show-label">
+                    <input type="checkbox" id="never-show-checkbox">
+                    不再显示此公告
+                </label>
+                <button class="close-announcement-btn" onclick="closeAnnouncementPopup()">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 反馈修改弹窗 -->
+    <div id="feedback-modal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeFeedbackModal()">×</button>
+            <h2>反馈修改意见</h2>
+            <div class="feedback-info">
+                <span>论文标题：</span>
+                <span id="feedback-title" class="feedback-title-text"></span>
+            </div>
+            <div class="form-group">
+                <label for="feedback-content">修改意见</label>
+                <textarea id="feedback-content" rows="6" placeholder="请详细描述需要修改的内容，如：&#10;1. 第X章节需要补充...&#10;2. 参考文献格式不对...&#10;3. 结论部分需要加强..."></textarea>
+            </div>
+            <p class="feedback-hint">提交后论文将重新变为待处理状态，管理员将根据您的意见进行修改</p>
+            <div class="button-group">
+                <button type="button" class="submit-btn" id="submit-feedback-btn" onclick="submitFeedback()">提交反馈</button>
+                <button type="button" class="cancel-btn" onclick="closeFeedbackModal()">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 满意签收弹窗 -->
+    <div id="receipt-modal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeReceiptModal()">×</button>
+            <h2>满意签收</h2>
+            <div class="feedback-info">
+                <span>论文标题：</span>
+                <span id="receipt-title" class="feedback-title-text"></span>
+            </div>
+            <div class="receipt-warning">
+                <span class="warning-icon">⚠️</span>
+                <div class="warning-content">
+                    <p><strong>请确保已经下载论文文件！</strong></p>
+                    <p>签收后该需求将被删除，无法再下载或修改。</p>
+                </div>
+            </div>
+            <div class="button-group">
+                <button type="button" class="submit-btn" id="confirm-receipt-btn" onclick="confirmReceipt()">确认签收</button>
+                <button type="button" class="cancel-btn" onclick="closeReceiptModal()">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 遮罩层 -->
+    <div id="overlay" class="overlay" onclick="closeSidebar()"></div>
+
+    <!-- JavaScript -->
+    <script src="/static/js/main.js"></script>
+</body>
+</html>

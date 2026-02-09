@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(netsh advfirewall firewall show rule:*)",
+      "Bash(netsh advfirewall firewall add rule:*)",
+      "Bash(ipconfig:*)",
+      "Bash(findstr:*)",
+      "Bash(python:*)",
+      "Bash(sqlite3:*)",
+      "Bash(curl:*)",
+      "Bash(grep:*)",
+      "WebFetch(domain:github.com)"
+    ]
+  }
+}

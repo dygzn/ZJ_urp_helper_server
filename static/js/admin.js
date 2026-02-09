@@ -1,0 +1,1022 @@
+// ==================== 全局变量 ====================
+let adminKey = null;  // 管理员密钥
+let currentRequestId = null;  // 当前审批的请求ID
+
+// ==================== 页面初始化 ====================
+document.addEventListener('DOMContentLoaded', function() {
+    // 检查是否已登录（从sessionStorage获取）
+    const savedKey = sessionStorage.getItem('admin_key');
+    if (savedKey) {
+        adminKey = savedKey;
+        showAdminPanel();
+        loadPendingRequests();
+    }
+});
+
+// ==================== 管理员登录 ====================
+async function handleAdminLogin(event) {
+    event.preventDefault();
+
+    const key = document.getElementById('admin-key').value;
+    const errorDiv = document.getElementById('login-error');
+
+    errorDiv.textContent = '';
+
+    // 验证密钥（通过尝试获取待审批列表）
+    try {
+        const response = await fetch('/api/admin/pending_requests', {
+            headers: {
+                'Admin-Key': key
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            adminKey = key;
+            sessionStorage.setItem('admin_key', key);
+            showAdminPanel();
+            loadPendingRequests();
+        } else {
+            errorDiv.textContent = data.message || '密钥错误';
+        }
+    } catch (error) {
+        console.error('登录失败:', error);
+        errorDiv.textContent = '网络错误，请重试';
+    }
+}
+
+function showAdminPanel() {
+    document.getElementById('admin-login').style.display = 'none';
+    document.getElementById('admin-panel').style.display = 'block';
+}
+
+function adminLogout() {
+    adminKey = null;
+    sessionStorage.removeItem('admin_key');
+    document.getElementById('admin-login').style.display = 'flex';
+    document.getElementById('admin-panel').style.display = 'none';
+}
+
+// ==================== 标签页切换 ====================
+function switchTab(tabName) {
+    // 更新标签按钮状态
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    tabBtns.forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+
+    // 切换内容
+    const tabContents = document.querySelectorAll('.tab-content');
+    tabContents.forEach(content => content.classList.remove('active'));
+    document.getElementById(`tab-${tabName}`).classList.add('active');
+
+    // 加载对应数据
+    if (tabName === 'pending') {
+        loadPendingRequests();
+    } else if (tabName === 'users') {
+        loadUsers();
+    } else if (tabName === 'complex') {
+        loadComplexRequests();
+    } else if (tabName === 'announcements') {
+        loadAnnouncements();
+    } else if (tabName === 'config') {
+        loadConfig();
+    }
+}
+
+// ==================== 加载待审批请求 ====================
+async function loadPendingRequests() {
+    const listDiv = document.getElementById('pending-list');
+    listDiv.innerHTML = '<div class="loading">加载中</div>';
+
+    try {
+        const response = await fetch('/api/admin/pending_requests', {
+            headers: {
+                'Admin-Key': adminKey
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            if (data.requests && data.requests.length > 0) {
+                displayPendingRequests(data.requests);
+            } else {
+                listDiv.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📭</div>
+                        <div class="empty-state-text">暂无待审批请求</div>
+                    </div>
+                `;
+            }
+        } else {
+            listDiv.innerHTML = '<p style="text-align:center;color:#f44336;">加载失败</p>';
+        }
+    } catch (error) {
+        console.error('加载待审批请求失败:', error);
+        listDiv.innerHTML = '<p style="text-align:center;color:#f44336;">加载失败</p>';
+    }
+}
+
+function displayPendingRequests(requests) {
+    const listDiv = document.getElementById('pending-list');
+
+    let html = '';
+    requests.forEach(req => {
+        const time = new Date(req.time).toLocaleString('zh-CN');
+
+        html += `
+            <div class="request-card">
+                <div class="request-header">
+                    <span class="request-id">ID: ${req.id.substring(0, 8)}</span>
+                    <span class="request-time">${time}</span>
+                </div>
+                <div class="request-info">
+                    <div class="info-row">
+                        <span class="info-label">设备ID:</span>
+                        <span class="info-value device-id">${req.device_id.substring(0, 16)}...</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">原账号:</span>
+                        <span class="info-value">${req.old_username}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">新账号:</span>
+                        <span class="info-value">${req.new_username}</span>
+                    </div>
+                </div>
+                <div class="request-reason">
+                    <strong>换绑原因:</strong> ${req.reason}
+                </div>
+                <div class="request-actions">
+                    <button class="approve-btn" onclick="showApproveModal('${req.id}', ${JSON.stringify(req).replace(/"/g, '&quot;')})">批准</button>
+                    <button class="reject-btn" onclick="rejectRequest('${req.id}')">拒绝</button>
+                </div>
+            </div>
+        `;
+    });
+
+    listDiv.innerHTML = html;
+}
+
+// ==================== 审批弹窗 ====================
+function showApproveModal(requestId, request) {
+    currentRequestId = requestId;
+
+    const modal = document.getElementById('approve-modal');
+    const overlay = document.getElementById('overlay');
+    const detailsDiv = document.getElementById('approve-details');
+
+    // 显示请求详情
+    detailsDiv.innerHTML = `
+        <div class="detail-row">
+            <span class="detail-label">原账号:</span>
+            <span class="detail-value">${request.old_username}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">新账号:</span>
+            <span class="detail-value">${request.new_username}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">换绑原因:</span>
+            <span class="detail-value">${request.reason}</span>
+        </div>
+    `;
+
+    modal.classList.add('active');
+    overlay.classList.add('active');
+}
+
+function closeApproveModal() {
+    const modal = document.getElementById('approve-modal');
+    const overlay = document.getElementById('overlay');
+
+    modal.classList.remove('active');
+    overlay.classList.remove('active');
+
+    currentRequestId = null;
+}
+
+// 处理批准
+async function handleApprove() {
+    if (!currentRequestId) {
+        alert('请求ID丢失');
+        return;
+    }
+
+    if (!confirm('确定要批准这个换绑请求吗？批准后该设备将解绑，用户需要重新登录。')) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/admin/approve_rebind', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Admin-Key': adminKey
+            },
+            body: JSON.stringify({
+                request_id: currentRequestId,
+                approved: true
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert(data.message || '换绑请求已批准');
+            closeApproveModal();
+            loadPendingRequests();
+        } else {
+            alert(data.message || '操作失败');
+        }
+    } catch (error) {
+        console.error('批准失败:', error);
+        alert('网络错误，请重试');
+    }
+}
+
+// 处理拒绝
+async function handleReject() {
+    if (!currentRequestId) {
+        alert('请求ID丢失');
+        return;
+    }
+
+    if (!confirm('确定要拒绝这个换绑请求吗？')) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/admin/approve_rebind', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Admin-Key': adminKey
+            },
+            body: JSON.stringify({
+                request_id: currentRequestId,
+                approved: false
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('换绑请求已拒绝');
+            closeApproveModal();
+            loadPendingRequests();
+        } else {
+            alert(data.message || '操作失败');
+        }
+    } catch (error) {
+        console.error('拒绝失败:', error);
+        alert('网络错误，请重试');
+    }
+}
+
+// 直接拒绝（不打开弹窗）
+async function rejectRequest(requestId) {
+    if (!confirm('确定要拒绝这个换绑请求吗？')) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/admin/approve_rebind', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Admin-Key': adminKey
+            },
+            body: JSON.stringify({
+                request_id: requestId,
+                approved: false
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('换绑请求已拒绝');
+            loadPendingRequests();
+        } else {
+            alert(data.message || '操作失败');
+        }
+    } catch (error) {
+        console.error('拒绝失败:', error);
+        alert('网络错误，请重试');
+    }
+}
+
+// ==================== 加载用户列表 ====================
+let currentPage = 1;
+let currentSearch = '';
+
+async function loadUsers(page = 1, search = '') {
+    const listDiv = document.getElementById('users-list');
+    const paginationDiv = document.getElementById('users-pagination');
+
+    listDiv.innerHTML = '<div class="loading">加载中</div>';
+    paginationDiv.innerHTML = '';
+
+    currentPage = page;
+    currentSearch = search;
+
+    try {
+        const params = new URLSearchParams({
+            page: page,
+            per_page: 50,
+            search: search
+        });
+
+        const response = await fetch(`/api/admin/users?${params}`, {
+            headers: {
+                'Admin-Key': adminKey
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            if (data.users && data.users.length > 0) {
+                displayUsers(data.users);
+                displayPagination(data.pagination);
+            } else {
+                listDiv.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">👥</div>
+                        <div class="empty-state-text">${search ? '未找到匹配的用户' : '暂无绑定用户'}</div>
+                    </div>
+                `;
+                paginationDiv.innerHTML = '';
+            }
+        } else {
+            listDiv.innerHTML = '<p style="text-align:center;color:#f44336;">加载失败</p>';
+        }
+    } catch (error) {
+        console.error('加载用户列表失败:', error);
+        listDiv.innerHTML = '<p style="text-align:center;color:#f44336;">加载失败</p>';
+    }
+}
+
+function displayUsers(users) {
+    const listDiv = document.getElementById('users-list');
+
+    let html = `
+        <table class="users-table">
+            <thead>
+                <tr>
+                    <th>用户名</th>
+                    <th>设备ID</th>
+                    <th>绑定时间</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    users.forEach(user => {
+        const bindTime = new Date(user.bind_time).toLocaleString('zh-CN');
+
+        html += `
+            <tr>
+                <td>${user.username}</td>
+                <td class="device-id">${user.device_id}</td>
+                <td>${bindTime}</td>
+            </tr>
+        `;
+    });
+
+    html += '</tbody></table>';
+    listDiv.innerHTML = html;
+}
+
+function displayPagination(pagination) {
+    const paginationDiv = document.getElementById('users-pagination');
+
+    const { page, total, total_pages, has_prev, has_next } = pagination;
+
+    let html = `
+        <div class="pagination-info">
+            共 ${total} 个用户，第 ${page} / ${total_pages} 页
+        </div>
+        <div class="pagination-controls">
+            <button class="page-btn" onclick="loadUsers(1, currentSearch)" ${page === 1 ? 'disabled' : ''}>
+                首页
+            </button>
+            <button class="page-btn" onclick="loadUsers(${page - 1}, currentSearch)" ${!has_prev ? 'disabled' : ''}>
+                上一页
+            </button>
+    `;
+
+    // 显示页码（最多显示5个）
+    const maxPages = 5;
+    let startPage = Math.max(1, page - Math.floor(maxPages / 2));
+    let endPage = Math.min(total_pages, startPage + maxPages - 1);
+
+    if (endPage - startPage < maxPages - 1) {
+        startPage = Math.max(1, endPage - maxPages + 1);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+        const activeClass = i === page ? 'active' : '';
+        html += `
+            <span class="page-number ${activeClass}" onclick="loadUsers(${i}, currentSearch)" style="cursor:pointer;">
+                ${i}
+            </span>
+        `;
+    }
+
+    html += `
+            <button class="page-btn" onclick="loadUsers(${page + 1}, currentSearch)" ${!has_next ? 'disabled' : ''}>
+                下一页
+            </button>
+            <button class="page-btn" onclick="loadUsers(${total_pages}, currentSearch)" ${page === total_pages ? 'disabled' : ''}>
+                末页
+            </button>
+            <div class="page-jump">
+                <span>跳转到</span>
+                <input type="number" id="jump-page" min="1" max="${total_pages}" value="${page}">
+                <button onclick="jumpToPage()">GO</button>
+            </div>
+        </div>
+    `;
+
+    paginationDiv.innerHTML = html;
+}
+
+function jumpToPage() {
+    const input = document.getElementById('jump-page');
+    const page = parseInt(input.value);
+    if (page && page > 0) {
+        loadUsers(page, currentSearch);
+    }
+}
+
+function searchUsers() {
+    const searchInput = document.getElementById('user-search');
+    const search = searchInput.value.trim();
+    loadUsers(1, search);
+}
+
+function handleUserSearch(event) {
+    if (event.key === 'Enter') {
+        searchUsers();
+    }
+}
+
+// ==================== 系统配置管理 ====================
+async function loadConfig() {
+    const currentUrlDiv = document.getElementById('current-url');
+    const urlOptionsDiv = document.getElementById('url-options');
+
+    currentUrlDiv.innerHTML = '<div class="loading">加载中</div>';
+    urlOptionsDiv.innerHTML = '<div class="loading">加载中</div>';
+
+    try {
+        const response = await fetch('/api/admin/config', {
+            headers: {
+                'Admin-Key': adminKey
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            displayConfig(data.config);
+        } else {
+            currentUrlDiv.innerHTML = '<p style="color:#f44336;">加载失败</p>';
+            urlOptionsDiv.innerHTML = '<p style="color:#f44336;">加载失败</p>';
+        }
+    } catch (error) {
+        console.error('加载配置失败:', error);
+        currentUrlDiv.innerHTML = '<p style="color:#f44336;">加载失败</p>';
+        urlOptionsDiv.innerHTML = '<p style="color:#f44336;">加载失败</p>';
+    }
+}
+
+function displayConfig(config) {
+    const currentIndex = config.current_url_index || 0;
+    const urls = config.urp_urls || [];
+    const currentUrl = urls[currentIndex] || '未配置';
+
+    // 显示当前URL
+    const currentUrlDiv = document.getElementById('current-url');
+    currentUrlDiv.innerHTML = `
+        <div class="current-url-text">🌐 ${currentUrl}</div>
+    `;
+
+    // 显示URL选项
+    const urlOptionsDiv = document.getElementById('url-options');
+    let html = '';
+
+    urls.forEach((url, index) => {
+        const isActive = index === currentIndex;
+        const activeClass = isActive ? 'active' : '';
+        const statusHtml = isActive ? '<span class="url-status active">当前使用</span>' : '';
+
+        html += `
+            <div class="url-option ${activeClass}">
+                <div class="url-info">
+                    <div class="url-label">URL ${index + 1}</div>
+                    <div class="url-text">${url}</div>
+                </div>
+                <div>
+                    ${statusHtml}
+                    <button class="switch-url-btn"
+                            onclick="switchUrl(${index})"
+                            ${isActive ? 'disabled' : ''}>
+                        ${isActive ? '使用中' : '切换'}
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+
+    urlOptionsDiv.innerHTML = html;
+
+    // 填充URL编辑表单
+    document.getElementById('url-1').value = urls[0] || '';
+    document.getElementById('url-2').value = urls[1] || '';
+}
+
+async function switchUrl(urlIndex) {
+    if (!confirm(`确定要切换到URL ${urlIndex + 1}吗？`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/admin/config/url', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Admin-Key': adminKey
+            },
+            body: JSON.stringify({
+                url_index: urlIndex
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert(data.message || 'URL切换成功');
+            loadConfig();
+        } else {
+            alert(data.message || '切换失败');
+        }
+    } catch (error) {
+        console.error('切换URL失败:', error);
+        alert('网络错误，请重试');
+    }
+}
+
+async function handleUpdateUrls(event) {
+    event.preventDefault();
+
+    const url1 = document.getElementById('url-1').value.trim();
+    const url2 = document.getElementById('url-2').value.trim();
+
+    if (!url1 || !url2) {
+        alert('请填写两个URL');
+        return;
+    }
+
+    if (!confirm('确定要更新URL配置吗？')) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/admin/config/url', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Admin-Key': adminKey
+            },
+            body: JSON.stringify({
+                urls: [url1, url2]
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert(data.message || 'URL配置已更新');
+            loadConfig();
+        } else {
+            alert(data.message || '更新失败');
+        }
+    } catch (error) {
+        console.error('更新URL配置失败:', error);
+        alert('网络错误，请重试');
+    }
+}
+
+// ==================== 公告管理 ====================
+let currentAnnouncementId = null;
+
+async function loadAnnouncements() {
+    const listDiv = document.getElementById('announcements-list');
+    listDiv.innerHTML = '<div class="loading">加载中...</div>';
+
+    try {
+        const response = await fetch('/api/admin/announcements', {
+            headers: {
+                'Admin-Key': adminKey
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            if (data.announcements && data.announcements.length > 0) {
+                displayAnnouncements(data.announcements);
+            } else {
+                listDiv.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📢</div>
+                        <div class="empty-state-text">暂无公告</div>
+                    </div>
+                `;
+            }
+        } else {
+            listDiv.innerHTML = '<p style="text-align:center;color:#f44336;">加载失败</p>';
+        }
+    } catch (error) {
+        console.error('加载公告失败:', error);
+        listDiv.innerHTML = '<p style="text-align:center;color:#f44336;">加载失败</p>';
+    }
+}
+
+function displayAnnouncements(announcements) {
+    const listDiv = document.getElementById('announcements-list');
+
+    let html = '';
+    announcements.forEach(ann => {
+        const createTime = new Date(ann.create_time).toLocaleString('zh-CN');
+        const statusClass = ann.is_active ? 'active' : 'inactive';
+        const statusText = ann.is_active ? '启用' : '禁用';
+
+        html += `
+            <div class="announcement-card">
+                <div class="announcement-header">
+                    <h3>${ann.title}</h3>
+                    <span class="announcement-status ${statusClass}">${statusText}</span>
+                </div>
+                <div class="announcement-content">
+                    ${ann.content.replace(/\n/g, '<br>')}
+                </div>
+                <div class="announcement-footer">
+                    <span class="announcement-time">发布时间: ${createTime}</span>
+                    <div class="announcement-actions">
+                        <button class="edit-btn" onclick="showEditAnnouncementModal(${ann.id}, ${JSON.stringify(ann).replace(/"/g, '&quot;')})">编辑</button>
+                        <button class="delete-btn" onclick="deleteAnnouncement(${ann.id})">删除</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    listDiv.innerHTML = html;
+}
+
+function showCreateAnnouncementModal() {
+    currentAnnouncementId = null;
+    document.getElementById('announcement-modal-title').textContent = '发布新公告';
+    document.getElementById('announcement-title').value = '';
+    document.getElementById('announcement-content').value = '';
+    document.getElementById('announcement-active').checked = true;
+
+    const modal = document.getElementById('announcement-modal');
+    const overlay = document.getElementById('overlay');
+    modal.classList.add('active');
+    overlay.classList.add('active');
+}
+
+function showEditAnnouncementModal(id, announcement) {
+    currentAnnouncementId = id;
+    document.getElementById('announcement-modal-title').textContent = '编辑公告';
+    document.getElementById('announcement-title').value = announcement.title;
+    document.getElementById('announcement-content').value = announcement.content;
+    document.getElementById('announcement-active').checked = announcement.is_active;
+
+    const modal = document.getElementById('announcement-modal');
+    const overlay = document.getElementById('overlay');
+    modal.classList.add('active');
+    overlay.classList.add('active');
+}
+
+function closeAnnouncementModal() {
+    const modal = document.getElementById('announcement-modal');
+    const overlay = document.getElementById('overlay');
+    modal.classList.remove('active');
+    overlay.classList.remove('active');
+    currentAnnouncementId = null;
+}
+
+async function handleAnnouncementSubmit(event) {
+    event.preventDefault();
+
+    const title = document.getElementById('announcement-title').value.trim();
+    const content = document.getElementById('announcement-content').value.trim();
+    const isActive = document.getElementById('announcement-active').checked;
+
+    if (!title || !content) {
+        alert('标题和内容不能为空');
+        return;
+    }
+
+    const isEdit = currentAnnouncementId !== null;
+    const url = isEdit ? `/api/admin/announcements/${currentAnnouncementId}` : '/api/admin/announcements';
+    const method = isEdit ? 'PUT' : 'POST';
+
+    try {
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'Admin-Key': adminKey
+            },
+            body: JSON.stringify({
+                title: title,
+                content: content,
+                is_active: isActive
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert(data.message || (isEdit ? '公告更新成功' : '公告发布成功'));
+            closeAnnouncementModal();
+            loadAnnouncements();
+        } else {
+            alert(data.message || '操作失败');
+        }
+    } catch (error) {
+        console.error('保存公告失败:', error);
+        alert('网络错误，请重试');
+    }
+}
+
+async function deleteAnnouncement(id) {
+    if (!confirm('确定要删除这条公告吗？')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/admin/announcements/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'Admin-Key': adminKey
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('公告删除成功');
+            loadAnnouncements();
+        } else {
+            alert(data.message || '删除失败');
+        }
+    } catch (error) {
+        console.error('删除公告失败:', error);
+        alert('网络错误，请重试');
+    }
+}
+
+// ==================== 复杂论文需求管理 ====================
+let pendingCompleteAction = null;
+let selectedFinishFile = null;
+
+async function loadComplexRequests() {
+    const listDiv = document.getElementById('complex-list');
+    listDiv.innerHTML = '<div class="loading">加载中...</div>';
+
+    try {
+        const response = await fetch('/api/admin/complex_requests', {
+            headers: {
+                'X-Admin-Key': adminKey
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            const requests = data.requests;
+
+            // 更新统计
+            const total = requests.length;
+            const completed = requests.filter(r => r.finish_file).length;
+            const pending = total - completed;
+
+            document.getElementById('complex-total').textContent = total;
+            document.getElementById('complex-pending').textContent = pending;
+            document.getElementById('complex-completed').textContent = completed;
+
+            if (requests.length === 0) {
+                listDiv.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📄</div>
+                        <div class="empty-state-text">暂无论文需求</div>
+                    </div>
+                `;
+            } else {
+                displayComplexRequests(requests);
+            }
+        } else {
+            listDiv.innerHTML = '<p style="text-align:center;color:#f44336;">加载失败</p>';
+        }
+    } catch (error) {
+        console.error('加载复杂需求失败:', error);
+        listDiv.innerHTML = '<p style="text-align:center;color:#f44336;">加载失败</p>';
+    }
+}
+
+function displayComplexRequests(requests) {
+    const listDiv = document.getElementById('complex-list');
+
+    let html = '';
+    requests.forEach(req => {
+        const date = new Date(req.created_at);
+        const dateStr = date.toLocaleDateString('zh-CN') + ' ' + date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+        const isCompleted = !!req.finish_file;
+        const hasFeedback = req.feedback_history && req.feedback_history.length > 0;
+        const statusClass = isCompleted ? 'active' : 'inactive';
+        let statusText = isCompleted ? '已完成' : '待处理';
+        if (!isCompleted && hasFeedback) {
+            statusText = '待修改';
+        }
+
+        const downloadAttachBtn = req.file
+            ? `<button class="edit-btn" onclick="downloadComplexAttachment('${req.username}', '${req.id}')">下载附件</button>`
+            : '';
+
+        const completeBtn = isCompleted
+            ? `<button class="edit-btn" disabled style="opacity:0.5;">已完成</button>`
+            : `<button class="approve-btn" onclick="showCompleteModal('${req.username}', '${req.id}', '${escapeHtmlAttr(req.title)}')">标记完成</button>`;
+
+        const requirementsPreview = req.requirements
+            ? `<div class="complex-requirements">${escapeHtml(req.requirements.substring(0, 200))}${req.requirements.length > 200 ? '...' : ''}</div>`
+            : '';
+
+        // 显示最新的反馈意见
+        let feedbackSection = '';
+        if (hasFeedback) {
+            const latestFeedback = req.feedback_history[req.feedback_history.length - 1];
+            const feedbackDate = new Date(latestFeedback.submitted_at);
+            const feedbackDateStr = feedbackDate.toLocaleDateString('zh-CN') + ' ' + feedbackDate.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+            feedbackSection = `
+                <div class="feedback-section">
+                    <div class="feedback-header">📝 用户反馈 (${feedbackDateStr}) - 共${req.feedback_history.length}次反馈</div>
+                    <div class="feedback-content">${escapeHtml(latestFeedback.feedback)}</div>
+                </div>
+            `;
+        }
+
+        html += `
+            <div class="announcement-card">
+                <div class="announcement-header">
+                    <h3>${escapeHtml(req.title)}</h3>
+                    <span class="announcement-status ${statusClass}">${statusText}</span>
+                </div>
+                <div class="complex-meta">
+                    <span>👤 ${req.username}</span>
+                    <span>📅 ${dateStr}</span>
+                    ${req.file ? '<span>📎 有附件</span>' : ''}
+                    ${hasFeedback ? '<span style="color:#ff9800;">💬 有反馈</span>' : ''}
+                </div>
+                ${requirementsPreview}
+                ${feedbackSection}
+                <div class="announcement-footer">
+                    <span class="announcement-time">请求ID: ${req.id}</span>
+                    <div class="announcement-actions">
+                        ${downloadAttachBtn}
+                        ${completeBtn}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    listDiv.innerHTML = html;
+}
+
+function downloadComplexAttachment(username, requestId) {
+    window.open(`/api/admin/download_attachment?username=${username}&request_id=${requestId}&key=${adminKey}`, '_blank');
+}
+
+function showCompleteModal(username, requestId, title) {
+    pendingCompleteAction = { username, requestId };
+    selectedFinishFile = null;
+
+    const modal = document.getElementById('complete-modal');
+    const overlay = document.getElementById('overlay');
+    const detailsDiv = document.getElementById('complete-details');
+
+    detailsDiv.innerHTML = `
+        <div class="detail-row">
+            <span class="detail-label">论文标题:</span>
+            <span class="detail-value">${title}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">用户:</span>
+            <span class="detail-value">${username}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">请求ID:</span>
+            <span class="detail-value" style="font-family:monospace;font-size:12px;">${requestId}</span>
+        </div>
+    `;
+
+    // 重置文件输入
+    document.getElementById('finish-file-input').value = '';
+    document.getElementById('finish-file-info').style.display = 'none';
+
+    modal.classList.add('active');
+    overlay.classList.add('active');
+}
+
+function handleFinishFileSelect(event) {
+    const file = event.target.files[0];
+    if (file) {
+        selectedFinishFile = file;
+        const fileInfo = document.getElementById('finish-file-info');
+        fileInfo.style.display = 'flex';
+        fileInfo.innerHTML = `
+            <span class="uploaded-file-name" style="color:#2e7d32;">📎 ${file.name}</span>
+            <button class="uploaded-file-remove" onclick="removeFinishFile()">移除</button>
+        `;
+    }
+}
+
+function removeFinishFile() {
+    selectedFinishFile = null;
+    document.getElementById('finish-file-input').value = '';
+    document.getElementById('finish-file-info').style.display = 'none';
+}
+
+function closeCompleteModal() {
+    const modal = document.getElementById('complete-modal');
+    const overlay = document.getElementById('overlay');
+    modal.classList.remove('active');
+    overlay.classList.remove('active');
+    pendingCompleteAction = null;
+    selectedFinishFile = null;
+    document.getElementById('finish-file-input').value = '';
+    document.getElementById('finish-file-info').style.display = 'none';
+}
+
+async function confirmUploadAndComplete() {
+    if (!pendingCompleteAction) return;
+
+    if (!selectedFinishFile) {
+        alert('请选择要上传的论文文件');
+        return;
+    }
+
+    const btn = document.getElementById('confirm-complete-btn');
+    btn.disabled = true;
+    btn.textContent = '上传中...';
+
+    try {
+        const formData = new FormData();
+        formData.append('file', selectedFinishFile);
+        formData.append('username', pendingCompleteAction.username);
+        formData.append('request_id', pendingCompleteAction.requestId);
+
+        const response = await fetch('/api/admin/upload_finish_file', {
+            method: 'POST',
+            headers: {
+                'X-Admin-Key': adminKey
+            },
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('上传成功，已标记为完成');
+            closeCompleteModal();
+            loadComplexRequests();
+        } else {
+            alert(data.message || '上传失败');
+        }
+    } catch (error) {
+        console.error('上传失败:', error);
+        alert('网络错误，请重试');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '上传并标记完成';
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function escapeHtmlAttr(text) {
+    return text.replace(/'/g, "\\'").replace(/"/g, '\\"');
+}
