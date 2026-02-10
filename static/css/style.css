@@ -370,44 +370,171 @@ body {
     transform: translateY(0);
 }
 
-.schedule-table {
-    width: 100%;
-    border-collapse: collapse;
-    overflow-x: auto;
+/* 课程表头部 */
+.schedule-header {
+    display: grid;
+    grid-template-columns: 80px repeat(7, 1fr);
+    gap: 8px;
+    margin-bottom: 10px;
 }
 
-.schedule-table th,
-.schedule-table td {
-    padding: 12px;
+.schedule-header-time {
+    /* 空白占位 */
+}
+
+.schedule-header-day {
     text-align: center;
-    border: 1px solid #e0e0e0;
-}
-
-.schedule-table th {
-    background: #667eea;
-    color: white;
-    font-weight: 500;
-}
-
-.course-cell {
-    background: #f0f4ff;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-
-.course-cell:hover {
-    background: #e0e8ff;
-}
-
-.course-name {
     font-weight: bold;
     color: #667eea;
-    margin-bottom: 5px;
+    padding: 10px 5px;
+    background: #f0f4ff;
+    border-radius: 8px;
+    font-size: 14px;
 }
 
-.course-info {
+/* 课程表网格 */
+.schedule-grid {
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    gap: 10px;
+}
+
+/* 时间轴 */
+.schedule-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.timeline-item {
+    height: 80px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 5px;
+}
+
+.timeline-section {
+    font-size: 18px;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 2px;
+}
+
+.timeline-time-start {
+    font-size: 10px;
+    color: #999;
+    white-space: nowrap;
+}
+
+.timeline-time-end {
+    font-size: 10px;
+    color: #999;
+    white-space: nowrap;
+}
+
+/* 课程卡片区域 */
+.schedule-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+    position: relative;
+}
+
+.schedule-day-column {
+    position: relative;
+    min-height: 720px; /* 8节课 * 80px + 7个gap * 8px */
+}
+
+/* 课程卡片 */
+.course-card {
+    border-radius: 8px;
+    padding: 8px;
+    color: white;
+    font-size: 13px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.course-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+}
+
+.course-card-name {
+    font-weight: bold;
+    font-size: 14px;
+    margin-bottom: 4px;
+    line-height: 1.3;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-all;
+}
+
+.course-card-location {
     font-size: 12px;
-    color: #666;
+    opacity: 0.9;
+    margin-bottom: 2px;
+}
+
+.course-card-sections {
+    font-size: 11px;
+    opacity: 0.8;
+    position: absolute;
+    bottom: 5px;
+    right: 8px;
+}
+
+/* 课程卡片颜色 */
+.course-card-color-0 {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.course-card-color-1 {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.course-card-color-2 {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.course-card-color-3 {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.course-card-color-4 {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.course-card-color-5 {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.course-card-color-6 {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.course-card-color-7 {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.course-card-color-8 {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.course-card-color-9 {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 /* ==================== 考试安排页面 ==================== */
@@ -1102,13 +1229,69 @@ body {
         padding: 15px;
     }
 
-    .schedule-table {
-        font-size: 12px;
+    .schedule-container {
+        padding: 15px;
     }
 
-    .schedule-table th,
-    .schedule-table td {
-        padding: 8px 4px;
+    .schedule-header {
+        grid-template-columns: 60px repeat(7, 1fr);
+        gap: 4px;
+    }
+
+    .schedule-header-day {
+        font-size: 12px;
+        padding: 8px 2px;
+    }
+
+    .schedule-grid {
+        grid-template-columns: 60px 1fr;
+        gap: 5px;
+    }
+
+    .timeline-item {
+        height: 60px;
+        padding: 3px;
+    }
+
+    .timeline-section {
+        font-size: 16px;
+    }
+
+    .timeline-time-start {
+        font-size: 9px;
+    }
+
+    .timeline-time-end {
+        font-size: 9px;
+    }
+
+    .schedule-days {
+        gap: 4px;
+    }
+
+    .schedule-day-column {
+        min-height: 540px; /* 8节课 * 60px + 7个gap * 4px */
+    }
+
+    .course-card {
+        font-size: 11px;
+        padding: 6px 4px;
+    }
+
+    .course-card-name {
+        font-size: 11px;
+        line-height: 1.2;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        word-break: break-all;
+    }
+
+    .course-card-location {
+        font-size: 10px;
+    }
+
+    .course-card-sections {
+        font-size: 10px;
     }
 
     .event-title {

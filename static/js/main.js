@@ -1,5 +1,5 @@
 // ==================== 全局变量 ====================
-let currentWeek = 1;  // 当前查看的周次
+let currentWeek = parseInt(localStorage.getItem('current_week')) || 1;  // 当前查看的周次，从 localStorage 读取
 let currentUsername = null;  // 当前登录用户名
 let isCheckingLoginStatus = false;  // 是否正在检查登录状态
 
@@ -88,8 +88,9 @@ async function checkBindStatus() {
             currentUsername = data.username;
             document.getElementById('sidebar-username').textContent = currentUsername;
 
-            // 加载首页数据
-            loadUrgentEvent();
+            // 恢复上次访问的页面，如果没有则默认首页
+            const lastPage = localStorage.getItem('current_page') || 'home';
+            switchPage(lastPage);
 
             // 加载并显示公告
             loadAndShowAnnouncements();
@@ -255,6 +256,19 @@ function switchPage(pageName) {
     };
     document.getElementById('page-title').textContent = titles[pageName] || '首页';
 
+    // 更新导航项激活状态
+    const navItems = document.querySelectorAll('.nav-item');
+    navItems.forEach(nav => {
+        if (nav.getAttribute('data-page') === pageName) {
+            nav.classList.add('active');
+        } else {
+            nav.classList.remove('active');
+        }
+    });
+
+    // 保存当前页面到 localStorage
+    localStorage.setItem('current_page', pageName);
+
     // 加载对应页面的数据
     loadPageData(pageName);
 }
@@ -265,7 +279,8 @@ function loadPageData(pageName) {
             loadUrgentEvent();
             break;
         case 'schedule':
-            // 课程表页面不自动加载，等待用户点击更新按钮
+            // 课程表页面自动加载
+            loadSchedule();
             break;
         case 'exams':
             loadExams();
@@ -337,82 +352,159 @@ function refreshUrgentEvent() {
 }
 
 // ==================== 课程表相关 ====================
+// 更新课程表数据（从服务器获取最新数据）
+async function updateScheduleData() {
+    const btn = event.target;
+    const originalText = btn.textContent;
+
+    btn.disabled = true;
+    btn.textContent = '更新中...';
+
+    try {
+        const response = await fetch('/api/update_schedule', {
+            method: 'POST',
+            headers: {
+                'X-Device-ID': getDeviceId()
+            }
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            alert('课程表更新成功');
+            // 重新加载课程表
+            loadSchedule();
+        } else {
+            alert(data.message || '更新失败');
+        }
+    } catch (error) {
+        console.error('更新课程表失败:', error);
+        alert('网络错误，请重试');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+    }
+}
+
 // 更新课程表按钮点击处理
 async function updateSchedule() {
-    // 先检查登录状态
-    await checkLoginStatus();
-
-    // 加载当前周的课程表
+    // 直接加载当前周的课程表
     loadSchedule();
 }
 
 async function loadSchedule(week = null) {
     const contentDiv = document.getElementById('schedule-content');
-    contentDiv.innerHTML = '<div class="loading">加载中</div>';
 
-    const weekParam = week !== null ? `?week=${week}` : '';
+    // 如果没有指定周次，使用当前周次
+    if (week === null) {
+        week = currentWeek;
+    }
+
+    const weekParam = `?week=${week}`;
 
     try {
-        const response = await fetch(`/api/schedule${weekParam}`);
+        const response = await fetch(`/api/schedule${weekParam}`, {
+            headers: {
+                'X-Device-ID': getDeviceId()
+            }
+        });
         const data = await response.json();
 
         if (data.success && data.data) {
-            currentWeek = data.data.week;
-            document.getElementById('current-week').textContent = currentWeek;
-            displaySchedule(data.data.schedule);
+            // 更新当前周次
+            if (data.data.week !== null) {
+                currentWeek = data.data.week;
+                document.getElementById('current-week').textContent = currentWeek;
+                // 保存当前周次到 localStorage
+                localStorage.setItem('current_week', currentWeek);
+            }
+
+            // 显示课程表（即使没有数据也显示空表格）
+            displaySchedule(data.data.schedule || {});
         } else {
-            contentDiv.innerHTML = '<p style="text-align:center;color:#999;">暂无课程数据</p>';
+            contentDiv.innerHTML = `<p style="text-align:center;color:#999;padding:40px;">${data.message || '暂无课程数据'}</p>`;
         }
     } catch (error) {
         console.error('加载课程表失败:', error);
-        contentDiv.innerHTML = '<p style="text-align:center;color:#f44336;">加载失败</p>';
+        contentDiv.innerHTML = '<p style="text-align:center;color:#f44336;padding:40px;">加载失败，请检查网络连接</p>';
     }
 }
 
 function displaySchedule(schedule) {
-    const contentDiv = document.getElementById('schedule-content');
+    const scheduleDays = document.getElementById('schedule-days');
 
-    // 创建课程表表格
-    const days = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
-    const sections = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];  // 最多10节课
+    // 星期映射：中文 -> 数字
+    const dayMap = {
+        '星期一': 1, '星期二': 2, '星期三': 3, '星期四': 4,
+        '星期五': 5, '星期六': 6, '星期日': 7
+    };
 
-    // 构建课程表数据结构
-    const scheduleMap = {};
-    schedule.forEach(course => {
-        const key = `${course.day}-${course.section}`;
-        scheduleMap[key] = course;
-    });
+    // 为每个星期创建课程列表
+    const daysCourses = {
+        1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: []
+    };
 
-    let tableHtml = '<table class="schedule-table"><thead><tr><th>节次</th>';
-    days.forEach(day => {
-        tableHtml += `<th>${day}</th>`;
-    });
-    tableHtml += '</tr></thead><tbody>';
+    // 遍历所有周次的课程
+    Object.values(schedule).forEach(weekCourses => {
+        if (Array.isArray(weekCourses)) {
+            weekCourses.forEach(course => {
+                const dayNum = dayMap[course['星期']];
+                const section = parseInt(course['节次']);
+                const duration = parseInt(course['节数']) || 1;
+                const location = course['位置'] || '';
 
-    sections.forEach(section => {
-        tableHtml += `<tr><td>${section}</td>`;
-        for (let day = 1; day <= 7; day++) {
-            const key = `${day}-${section}`;
-            const course = scheduleMap[key];
-
-            if (course) {
-                tableHtml += `
-                    <td class="course-cell">
-                        <div class="course-name">${course.course}</div>
-                        <div class="course-info">${course.teacher}</div>
-                        <div class="course-info">${course.location}</div>
-                        <div class="course-info">${course.weeks}</div>
-                    </td>
-                `;
-            } else {
-                tableHtml += '<td></td>';
-            }
+                if (dayNum && section) {
+                    daysCourses[dayNum].push({
+                        name: course['课程名'],
+                        section: section,
+                        duration: duration,
+                        location: location
+                    });
+                }
+            });
         }
-        tableHtml += '</tr>';
     });
 
-    tableHtml += '</tbody></table>';
-    contentDiv.innerHTML = tableHtml;
+    // 检测是否是手机端
+    const isMobile = window.innerWidth <= 768;
+    const sectionHeight = isMobile ? 60 : 80;
+    const gap = isMobile ? 4 : 8;
+
+    // 生成课程卡片HTML
+    let html = '';
+    for (let day = 1; day <= 7; day++) {
+        html += '<div class="schedule-day-column">';
+
+        const courses = daysCourses[day];
+        courses.forEach((course, index) => {
+            // 计算卡片位置和高度
+            const top = (course.section - 1) * (sectionHeight + gap);
+            const height = course.duration * sectionHeight + (course.duration - 1) * gap;
+
+            // 为课程分配颜色（基于课程名称的哈希值）
+            const colorIndex = getColorIndex(course.name);
+
+            html += `
+                <div class="course-card course-card-color-${colorIndex}"
+                     style="position: absolute; top: ${top}px; height: ${height}px; left: 0; right: 0;">
+                    <div class="course-card-name">${course.name}</div>
+                    ${course.location ? `<div class="course-card-location">${course.location}</div>` : ''}
+                </div>
+            `;
+        });
+
+        html += '</div>';
+    }
+
+    scheduleDays.innerHTML = html;
+}
+
+// 根据课程名称生成颜色索引
+function getColorIndex(courseName) {
+    let hash = 0;
+    for (let i = 0; i < courseName.length; i++) {
+        hash = courseName.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return Math.abs(hash) % 10; // 10种颜色
 }
 
 function changeWeek(delta) {

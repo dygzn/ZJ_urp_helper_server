@@ -337,6 +337,20 @@ def check_login_status(username, password, cookies):
         if os.path.exists(cookie_file):
             os.remove(cookie_file)
 
+        # 尝试重新登录
+        try:
+            login_result = urp.login()
+            if login_result is True:
+                # 重新登录成功
+                new_cookies = urp.x.cookies.get_dict()
+                return True, new_cookies
+            else:
+                # 重新登录失败
+                return False, {}
+        except Exception as e:
+            print(f"重新登录失败: {str(e)}")
+            return False, {}
+
 
 
 def get_urgent_event(username):
@@ -366,37 +380,61 @@ def get_urgent_event(username):
 def get_schedule(username, week=None):
     """
     获取课程表
-    参数: week - 周次（None表示当前周）
+    参数: week - 周次（None表示返回所有周次）
     返回: {
-        'week': int,  # 当前周次
-        'schedule': [  # 课程列表
-            {
-                'day': int,  # 星期几（1-7）
-                'section': int,  # 第几节课
-                'course': str,  # 课程名称
-                'teacher': str,  # 教师
-                'location': str,  # 地点
-                'weeks': str  # 周次范围
-            }
-        ]
+        'week': int or None,  # 指定的周次，None表示返回所有周次
+        'schedule': {  # 按周次组织的课程表
+            '周次': [
+                {
+                    '课程名': str,
+                    '星期': str,
+                    '节次': str,
+                    '节数': str
+                }
+            ]
+        }
     }
-
-    TODO: 实现具体的数据爬取逻辑
     """
-    # 临时返回模拟数据
-    return {
-        'week': week or 1,
-        'schedule': [
-            {
-                'day': 1,
-                'section': 1,
-                'course': '高等数学',
-                'teacher': '张老师',
-                'location': '教学楼A101',
-                'weeks': '1-16周'
-            }
-        ]
-    }
+    # 读取用户的 schedule.json 文件
+    schedule_file = os.path.join('user_data', username, 'schedule.json')
+
+    if not os.path.exists(schedule_file):
+        return {
+            'week': week,
+            'schedule': {},
+            'message': '课表文件不存在，请先生成课表'
+        }
+
+    try:
+        with open(schedule_file, 'r', encoding='utf-8') as f:
+            schedule_data = json.load(f)
+
+        # 如果指定了周次，只返回该周的课程
+        if week is not None:
+            week_str = str(week)
+            if week_str in schedule_data:
+                return {
+                    'week': week,
+                    'schedule': {week_str: schedule_data[week_str]}
+                }
+            else:
+                return {
+                    'week': week,
+                    'schedule': {},
+                    'message': f'第{week}周没有课程'
+                }
+
+        # 返回所有周次的课程
+        return {
+            'week': None,
+            'schedule': schedule_data
+        }
+    except Exception as e:
+        return {
+            'week': week,
+            'schedule': {},
+            'message': f'读取课表失败: {str(e)}'
+        }
 
 
 def get_exams(username):
@@ -742,10 +780,10 @@ def api_urgent_event(user):
 
 
 @app.route('/api/schedule', methods=['GET'])
-@require_login
+@require_bindding
 def api_schedule(user):
     """
-    获取课程表
+    获取课程表（读取本地文件，不需要登录）
     参数: week - 周次（可选）
     """
     week = request.args.get('week', type=int)
@@ -758,6 +796,20 @@ def api_schedule(user):
         })
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
+
+
+@app.route('/api/update_schedule', methods=['POST'])
+@require_login
+def api_update_schedule(user):
+    """
+    更新课程表（从教务系统获取最新数据）
+    TODO: 后续实现具体的更新逻辑
+    """
+    # TODO: 使用 user['username'] 从教务系统获取最新课程表并保存到 schedule.json
+    return jsonify({
+        'success': False,
+        'message': '此功能正在开发中，敬请期待'
+    })
 
 
 @app.route('/api/exams', methods=['GET'])

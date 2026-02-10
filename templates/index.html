@@ -88,21 +88,84 @@
             <!-- 课程表页面 -->
             <div id="page-schedule" class="page">
                 <div class="schedule-container">
+                    <!-- 课程表内容 -->
+                    <div id="schedule-content" class="schedule-content">
+                        <!-- 课程表头部：日期和星期 -->
+                        <div class="schedule-header">
+                            <div class="schedule-header-time"></div>
+                            <div class="schedule-header-day">周一</div>
+                            <div class="schedule-header-day">周二</div>
+                            <div class="schedule-header-day">周三</div>
+                            <div class="schedule-header-day">周四</div>
+                            <div class="schedule-header-day">周五</div>
+                            <div class="schedule-header-day">周六</div>
+                            <div class="schedule-header-day">周日</div>
+                        </div>
+
+                        <!-- 课程表网格 -->
+                        <div class="schedule-grid">
+                            <!-- 时间轴 -->
+                            <div class="schedule-timeline">
+                                <div class="timeline-item">
+                                    <div class="timeline-section">1</div>
+                                    <div class="timeline-time-start">08:20</div>
+                                    <div class="timeline-time-end">09:05</div>
+                                </div>
+                                <div class="timeline-item">
+                                    <div class="timeline-section">2</div>
+                                    <div class="timeline-time-start">09:15</div>
+                                    <div class="timeline-time-end">10:00</div>
+                                </div>
+                                <div class="timeline-item">
+                                    <div class="timeline-section">3</div>
+                                    <div class="timeline-time-start">10:20</div>
+                                    <div class="timeline-time-end">11:05</div>
+                                </div>
+                                <div class="timeline-item">
+                                    <div class="timeline-section">4</div>
+                                    <div class="timeline-time-start">11:15</div>
+                                    <div class="timeline-time-end">12:00</div>
+                                </div>
+                                <div class="timeline-item">
+                                    <div class="timeline-section">5</div>
+                                    <div class="timeline-time-start">14:00</div>
+                                    <div class="timeline-time-end">14:45</div>
+                                </div>
+                                <div class="timeline-item">
+                                    <div class="timeline-section">6</div>
+                                    <div class="timeline-time-start">14:55</div>
+                                    <div class="timeline-time-end">15:40</div>
+                                </div>
+                                <div class="timeline-item">
+                                    <div class="timeline-section">7</div>
+                                    <div class="timeline-time-start">16:00</div>
+                                    <div class="timeline-time-end">16:45</div>
+                                </div>
+                                <div class="timeline-item">
+                                    <div class="timeline-section">8</div>
+                                    <div class="timeline-time-start">16:55</div>
+                                    <div class="timeline-time-end">17:40</div>
+                                </div>
+                            </div>
+
+                            <!-- 课程卡片区域 -->
+                            <div class="schedule-days" id="schedule-days">
+                                <!-- 动态生成课程卡片 -->
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- 周次切换器 -->
-                    <div class="week-selector">
+                    <div class="week-selector" style="margin-top: 20px;">
                         <button class="week-btn" onclick="changeWeek(-1)">◀ 上周</button>
                         <span class="current-week">第 <span id="current-week">1</span> 周</span>
                         <button class="week-btn" onclick="changeWeek(1)">下周 ▶</button>
                     </div>
 
-                    <!-- 更新按钮 -->
-                    <div style="text-align: center; margin-bottom: 20px;">
-                        <button class="update-schedule-btn" onclick="updateSchedule()">🔄 更新课程表</button>
-                    </div>
-
-                    <!-- 课程表内容 -->
-                    <div id="schedule-content" class="schedule-content">
-                        <p style="text-align:center;color:#999;padding:40px;">点击"更新课程表"按钮加载数据</p>
+                    <!-- 操作按钮 -->
+                    <div style="text-align: center; margin-top: 20px;">
+                        <button class="update-schedule-btn" onclick="loadSchedule()">🔄 刷新显示</button>
+                        <button class="update-schedule-btn" onclick="updateScheduleData()" style="margin-left: 10px; background-color: #4caf50;">📥 更新课程表</button>
                     </div>
                 </div>
             </div>

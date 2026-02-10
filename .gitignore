@@ -12,3 +12,5 @@ __pycache__/
 *.code-workspace
 claude.md
 vpn_cookie.json
+test.html
+test.py
