@@ -5,7 +5,7 @@ CLAUD.md
 # Python缓存
 __pycache__/
 *.py[cod]
-
+.venv
 # IDE
 .idea/
 .vscode/
