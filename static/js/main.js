@@ -3,6 +3,16 @@ let currentWeek = parseInt(localStorage.getItem('current_week')) || 1;  // 当�
 let currentUsername = null;  // 当前登录用户名
 let isCheckingLoginStatus = false;  // 是否正在检查登录状态
 
+// ==================== 防止双击放大 ====================
+let lastTouchEnd = 0;
+document.addEventListener('touchend', function(event) {
+    const now = Date.now();
+    if (now - lastTouchEnd <= 300) {
+        event.preventDefault();
+    }
+    lastTouchEnd = now;
+}, false);
+
 // ==================== 设备ID管理 ====================
 function getDeviceId() {
     /**
