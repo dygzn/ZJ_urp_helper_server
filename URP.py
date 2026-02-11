@@ -265,7 +265,78 @@ class URP_query:
         return True
 
 
-            
+    def exam_cx(self):
+        headers = {
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
+            'Connection': 'keep-alive',
+            'Referer': f'{self.url}menu/menu.jsp',
+            'Sec-Fetch-Dest': 'frame',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'same-origin',
+            'Sec-Fetch-User': '?1',
+            'Upgrade-Insecure-Requests': '1',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 Edg/144.0.0.0',
+            'sec-ch-ua': '"Not(A:Brand";v="8", "Chromium";v="144", "Microsoft Edge";v="144"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"Windows"',
+        }
+
+        params = {
+            'oper': 'getKsapXx',
+            'yzxh': f'{self.account}',
+        }
+        response = self.x.get(f'{self.url}ksApCxAction.do',params=params,headers=headers,verify=False)
+        html = response.text
+        soup = BeautifulSoup(html, 'html.parser')
+
+        # 找到考试安排表格（包含"考试名"的表格）
+        exam_table = None
+        for table in soup.find_all('table'):
+            headers = table.find_all('th')
+            if headers and any('考试名' in th.get_text() for th in headers):
+                exam_table = table
+                break
+
+        if not exam_table:
+            print("未找到考试安排表格")
+            exit(1)
+
+        # 提取考试数据
+        exams = []
+        rows = exam_table.find_all('tr', class_='odd')
+
+        for row in rows:
+            cols = row.find_all('td')
+            if len(cols) >= 10:
+                exam_data = {
+                    '考试名': cols[0].get_text(strip=True),
+                    '校区': cols[1].get_text(strip=True),
+                    '教学楼': cols[2].get_text(strip=True),
+                    '教室': cols[3].get_text(strip=True),
+                    '课程': cols[4].get_text(strip=True).replace('&nbsp;', '').strip(),
+                    '考试周次': cols[5].get_text(strip=True),
+                    '考试星期': cols[6].get_text(strip=True),
+                    '考试时间': cols[7].get_text(strip=True),
+                    '座位号': cols[8].get_text(strip=True)
+                }
+                # 添加位置字段（类似schedule.json）
+                exam_data['位置'] = f"{exam_data['校区']}{exam_data['教学楼']}{exam_data['教室']}"
+                exams.append(exam_data)
+
+        # 按周次分组（类似schedule.json的结构）
+        exams_by_week = {}
+        for exam in exams:
+            week = exam['考试周次']
+            if week not in exams_by_week:
+                exams_by_week[week] = []
+            exams_by_week[week].append(exam)
+        # 保存到文件
+        with open(f'user_data/{self.account}/exams.json', 'w', encoding='utf-8') as f:
+            json.dump(exams_by_week, f, ensure_ascii=False, indent=2)
+
+        return exams_by_week
+
     
 
 

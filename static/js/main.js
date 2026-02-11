@@ -442,12 +442,6 @@ async function loadSchedule(week = null) {
 function displaySchedule(schedule) {
     const scheduleDays = document.getElementById('schedule-days');
 
-    // 星期映射：中文 -> 数字
-    const dayMap = {
-        '星期一': 1, '星期二': 2, '星期三': 3, '星期四': 4,
-        '星期五': 5, '星期六': 6, '星期日': 7
-    };
-
     // 为每个星期创建课程列表
     const daysCourses = {
         1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: []
@@ -457,7 +451,7 @@ function displaySchedule(schedule) {
     Object.values(schedule).forEach(weekCourses => {
         if (Array.isArray(weekCourses)) {
             weekCourses.forEach(course => {
-                const dayNum = dayMap[course['星期']];
+                const dayNum = parseInt(course['星期']);
                 const section = parseInt(course['节次']);
                 const duration = parseInt(course['节数']) || 1;
                 const location = course['位置'] || '';
@@ -525,10 +519,40 @@ function changeWeek(delta) {
 }
 
 // ==================== 考试安排相关 ====================
-async function loadExams() {
-    // 先检查登录状态
-    await checkLoginStatus();
+// 更新考试安排数据（从服务器获取最新数据）
+async function updateExamsData() {
+    const btn = event.target;
+    const originalText = btn.textContent;
 
+    btn.disabled = true;
+    btn.textContent = '更新中...';
+
+    try {
+        const response = await fetch('/api/update_exams', {
+            method: 'POST',
+            headers: {
+                'X-Device-ID': getDeviceId()
+            }
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            alert('考试安排更新成功');
+            // 重新加载考试安排
+            loadExams();
+        } else {
+            alert(data.message || '更新失败');
+        }
+    } catch (error) {
+        console.error('更新考试安排失败:', error);
+        alert('网络错误，请重试');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+    }
+}
+
+async function loadExams() {
     const contentDiv = document.getElementById('exams-content');
     contentDiv.innerHTML = '<div class="loading">加载中</div>';
 
@@ -554,21 +578,59 @@ async function loadExams() {
 function displayExams(exams) {
     const contentDiv = document.getElementById('exams-content');
 
-    let html = '';
+    // 按考试名分组
+    const examGroups = {};
     exams.forEach(exam => {
+        const examName = exam.exam_name || '其他考试';
+        if (!examGroups[examName]) {
+            examGroups[examName] = [];
+        }
+        examGroups[examName].push(exam);
+    });
+
+    let html = '';
+
+    // 遍历每个考试分组
+    Object.keys(examGroups).forEach(examName => {
+        const examList = examGroups[examName];
+
         html += `
-            <div class="exam-card">
-                <div class="exam-course">${exam.course}</div>
-                <div class="exam-info">
-                    <div class="exam-info-item">
-                        <strong>考试时间:</strong> ${exam.time}
+            <div class="exam-group">
+                <div class="exam-group-title">${examName}</div>
+                <div class="exam-group-content">
+        `;
+
+        // 显示该考试下的所有课程
+        examList.forEach(exam => {
+            // 构建完整的考试时间信息
+            let timeInfo = '';
+            if (exam.week && exam.day) {
+                const dayNames = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+                const dayName = dayNames[parseInt(exam.day)] || `星期${exam.day}`;
+                timeInfo = `第${exam.week}周 ${dayName} ${exam.time}`;
+            } else {
+                timeInfo = exam.time;
+            }
+
+            html += `
+                <div class="exam-card">
+                    <div class="exam-course">${exam.course}</div>
+                    <div class="exam-info">
+                        <div class="exam-info-item">
+                            <strong>考试时间:</strong> ${timeInfo}
+                        </div>
+                        <div class="exam-info-item">
+                            <strong>考场:</strong> ${exam.location}
+                        </div>
+                        <div class="exam-info-item">
+                            <strong>座位号:</strong> ${exam.seat}
+                        </div>
                     </div>
-                    <div class="exam-info-item">
-                        <strong>考场:</strong> ${exam.location}
-                    </div>
-                    <div class="exam-info-item">
-                        <strong>座位号:</strong> ${exam.seat}
-                    </div>
+                </div>
+            `;
+        });
+
+        html += `
                 </div>
             </div>
         `;

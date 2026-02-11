@@ -174,8 +174,15 @@
             <div id="page-exams" class="page">
                 <div class="exams-container">
                     <h2>考试安排</h2>
+
                     <div id="exams-content" class="exams-content">
                         <div class="loading">加载中...</div>
+                    </div>
+
+                    <!-- 操作按钮 -->
+                    <div style="text-align: center; margin-top: 20px;">
+                        <button class="update-schedule-btn" onclick="loadExams()">🔄 刷新显示</button>
+                        <button class="update-schedule-btn" onclick="updateExamsData()" style="margin-left: 10px; background-color: #4caf50;">📥 更新考试安排</button>
                     </div>
                 </div>
             </div>

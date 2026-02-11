@@ -378,23 +378,6 @@ def get_urgent_event(username):
 
 
 def get_schedule(username, week=None):
-    """
-    获取课程表
-    参数: week - 周次（None表示返回所有周次）
-    返回: {
-        'week': int or None,  # 指定的周次，None表示返回所有周次
-        'schedule': {  # 按周次组织的课程表
-            '周次': [
-                {
-                    '课程名': str,
-                    '星期': str,
-                    '节次': str,
-                    '节数': str
-                }
-            ]
-        }
-    }
-    """
     # 读取用户的 schedule.json 文件
     schedule_file = os.path.join('user_data', username, 'schedule.json')
 
@@ -442,24 +425,54 @@ def get_exams(username):
     获取考试安排
     返回: [
         {
+            'exam_name': str,  # 考试名称
             'course': str,  # 课程名称
             'time': str,  # 考试时间
+            'week': str,  # 考试周次
+            'day': str,  # 考试星期
             'location': str,  # 考场
             'seat': str  # 座位号
         }
     ]
-
-    TODO: 实现具体的数据爬取逻辑
     """
-    # 临时返回模拟数据
-    return [
-        {
-            'course': '高等数学',
-            'time': '2026-01-30 09:00-11:00',
-            'location': '教学楼A101',
-            'seat': 'A区12号'
-        }
-    ]
+    # 读取用户的 exams.json 文件
+    exams_file = os.path.join('user_data', username, 'exams.json')
+
+    if not os.path.exists(exams_file):
+        return []
+
+    try:
+        with open(exams_file, 'r', encoding='utf-8') as f:
+            exams_data = json.load(f)
+
+        result = []
+
+        # 如果是字典（按周次组织的格式）
+        if isinstance(exams_data, dict):
+            # 遍历所有周次
+            for week, exams in exams_data.items():
+                if isinstance(exams, list):
+                    for exam in exams:
+                        # 转换为前端期望的格式
+                        result.append({
+                            'exam_name': exam.get('考试名', ''),
+                            'course': exam.get('课程', ''),
+                            'time': exam.get('考试时间', ''),
+                            'week': exam.get('考试周次', ''),
+                            'day': exam.get('考试星期', ''),
+                            'location': exam.get('位置', ''),
+                            'seat': exam.get('座位号', '')
+                        })
+            return result
+
+        # 如果是列表（已经是期望的格式）
+        if isinstance(exams_data, list):
+            return exams_data
+
+        return []
+    except Exception as e:
+        print(f"读取考试安排失败: {str(e)}")
+        return []
 
 
 def get_grades(username):
@@ -813,9 +826,9 @@ def api_update_schedule(user):
 
 
 @app.route('/api/exams', methods=['GET'])
-@require_login
+@require_bindding
 def api_exams(user):
-    """获取考试安排"""
+    """获取考试安排（读取本地文件，不需要登录）"""
     try:
         exams = get_exams(user['username'])
         return jsonify({
@@ -824,6 +837,44 @@ def api_exams(user):
         })
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
+
+
+@app.route('/api/update_exams', methods=['POST'])
+@require_login
+def api_update_exams(user):
+    """更新考试安排（从教务系统获取最新数据）"""
+    try:
+        from URP import URP_query
+
+        username = user['username']
+        password = user['password']
+
+        # 检查登录状态
+        is_logged_in, _ = check_login_status(username, password, {})
+
+        if not is_logged_in:
+            return jsonify({
+                'success': False,
+                'message': '登录已过期，请重新登录'
+            })
+
+        # 获取当前 URL
+        current_url = get_current_urp_url()
+
+        # 创建 URP_query 实例并调用 exam_cx
+        urp = URP_query(current_url, username)
+        exams_data = urp.exam_cx()
+
+        return jsonify({
+            'success': True,
+            'message': '考试安排更新成功',
+            'data': exams_data
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'更新失败: {str(e)}'
+        })
 
 
 @app.route('/api/grades', methods=['GET'])
