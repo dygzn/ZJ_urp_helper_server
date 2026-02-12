@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>管理后台 - URP教务助手</title>
     <link rel="stylesheet" href="/static/css/admin.css">
+    <link rel="stylesheet" href="/static/css/theme-spring.css">
 </head>
 <body>
     <div class="admin-container">
@@ -156,6 +157,17 @@
                                 <button type="submit" class="submit-btn">保存URL配置</button>
                             </form>
                         </div>
+
+                        <div class="config-section">
+                            <h3>全局主题</h3>
+                            <p class="config-desc">切换网站全局样式主题，对所有用户生效</p>
+                            <div class="theme-switch-container">
+                                <span class="theme-switch-label">默认主题</span>
+                                <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()"></button>
+                                <span class="theme-switch-label">🧧 新春主题</span>
+                                <span class="theme-status" id="theme-status">加载中...</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -229,5 +241,64 @@
     <div id="overlay" class="overlay"></div>
 
     <script src="/static/js/admin.js"></script>
+    <script>
+        // 主题管理
+        let currentTheme = 'default';
+
+        function loadTheme() {
+            fetch('/api/theme').then(r => r.json()).then(data => {
+                if (data.success) {
+                    currentTheme = data.theme;
+                    applyTheme(currentTheme);
+                    updateThemeUI();
+                }
+            }).catch(() => {});
+        }
+
+        function applyTheme(theme) {
+            if (theme === 'spring') {
+                document.body.classList.add('theme-spring');
+            } else {
+                document.body.classList.remove('theme-spring');
+            }
+        }
+
+        function updateThemeUI() {
+            const toggle = document.getElementById('theme-toggle');
+            const status = document.getElementById('theme-status');
+            if (!toggle || !status) return;
+            if (currentTheme === 'spring') {
+                toggle.classList.add('active');
+                status.textContent = '🧧 新春主题已启用';
+            } else {
+                toggle.classList.remove('active');
+                status.textContent = '默认主题';
+            }
+        }
+
+        function toggleTheme() {
+            const newTheme = currentTheme === 'spring' ? 'default' : 'spring';
+            fetch('/api/admin/theme', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Admin-Key': adminKey
+                },
+                body: JSON.stringify({ theme: newTheme })
+            }).then(r => r.json()).then(data => {
+                if (data.success) {
+                    currentTheme = data.theme;
+                    applyTheme(currentTheme);
+                    updateThemeUI();
+                    alert(data.message);
+                } else {
+                    alert('切换失败: ' + data.message);
+                }
+            }).catch(() => alert('网络错误'));
+        }
+
+        // 页面加载时获取主题
+        loadTheme();
+    </script>
 </body>
 </html>

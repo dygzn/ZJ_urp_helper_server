@@ -1622,6 +1622,37 @@ def admin_switch_url():
     return jsonify({'success': False, 'message': '缺少必要参数'})
 
 
+# ==================== API接口：主题管理 ====================
+
+@app.route('/api/theme', methods=['GET'])
+def get_theme():
+    """获取当前主题（无需认证，所有用户都需要加载主题）"""
+    config = get_config()
+    return jsonify({
+        'success': True,
+        'theme': config.get('theme', 'default')
+    })
+
+
+@app.route('/api/admin/theme', methods=['POST'])
+@require_admin
+def admin_set_theme():
+    """切换全局主题"""
+    data = request.get_json()
+    theme = data.get('theme', 'default')
+    if theme not in ('default', 'spring'):
+        return jsonify({'success': False, 'message': '不支持的主题'})
+
+    config = get_config()
+    config['theme'] = theme
+    save_config(config)
+    return jsonify({
+        'success': True,
+        'message': f'主题已切换为: {"新春主题" if theme == "spring" else "默认主题"}',
+        'theme': theme
+    })
+
+
 # ==================== API接口：公告管理 ====================
 
 @app.route('/api/admin/announcements', methods=['GET'])

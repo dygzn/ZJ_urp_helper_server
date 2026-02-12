@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>URP教务助手</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/theme-spring.css">
 </head>
 <body>
     <!-- 侧边栏导航菜单 -->
@@ -442,5 +443,13 @@
 
     <!-- JavaScript -->
     <script src="/static/js/main.js"></script>
+    <script>
+        // 加载全局主题
+        fetch('/api/theme').then(r => r.json()).then(data => {
+            if (data.success && data.theme === 'spring') {
+                document.body.classList.add('theme-spring');
+            }
+        }).catch(() => {});
+    </script>
 </body>
 </html>
