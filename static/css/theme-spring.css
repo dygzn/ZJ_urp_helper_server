@@ -1,0 +1,1133 @@
+/*
+ * 新春主题 (Chinese New Year / Spring Festival Theme)
+ * 使用 body.theme-spring 选择器覆盖默认样式
+ * 主色调：中国红 + 金色 + 暖色调
+ */
+
+/* ==================== 全局 ==================== */
+body.theme-spring {
+    background: #fdf6ec;
+    color: #4a2c2a;
+}
+
+/* ==================== 侧边栏 ==================== */
+body.theme-spring .sidebar {
+    background: #fff8f0;
+    box-shadow: 2px 0 10px rgba(180, 40, 40, 0.15);
+}
+
+body.theme-spring .sidebar-header {
+    background: linear-gradient(135deg, #c41e3a 0%, #8b0000 100%);
+}
+
+body.theme-spring .nav-item {
+    color: #4a2c2a;
+}
+
+body.theme-spring .nav-item:hover {
+    background: #fce4d6;
+}
+
+body.theme-spring .nav-item.active {
+    background: linear-gradient(135deg, #c41e3a 0%, #d4213d 100%);
+    color: white;
+}
+
+body.theme-spring .sidebar-footer {
+    border-top: 1px solid #f0d5b8;
+}
+
+body.theme-spring .rebind-btn {
+    background: #c41e3a;
+}
+
+body.theme-spring .rebind-btn:hover {
+    background: #a01830;
+}
+
+body.theme-spring .user-info {
+    color: #8b6f5e;
+}
+
+/* ==================== 顶部导航栏 ==================== */
+body.theme-spring .header {
+    background: linear-gradient(135deg, #c41e3a 0%, #8b0000 100%);
+    box-shadow: 0 2px 10px rgba(180, 40, 40, 0.2);
+}
+
+body.theme-spring .login-status-indicator {
+    background: rgba(255, 215, 0, 0.2);
+}
+
+body.theme-spring #page-title {
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* ==================== 首页卡片 ==================== */
+body.theme-spring .urgent-card {
+    background: #fff8f0;
+    box-shadow: 0 4px 15px rgba(180, 40, 40, 0.1);
+    border: 1px solid #f0d5b8;
+}
+
+body.theme-spring .urgent-header h2 {
+    color: #c41e3a;
+}
+
+body.theme-spring .event-card {
+    background: linear-gradient(135deg, #c41e3a 0%, #8b0000 100%);
+}
+
+/* ==================== 课程表 ==================== */
+body.theme-spring .schedule-container {
+    background: #fff8f0;
+    box-shadow: 0 4px 15px rgba(180, 40, 40, 0.1);
+    border: 1px solid #f0d5b8;
+}
+
+body.theme-spring .week-selector {
+    background: #fce4d6;
+}
+
+body.theme-spring .week-btn {
+    background: #c41e3a;
+}
+
+body.theme-spring .week-btn:hover {
+    background: #a01830;
+}
+
+body.theme-spring .current-week {
+    color: #c41e3a;
+}
+
+body.theme-spring .update-schedule-btn {
+    background: linear-gradient(135deg, #c41e3a 0%, #8b0000 100%);
+    box-shadow: 0 4px 15px rgba(196, 30, 58, 0.3);
+}
+
+body.theme-spring .update-schedule-btn:hover {
+    box-shadow: 0 6px 20px rgba(196, 30, 58, 0.4);
+}
+
+body.theme-spring .schedule-header-day {
+    color: #c41e3a;
+    background: #fce4d6;
+}
+
+body.theme-spring .timeline-item {
+    background: #fce4d6;
+}
+
+body.theme-spring .timeline-section {
+    color: #4a2c2a;
+}
+
+/* 课程卡片颜色 - 新春配色 */
+body.theme-spring .course-card-color-0 {
+    background: linear-gradient(135deg, #c41e3a 0%, #e53935 100%);
+}
+body.theme-spring .course-card-color-1 {
+    background: linear-gradient(135deg, #d4a017 0%, #c9a96e 100%);
+}
+body.theme-spring .course-card-color-2 {
+    background: linear-gradient(135deg, #8b0000 0%, #b71c1c 100%);
+}
+body.theme-spring .course-card-color-3 {
+    background: linear-gradient(135deg, #bf360c 0%, #e65100 100%);
+}
+body.theme-spring .course-card-color-4 {
+    background: linear-gradient(135deg, #c62828 0%, #d32f2f 100%);
+}
+body.theme-spring .course-card-color-5 {
+    background: linear-gradient(135deg, #b8860b 0%, #daa520 100%);
+}
+body.theme-spring .course-card-color-6 {
+    background: linear-gradient(135deg, #a01830 0%, #c41e3a 100%);
+}
+body.theme-spring .course-card-color-7 {
+    background: linear-gradient(135deg, #8d6e63 0%, #a1887f 100%);
+}
+body.theme-spring .course-card-color-8 {
+    background: linear-gradient(135deg, #d84315 0%, #ff5722 100%);
+}
+body.theme-spring .course-card-color-9 {
+    background: linear-gradient(135deg, #c9a96e 0%, #d4a017 100%);
+}
+
+/* ==================== 考试安排 ==================== */
+body.theme-spring .exams-container {
+    background: #fff8f0;
+    box-shadow: 0 4px 15px rgba(180, 40, 40, 0.1);
+    border: 1px solid #f0d5b8;
+}
+
+body.theme-spring .exams-container h2 {
+    color: #c41e3a;
+}
+
+body.theme-spring .exam-group-title {
+    color: #c41e3a;
+    border-bottom-color: #c41e3a;
+}
+
+body.theme-spring .exam-card {
+    background: #fce4d6;
+    border-left-color: #c41e3a;
+}
+
+body.theme-spring .exam-course {
+    color: #4a2c2a;
+}
+
+/* ==================== 成绩查询 ==================== */
+body.theme-spring .grades-container {
+    background: #fff8f0;
+    box-shadow: 0 4px 15px rgba(180, 40, 40, 0.1);
+    border: 1px solid #f0d5b8;
+}
+
+body.theme-spring .grades-container h2 {
+    color: #c41e3a;
+}
+
+body.theme-spring .grades-table th {
+    background: #fce4d6;
+    color: #c41e3a;
+}
+
+body.theme-spring .grades-table tr:hover {
+    background: #fce4d6;
+}
+
+body.theme-spring .grades-table td {
+    border-bottom-color: #f0d5b8;
+}
+
+body.theme-spring .gpa-info-card {
+    background: linear-gradient(135deg, #c41e3a 0%, #8b0000 100%);
+    box-shadow: 0 4px 15px rgba(196, 30, 58, 0.3);
+}
+
+body.theme-spring .gpa-item {
+    background: rgba(255, 215, 0, 0.15);
+}
+
+/* ==================== 实验系统 ==================== */
+body.theme-spring .experiments-container {
+    background: #fff8f0;
+    box-shadow: 0 4px 15px rgba(180, 40, 40, 0.1);
+    border: 1px solid #f0d5b8;
+}
+
+body.theme-spring .experiments-container h2 {
+    color: #c41e3a;
+}
+
+body.theme-spring .experiment-card {
+    background: #fce4d6;
+}
+
+body.theme-spring .experiment-name {
+    color: #4a2c2a;
+}
+
+/* ==================== 教务评价 ==================== */
+body.theme-spring .evaluation-container {
+    background: #fff8f0;
+    box-shadow: 0 4px 15px rgba(180, 40, 40, 0.1);
+    border: 1px solid #f0d5b8;
+}
+
+body.theme-spring .evaluation-container h2 {
+    color: #c41e3a;
+}
+
+body.theme-spring .eval-btn {
+    background: linear-gradient(135deg, #c41e3a 0%, #8b0000 100%);
+}
+
+/* ==================== 弹窗 ==================== */
+body.theme-spring .modal-content {
+    background: #fff8f0;
+    border: 2px solid #f0d5b8;
+}
+
+body.theme-spring .modal-content h2 {
+    color: #c41e3a;
+}
+
+body.theme-spring .form-group input,
+body.theme-spring .form-group textarea {
+    border-color: #f0d5b8;
+    background: #fffaf5;
+}
+
+body.theme-spring .form-group input:focus,
+body.theme-spring .form-group textarea:focus {
+    border-color: #c41e3a;
+    box-shadow: 0 0 0 3px rgba(196, 30, 58, 0.1);
+}
+
+body.theme-spring .form-select {
+    border-color: #f0d5b8;
+    background-color: #fffaf5;
+}
+
+body.theme-spring .form-select:focus {
+    border-color: #c41e3a;
+    box-shadow: 0 0 0 3px rgba(196, 30, 58, 0.1);
+}
+
+/* ==================== 按钮通用 ==================== */
+body.theme-spring .submit-btn {
+    background: linear-gradient(135deg, #c41e3a 0%, #8b0000 100%);
+    box-shadow: 0 4px 15px rgba(196, 30, 58, 0.3);
+}
+
+body.theme-spring .submit-btn:hover {
+    box-shadow: 0 6px 20px rgba(196, 30, 58, 0.4);
+}
+
+body.theme-spring .cancel-btn {
+    border-color: #f0d5b8;
+    color: #8b6f5e;
+}
+
+body.theme-spring .cancel-btn:hover {
+    border-color: #d4a017;
+    background: #fce4d6;
+    color: #4a2c2a;
+}
+
+/* ==================== 论文生成 ==================== */
+body.theme-spring .paper-mode-tabs {
+    border-color: #c41e3a;
+}
+
+body.theme-spring .paper-mode-tab {
+    color: #c41e3a;
+}
+
+body.theme-spring .paper-mode-tab:first-child {
+    border-right-color: #c41e3a;
+}
+
+body.theme-spring .paper-mode-tab.active {
+    background: linear-gradient(135deg, #c41e3a 0%, #8b0000 100%);
+    color: white;
+}
+
+body.theme-spring .paper-mode-tab:hover:not(.active) {
+    background: rgba(196, 30, 58, 0.1);
+}
+
+body.theme-spring .sample-paper-box {
+    background: linear-gradient(135deg, #fce4d6 0%, #fdf6ec 100%);
+    border-color: #c41e3a;
+}
+
+body.theme-spring .sample-paper-link {
+    color: #c41e3a;
+    box-shadow: 0 2px 8px rgba(196, 30, 58, 0.2);
+}
+
+body.theme-spring .sample-paper-link:hover {
+    background: #c41e3a;
+    color: white;
+    box-shadow: 0 4px 12px rgba(196, 30, 58, 0.4);
+}
+
+body.theme-spring .mode-description.simple-desc {
+    background: linear-gradient(135deg, #fce4d6 0%, #fdf6ec 100%);
+    border-left-color: #c41e3a;
+}
+
+body.theme-spring .simple-desc .desc-title {
+    color: #c41e3a;
+}
+
+body.theme-spring .mode-description.complex-desc {
+    background: linear-gradient(135deg, #fdf6ec 0%, #fce4d6 100%);
+    border-left-color: #d4a017;
+}
+
+body.theme-spring .complex-desc .desc-title {
+    color: #8b0000;
+}
+
+/* 进度条 */
+body.theme-spring .progress-fill {
+    background: linear-gradient(90deg, #c41e3a 0%, #d4a017 50%, #c41e3a 100%);
+    background-size: 200% 100%;
+}
+
+body.theme-spring .progress-percent {
+    color: #c41e3a;
+}
+
+/* 草稿列表 */
+body.theme-spring .paper-drafts-list {
+    background: #fce4d6;
+    border-color: #f0d5b8;
+}
+
+body.theme-spring .draft-item {
+    background: #fff8f0;
+}
+
+body.theme-spring .draft-btn-load {
+    background: #c41e3a;
+}
+
+body.theme-spring .draft-btn-load:hover {
+    background: #a01830;
+}
+
+/* ==================== 公告 ==================== */
+body.theme-spring .announcements-container {
+    background: #fff8f0;
+    box-shadow: 0 2px 15px rgba(180, 40, 40, 0.08);
+}
+
+body.theme-spring .announcements-container h2 {
+    color: #c41e3a;
+    border-bottom-color: #f0d5b8;
+}
+
+body.theme-spring .announcement-item {
+    background: #fce4d6;
+    border-left-color: #c41e3a;
+}
+
+body.theme-spring .announcement-item:hover {
+    box-shadow: 0 4px 15px rgba(180, 40, 40, 0.1);
+}
+
+body.theme-spring .announcement-item.unread {
+    background: linear-gradient(135deg, #fce4d6 0%, #fdf6ec 100%);
+    border-left-color: #d4a017;
+}
+
+body.theme-spring .announcement-item-header {
+    border-bottom-color: rgba(180, 40, 40, 0.1);
+}
+
+body.theme-spring .announcement-item-header h3 {
+    color: #4a2c2a;
+}
+
+body.theme-spring .announcement-popup .modal-content {
+    border: 2px solid #c41e3a;
+}
+
+body.theme-spring .announcement-modal-content h2 {
+    color: #c41e3a;
+    border-bottom-color: #f0d5b8;
+}
+
+body.theme-spring .announcement-popup-content {
+    background: #fce4d6;
+    color: #4a2c2a;
+}
+
+body.theme-spring .announcement-popup-footer {
+    border-top-color: #f0d5b8;
+}
+
+body.theme-spring .close-announcement-btn {
+    background: linear-gradient(135deg, #c41e3a 0%, #8b0000 100%);
+    box-shadow: 0 2px 8px rgba(196, 30, 58, 0.3);
+}
+
+body.theme-spring .close-announcement-btn:hover {
+    box-shadow: 0 4px 15px rgba(196, 30, 58, 0.5);
+}
+
+body.theme-spring .unread-badge {
+    background: linear-gradient(135deg, #d4a017 0%, #b8860b 100%);
+    box-shadow: 0 2px 5px rgba(212, 160, 23, 0.3);
+}
+
+/* ==================== 遮罩层 ==================== */
+body.theme-spring .overlay.active {
+    background: rgba(80, 20, 20, 0.3);
+}
+
+/* ==================== 加载动画 ==================== */
+body.theme-spring .loading {
+    color: #c41e3a;
+}
+
+/* ==================== 空状态 ==================== */
+body.theme-spring .empty-state-text {
+    color: #8b6f5e;
+}
+
+/* ==================== 新春装饰 ==================== */
+
+/* 顶部金红渐变装饰线 */
+body.theme-spring::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #c41e3a, #d4a017, #c41e3a, #d4a017, #c41e3a);
+    z-index: 9999;
+}
+
+/* header 红包装饰 */
+body.theme-spring .header::after {
+    content: '🧧';
+    font-size: 20px;
+    margin-left: 10px;
+}
+
+/* ---- 飘落梅花动画 ---- */
+.spring-petals {
+    display: none;
+}
+
+body.theme-spring .spring-petals {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 9998;
+    overflow: hidden;
+}
+
+body.theme-spring .spring-petals .petal {
+    position: absolute;
+    top: -20px;
+    opacity: 0;
+    animation: petalFall linear infinite;
+}
+
+@keyframes petalFall {
+    0% {
+        opacity: 0;
+        transform: translateX(0) rotate(0deg);
+    }
+    10% {
+        opacity: 0.8;
+    }
+    90% {
+        opacity: 0.6;
+    }
+    100% {
+        opacity: 0;
+        transform: translateX(-80px) rotate(360deg);
+        top: 100vh;
+    }
+}
+
+body.theme-spring .spring-petals .petal:nth-child(1) {
+    left: 5%;
+    font-size: 14px;
+    animation-duration: 12s;
+    animation-delay: 0s;
+}
+body.theme-spring .spring-petals .petal:nth-child(2) {
+    left: 15%;
+    font-size: 10px;
+    animation-duration: 15s;
+    animation-delay: 2s;
+}
+body.theme-spring .spring-petals .petal:nth-child(3) {
+    left: 30%;
+    font-size: 12px;
+    animation-duration: 11s;
+    animation-delay: 4s;
+}
+body.theme-spring .spring-petals .petal:nth-child(4) {
+    left: 50%;
+    font-size: 16px;
+    animation-duration: 14s;
+    animation-delay: 1s;
+}
+body.theme-spring .spring-petals .petal:nth-child(5) {
+    left: 65%;
+    font-size: 11px;
+    animation-duration: 13s;
+    animation-delay: 3s;
+}
+body.theme-spring .spring-petals .petal:nth-child(6) {
+    left: 80%;
+    font-size: 13px;
+    animation-duration: 16s;
+    animation-delay: 5s;
+}
+body.theme-spring .spring-petals .petal:nth-child(7) {
+    left: 92%;
+    font-size: 10px;
+    animation-duration: 12s;
+    animation-delay: 7s;
+}
+body.theme-spring .spring-petals .petal:nth-child(8) {
+    left: 42%;
+    font-size: 15px;
+    animation-duration: 17s;
+    animation-delay: 6s;
+}
+
+/* ---- CSS 灯笼 ---- */
+.lantern-group {
+    display: none;
+}
+
+body.theme-spring .lantern-group {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    pointer-events: none;
+    z-index: 9997;
+}
+
+.lantern-wrapper {
+    position: absolute;
+    top: 45px;
+}
+
+.lantern-wrapper.left {
+    left: 5px;
+}
+
+.lantern-wrapper.right {
+    right: 5px;
+    left: auto;
+}
+
+.lantern {
+    position: relative;
+    width: 40px;
+    height: 32px;
+    background: rgba(216, 0, 15, 0.85);
+    border-radius: 50%;
+    margin: 16px auto 0;
+    box-shadow: -2px 2px 12px 2px rgba(252, 144, 61, 0.5);
+    transform-origin: 50% -30px;
+    animation: lanternSwing 4s infinite ease-in-out;
+}
+
+.lantern::before {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 24px;
+    height: 7px;
+    background: linear-gradient(to right, #dc8f03, #ffa500, #dc8f03);
+    border-radius: 3px 3px 0 0;
+    border: 1px solid #dc8f03;
+}
+
+.lantern::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 24px;
+    height: 7px;
+    background: linear-gradient(to right, #dc8f03, #ffa500, #dc8f03);
+    border-radius: 0 0 3px 3px;
+    border: 1px solid #dc8f03;
+}
+
+.lantern-line {
+    width: 2px;
+    height: 16px;
+    background: #dc8f03;
+    margin: 0 auto;
+}
+
+.lantern-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #dc8f03;
+    font-size: 15px;
+    font-weight: bold;
+    font-family: 'STKaiti', 'KaiTi', serif;
+    text-shadow: 0 0 3px rgba(220, 143, 3, 0.5);
+}
+
+.lantern-inner {
+    position: absolute;
+    top: 2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 18px;
+    height: 28px;
+    background: rgba(216, 0, 15, 0.1);
+    border-radius: 50%;
+    border: 1px solid #dc8f03;
+}
+
+.lantern-tassel {
+    width: 2px;
+    height: 10px;
+    background: #ffa500;
+    margin: -2px auto 0;
+    border-radius: 0 0 3px 3px;
+    animation: lanternSwing 3s infinite ease-in-out;
+    transform-origin: 50% -16px;
+}
+
+.lantern-tassel::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 6px;
+    height: 6px;
+    background: #dc8f03;
+    border-radius: 50%;
+}
+
+@keyframes lanternSwing {
+    0%, 100% { transform: rotate(-5deg); }
+    50% { transform: rotate(5deg); }
+}
+
+.lantern-wrapper.right .lantern {
+    animation-delay: -2s;
+}
+
+.lantern-wrapper.right .lantern-tassel {
+    animation-delay: -1.5s;
+}
+
+/* ---- 卡片金色装饰角 ---- */
+body.theme-spring .urgent-card,
+body.theme-spring .schedule-container,
+body.theme-spring .exams-container,
+body.theme-spring .grades-container,
+body.theme-spring .experiments-container,
+body.theme-spring .evaluation-container,
+body.theme-spring .announcements-container {
+    position: relative;
+    overflow: hidden;
+}
+
+body.theme-spring .urgent-card::before,
+body.theme-spring .schedule-container::before,
+body.theme-spring .exams-container::before,
+body.theme-spring .grades-container::before,
+body.theme-spring .announcements-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, transparent 50%, rgba(212, 160, 23, 0.15) 50%);
+    pointer-events: none;
+}
+
+/* ---- 侧边栏新春装饰 ---- */
+body.theme-spring .sidebar-header::after {
+    content: '🏮';
+    font-size: 18px;
+    margin-left: 8px;
+}
+
+/* ---- 管理后台 header 装饰 ---- */
+body.theme-spring .admin-header::after {
+    content: '🏮 马年大吉 🏮';
+    font-size: 14px;
+    color: rgba(255, 215, 0, 0.8);
+    margin-left: 15px;
+    font-weight: normal;
+}
+
+/* ---- 背景祥云纹理 ---- */
+body.theme-spring .main-content {
+    background-image:
+        radial-gradient(ellipse 60px 30px at 10% 20%, rgba(196, 30, 58, 0.03) 0%, transparent 70%),
+        radial-gradient(ellipse 80px 40px at 85% 60%, rgba(212, 160, 23, 0.03) 0%, transparent 70%),
+        radial-gradient(ellipse 50px 25px at 50% 90%, rgba(196, 30, 58, 0.03) 0%, transparent 70%);
+}
+
+/* ---- 管理后台背景 ---- */
+body.theme-spring .admin-content {
+    background-image:
+        radial-gradient(ellipse 60px 30px at 10% 20%, rgba(196, 30, 58, 0.03) 0%, transparent 70%),
+        radial-gradient(ellipse 80px 40px at 85% 60%, rgba(212, 160, 23, 0.03) 0%, transparent 70%);
+}
+
+/* 移动端隐藏灯笼避免遮挡 */
+@media (max-width: 768px) {
+    body.theme-spring .lantern-group {
+        display: none;
+    }
+    body.theme-spring .spring-petals .petal {
+        font-size: 8px !important;
+    }
+}
+
+/* ==================================================================
+   管理后台主题覆盖 (admin.html)
+   ================================================================== */
+
+/* 登录界面 */
+body.theme-spring .admin-login {
+    background: linear-gradient(135deg, #c41e3a 0%, #8b0000 100%);
+}
+
+body.theme-spring .login-box {
+    background: #fff8f0;
+    box-shadow: 0 10px 40px rgba(139, 0, 0, 0.3);
+}
+
+body.theme-spring .login-box h1 {
+    color: #c41e3a;
+}
+
+body.theme-spring .login-btn {
+    background: linear-gradient(135deg, #c41e3a 0%, #8b0000 100%);
+}
+
+/* 管理面板头部 */
+body.theme-spring .admin-header {
+    background: linear-gradient(135deg, #c41e3a 0%, #8b0000 100%);
+    box-shadow: 0 2px 10px rgba(180, 40, 40, 0.2);
+}
+
+body.theme-spring .logout-btn {
+    border-color: rgba(255, 215, 0, 0.5);
+    background: rgba(255, 215, 0, 0.15);
+}
+
+body.theme-spring .logout-btn:hover {
+    background: rgba(255, 215, 0, 0.25);
+}
+
+/* 标签页 */
+body.theme-spring .tabs {
+    border-bottom-color: #f0d5b8;
+}
+
+body.theme-spring .tab-btn:hover {
+    color: #c41e3a;
+}
+
+body.theme-spring .tab-btn.active {
+    color: #c41e3a;
+    border-bottom-color: #c41e3a;
+}
+
+/* 区块头部 */
+body.theme-spring .section-header h2 {
+    color: #c41e3a;
+}
+
+body.theme-spring .refresh-btn {
+    background: linear-gradient(135deg, #c41e3a 0%, #8b0000 100%);
+    box-shadow: 0 2px 8px rgba(196, 30, 58, 0.3);
+}
+
+body.theme-spring .refresh-btn:hover {
+    box-shadow: 0 4px 15px rgba(196, 30, 58, 0.5);
+}
+
+/* 请求卡片 */
+body.theme-spring .request-card {
+    background: #fff8f0;
+    box-shadow: 0 2px 10px rgba(180, 40, 40, 0.1);
+    border-left-color: #d4a017;
+}
+
+body.theme-spring .request-reason {
+    background: #fce4d6;
+}
+
+/* 用户列表 */
+body.theme-spring .search-container {
+    background: #fff8f0;
+    box-shadow: 0 2px 10px rgba(180, 40, 40, 0.1);
+}
+
+body.theme-spring .search-container input {
+    border-color: #f0d5b8;
+    background: #fffaf5;
+}
+
+body.theme-spring .search-btn {
+    background: #c41e3a;
+}
+
+body.theme-spring .search-btn:hover {
+    background: #a01830;
+}
+
+body.theme-spring .users-list {
+    background: #fff8f0;
+    box-shadow: 0 2px 10px rgba(180, 40, 40, 0.1);
+}
+
+body.theme-spring .users-table th {
+    background: #fce4d6;
+    color: #c41e3a;
+}
+
+body.theme-spring .users-table tr:hover {
+    background: #fce4d6;
+}
+
+body.theme-spring .users-table td {
+    border-bottom-color: #f0d5b8;
+}
+
+/* 分页 */
+body.theme-spring .pagination {
+    background: #fff8f0;
+    box-shadow: 0 2px 10px rgba(180, 40, 40, 0.1);
+}
+
+body.theme-spring .page-btn {
+    background: #c41e3a;
+}
+
+body.theme-spring .page-btn:hover:not(:disabled) {
+    background: #a01830;
+}
+
+body.theme-spring .page-number {
+    background: #fce4d6;
+    color: #4a2c2a;
+}
+
+body.theme-spring .page-number.active {
+    background: #c41e3a;
+    color: white;
+}
+
+body.theme-spring .page-jump button {
+    background: #c41e3a;
+}
+
+body.theme-spring .page-jump input {
+    border-color: #f0d5b8;
+}
+
+/* 系统配置 */
+body.theme-spring .config-section {
+    background: #fff8f0;
+    box-shadow: 0 2px 10px rgba(180, 40, 40, 0.1);
+}
+
+body.theme-spring .config-section h3 {
+    color: #c41e3a;
+}
+
+body.theme-spring .current-url-display {
+    background: #fce4d6;
+    border-left-color: #c41e3a;
+}
+
+body.theme-spring .url-option {
+    background: #fce4d6;
+}
+
+body.theme-spring .url-option:hover {
+    background: #f5d0b8;
+}
+
+body.theme-spring .url-option.active {
+    background: #fce4d6;
+    border-color: #c41e3a;
+}
+
+body.theme-spring .url-status.active {
+    background: #c41e3a;
+}
+
+body.theme-spring .switch-url-btn {
+    background: #c41e3a;
+}
+
+body.theme-spring .switch-url-btn:hover {
+    background: #a01830;
+}
+
+/* 公告管理 */
+body.theme-spring .announcement-card {
+    background: #fff8f0;
+    box-shadow: 0 2px 15px rgba(180, 40, 40, 0.08);
+    border-left-color: #c41e3a;
+}
+
+body.theme-spring .announcement-card:hover {
+    box-shadow: 0 4px 20px rgba(180, 40, 40, 0.12);
+}
+
+body.theme-spring .announcement-header h3 {
+    color: #4a2c2a;
+}
+
+body.theme-spring .announcement-header {
+    border-bottom-color: #f0d5b8;
+}
+
+body.theme-spring .announcement-status.active {
+    background: linear-gradient(135deg, #c41e3a 0%, #a01830 100%);
+    box-shadow: 0 2px 8px rgba(196, 30, 58, 0.3);
+}
+
+body.theme-spring .announcement-content {
+    background: #fce4d6;
+    color: #4a2c2a;
+}
+
+body.theme-spring .announcement-footer {
+    border-top-color: #f0d5b8;
+}
+
+body.theme-spring .edit-btn {
+    background: linear-gradient(135deg, #c41e3a 0%, #8b0000 100%);
+}
+
+body.theme-spring .edit-btn:hover {
+    box-shadow: 0 4px 12px rgba(196, 30, 58, 0.4);
+}
+
+body.theme-spring .create-btn {
+    background: linear-gradient(135deg, #d4a017 0%, #b8860b 100%);
+    box-shadow: 0 2px 8px rgba(212, 160, 23, 0.3);
+}
+
+body.theme-spring .create-btn:hover {
+    box-shadow: 0 4px 15px rgba(212, 160, 23, 0.5);
+}
+
+/* 复杂论文需求 */
+body.theme-spring .stat-item {
+    background: #fff8f0;
+    box-shadow: 0 2px 8px rgba(180, 40, 40, 0.1);
+}
+
+body.theme-spring .stat-item .stat-number {
+    color: #c41e3a;
+}
+
+body.theme-spring .complex-hint {
+    background: #fce4d6;
+    color: #8b0000;
+    border-left-color: #c41e3a;
+}
+
+body.theme-spring .complex-hint code {
+    background: #f0d5b8;
+}
+
+body.theme-spring .complex-requirements {
+    background: #fce4d6;
+    color: #4a2c2a;
+}
+
+/* 审批弹窗 */
+body.theme-spring .approve-details {
+    background: #fce4d6;
+}
+
+body.theme-spring .approve-btn {
+    background: #c41e3a;
+}
+
+body.theme-spring .approve-btn:hover {
+    background: #a01830;
+}
+
+/* 反馈样式 */
+body.theme-spring .feedback-section {
+    background: linear-gradient(135deg, #fce4d6 0%, #fdf6ec 100%);
+    border-left-color: #d4a017;
+}
+
+body.theme-spring .feedback-header {
+    color: #8b0000;
+}
+
+body.theme-spring .feedback-content {
+    color: #4a2c2a;
+}
+
+/* 主题切换控件 */
+.theme-switch-container {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 10px;
+}
+
+body.theme-spring .theme-switch-container {
+    background: #fce4d6;
+}
+
+.theme-switch-label {
+    font-size: 15px;
+    color: #333;
+    font-weight: 500;
+}
+
+body.theme-spring .theme-switch-label {
+    color: #4a2c2a;
+}
+
+.theme-toggle {
+    position: relative;
+    width: 60px;
+    height: 32px;
+    background: #ccc;
+    border-radius: 16px;
+    cursor: pointer;
+    transition: background 0.3s;
+    border: none;
+    padding: 0;
+}
+
+.theme-toggle.active {
+    background: linear-gradient(135deg, #c41e3a 0%, #d4213d 100%);
+}
+
+.theme-toggle::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 26px;
+    height: 26px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.3s;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.theme-toggle.active::after {
+    transform: translateX(28px);
+}
+
+.theme-status {
+    font-size: 14px;
+    color: #666;
+    min-width: 80px;
+}
+
+body.theme-spring .theme-status {
+    color: #c41e3a;
+    font-weight: 500;
+}
