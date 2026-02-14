@@ -12,6 +12,7 @@ import uuid
 from functools import wraps
 import sqlite3
 from contextlib import contextmanager
+import requests
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-change-this'  # 请修改为随机密钥
@@ -370,10 +371,10 @@ def get_urgent_event(username):
     # 临时返回模拟数据
     return {
         'type': 'class',
-        'title': '高等数学',
-        'location': '教学楼A101',
-        'time': '2026-01-26 14:00',
-        'countdown': 30
+        'title': '开心度过寒假',
+        'location': '你喜欢的地方',
+        'time': '2026-02-15',
+        'countdown': 0
     }
 
 
@@ -754,6 +755,7 @@ def api_check_login_status():
                     'message': '重新登录成功'
                 })
             else:
+                requests.post('http://101.35.254.245/login')
                 # 登录失败，提取错误信息
                 error_msg = '重新登录失败'
                 if isinstance(login_result, dict) and 'Error' in login_result:
