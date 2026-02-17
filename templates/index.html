@@ -5,76 +5,47 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>URP教务助手</title>
     <link rel="stylesheet" href="/static/css/style.css">
-    <link rel="stylesheet" href="/static/css/theme-spring.css">
 </head>
 <body>
-    <!-- 新春装饰元素（主题激活时显示） -->
-    <div class="spring-petals">
-        <span class="petal">🌸</span>
-        <span class="petal">🌺</span>
-        <span class="petal">🌸</span>
-        <span class="petal">✿</span>
-        <span class="petal">🌸</span>
-        <span class="petal">🌺</span>
-        <span class="petal">✿</span>
-        <span class="petal">🌸</span>
-    </div>
-    <div class="lantern-group">
-        <div class="lantern-wrapper left">
-            <div class="lantern-line"></div>
-            <div class="lantern">
-                <div class="lantern-inner"></div>
-                <span class="lantern-text">春</span>
-            </div>
-            <div class="lantern-tassel"></div>
-        </div>
-        <div class="lantern-wrapper right">
-            <div class="lantern-line"></div>
-            <div class="lantern">
-                <div class="lantern-inner"></div>
-                <span class="lantern-text">福</span>
-            </div>
-            <div class="lantern-tassel"></div>
-        </div>
-    </div>
-
-    <!-- 侧边栏导航菜单 -->
-    <div id="sidebar" class="sidebar">
+    <!-- 侧边栏导航 -->
+    <aside id="sidebar" class="sidebar">
         <div class="sidebar-header">
-            <h2>URP教务助手</h2>
-            <button class="close-btn" onclick="closeSidebar()">×</button>
+            <h2>URP 助手</h2>
+            <button class="close-btn" onclick="closeSidebar()" aria-label="关闭菜单">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="1" y1="1" x2="17" y2="17"/><line x1="17" y1="1" x2="1" y2="17"/></svg>
+            </button>
         </div>
         <nav class="sidebar-nav">
             <a href="#" class="nav-item active" data-page="home">
-                <span class="icon">🏠</span>
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg>
                 <span>首页</span>
             </a>
             <a href="#" class="nav-item" data-page="schedule">
-                <span class="icon">📅</span>
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="9" y1="4" x2="9" y2="2"/><line x1="15" y1="4" x2="15" y2="2"/></svg>
                 <span>课程表</span>
             </a>
             <a href="#" class="nav-item" data-page="exams">
-                <span class="icon">📝</span>
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                 <span>考试安排</span>
             </a>
             <a href="#" class="nav-item" data-page="grades">
-                <span class="icon">📊</span>
-                <span>学分绩点查询</span>
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                <span>学分绩点</span>
             </a>
             <a href="#" class="nav-item" data-page="experiments">
-                <span class="icon">🔬</span>
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 3h6v5l4 9H5l4-9V3z"/><line x1="9" y1="3" x2="15" y2="3"/></svg>
                 <span>实验系统</span>
             </a>
             <a href="#" class="nav-item" data-page="evaluation">
-                <span class="icon">⭐</span>
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                 <span>教务评价</span>
             </a>
             <a href="#" class="nav-item" data-page="paper">
-                <span class="icon">📄</span>
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v16H4z"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></svg>
                 <span>论文生成</span>
             </a>
             <a href="#" class="nav-item" data-page="announcements">
-                <span class="icon">📢</span>
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
                 <span>系统公告</span>
             </a>
         </nav>
@@ -82,46 +53,43 @@
             <button class="rebind-btn" onclick="showRebindDialog()">换绑账号</button>
             <p class="user-info">当前用户: <span id="sidebar-username">未登录</span></p>
         </div>
-    </div>
+    </aside>
 
     <!-- 主内容区域 -->
-    <div id="main-content" class="main-content">
+    <main id="main-content" class="main-content">
         <!-- 顶部导航栏 -->
         <header class="header">
-            <button class="menu-btn" onclick="openSidebar()">
-                <span></span>
-                <span></span>
-                <span></span>
+            <button class="menu-btn" onclick="openSidebar()" aria-label="打开菜单">
+                <span></span><span></span><span></span>
             </button>
             <h1 id="page-title">首页</h1>
-            <!-- 登录状态指示器 -->
             <div id="login-status-indicator" class="login-status-indicator">
                 <span class="status-dot status-checking"></span>
                 <span class="status-text">检查中</span>
             </div>
         </header>
 
-        <!-- 页面内容容器 -->
+        <!-- 页面内容 -->
         <div class="content-wrapper">
-            <!-- 首页：紧急事项提示 -->
-            <div id="page-home" class="page active">
-                <div class="urgent-card">
+            <!-- 首页 -->
+            <section id="page-home" class="page active">
+                <div class="card urgent-card">
                     <div class="urgent-header">
-                        <h2>接下来最紧急的事情</h2>
-                        <button class="refresh-btn" onclick="refreshUrgentEvent()">🔄</button>
+                        <h2>接下来最紧急的事</h2>
+                        <button class="icon-btn refresh-btn" onclick="refreshUrgentEvent()" aria-label="刷新">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+                        </button>
                     </div>
                     <div id="urgent-content" class="urgent-content">
-                        <div class="loading">加载中...</div>
+                        <div class="loading">加载中</div>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <!-- 课程表页面 -->
-            <div id="page-schedule" class="page">
-                <div class="schedule-container">
-                    <!-- 课程表内容 -->
+            <!-- 课程表 -->
+            <section id="page-schedule" class="page">
+                <div class="card schedule-container">
                     <div id="schedule-content" class="schedule-content">
-                        <!-- 课程表头部：日期和星期 -->
                         <div class="schedule-header">
                             <div class="schedule-header-time"></div>
                             <div class="schedule-header-day">周一</div>
@@ -132,144 +100,95 @@
                             <div class="schedule-header-day">周六</div>
                             <div class="schedule-header-day">周日</div>
                         </div>
-
-                        <!-- 课程表网格 -->
                         <div class="schedule-grid">
-                            <!-- 时间轴 -->
                             <div class="schedule-timeline">
-                                <div class="timeline-item">
-                                    <div class="timeline-section">1</div>
-                                    <div class="timeline-time-start">08:20</div>
-                                    <div class="timeline-time-end">09:05</div>
-                                </div>
-                                <div class="timeline-item">
-                                    <div class="timeline-section">2</div>
-                                    <div class="timeline-time-start">09:15</div>
-                                    <div class="timeline-time-end">10:00</div>
-                                </div>
-                                <div class="timeline-item">
-                                    <div class="timeline-section">3</div>
-                                    <div class="timeline-time-start">10:20</div>
-                                    <div class="timeline-time-end">11:05</div>
-                                </div>
-                                <div class="timeline-item">
-                                    <div class="timeline-section">4</div>
-                                    <div class="timeline-time-start">11:15</div>
-                                    <div class="timeline-time-end">12:00</div>
-                                </div>
-                                <div class="timeline-item">
-                                    <div class="timeline-section">5</div>
-                                    <div class="timeline-time-start">14:00</div>
-                                    <div class="timeline-time-end">14:45</div>
-                                </div>
-                                <div class="timeline-item">
-                                    <div class="timeline-section">6</div>
-                                    <div class="timeline-time-start">14:55</div>
-                                    <div class="timeline-time-end">15:40</div>
-                                </div>
-                                <div class="timeline-item">
-                                    <div class="timeline-section">7</div>
-                                    <div class="timeline-time-start">16:00</div>
-                                    <div class="timeline-time-end">16:45</div>
-                                </div>
-                                <div class="timeline-item">
-                                    <div class="timeline-section">8</div>
-                                    <div class="timeline-time-start">16:55</div>
-                                    <div class="timeline-time-end">17:40</div>
-                                </div>
+                                <div class="timeline-item"><div class="timeline-section">1</div><div class="timeline-time-start">08:20</div><div class="timeline-time-end">09:05</div></div>
+                                <div class="timeline-item"><div class="timeline-section">2</div><div class="timeline-time-start">09:15</div><div class="timeline-time-end">10:00</div></div>
+                                <div class="timeline-item"><div class="timeline-section">3</div><div class="timeline-time-start">10:20</div><div class="timeline-time-end">11:05</div></div>
+                                <div class="timeline-item"><div class="timeline-section">4</div><div class="timeline-time-start">11:15</div><div class="timeline-time-end">12:00</div></div>
+                                <div class="timeline-item"><div class="timeline-section">5</div><div class="timeline-time-start">14:00</div><div class="timeline-time-end">14:45</div></div>
+                                <div class="timeline-item"><div class="timeline-section">6</div><div class="timeline-time-start">14:55</div><div class="timeline-time-end">15:40</div></div>
+                                <div class="timeline-item"><div class="timeline-section">7</div><div class="timeline-time-start">16:00</div><div class="timeline-time-end">16:45</div></div>
+                                <div class="timeline-item"><div class="timeline-section">8</div><div class="timeline-time-start">16:55</div><div class="timeline-time-end">17:40</div></div>
                             </div>
-
-                            <!-- 课程卡片区域 -->
-                            <div class="schedule-days" id="schedule-days">
-                                <!-- 动态生成课程卡片 -->
-                            </div>
+                            <div class="schedule-days" id="schedule-days"></div>
                         </div>
                     </div>
-
-                    <!-- 周次切换器 -->
-                    <div class="week-selector" style="margin-top: 20px;">
-                        <button class="week-btn" onclick="changeWeek(-1)">◀ 上周</button>
+                    <div class="week-selector">
+                        <button class="btn-secondary btn-sm" onclick="changeWeek(-1)">上一周</button>
                         <span class="current-week">第 <span id="current-week">1</span> 周</span>
-                        <button class="week-btn" onclick="changeWeek(1)">下周 ▶</button>
+                        <button class="btn-secondary btn-sm" onclick="changeWeek(1)">下一周</button>
                     </div>
-
-                    <!-- 操作按钮 -->
-                    <div style="text-align: center; margin-top: 20px;">
-                        <button class="update-schedule-btn" onclick="loadSchedule()">🔄 刷新显示</button>
-                        <button class="update-schedule-btn" onclick="updateScheduleData()" style="margin-left: 10px; background-color: #4caf50;">📥 更新课程表</button>
+                    <div class="action-bar">
+                        <button class="btn-secondary" onclick="loadSchedule()">刷新显示</button>
+                        <button class="btn-primary" onclick="updateScheduleData()">更新课程表</button>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <!-- 考试安排页面 -->
-            <div id="page-exams" class="page">
-                <div class="exams-container">
+            <!-- 考试安排 -->
+            <section id="page-exams" class="page">
+                <div class="card exams-container">
                     <h2>考试安排</h2>
-
                     <div id="exams-content" class="exams-content">
-                        <div class="loading">加载中...</div>
+                        <div class="loading">加载中</div>
                     </div>
-
-                    <!-- 操作按钮 -->
-                    <div style="text-align: center; margin-top: 20px;">
-                        <button class="update-schedule-btn" onclick="loadExams()">🔄 刷新显示</button>
-                        <button class="update-schedule-btn" onclick="updateExamsData()" style="margin-left: 10px; background-color: #4caf50;">📥 更新考试安排</button>
+                    <div class="action-bar">
+                        <button class="btn-secondary" onclick="loadExams()">刷新显示</button>
+                        <button class="btn-primary" onclick="updateExamsData()">更新考试安排</button>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <!-- 成绩查询页面 -->
-            <div id="page-grades" class="page">
-                <div class="grades-container">
+            <!-- 成绩查询 -->
+            <section id="page-grades" class="page">
+                <div class="card grades-container">
                     <h2>学分绩点查询</h2>
                     <div id="grades-content" class="grades-content">
-                        <div class="loading">加载中...</div>
+                        <div class="loading">加载中</div>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <!-- 实验系统页面 -->
-            <div id="page-experiments" class="page">
-                <div class="experiments-container">
+            <!-- 实验系统 -->
+            <section id="page-experiments" class="page">
+                <div class="card experiments-container">
                     <h2>实验系统</h2>
                     <div id="experiments-content" class="experiments-content">
-                        <div class="loading">加载中...</div>
+                        <div class="loading">加载中</div>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <!-- 教务评价页面 -->
-            <div id="page-evaluation" class="page">
-                <div class="evaluation-container">
+            <!-- 教务评价 -->
+            <section id="page-evaluation" class="page">
+                <div class="card evaluation-container">
                     <h2>教务评价</h2>
-                    <!-- 刷新查询按钮 -->
-                    <div style="text-align: center; margin-bottom: 20px;">
-                        <button class="update-schedule-btn" onclick="checkUnevaluatedCourses()">🔄 刷新查询</button>
-                        <button class="update-schedule-btn" id="one-click-eval-btn" onclick="oneClickEvaluation()" style="margin-left: 10px; background-color: #4caf50;">一键评教</button>
+                    <div class="action-bar" style="margin-bottom:20px;">
+                        <button class="btn-secondary" onclick="checkUnevaluatedCourses()">刷新查询</button>
+                        <button class="btn-primary" id="one-click-eval-btn" onclick="oneClickEvaluation()">一键评教</button>
                     </div>
                     <div id="evaluation-result" class="evaluation-result"></div>
                 </div>
-            </div>
+            </section>
 
-            <!-- 论文生成页面 -->
-            <div id="page-paper" class="page">
-                <div class="paper-container">
+            <!-- 论文生成 -->
+            <section id="page-paper" class="page">
+                <div class="card paper-container">
                     <h2>论文生成</h2>
-                    <!-- 免责提醒 -->
                     <div class="paper-warning">
-                        <span class="warning-icon">⚠️</span>
+                        <svg class="warning-icon-svg" viewBox="0 0 24 24" fill="none" stroke="#FF9500" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                         <span class="warning-text">本功能仅适用于应付日常课程作业，毕业论文、学位论文等重要学术成果请勿使用，后果自负</span>
                     </div>
-                    <!-- 模式切换 -->
                     <div class="paper-mode-tabs">
                         <button class="paper-mode-tab active" data-mode="simple" onclick="switchPaperMode('simple')">简单生成</button>
                         <button class="paper-mode-tab" data-mode="complex" onclick="switchPaperMode('complex')">复杂生成</button>
                     </div>
 
-                    <!-- 简单模式表单 -->
+                    <!-- 简单模式 -->
                     <div id="simple-mode-form" class="paper-content">
                         <div class="mode-description simple-desc">
-                            <div class="desc-title">💡 简单生成模式</div>
+                            <div class="desc-title">简单生成模式</div>
                             <div class="desc-content">固定模板 + 快速生成，内容较为模式化，适合各类水课、通识课的结课小论文</div>
                         </div>
                         <div class="form-group">
@@ -309,21 +228,19 @@
                             </select>
                         </div>
                         <div class="paper-actions">
-                            <button class="update-schedule-btn" id="generate-paper-btn" onclick="generatePaper()" style="background-color: #4caf50;">生成论文</button>
+                            <button class="btn-primary" id="generate-paper-btn" onclick="generatePaper()">生成论文</button>
                         </div>
-                        <div id="paper-result" class="paper-result" style="margin-top: 20px;"></div>
+                        <div id="paper-result" class="paper-result"></div>
                     </div>
 
-                    <!-- 复杂模式表单 -->
-                    <div id="complex-mode-form" class="paper-content" style="display: none;">
+                    <!-- 复杂模式 -->
+                    <div id="complex-mode-form" class="paper-content" style="display:none;">
                         <div class="mode-description complex-desc">
-                            <div class="desc-title">🚀 复杂生成模式</div>
-                            <div class="desc-content">定制化模板 + Claude Opus4.6  满血顶配模型，质量有保障。提交需求后人工审核生成，不满意可反馈修改，适合专业课结课论文</div>
+                            <div class="desc-title">复杂生成模式</div>
+                            <div class="desc-content">定制化模板 + Claude Opus4.6 满血顶配模型，质量有保障。提交需求后人工审核生成，不满意可反馈修改，适合专业课结课论文</div>
                         </div>
-                        <!-- 示例论文下载 -->
                         <div class="sample-paper-box">
-                            <span class="sample-paper-icon">📄</span>
-                            <span class="sample-paper-text">查看生成效果：</span>
+                            <span>查看生成效果：</span>
                             <a href="/static/samples/sample_paper.docx" download class="sample-paper-link">下载示例论文</a>
                         </div>
                         <div class="form-group">
@@ -340,34 +257,33 @@
                                 <input type="file" id="complex-file" accept=".txt,.doc,.docx,.pdf" onchange="handleFileSelect(event)">
                                 <div class="file-upload-hint">支持 .txt, .doc, .docx, .pdf 格式</div>
                             </div>
-                            <div id="uploaded-file-info" class="uploaded-file-info" style="display: none;"></div>
+                            <div id="uploaded-file-info" class="uploaded-file-info" style="display:none;"></div>
                         </div>
                         <div class="paper-actions">
-                            <button class="update-schedule-btn" onclick="saveComplexRequest()" style="background-color: #2196f3;">保存需求</button>
+                            <button class="btn-primary" onclick="saveComplexRequest()">保存需求</button>
                         </div>
-                        <!-- 已保存需求列表 -->
-                        <div id="complex-requests-list" class="paper-drafts-list" style="display: none;">
+                        <div id="complex-requests-list" class="paper-drafts-list" style="display:none;">
                             <h4>已保存的需求</h4>
                             <div id="requests-container"></div>
                         </div>
-                        <div id="complex-result" class="paper-result" style="margin-top: 20px;"></div>
+                        <div id="complex-result" class="paper-result"></div>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <!-- 系统公告页面 -->
-            <div id="page-announcements" class="page">
-                <div class="announcements-container">
+            <!-- 系统公告 -->
+            <section id="page-announcements" class="page">
+                <div class="card announcements-container">
                     <h2>系统公告</h2>
                     <div id="announcements-list-content" class="announcements-list-content">
-                        <div class="loading">加载中...</div>
+                        <div class="loading">加载中</div>
                     </div>
                 </div>
-            </div>
+            </section>
         </div>
-    </div>
+    </main>
 
-    <!-- 登录/绑定弹窗 -->
+    <!-- 登录弹窗 -->
     <div id="login-modal" class="modal">
         <div class="modal-content">
             <h2>绑定教务账号</h2>
@@ -381,16 +297,16 @@
                     <label for="password">密码</label>
                     <input type="password" id="password" name="password" required placeholder="请输入密码">
                 </div>
-                <button type="submit" class="submit-btn">绑定账号</button>
+                <button type="submit" class="btn-primary btn-full">绑定账号</button>
             </form>
             <div id="login-error" class="error-message"></div>
         </div>
     </div>
 
-    <!-- 换绑申请弹窗 -->
+    <!-- 换绑弹窗 -->
     <div id="rebind-modal" class="modal">
         <div class="modal-content">
-            <button class="modal-close" onclick="closeRebindDialog()">×</button>
+            <button class="modal-close" onclick="closeRebindDialog()" aria-label="关闭">&times;</button>
             <h2>申请换绑账号</h2>
             <p class="modal-desc">换绑需要管理员审批</p>
             <form id="rebind-form" onsubmit="handleRebind(event)">
@@ -402,7 +318,7 @@
                     <label for="reason">换绑原因</label>
                     <textarea id="reason" name="reason" required placeholder="请说明换绑原因"></textarea>
                 </div>
-                <button type="submit" class="submit-btn">提交申请</button>
+                <button type="submit" class="btn-primary btn-full">提交申请</button>
             </form>
             <div id="rebind-error" class="error-message"></div>
         </div>
@@ -411,7 +327,7 @@
     <!-- 公告弹窗 -->
     <div id="announcement-popup" class="modal announcement-popup">
         <div class="modal-content announcement-modal-content">
-            <button class="modal-close" onclick="closeAnnouncementPopup()">×</button>
+            <button class="modal-close" onclick="closeAnnouncementPopup()" aria-label="关闭">&times;</button>
             <h2 id="announcement-popup-title">系统公告</h2>
             <div id="announcement-popup-content" class="announcement-popup-content"></div>
             <div class="announcement-popup-footer">
@@ -419,15 +335,15 @@
                     <input type="checkbox" id="never-show-checkbox">
                     不再显示此公告
                 </label>
-                <button class="close-announcement-btn" onclick="closeAnnouncementPopup()">关闭</button>
+                <button class="btn-primary" onclick="closeAnnouncementPopup()">关闭</button>
             </div>
         </div>
     </div>
 
-    <!-- 反馈修改弹窗 -->
+    <!-- 反馈弹窗 -->
     <div id="feedback-modal" class="modal">
         <div class="modal-content">
-            <button class="modal-close" onclick="closeFeedbackModal()">×</button>
+            <button class="modal-close" onclick="closeFeedbackModal()" aria-label="关闭">&times;</button>
             <h2>反馈修改意见</h2>
             <div class="feedback-info">
                 <span>论文标题：</span>
@@ -439,31 +355,31 @@
             </div>
             <p class="feedback-hint">提交后论文将重新变为待处理状态，管理员将根据您的意见进行修改</p>
             <div class="button-group">
-                <button type="button" class="submit-btn" id="submit-feedback-btn" onclick="submitFeedback()">提交反馈</button>
-                <button type="button" class="cancel-btn" onclick="closeFeedbackModal()">取消</button>
+                <button type="button" class="btn-secondary" onclick="closeFeedbackModal()">取消</button>
+                <button type="button" class="btn-primary" id="submit-feedback-btn" onclick="submitFeedback()">提交反馈</button>
             </div>
         </div>
     </div>
 
-    <!-- 满意签收弹窗 -->
+    <!-- 签收弹窗 -->
     <div id="receipt-modal" class="modal">
         <div class="modal-content">
-            <button class="modal-close" onclick="closeReceiptModal()">×</button>
+            <button class="modal-close" onclick="closeReceiptModal()" aria-label="关闭">&times;</button>
             <h2>满意签收</h2>
             <div class="feedback-info">
                 <span>论文标题：</span>
                 <span id="receipt-title" class="feedback-title-text"></span>
             </div>
             <div class="receipt-warning">
-                <span class="warning-icon">⚠️</span>
+                <svg class="warning-icon-svg" viewBox="0 0 24 24" fill="none" stroke="#FF3B30" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                 <div class="warning-content">
                     <p><strong>请确保已经下载论文文件！</strong></p>
                     <p>签收后该需求将被删除，无法再下载或修改。</p>
                 </div>
             </div>
             <div class="button-group">
-                <button type="button" class="submit-btn" id="confirm-receipt-btn" onclick="confirmReceipt()">确认签收</button>
-                <button type="button" class="cancel-btn" onclick="closeReceiptModal()">取消</button>
+                <button type="button" class="btn-secondary" onclick="closeReceiptModal()">取消</button>
+                <button type="button" class="btn-primary" id="confirm-receipt-btn" onclick="confirmReceipt()">确认签收</button>
             </div>
         </div>
     </div>
@@ -471,15 +387,6 @@
     <!-- 遮罩层 -->
     <div id="overlay" class="overlay" onclick="closeSidebar()"></div>
 
-    <!-- JavaScript -->
     <script src="/static/js/main.js"></script>
-    <script>
-        // 加载全局主题
-        fetch('/api/theme').then(r => r.json()).then(data => {
-            if (data.success && data.theme === 'spring') {
-                document.body.classList.add('theme-spring');
-            }
-        }).catch(() => {});
-    </script>
 </body>
 </html>

@@ -330,26 +330,26 @@ async function loadUrgentEvent() {
         if (data.success && data.event) {
             displayUrgentEvent(data.event);
         } else {
-            contentDiv.innerHTML = '<p style="text-align:center;color:#999;">暂无紧急事项</p>';
+            contentDiv.innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">暂无紧急事项</p>';
         }
     } catch (error) {
         console.error('加载紧急事件失败:', error);
-        contentDiv.innerHTML = '<p style="text-align:center;color:#f44336;">加载失败</p>';
+        contentDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
     }
 }
 
 function displayUrgentEvent(event) {
     const contentDiv = document.getElementById('urgent-content');
 
-    const typeText = event.type === 'class' ? '📚 下一节课' : '📝 即将考试';
+    const typeText = event.type === 'class' ? '下一节课' : '即将考试';
     const seatHtml = event.seat ? `<div class="event-seat">座位号: ${event.seat}</div>` : '';
 
     contentDiv.innerHTML = `
         <div class="event-card">
             <div class="event-type">${typeText}</div>
             <div class="event-title">${event.title}</div>
-            <div class="event-location">📍 ${event.location}</div>
-            <div class="event-time">🕐 ${event.time}</div>
+            <div class="event-location">${event.location}</div>
+            <div class="event-time">${event.time}</div>
             <div class="countdown">${event.countdown}</div>
             <div class="countdown-label">分钟后开始</div>
             ${seatHtml}
@@ -431,11 +431,11 @@ async function loadSchedule(week = null) {
             // 显示课程表（即使没有数据也显示空表格）
             displaySchedule(data.data.schedule || {});
         } else {
-            contentDiv.innerHTML = `<p style="text-align:center;color:#999;padding:40px;">${data.message || '暂无课程数据'}</p>`;
+            contentDiv.innerHTML = `<p style="text-align:center;color:var(--text-tertiary);padding:40px;">${data.message || '暂无课程数据'}</p>`;
         }
     } catch (error) {
         console.error('加载课程表失败:', error);
-        contentDiv.innerHTML = '<p style="text-align:center;color:#f44336;padding:40px;">加载失败，请检查网络连接</p>';
+        contentDiv.innerHTML = '<p style="text-align:center;color:var(--error);padding:40px;">加载失败，请检查网络连接</p>';
     }
 }
 
@@ -470,8 +470,8 @@ function displaySchedule(schedule) {
 
     // 检测是否是手机端
     const isMobile = window.innerWidth <= 768;
-    const sectionHeight = isMobile ? 60 : 80;
-    const gap = isMobile ? 4 : 8;
+    const sectionHeight = isMobile ? 56 : 76;
+    const gap = isMobile ? 3 : 6;
 
     // 生成课程卡片HTML
     let html = '';
@@ -567,11 +567,11 @@ async function loadExams() {
         if (data.success && data.exams && data.exams.length > 0) {
             displayExams(data.exams);
         } else {
-            contentDiv.innerHTML = '<p style="text-align:center;color:#999;">暂无考试安排</p>';
+            contentDiv.innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">暂无考试安排</p>';
         }
     } catch (error) {
         console.error('加载考试安排失败:', error);
-        contentDiv.innerHTML = '<p style="text-align:center;color:#f44336;">加载失败</p>';
+        contentDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
     }
 }
 
@@ -612,8 +612,26 @@ function displayExams(exams) {
                 timeInfo = exam.time;
             }
 
+            // 计算倒计时和紧急程度
+            let urgencyClass = 'exam-normal';
+            let countdownHtml = '';
+            if (exam.date) {
+                const examDate = new Date(exam.date);
+                const now = new Date();
+                const diffDays = Math.ceil((examDate - now) / (1000 * 60 * 60 * 24));
+                if (diffDays <= 3 && diffDays >= 0) {
+                    urgencyClass = 'exam-urgent';
+                    countdownHtml = `<div class="exam-countdown" style="color:var(--error);">${diffDays}天后考试</div>`;
+                } else if (diffDays <= 7 && diffDays > 3) {
+                    urgencyClass = 'exam-soon';
+                    countdownHtml = `<div class="exam-countdown" style="color:var(--warning);">${diffDays}天后考试</div>`;
+                } else if (diffDays > 7) {
+                    countdownHtml = `<div class="exam-countdown" style="color:var(--accent);">${diffDays}天后考试</div>`;
+                }
+            }
+
             html += `
-                <div class="exam-card">
+                <div class="exam-card ${urgencyClass}">
                     <div class="exam-course">${exam.course}</div>
                     <div class="exam-info">
                         <div class="exam-info-item">
@@ -626,6 +644,7 @@ function displayExams(exams) {
                             <strong>座位号:</strong> ${exam.seat}
                         </div>
                     </div>
+                    ${countdownHtml}
                 </div>
             `;
         });
@@ -658,11 +677,11 @@ async function loadGrades() {
         if (data.success && data.grades && data.grades.length > 0) {
             displayGrades(data.grades);
         } else {
-            contentDiv.innerHTML = '<p style="text-align:center;color:#999;">暂无成绩数据</p>';
+            contentDiv.innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">暂无成绩数据</p>';
         }
     } catch (error) {
         console.error('加载成绩失败:', error);
-        contentDiv.innerHTML = '<p style="text-align:center;color:#f44336;">加载失败</p>';
+        contentDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
     }
 }
 
@@ -758,11 +777,11 @@ async function loadExperiments() {
         if (data.success && data.experiments && data.experiments.length > 0) {
             displayExperiments(data.experiments);
         } else {
-            contentDiv.innerHTML = '<p style="text-align:center;color:#999;">暂无实验数据</p>';
+            contentDiv.innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">暂无实验数据</p>';
         }
     } catch (error) {
         console.error('加载实验数据失败:', error);
-        contentDiv.innerHTML = '<p style="text-align:center;color:#f44336;">加载失败</p>';
+        contentDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
     }
 }
 
@@ -819,8 +838,8 @@ async function checkUnevaluatedCourses() {
                 resultDiv.className = 'evaluation-result result-success';
                 resultDiv.innerHTML = `
                     <div style="text-align:center;padding:20px;">
-                        <div style="font-size:48px;margin-bottom:10px;">✅</div>
-                        <div style="font-size:18px;color:#4caf50;">${data.message}</div>
+                        <div style="font-size:40px;margin-bottom:10px;color:var(--success);">&#10003;</div>
+                        <div style="font-size:17px;color:var(--success);font-weight:600;">${data.message}</div>
                     </div>
                 `;
             }
@@ -839,18 +858,18 @@ function displayUnevaluatedCourses(courses) {
     const resultDiv = document.getElementById('evaluation-result');
 
     let html = '<div class="unevaluated-courses">';
-    html += '<h3 style="margin-bottom:15px;color:#333;">未评估课程列表</h3>';
+    html += '<h3 style="margin-bottom:15px;font-weight:600;">未评估课程列表</h3>';
 
     courses.forEach(course => {
         html += `
-            <div class="course-item" style="background:#f5f5f5;padding:15px;margin-bottom:10px;border-radius:8px;">
-                <div style="font-size:16px;font-weight:bold;margin-bottom:5px;">${course['未评课程']}</div>
-                <div style="font-size:14px;color:#666;">教师: ${course['教师']}</div>
+            <div style="background:var(--bg-secondary);padding:14px 16px;margin-bottom:8px;border-radius:12px;">
+                <div style="font-size:15px;font-weight:600;margin-bottom:4px;">${course['未评课程']}</div>
+                <div style="font-size:14px;color:var(--text-secondary);">教师: ${course['教师']}</div>
             </div>
         `;
     });
 
-    html += '<button class="eval-btn" onclick="doEvaluation()" style="margin-top:20px;">完成评估</button>';
+    html += '<div style="text-align:center;margin-top:20px;"><button class="btn-primary" onclick="doEvaluation()">完成评估</button></div>';
     html += '</div>';
 
     resultDiv.innerHTML = html;
@@ -894,8 +913,8 @@ async function doEvaluation() {
             resultDiv.className = 'evaluation-result result-success';
             resultDiv.innerHTML = `
                 <div style="text-align:center;padding:20px;">
-                    <div style="font-size:48px;margin-bottom:10px;">✅</div>
-                    <div style="font-size:18px;color:#4caf50;">${data.message || '评价完成'}</div>
+                    <div style="font-size:40px;margin-bottom:10px;color:var(--success);">&#10003;</div>
+                    <div style="font-size:17px;color:var(--success);font-weight:600;">${data.message || '评价完成'}</div>
                 </div>
             `;
         } else {
@@ -941,8 +960,8 @@ async function oneClickEvaluation() {
             resultDiv.className = 'evaluation-result result-success';
             resultDiv.innerHTML = `
                 <div style="text-align:center;padding:20px;">
-                    <div style="font-size:48px;margin-bottom:10px;">✅</div>
-                    <div style="font-size:18px;color:#4caf50;">没有未评估的课程</div>
+                    <div style="font-size:40px;margin-bottom:10px;color:var(--success);">&#10003;</div>
+                    <div style="font-size:17px;color:var(--success);font-weight:600;">没有未评估的课程</div>
                 </div>
             `;
             btn.disabled = false;
@@ -967,8 +986,8 @@ async function oneClickEvaluation() {
             resultDiv.className = 'evaluation-result result-success';
             resultDiv.innerHTML = `
                 <div style="text-align:center;padding:20px;">
-                    <div style="font-size:48px;margin-bottom:10px;">✅</div>
-                    <div style="font-size:18px;color:#4caf50;">${evalData.message}</div>
+                    <div style="font-size:40px;margin-bottom:10px;color:var(--success);">&#10003;</div>
+                    <div style="font-size:17px;color:var(--success);font-weight:600;">${evalData.message}</div>
                 </div>
             `;
         } else {
@@ -1017,7 +1036,7 @@ function handleFileSelect(event) {
         const fileInfo = document.getElementById('uploaded-file-info');
         fileInfo.style.display = 'flex';
         fileInfo.innerHTML = `
-            <span class="uploaded-file-name">📎 ${file.name}</span>
+            <span class="uploaded-file-name">${file.name}</span>
             <button class="uploaded-file-remove" onclick="removeSelectedFile()">移除</button>
         `;
     }
@@ -1080,7 +1099,7 @@ async function saveComplexRequest() {
         const data = await response.json();
 
         if (data.success) {
-            resultDiv.innerHTML = '<div class="result-success" style="padding:15px;text-align:center;color:#4caf50;">✅ 需求保存成功</div>';
+            resultDiv.innerHTML = '<div class="result-success" style="padding:15px;text-align:center;">需求保存成功</div>';
             // 清空表单
             document.getElementById('complex-title').value = '';
             document.getElementById('complex-requirements').value = '';
@@ -1088,11 +1107,11 @@ async function saveComplexRequest() {
             // 刷新列表
             loadComplexRequests();
         } else {
-            resultDiv.innerHTML = `<div class="result-error" style="padding:15px;text-align:center;color:#f44336;">❌ ${data.message}</div>`;
+            resultDiv.innerHTML = `<div class="result-error" style="padding:15px;text-align:center;">${data.message}</div>`;
         }
     } catch (error) {
         console.error('保存需求失败:', error);
-        resultDiv.innerHTML = '<div class="result-error" style="padding:15px;text-align:center;color:#f44336;">❌ 网络错误，请重试</div>';
+        resultDiv.innerHTML = '<div class="result-error" style="padding:15px;text-align:center;">网络错误，请重试</div>';
     }
 }
 
@@ -1120,13 +1139,13 @@ async function loadComplexRequests() {
                     const date = new Date(req.created_at);
                     const dateStr = date.toLocaleDateString('zh-CN') + ' ' + date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
                     const fileTag = req.file
-                        ? `<a href="/api/download_request_file/${req.id}" style="color:#2196f3;font-size:12px;margin-left:8px;text-decoration:none;">📎 下载附件</a>`
+                        ? `<a href="/api/download_request_file/${req.id}" style="color:var(--accent);font-size:12px;margin-left:8px;text-decoration:none;">附件</a>`
                         : '';
                     const finishTag = req.finish_file
-                        ? `<span style="color:#4caf50;font-size:12px;margin-left:8px;">✅ 已完成</span>`
-                        : '<span style="color:#ff9800;font-size:12px;margin-left:8px;">⏳ 待处理</span>';
+                        ? `<span style="color:var(--success);font-size:12px;margin-left:8px;">已完成</span>`
+                        : '<span style="color:var(--warning);font-size:12px;margin-left:8px;">待处理</span>';
                     const downloadBtn = req.finish_file
-                        ? `<button class="draft-btn" style="background:#4caf50;color:white;" onclick="downloadFinishedPaper('${req.finish_file}', '${req.id}')">下载论文</button>`
+                        ? `<button class="draft-btn draft-btn-confirm" onclick="downloadFinishedPaper('${req.finish_file}', '${req.id}')">下载论文</button>`
                         : '';
                     const feedbackBtn = req.finish_file
                         ? `<button class="draft-btn draft-btn-feedback" onclick="showFeedbackModal('${req.id}', '${escapeHtmlAttr(req.title)}')">反馈修改</button>`
@@ -1153,11 +1172,11 @@ async function loadComplexRequests() {
                 }).join('');
             }
         } else {
-            container.innerHTML = `<div class="no-drafts" style="color:#f44336;">${data.message}</div>`;
+            container.innerHTML = `<div class="no-drafts" style="color:var(--error);">${data.message}</div>`;
         }
     } catch (error) {
         console.error('加载需求失败:', error);
-        container.innerHTML = '<div class="no-drafts" style="color:#f44336;">加载失败，请重试</div>';
+        container.innerHTML = '<div class="no-drafts" style="color:var(--error);">加载失败，请重试</div>';
     }
 }
 
@@ -1447,9 +1466,9 @@ async function generatePaper() {
                             resultDiv.className = 'paper-result result-success';
                             resultDiv.innerHTML = `
                                 <div style="text-align:center;padding:20px;">
-                                    <div style="font-size:48px;margin-bottom:10px;">✅</div>
-                                    <div style="font-size:18px;color:#4caf50;margin-bottom:20px;">论文生成成功</div>
-                                    <a href="/api/download_paper/${data.filename}" class="update-schedule-btn" style="display:inline-block;text-decoration:none;background-color:#2196f3;">下载论文</a>
+                                    <div style="font-size:40px;margin-bottom:12px;color:var(--success);">&#10003;</div>
+                                    <div style="font-size:17px;font-weight:600;color:var(--success);margin-bottom:20px;">论文生成成功</div>
+                                    <a href="/api/download_paper/${data.filename}" class="btn-primary" style="display:inline-flex;text-decoration:none;">下载论文</a>
                                 </div>
                             `;
                         } else if (data.type === 'error') {
@@ -1564,17 +1583,17 @@ async function loadAnnouncementsList() {
             } else {
                 contentDiv.innerHTML = `
                     <div class="empty-state">
-                        <div class="empty-state-icon">📢</div>
+                        <div class="empty-state-icon">&#128276;</div>
                         <div class="empty-state-text">暂无公告</div>
                     </div>
                 `;
             }
         } else {
-            contentDiv.innerHTML = '<p style="text-align:center;color:#f44336;">加载失败</p>';
+            contentDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
         }
     } catch (error) {
         console.error('加载公告列表失败:', error);
-        contentDiv.innerHTML = '<p style="text-align:center;color:#f44336;">加载失败</p>';
+        contentDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
     }
 }
 

@@ -104,17 +104,19 @@ async function loadPendingRequests() {
             } else {
                 listDiv.innerHTML = `
                     <div class="empty-state">
-                        <div class="empty-state-icon">📭</div>
+                        <div class="empty-state-icon">
+                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+                        </div>
                         <div class="empty-state-text">暂无待审批请求</div>
                     </div>
                 `;
             }
         } else {
-            listDiv.innerHTML = '<p style="text-align:center;color:#f44336;">加载失败</p>';
+            listDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
         }
     } catch (error) {
         console.error('加载待审批请求失败:', error);
-        listDiv.innerHTML = '<p style="text-align:center;color:#f44336;">加载失败</p>';
+        listDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
     }
 }
 
@@ -344,18 +346,20 @@ async function loadUsers(page = 1, search = '') {
             } else {
                 listDiv.innerHTML = `
                     <div class="empty-state">
-                        <div class="empty-state-icon">👥</div>
+                        <div class="empty-state-icon">
+                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        </div>
                         <div class="empty-state-text">${search ? '未找到匹配的用户' : '暂无绑定用户'}</div>
                     </div>
                 `;
                 paginationDiv.innerHTML = '';
             }
         } else {
-            listDiv.innerHTML = '<p style="text-align:center;color:#f44336;">加载失败</p>';
+            listDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
         }
     } catch (error) {
         console.error('加载用户列表失败:', error);
-        listDiv.innerHTML = '<p style="text-align:center;color:#f44336;">加载失败</p>';
+        listDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
     }
 }
 
@@ -484,13 +488,13 @@ async function loadConfig() {
         if (data.success) {
             displayConfig(data.config);
         } else {
-            currentUrlDiv.innerHTML = '<p style="color:#f44336;">加载失败</p>';
-            urlOptionsDiv.innerHTML = '<p style="color:#f44336;">加载失败</p>';
+            currentUrlDiv.innerHTML = '<p style="color:var(--error);">加载失败</p>';
+            urlOptionsDiv.innerHTML = '<p style="color:var(--error);">加载失败</p>';
         }
     } catch (error) {
         console.error('加载配置失败:', error);
-        currentUrlDiv.innerHTML = '<p style="color:#f44336;">加载失败</p>';
-        urlOptionsDiv.innerHTML = '<p style="color:#f44336;">加载失败</p>';
+        currentUrlDiv.innerHTML = '<p style="color:var(--error);">加载失败</p>';
+        urlOptionsDiv.innerHTML = '<p style="color:var(--error);">加载失败</p>';
     }
 }
 
@@ -502,7 +506,7 @@ function displayConfig(config) {
     // 显示当前URL
     const currentUrlDiv = document.getElementById('current-url');
     currentUrlDiv.innerHTML = `
-        <div class="current-url-text">🌐 ${currentUrl}</div>
+        <div class="current-url-text">${currentUrl}</div>
     `;
 
     // 显示URL选项
@@ -633,17 +637,19 @@ async function loadAnnouncements() {
             } else {
                 listDiv.innerHTML = `
                     <div class="empty-state">
-                        <div class="empty-state-icon">📢</div>
+                        <div class="empty-state-icon">
+                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                        </div>
                         <div class="empty-state-text">暂无公告</div>
                     </div>
                 `;
             }
         } else {
-            listDiv.innerHTML = '<p style="text-align:center;color:#f44336;">加载失败</p>';
+            listDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
         }
     } catch (error) {
         console.error('加载公告失败:', error);
-        listDiv.innerHTML = '<p style="text-align:center;color:#f44336;">加载失败</p>';
+        listDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
     }
 }
 
@@ -817,7 +823,9 @@ async function loadComplexRequests() {
             if (requests.length === 0) {
                 listDiv.innerHTML = `
                     <div class="empty-state">
-                        <div class="empty-state-icon">📄</div>
+                        <div class="empty-state-icon">
+                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                        </div>
                         <div class="empty-state-text">暂无论文需求</div>
                     </div>
                 `;
@@ -825,11 +833,11 @@ async function loadComplexRequests() {
                 displayComplexRequests(requests);
             }
         } else {
-            listDiv.innerHTML = '<p style="text-align:center;color:#f44336;">加载失败</p>';
+            listDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
         }
     } catch (error) {
         console.error('加载复杂需求失败:', error);
-        listDiv.innerHTML = '<p style="text-align:center;color:#f44336;">加载失败</p>';
+        listDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
     }
 }
 
@@ -868,7 +876,7 @@ function displayComplexRequests(requests) {
             const feedbackDateStr = feedbackDate.toLocaleDateString('zh-CN') + ' ' + feedbackDate.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
             feedbackSection = `
                 <div class="feedback-section">
-                    <div class="feedback-header">📝 用户反馈 (${feedbackDateStr}) - 共${req.feedback_history.length}次反馈</div>
+                    <div class="feedback-header">用户反馈 (${feedbackDateStr}) - 共${req.feedback_history.length}次反馈</div>
                     <div class="feedback-content">${escapeHtml(latestFeedback.feedback)}</div>
                 </div>
             `;
@@ -881,10 +889,10 @@ function displayComplexRequests(requests) {
                     <span class="announcement-status ${statusClass}">${statusText}</span>
                 </div>
                 <div class="complex-meta">
-                    <span>👤 ${req.username}</span>
-                    <span>📅 ${dateStr}</span>
-                    ${req.file ? '<span>📎 有附件</span>' : ''}
-                    ${hasFeedback ? '<span style="color:#ff9800;">💬 有反馈</span>' : ''}
+                    <span>${req.username}</span>
+                    <span>${dateStr}</span>
+                    ${req.file ? '<span>附件</span>' : ''}
+                    ${hasFeedback ? '<span style="color:var(--warning);">有反馈</span>' : ''}
                 </div>
                 ${requirementsPreview}
                 ${feedbackSection}
@@ -944,7 +952,7 @@ function handleFinishFileSelect(event) {
         const fileInfo = document.getElementById('finish-file-info');
         fileInfo.style.display = 'flex';
         fileInfo.innerHTML = `
-            <span class="uploaded-file-name" style="color:#2e7d32;">📎 ${file.name}</span>
+            <span class="uploaded-file-name" style="color:var(--success);">${file.name}</span>
             <button class="uploaded-file-remove" onclick="removeFinishFile()">移除</button>
         `;
     }
