@@ -642,11 +642,31 @@ def login():
         device_id = get_device_id()
         bind_user(device_id, username, password)
 
-        return jsonify({
+        # 绑定成功后自动获取课表和考试安排
+        auto_fetch_warnings = []
+        try:
+            from URP import URP_query
+            current_url = get_current_urp_url()
+            urp = URP_query(current_url, username)
+            try:
+                urp.schedule_cx()
+            except Exception as e:
+                auto_fetch_warnings.append(f'课表获取失败: {str(e)}')
+            try:
+                urp.exam_cx()
+            except Exception as e:
+                auto_fetch_warnings.append(f'考试安排获取失败: {str(e)}')
+        except Exception:
+            auto_fetch_warnings.append('自动获取数据失败')
+
+        resp = {
             'success': True,
             'message': '登录成功',
             'username': username
-        })
+        }
+        if auto_fetch_warnings:
+            resp['warnings'] = auto_fetch_warnings
+        return jsonify(resp)
     else:
         return jsonify({
             'success': False,

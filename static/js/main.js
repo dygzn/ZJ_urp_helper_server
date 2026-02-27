@@ -152,6 +152,10 @@ async function handleLogin(event) {
             document.getElementById('sidebar-username').textContent = currentUsername;
             hideLoginModal();
             loadUrgentEvent();
+            // 显示自动获取数据的警告
+            if (data.warnings && data.warnings.length > 0) {
+                alert(data.warnings.join('\n'));
+            }
         } else {
             errorDiv.textContent = data.message || '登录失败';
         }
@@ -401,7 +405,7 @@ async function updateSchedule() {
     loadSchedule();
 }
 
-async function loadSchedule(week = null) {
+async function loadSchedule(week = null, autoFetched = false) {
     const contentDiv = document.getElementById('schedule-content');
 
     // 如果没有指定周次，使用当前周次
@@ -428,8 +432,32 @@ async function loadSchedule(week = null) {
                 localStorage.setItem('current_week', currentWeek);
             }
 
-            // 显示课程表（即使没有数据也显示空表格）
-            displaySchedule(data.data.schedule || {});
+            const schedule = data.data.schedule || {};
+            const hasData = Object.keys(schedule).length > 0;
+
+            if (hasData) {
+                displaySchedule(schedule);
+            } else if (!autoFetched) {
+                // 没有缓存数据，自动从教务系统获取
+                contentDiv.innerHTML = '<p style="text-align:center;color:var(--text-tertiary);padding:40px;">正在从教务系统获取课表...</p>';
+                try {
+                    const updateResp = await fetch('/api/update_schedule', {
+                        method: 'POST',
+                        headers: { 'X-Device-ID': getDeviceId() }
+                    });
+                    const updateData = await updateResp.json();
+                    if (updateData.success) {
+                        loadSchedule(week, true);
+                        return;
+                    } else {
+                        contentDiv.innerHTML = `<p style="text-align:center;color:var(--error);padding:40px;">${updateData.message || '获取课表失败'}</p>`;
+                    }
+                } catch (e) {
+                    contentDiv.innerHTML = '<p style="text-align:center;color:var(--error);padding:40px;">获取课表失败，学校可能暂未开放查询</p>';
+                }
+            } else {
+                contentDiv.innerHTML = `<p style="text-align:center;color:var(--text-tertiary);padding:40px;">${data.data.message || '暂无课程数据'}</p>`;
+            }
         } else {
             contentDiv.innerHTML = `<p style="text-align:center;color:var(--text-tertiary);padding:40px;">${data.message || '暂无课程数据'}</p>`;
         }
@@ -461,7 +489,10 @@ function displaySchedule(schedule) {
                         name: course['课程名'],
                         section: section,
                         duration: duration,
-                        location: location
+                        location: location,
+                        campus: course['校区'] || '',
+                        building: course['教学楼'] || '',
+                        room: course['教室'] || ''
                     });
                 }
             });
@@ -487,9 +518,23 @@ function displaySchedule(schedule) {
             // 为课程分配颜色（基于课程名称的哈希值）
             const colorIndex = getColorIndex(course.name);
 
+            const dayNames = ['', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'];
+            const courseData = encodeURIComponent(JSON.stringify({
+                name: course.name,
+                day: dayNames[day] || `星期${day}`,
+                section: course.section,
+                duration: course.duration,
+                campus: course.campus,
+                building: course.building,
+                room: course.room,
+                location: course.location
+            }));
+
             html += `
                 <div class="course-card course-card-color-${colorIndex}"
-                     style="position: absolute; top: ${top}px; height: ${height}px; left: 0; right: 0;">
+                     style="position: absolute; top: ${top}px; height: ${height}px; left: 0; right: 0;"
+                     data-course="${courseData}"
+                     onclick="showCourseDetail(this)">
                     <div class="course-card-name">${course.name}</div>
                     ${course.location ? `<div class="course-card-location">${course.location}</div>` : ''}
                 </div>
@@ -509,6 +554,27 @@ function getColorIndex(courseName) {
         hash = courseName.charCodeAt(i) + ((hash << 5) - hash);
     }
     return Math.abs(hash) % 10; // 10种颜色
+}
+
+function showCourseDetail(el) {
+    const course = JSON.parse(decodeURIComponent(el.dataset.course));
+    const modal = document.getElementById('course-detail-modal');
+    const endSection = course.section + course.duration - 1;
+
+    document.getElementById('course-detail-name').textContent = course.name;
+    document.getElementById('course-detail-body').innerHTML = `
+        <div class="course-detail-row"><span class="course-detail-label">时间</span><span>${course.day} 第${course.section}-${endSection}节</span></div>
+        ${course.location ? `<div class="course-detail-row"><span class="course-detail-label">地点</span><span>${course.location}</span></div>` : ''}
+        ${course.campus ? `<div class="course-detail-row"><span class="course-detail-label">校区</span><span>${course.campus}</span></div>` : ''}
+        ${course.building ? `<div class="course-detail-row"><span class="course-detail-label">教学楼</span><span>${course.building}</span></div>` : ''}
+        ${course.room ? `<div class="course-detail-row"><span class="course-detail-label">教室</span><span>${course.room}</span></div>` : ''}
+    `;
+
+    modal.classList.add('active');
+}
+
+function closeCourseDetail() {
+    document.getElementById('course-detail-modal').classList.remove('active');
 }
 
 function changeWeek(delta) {
@@ -552,7 +618,7 @@ async function updateExamsData() {
     }
 }
 
-async function loadExams() {
+async function loadExams(autoFetched = false) {
     const contentDiv = document.getElementById('exams-content');
     contentDiv.innerHTML = '<div class="loading">加载中</div>';
 
@@ -566,6 +632,24 @@ async function loadExams() {
 
         if (data.success && data.exams && data.exams.length > 0) {
             displayExams(data.exams);
+        } else if (!autoFetched) {
+            // 没有缓存数据，自动从教务系统获取
+            contentDiv.innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">正在从教务系统获取考试安排...</p>';
+            try {
+                const updateResp = await fetch('/api/update_exams', {
+                    method: 'POST',
+                    headers: { 'X-Device-ID': getDeviceId() }
+                });
+                const updateData = await updateResp.json();
+                if (updateData.success) {
+                    loadExams(true);
+                    return;
+                } else {
+                    contentDiv.innerHTML = `<p style="text-align:center;color:var(--error);">${updateData.message || '获取考试安排失败'}</p>`;
+                }
+            } catch (e) {
+                contentDiv.innerHTML = '<p style="text-align:center;color:var(--error);">获取考试安排失败，学校可能暂未开放查询</p>';
+            }
         } else {
             contentDiv.innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">暂无考试安排</p>';
         }

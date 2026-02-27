@@ -655,6 +655,26 @@ body {
 .course-card-color-8 { background: #FF6482; }
 .course-card-color-9 { background: #AC8E68; }
 
+/* 课程详情弹窗 */
+.course-detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.course-detail-row:last-child {
+    border-bottom: none;
+}
+
+.course-detail-label {
+    color: var(--text-secondary);
+    flex-shrink: 0;
+    margin-right: 16px;
+}
+
 /* ==================== 考试安排 ==================== */
 .exams-container {
     padding: 24px;
