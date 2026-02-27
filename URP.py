@@ -54,19 +54,20 @@ class URP_login:
                 os.makedirs(cookie_file, exist_ok=True)
                 with open(f'user_data/{self.account}/cookie.json', 'w', encoding='utf-8') as f:
                     json.dump(self.x.cookies.get_dict(), f, ensure_ascii=False, indent=4)
-                return True
+                return True, "登录成功", self.x.cookies.get_dict()
             elif '您的密码不正确，请您重新输入！' in result:
-                return {'Error':'密码错误'}
+                return False, "密码错误", None
             elif '你输入的验证码错误，请您重新输入！' in result:
+                # 验证码错误，重试最多3次
                 for i in range(3):
-                    if self.login():
-                        return True
-                    else:
-                        return {'Error':'出错了，不过这不是你的问题，刷新页面试试'}
+                    success, message, cookies = self.login()
+                    if success:
+                        return True, message, cookies
+                return False, "验证码多次识别失败，请重试", None
             else:
-                return False
+                return False, "登录失败，请检查账号密码", None
         except Exception as e:
-            return False
+            return False, f"登录异常: {str(e)}", None
 
     def is_logined(self):
         check_url = f'{self.url}/menu/top.jsp'
@@ -79,7 +80,8 @@ class URP_login:
                 # 先获取VPN cookie，再合并URP cookie，确保两者都存在
                 self.x.cookies.update(urp_cookie)
         except Exception:
-            return self.login()
+            success, _, _ = self.login()
+            return success
         r = self.x.get(check_url,timeout=5,verify=False).text
         if self.account in r:
             return True

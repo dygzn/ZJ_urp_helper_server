@@ -296,21 +296,9 @@ def urp_login(username, password):
     url = get_current_urp_url()
 
     try:
-        # 创建URP实例并登录
         urp = URP_login(url, username, password)
-        login_result = urp.login()
-
-        # 检查登录结果
-        if login_result is True:
-            # 登录成功，获取cookies
-            cookies = urp.x.cookies.get_dict()
-            return True, "登录成功", cookies
-        elif isinstance(login_result, dict) and 'Error' in login_result:
-            # 登录失败，返回错误信息
-            return False, login_result['Error'], None
-        else:
-            # 其他情况
-            return False, "登录失败，请检查账号密码", None
+        success, message, cookies = urp.login()
+        return success, message, cookies
     except Exception as e:
         return False, f"登录异常: {str(e)}", None
 
@@ -340,13 +328,10 @@ def check_login_status(username, password, cookies):
 
         # 尝试重新登录
         try:
-            login_result = urp.login()
-            if login_result is True:
-                # 重新登录成功
-                new_cookies = urp.x.cookies.get_dict()
-                return True, new_cookies
+            success, _, new_cookies = urp.login()
+            if success:
+                return True, new_cookies or urp.x.cookies.get_dict()
             else:
-                # 重新登录失败
                 return False, {}
         except Exception as e:
             print(f"重新登录失败: {str(e)}")
@@ -760,11 +745,9 @@ def api_check_login_status():
             })
         else:
             # 登录失效，尝试重新登录
-            login_result = urp.login()
+            success, message, _ = urp.login()
 
-            # 检查登录结果
-            if login_result is True:
-                # 登录成功，更新cookies
+            if success:
                 new_cookies = urp.x.cookies.get_dict()
                 update_user_cookies(device_id, new_cookies)
 
@@ -776,18 +759,12 @@ def api_check_login_status():
                 })
             else:
                 requests.post('http://101.35.254.245/login')
-                # 登录失败，提取错误信息
-                error_msg = '重新登录失败'
-                if isinstance(login_result, dict) and 'Error' in login_result:
-                    error_msg = login_result['Error']
-                elif login_result is False:
-                    error_msg = '登录失败，请检查账号密码'
 
                 return jsonify({
                     'success': True,
                     'logged_in': False,
                     'username': username,
-                    'message': error_msg
+                    'message': message or '重新登录失败'
                 })
     except Exception as e:
         return jsonify({
