@@ -388,7 +388,7 @@ async function updateScheduleData() {
         }
     } catch (error) {
         console.error('更新课程表失败:', error);
-        alert('网络错误，请重试');
+        alert('更新课程表失败，学校可能暂未开放课表查询');
     } finally {
         btn.disabled = false;
         btn.textContent = originalText;
@@ -545,7 +545,7 @@ async function updateExamsData() {
         }
     } catch (error) {
         console.error('更新考试安排失败:', error);
-        alert('网络错误，请重试');
+        alert('更新考试安排失败，学校可能暂未开放考试查询');
     } finally {
         btn.disabled = false;
         btn.textContent = originalText;

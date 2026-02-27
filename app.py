@@ -816,15 +816,39 @@ def api_schedule(user):
 @app.route('/api/update_schedule', methods=['POST'])
 @require_login
 def api_update_schedule(user):
-    """
-    更新课程表（从教务系统获取最新数据）
-    TODO: 后续实现具体的更新逻辑
-    """
-    # TODO: 使用 user['username'] 从教务系统获取最新课程表并保存到 schedule.json
-    return jsonify({
-        'success': False,
-        'message': '此功能正在开发中，敬请期待'
-    })
+    """更新课程表（从教务系统获取最新数据）"""
+    try:
+        from URP import URP_query
+
+        username = user['username']
+        password = user['password']
+
+        # 检查登录状态
+        is_logged_in, _ = check_login_status(username, password, {})
+
+        if not is_logged_in:
+            return jsonify({
+                'success': False,
+                'message': '登录已过期，请重新登录'
+            })
+
+        # 获取当前 URL
+        current_url = get_current_urp_url()
+
+        # 创建 URP_query 实例并调用 schedule_cx
+        urp = URP_query(current_url, username)
+        schedule_data = urp.schedule_cx()
+
+        return jsonify({
+            'success': True,
+            'message': '课程表更新成功',
+            'data': schedule_data
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'更新失败: {str(e)}'
+        })
 
 
 @app.route('/api/exams', methods=['GET'])
