@@ -106,6 +106,12 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_user_read ON user_read_announcements(device_id)
         ''')
 
+        # 迁移：为 pending_requests 添加 notified 字段
+        try:
+            conn.execute('ALTER TABLE pending_requests ADD COLUMN notified INTEGER DEFAULT 0')
+        except Exception:
+            pass  # 字段已存在
+
 
 # 在应用启动时初始化数据库
 init_db()
@@ -590,17 +596,56 @@ def check_bind():
     device_id = get_device_id()
     user = get_user_by_device(device_id)
 
+    # 查询未通知的换绑请求结果（按设备ID，不依赖绑定状态）
+    rebind_notifications = []
+    with get_db() as conn:
+        rows = conn.execute(
+            "SELECT request_id, old_username, new_username, status FROM pending_requests WHERE device_id = ? AND status != 'pending' AND notified = 0",
+            (device_id,)
+        ).fetchall()
+        for row in rows:
+            rebind_notifications.append({
+                'request_id': row['request_id'],
+                'old_username': row['old_username'],
+                'new_username': row['new_username'],
+                'status': row['status']
+            })
+
     if user:
-        return jsonify({
+        resp = {
             'success': True,
             'bound': True,
             'username': user['username']
-        })
+        }
     else:
-        return jsonify({
+        resp = {
             'success': True,
             'bound': False
-        })
+        }
+
+    if rebind_notifications:
+        resp['rebind_notifications'] = rebind_notifications
+    return jsonify(resp)
+
+
+@app.route('/api/rebind_notified', methods=['POST'])
+def rebind_notified():
+    """标记换绑通知为已读"""
+    device_id = get_device_id()
+    data = request.get_json()
+    request_ids = data.get('request_ids', [])
+
+    if not request_ids:
+        return jsonify({'success': False, 'message': '缺少 request_ids'})
+
+    with get_db() as conn:
+        placeholders = ','.join(['?'] * len(request_ids))
+        conn.execute(
+            f"UPDATE pending_requests SET notified = 1 WHERE request_id IN ({placeholders}) AND device_id = ?",
+            request_ids + [device_id]
+        )
+
+    return jsonify({'success': True})
 
 
 @app.route('/api/login', methods=['POST'])
@@ -627,31 +672,11 @@ def login():
         device_id = get_device_id()
         bind_user(device_id, username, password)
 
-        # 绑定成功后自动获取课表和考试安排
-        auto_fetch_warnings = []
-        try:
-            from URP import URP_query
-            current_url = get_current_urp_url()
-            urp = URP_query(current_url, username)
-            try:
-                urp.schedule_cx()
-            except Exception as e:
-                auto_fetch_warnings.append(f'课表获取失败: {str(e)}')
-            try:
-                urp.exam_cx()
-            except Exception as e:
-                auto_fetch_warnings.append(f'考试安排获取失败: {str(e)}')
-        except Exception:
-            auto_fetch_warnings.append('自动获取数据失败')
-
-        resp = {
+        return jsonify({
             'success': True,
             'message': '登录成功',
             'username': username
-        }
-        if auto_fetch_warnings:
-            resp['warnings'] = auto_fetch_warnings
-        return jsonify(resp)
+        })
     else:
         return jsonify({
             'success': False,

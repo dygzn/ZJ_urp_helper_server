@@ -531,6 +531,22 @@ body {
     color: var(--text-primary);
 }
 
+/* 课程表提示消息 */
+.schedule-message {
+    text-align: center;
+    padding: 10px 16px;
+    margin-bottom: 8px;
+    border-radius: 8px;
+    font-size: 13px;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+}
+
+.schedule-message-error {
+    background: rgba(239, 68, 68, 0.08);
+    color: var(--error);
+}
+
 /* 课程表头部 */
 .schedule-header {
     display: grid;

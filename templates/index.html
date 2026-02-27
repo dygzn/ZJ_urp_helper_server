@@ -90,6 +90,7 @@
             <section id="page-schedule" class="page">
                 <div class="card schedule-container">
                     <div id="schedule-content" class="schedule-content">
+                        <div id="schedule-message" class="schedule-message" style="display:none;"></div>
                         <div class="schedule-header">
                             <div class="schedule-header-time"></div>
                             <div class="schedule-header-day">周一</div>
@@ -120,7 +121,7 @@
                         <button class="btn-secondary btn-sm" onclick="changeWeek(1)">下一周</button>
                     </div>
                     <div class="action-bar">
-                        <button class="btn-secondary" onclick="loadSchedule()">刷新显示</button>
+                        <button class="btn-secondary" onclick="cachedSchedule=null;loadSchedule()">刷新显示</button>
                         <button class="btn-primary" onclick="updateScheduleData()">更新课程表</button>
                     </div>
                 </div>

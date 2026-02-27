@@ -2,6 +2,7 @@
 let currentWeek = parseInt(localStorage.getItem('current_week')) || 1;  // 当前查看的周次，从 localStorage 读取
 let currentUsername = null;  // 当前登录用户名
 let isCheckingLoginStatus = false;  // 是否正在检查登录状态
+let cachedSchedule = null;  // 缓存的课表全量数据，避免切换周次时重复请求
 
 // ==================== 防止双击放大 ====================
 let lastTouchEnd = 0;
@@ -93,6 +94,11 @@ async function checkBindStatus() {
         });
         const data = await response.json();
 
+        // 显示换绑请求结果通知（不管绑定与否都要检查）
+        if (data.rebind_notifications && data.rebind_notifications.length > 0) {
+            showRebindNotifications(data.rebind_notifications);
+        }
+
         if (data.success && data.bound) {
             // 已绑定，显示用户名
             currentUsername = data.username;
@@ -152,10 +158,6 @@ async function handleLogin(event) {
             document.getElementById('sidebar-username').textContent = currentUsername;
             hideLoginModal();
             loadUrgentEvent();
-            // 显示自动获取数据的警告
-            if (data.warnings && data.warnings.length > 0) {
-                alert(data.warnings.join('\n'));
-            }
         } else {
             errorDiv.textContent = data.message || '登录失败';
         }
@@ -211,6 +213,29 @@ async function handleRebind(event) {
         console.error('提交换绑申请失败:', error);
         errorDiv.textContent = '网络错误，请重试';
     }
+}
+
+// 显示换绑请求结果通知
+function showRebindNotifications(notifications) {
+    const messages = notifications.map(n => {
+        if (n.status === 'approved') {
+            return `你的换绑申请（${n.old_username} → ${n.new_username}）已通过，请重新登录绑定新账号`;
+        } else {
+            return `你的换绑申请（${n.old_username} → ${n.new_username}）已被拒绝`;
+        }
+    });
+    alert(messages.join('\n'));
+
+    // 标记为已通知
+    const requestIds = notifications.map(n => n.request_id);
+    fetch('/api/rebind_notified', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Device-ID': getDeviceId()
+        },
+        body: JSON.stringify({ request_ids: requestIds })
+    }).catch(() => {});
 }
 
 // ==================== 侧边栏控制 ====================
@@ -385,6 +410,7 @@ async function updateScheduleData() {
 
         if (data.success) {
             alert('课程表更新成功');
+            cachedSchedule = null;  // 清除缓存，重新拉取
             // 重新加载课程表
             loadSchedule();
         } else {
@@ -406,17 +432,51 @@ async function updateSchedule() {
 }
 
 async function loadSchedule(week = null, autoFetched = false) {
-    const contentDiv = document.getElementById('schedule-content');
+    const scheduleDays = document.getElementById('schedule-days');
+    const messageDiv = document.getElementById('schedule-message');
 
     // 如果没有指定周次，使用当前周次
     if (week === null) {
         week = currentWeek;
     }
 
-    const weekParam = `?week=${week}`;
+    // 辅助函数：显示提示消息
+    function showMessage(text, isError = false) {
+        messageDiv.textContent = text;
+        messageDiv.className = 'schedule-message' + (isError ? ' schedule-message-error' : '');
+        messageDiv.style.display = 'block';
+    }
 
+    function hideMessage() {
+        messageDiv.style.display = 'none';
+    }
+
+    // 从缓存渲染指定周次
+    function renderFromCache(allSchedule, w) {
+        currentWeek = w;
+        document.getElementById('current-week').textContent = w;
+        localStorage.setItem('current_week', w);
+
+        const weekStr = String(w);
+        const weekData = allSchedule[weekStr] ? { [weekStr]: allSchedule[weekStr] } : {};
+        if (Object.keys(weekData).length > 0) {
+            hideMessage();
+            displaySchedule(weekData);
+        } else {
+            scheduleDays.innerHTML = '';
+            showMessage(`第${w}周没有课程`);
+        }
+    }
+
+    // 如果有缓存，直接从缓存渲染
+    if (cachedSchedule) {
+        renderFromCache(cachedSchedule, week);
+        return;
+    }
+
+    // 没有缓存，请求全量数据（不传 week 参数）
     try {
-        const response = await fetch(`/api/schedule${weekParam}`, {
+        const response = await fetch('/api/schedule', {
             headers: {
                 'X-Device-ID': getDeviceId()
             }
@@ -424,22 +484,16 @@ async function loadSchedule(week = null, autoFetched = false) {
         const data = await response.json();
 
         if (data.success && data.data) {
-            // 更新当前周次
-            if (data.data.week !== null) {
-                currentWeek = data.data.week;
-                document.getElementById('current-week').textContent = currentWeek;
-                // 保存当前周次到 localStorage
-                localStorage.setItem('current_week', currentWeek);
-            }
-
             const schedule = data.data.schedule || {};
             const hasData = Object.keys(schedule).length > 0;
 
             if (hasData) {
-                displaySchedule(schedule);
+                cachedSchedule = schedule;
+                renderFromCache(schedule, week);
             } else if (!autoFetched) {
                 // 没有缓存数据，自动从教务系统获取
-                contentDiv.innerHTML = '<p style="text-align:center;color:var(--text-tertiary);padding:40px;">正在从教务系统获取课表...</p>';
+                scheduleDays.innerHTML = '';
+                showMessage('正在从教务系统获取课表...');
                 try {
                     const updateResp = await fetch('/api/update_schedule', {
                         method: 'POST',
@@ -450,20 +504,23 @@ async function loadSchedule(week = null, autoFetched = false) {
                         loadSchedule(week, true);
                         return;
                     } else {
-                        contentDiv.innerHTML = `<p style="text-align:center;color:var(--error);padding:40px;">${updateData.message || '获取课表失败'}</p>`;
+                        showMessage(updateData.message || '获取课表失败', true);
                     }
                 } catch (e) {
-                    contentDiv.innerHTML = '<p style="text-align:center;color:var(--error);padding:40px;">获取课表失败，学校可能暂未开放查询</p>';
+                    showMessage('获取课表失败，学校可能暂未开放查询', true);
                 }
             } else {
-                contentDiv.innerHTML = `<p style="text-align:center;color:var(--text-tertiary);padding:40px;">${data.data.message || '暂无课程数据'}</p>`;
+                scheduleDays.innerHTML = '';
+                showMessage(data.data.message || '暂无课程数据');
             }
         } else {
-            contentDiv.innerHTML = `<p style="text-align:center;color:var(--text-tertiary);padding:40px;">${data.message || '暂无课程数据'}</p>`;
+            scheduleDays.innerHTML = '';
+            showMessage(data.message || '暂无课程数据');
         }
     } catch (error) {
         console.error('加载课程表失败:', error);
-        contentDiv.innerHTML = '<p style="text-align:center;color:var(--error);padding:40px;">加载失败，请检查网络连接</p>';
+        scheduleDays.innerHTML = '';
+        showMessage('加载失败，请检查网络连接', true);
     }
 }
 
