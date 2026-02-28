@@ -1666,68 +1666,107 @@ body {
 
 .feedback-card {
     background: var(--bg-secondary);
-    padding: 16px;
+    padding: 0;
     border-radius: 12px;
     border-left: 3px solid var(--accent);
+    overflow: hidden;
 }
 
-.feedback-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
+.feedback-floor {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--divider);
 }
 
-.feedback-username {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text-primary);
+.feedback-floor:last-of-type {
+    border-bottom: none;
 }
 
-.feedback-card-content {
-    color: var(--text-secondary);
-    font-size: 14px;
-    line-height: 1.7;
-    margin-bottom: 8px;
+.feedback-floor-admin {
+    background: rgba(52,199,89,0.04);
 }
 
-.feedback-card-footer {
-    display: flex;
-    justify-content: flex-end;
-}
-
-.feedback-reply {
-    margin-top: 10px;
-    padding: 12px;
-    background: var(--card-bg);
-    border-radius: 10px;
-    border-left: 2px solid var(--success);
-}
-
-.feedback-reply-header {
+.feedback-floor-header {
     display: flex;
     align-items: center;
     gap: 8px;
     margin-bottom: 6px;
 }
 
-.feedback-reply-author {
+.feedback-floor-num {
     font-size: 12px;
+    font-weight: 700;
+    color: var(--accent);
+    background: rgba(0,122,255,0.08);
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+.feedback-username {
+    font-size: 13px;
     font-weight: 600;
+    color: var(--text-primary);
+}
+
+.feedback-username.admin-tag {
     color: var(--success);
 }
 
-.feedback-reply-content {
+.feedback-floor-content {
     color: var(--text-secondary);
-    font-size: 13px;
-    line-height: 1.6;
+    font-size: 14px;
+    line-height: 1.7;
+    padding: 4px 0;
 }
 
-.feedback-reply-time {
+.feedback-floor-time {
     font-size: 11px;
     color: var(--text-tertiary);
-    margin-top: 6px;
     text-align: right;
+}
+
+.feedback-reply-bar {
+    padding: 8px 16px;
+    border-top: 1px solid var(--divider);
+}
+
+.feedback-reply-btn {
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: 13px;
+    cursor: pointer;
+    padding: 4px 0;
+    font-weight: 500;
+}
+
+.feedback-reply-btn:hover {
+    text-decoration: underline;
+}
+
+.feedback-reply-box {
+    padding: 0 16px 14px;
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+}
+
+.feedback-reply-textarea {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid var(--divider);
+    border-radius: 8px;
+    background: var(--card-bg);
+    color: var(--text-primary);
+    font-size: 13px;
+    line-height: 1.5;
+    resize: none;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.feedback-reply-textarea:focus {
+    outline: none;
+    border-color: var(--accent);
 }
 
 /* ==================== 空状态 ==================== */

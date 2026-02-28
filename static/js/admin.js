@@ -1025,19 +1025,21 @@ function displayAdminFeedbacks(feedbacks) {
                     <span class="announcement-status ${visClass}">${visText}</span>
                 </div>
                 <div class="announcement-content">
-                    ${fb.content.replace(/\n/g, '<br>')}
+                    <strong style="color:var(--accent);font-size:12px;">1楼</strong>
+                    <div style="margin-top:4px;">${fb.content.replace(/\n/g, '<br>')}</div>
                 </div>
         `;
 
-        // 已有回复
+        // 回复楼层
         if (fb.replies && fb.replies.length > 0) {
-            fb.replies.forEach(reply => {
+            fb.replies.forEach((reply, index) => {
                 const replyTime = new Date(reply.create_time).toLocaleString('zh-CN');
-                const replyVisText = reply.visibility === 'public' ? '公开' : '私密';
+                const isAdmin = reply.username === '管理员';
+                const nameColor = isAdmin ? 'var(--success)' : 'var(--text-primary)';
                 html += `
-                    <div style="margin-top:8px;padding:10px;background:var(--bg-secondary);border-radius:8px;border-left:2px solid var(--success);">
+                    <div style="margin-top:8px;padding:10px;background:var(--bg-secondary);border-radius:8px;${isAdmin ? 'border-left:2px solid var(--success);' : ''}">
                         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-                            <span style="font-size:12px;font-weight:600;color:var(--success);">管理员回复 (${replyVisText})</span>
+                            <span><strong style="color:var(--accent);font-size:12px;">${index + 2}楼</strong> <span style="font-size:12px;font-weight:600;color:${nameColor};">${reply.username}</span></span>
                             <span style="font-size:11px;color:var(--text-tertiary);">${replyTime}</span>
                         </div>
                         <div style="font-size:13px;color:var(--text-secondary);line-height:1.6;">${reply.content.replace(/\n/g, '<br>')}</div>
@@ -1067,7 +1069,6 @@ function showFeedbackReplyModal(feedbackId, content) {
         '<p style="color:var(--text-secondary);font-size:13px;padding:10px;background:var(--bg-secondary);border-radius:8px;margin-bottom:12px;line-height:1.6;">' +
         content.replace(/\n/g, '<br>') + '</p>';
     document.getElementById('feedback-reply-content').value = '';
-    document.querySelector('input[name="reply-visibility"][value="self"]').checked = true;
 
     const modal = document.getElementById('feedback-reply-modal');
     const overlay = document.getElementById('overlay');
@@ -1087,7 +1088,6 @@ async function handleFeedbackReplySubmit(event) {
     event.preventDefault();
 
     const content = document.getElementById('feedback-reply-content').value.trim();
-    const visibility = document.querySelector('input[name="reply-visibility"]:checked').value;
 
     if (!content) {
         alert('回复内容不能为空');
@@ -1101,7 +1101,7 @@ async function handleFeedbackReplySubmit(event) {
                 'Content-Type': 'application/json',
                 'Admin-Key': adminKey
             },
-            body: JSON.stringify({ content, visibility })
+            body: JSON.stringify({ content })
         });
 
         const data = await response.json();

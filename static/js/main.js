@@ -1855,9 +1855,9 @@ async function loadFeedbackPage() {
     }
 }
 
-// 提交反馈
-async function submitFeedback() {
-    const content = document.getElementById('feedback-content').value.trim();
+// 提交新反馈
+async function submitNewFeedback() {
+    const content = document.getElementById('new-feedback-content').value.trim();
     const visibility = document.querySelector('input[name="feedback-visibility"]:checked').value;
 
     if (!content) {
@@ -1877,7 +1877,7 @@ async function submitFeedback() {
         const data = await response.json();
 
         if (data.success) {
-            document.getElementById('feedback-content').value = '';
+            document.getElementById('new-feedback-content').value = '';
             loadFeedbackPage();
         } else {
             alert(data.message || '提交失败');
@@ -1886,6 +1886,44 @@ async function submitFeedback() {
         console.error('提交反馈失败:', error);
         alert('网络错误，请重试');
     }
+}
+
+// 提交回复
+async function submitFeedbackReply(feedbackId) {
+    const textarea = document.getElementById(`reply-input-${feedbackId}`);
+    const content = textarea.value.trim();
+
+    if (!content) {
+        alert('请输入回复内容');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/feedback/${feedbackId}/reply`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Device-ID': getDeviceId()
+            },
+            body: JSON.stringify({ content })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            loadFeedbackPage();
+        } else {
+            alert(data.message || '回复失败');
+        }
+    } catch (error) {
+        console.error('回复失败:', error);
+        alert('网络错误，请重试');
+    }
+}
+
+// 切换回复框显示
+function toggleReplyBox(feedbackId) {
+    const box = document.getElementById(`reply-box-${feedbackId}`);
+    box.style.display = box.style.display === 'none' ? 'block' : 'none';
 }
 
 // 显示反馈列表
@@ -1923,7 +1961,7 @@ function displayFeedbackList(myFeedbacks, publicFeedbacks) {
     contentDiv.innerHTML = html;
 }
 
-// 构建单条反馈卡片 HTML
+// 构建单条反馈卡片 HTML（论坛楼层模式）
 function buildFeedbackCard(fb) {
     const createTime = new Date(fb.create_time).toLocaleString('zh-CN');
     const visLabel = fb.visibility === 'public' ? '所有人可见' : '仅自己可见';
@@ -1931,35 +1969,45 @@ function buildFeedbackCard(fb) {
 
     let html = `
         <div class="feedback-card">
-            <div class="feedback-card-header">
-                <span class="feedback-username">${fb.is_own ? '我' : fb.username}</span>
-                <span class="${visClass}">${visLabel}</span>
-            </div>
-            <div class="feedback-card-content">${fb.content.replace(/\n/g, '<br>')}</div>
-            <div class="feedback-card-footer">
-                <span class="announcement-item-time">${createTime}</span>
+            <div class="feedback-floor">
+                <div class="feedback-floor-header">
+                    <span class="feedback-floor-num">1楼</span>
+                    <span class="feedback-username">${fb.is_own ? '我' : fb.username}</span>
+                    <span class="${visClass}" style="margin-left:auto;">${visLabel}</span>
+                </div>
+                <div class="feedback-floor-content">${fb.content.replace(/\n/g, '<br>')}</div>
+                <div class="feedback-floor-time">${createTime}</div>
             </div>
     `;
 
-    // 回复列表
+    // 回复楼层
     if (fb.replies && fb.replies.length > 0) {
-        fb.replies.forEach(reply => {
+        fb.replies.forEach((reply, index) => {
             const replyTime = new Date(reply.create_time).toLocaleString('zh-CN');
-            const replyVisLabel = reply.visibility === 'public' ? '所有人可见' : '仅自己可见';
-            const replyVisClass = reply.visibility === 'public' ? 'unread-badge' : 'read-badge';
+            const isAdmin = reply.username === '管理员';
             html += `
-                <div class="feedback-reply">
-                    <div class="feedback-reply-header">
-                        <span class="feedback-reply-author">管理员回复</span>
-                        <span class="${replyVisClass}" style="font-size:10px;">${replyVisLabel}</span>
+                <div class="feedback-floor ${isAdmin ? 'feedback-floor-admin' : ''}">
+                    <div class="feedback-floor-header">
+                        <span class="feedback-floor-num">${index + 2}楼</span>
+                        <span class="feedback-username${isAdmin ? ' admin-tag' : ''}">${reply.username}</span>
                     </div>
-                    <div class="feedback-reply-content">${reply.content.replace(/\n/g, '<br>')}</div>
-                    <div class="feedback-reply-time">${replyTime}</div>
+                    <div class="feedback-floor-content">${reply.content.replace(/\n/g, '<br>')}</div>
+                    <div class="feedback-floor-time">${replyTime}</div>
                 </div>
             `;
         });
     }
 
-    html += '</div>';
+    // 回复按钮和输入框
+    html += `
+            <div class="feedback-reply-bar">
+                <button class="feedback-reply-btn" onclick="toggleReplyBox(${fb.id})">回复</button>
+            </div>
+            <div id="reply-box-${fb.id}" class="feedback-reply-box" style="display:none;">
+                <textarea id="reply-input-${fb.id}" class="feedback-reply-textarea" rows="2" placeholder="输入回复内容..."></textarea>
+                <button class="btn-primary btn-sm" onclick="submitFeedbackReply(${fb.id})">发送</button>
+            </div>
+        </div>
+    `;
     return html;
 }

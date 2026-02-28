@@ -2144,29 +2144,18 @@ def handle_feedback(user):
                 'is_own': is_own,
                 'replies': []
             }
-            # 获取回复
-            if is_own:
-                # 自己的反馈：看到所有回复
-                replies = conn.execute('''
-                    SELECT id, content, visibility, create_time
-                    FROM feedback_replies
-                    WHERE feedback_id = ?
-                    ORDER BY create_time ASC
-                ''', (row['id'],)).fetchall()
-            else:
-                # 他人的反馈：只看公开回复
-                replies = conn.execute('''
-                    SELECT id, content, visibility, create_time
-                    FROM feedback_replies
-                    WHERE feedback_id = ? AND visibility = 'public'
-                    ORDER BY create_time ASC
-                ''', (row['id'],)).fetchall()
+            replies = conn.execute('''
+                SELECT id, device_id, username, content, create_time
+                FROM feedback_replies
+                WHERE feedback_id = ?
+                ORDER BY create_time ASC
+            ''', (row['id'],)).fetchall()
 
             for r in replies:
                 feedback['replies'].append({
                     'id': r['id'],
+                    'username': r['username'],
                     'content': r['content'],
-                    'visibility': r['visibility'],
                     'create_time': r['create_time']
                 })
             return feedback
@@ -2178,6 +2167,44 @@ def handle_feedback(user):
         'success': True,
         'my_feedbacks': my_feedbacks,
         'public_feedbacks': public_feedbacks
+    })
+
+
+@app.route('/api/feedback/<int:feedback_id>/reply', methods=['POST'])
+@require_bindding
+def user_reply_feedback(feedback_id, user):
+    """
+    用户回复反馈
+    请求体: { 'content': str }
+    """
+    data = request.get_json()
+    content = data.get('content', '').strip()
+
+    if not content:
+        return jsonify({'success': False, 'message': '回复内容不能为空'})
+
+    device_id = user['device_id']
+
+    with get_db() as conn:
+        # 检查反馈是否存在且用户有权查看（自己的 或 公开的）
+        feedback = conn.execute('''
+            SELECT id, device_id, visibility FROM feedbacks WHERE id = ?
+        ''', (feedback_id,)).fetchone()
+
+        if not feedback:
+            return jsonify({'success': False, 'message': '反馈不存在'})
+
+        if feedback['device_id'] != device_id and feedback['visibility'] != 'public':
+            return jsonify({'success': False, 'message': '无权回复此反馈'})
+
+        conn.execute('''
+            INSERT INTO feedback_replies (feedback_id, device_id, username, content, create_time)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (feedback_id, device_id, user['username'], content, datetime.now().isoformat()))
+
+    return jsonify({
+        'success': True,
+        'message': '回复成功'
     })
 
 
@@ -2204,7 +2231,7 @@ def admin_get_feedback():
                 'replies': []
             }
             replies = conn.execute('''
-                SELECT id, content, visibility, create_time
+                SELECT id, device_id, username, content, create_time
                 FROM feedback_replies
                 WHERE feedback_id = ?
                 ORDER BY create_time ASC
@@ -2213,8 +2240,8 @@ def admin_get_feedback():
             for r in replies:
                 feedback['replies'].append({
                     'id': r['id'],
+                    'username': r['username'],
                     'content': r['content'],
-                    'visibility': r['visibility'],
                     'create_time': r['create_time']
                 })
             feedbacks.append(feedback)
@@ -2228,33 +2255,22 @@ def admin_get_feedback():
 @app.route('/api/admin/feedback/<int:feedback_id>/reply', methods=['POST'])
 @require_admin
 def admin_reply_feedback(feedback_id):
-    """
-    回复反馈
-    请求体: {
-        'content': str,
-        'visibility': 'self' | 'public'
-    }
-    """
+    """管理员回复反馈"""
     data = request.get_json()
     content = data.get('content', '').strip()
-    visibility = data.get('visibility', 'self')
 
     if not content:
         return jsonify({'success': False, 'message': '回复内容不能为空'})
 
-    if visibility not in ('self', 'public'):
-        visibility = 'self'
-
     with get_db() as conn:
-        # 检查反馈是否存在
         feedback = conn.execute('SELECT id FROM feedbacks WHERE id = ?', (feedback_id,)).fetchone()
         if not feedback:
             return jsonify({'success': False, 'message': '反馈不存在'})
 
         conn.execute('''
-            INSERT INTO feedback_replies (feedback_id, content, visibility, create_time)
-            VALUES (?, ?, ?, ?)
-        ''', (feedback_id, content, visibility, datetime.now().isoformat()))
+            INSERT INTO feedback_replies (feedback_id, device_id, username, content, create_time)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (feedback_id, 'admin', '管理员', content, datetime.now().isoformat()))
 
     return jsonify({
         'success': True,
