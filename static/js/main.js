@@ -534,11 +534,14 @@ async function loadSchedule(week = null, autoFetched = false) {
 
 function displaySchedule(schedule) {
     const scheduleDays = document.getElementById('schedule-days');
+    const scheduleGrid = document.querySelector('.schedule-grid');
 
     // 为每个星期创建课程列表
     const daysCourses = {
         1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: []
     };
+
+    let hasEvening = false;
 
     // 遍历所有周次的课程
     Object.values(schedule).forEach(weekCourses => {
@@ -550,6 +553,7 @@ function displaySchedule(schedule) {
                 const location = course['位置'] || '';
 
                 if (dayNum && section) {
+                    if (section >= 9) hasEvening = true;
                     daysCourses[dayNum].push({
                         name: course['课程名'],
                         section: section,
@@ -569,10 +573,14 @@ function displaySchedule(schedule) {
     const sectionHeight = isMobile ? 56 : 76;
     const gap = isMobile ? 3 : 6;
 
+    // 检测周末是否有课
+    const hasWeekend = daysCourses[6].length > 0 || daysCourses[7].length > 0;
+
     // 生成课程卡片HTML
     let html = '';
     for (let day = 1; day <= 7; day++) {
-        html += '<div class="schedule-day-column">';
+        const weekendClass = day >= 6 ? ' schedule-day-weekend' : '';
+        html += `<div class="schedule-day-column${weekendClass}">`;
 
         const courses = daysCourses[day];
         courses.forEach((course, index) => {
@@ -610,6 +618,9 @@ function displaySchedule(schedule) {
     }
 
     scheduleDays.innerHTML = html;
+    scheduleGrid.classList.toggle('has-evening', hasEvening);
+    scheduleGrid.classList.toggle('no-weekend', !hasWeekend);
+    document.querySelector('.schedule-header').classList.toggle('no-weekend', !hasWeekend);
 }
 
 // 根据课程名称生成颜色索引

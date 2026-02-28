@@ -615,6 +615,35 @@ body {
     min-height: 660px;
 }
 
+.timeline-item-evening {
+    display: none;
+}
+
+.schedule-grid.has-evening .timeline-item-evening {
+    display: flex;
+}
+
+.schedule-grid.has-evening .schedule-day-column {
+    min-height: 814px;
+}
+
+/* 隐藏周末 */
+.schedule-header.no-weekend {
+    grid-template-columns: 70px repeat(5, 1fr);
+}
+
+.schedule-header.no-weekend .schedule-header-weekend {
+    display: none;
+}
+
+.no-weekend .schedule-days {
+    grid-template-columns: repeat(5, 1fr);
+}
+
+.no-weekend .schedule-day-weekend {
+    display: none;
+}
+
 /* 课程卡片 */
 .course-card {
     border-radius: 10px;
@@ -1856,6 +1885,10 @@ body {
         gap: 3px;
     }
 
+    .schedule-header.no-weekend {
+        grid-template-columns: 50px repeat(5, 1fr);
+    }
+
     .schedule-header-day {
         font-size: 11px;
         padding: 6px 2px;
@@ -1881,6 +1914,10 @@ body {
 
     .schedule-day-column {
         min-height: 480px;
+    }
+
+    .schedule-grid.has-evening .schedule-day-column {
+        min-height: 587px;
     }
 
     .course-card {
