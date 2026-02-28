@@ -51,6 +51,7 @@
                     <button class="tab-btn" onclick="switchTab('complex')" role="tab">论文需求</button>
                     <button class="tab-btn" onclick="switchTab('announcements')" role="tab">公告</button>
                     <button class="tab-btn" onclick="switchTab('surveys')" role="tab">问卷</button>
+                    <button class="tab-btn" onclick="switchTab('feedback')" role="tab">反馈</button>
                     <button class="tab-btn" onclick="switchTab('config')" role="tab">配置</button>
                 </nav>
 
@@ -149,6 +150,21 @@
                         </div>
                     </div>
                     <div id="surveys-list" class="announcements-list">
+                        <div class="loading">加载中</div>
+                    </div>
+                </section>
+
+                <!-- 反馈管理 -->
+                <section id="tab-feedback" class="tab-content">
+                    <div class="section-header">
+                        <h2>反馈管理</h2>
+                        <div class="section-actions">
+                            <button class="icon-btn" onclick="loadAdminFeedbacks()" aria-label="刷新">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="feedback-list" class="announcements-list">
                         <div class="loading">加载中</div>
                     </div>
                 </section>
@@ -261,6 +277,38 @@
                 <div class="button-group">
                     <button type="submit" class="btn-primary">保存</button>
                     <button type="button" class="btn-secondary" onclick="closeSurveyModal()">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 反馈回复弹窗 -->
+    <div id="feedback-reply-modal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeFeedbackReplyModal()" aria-label="关闭">&times;</button>
+            <h2>回复反馈</h2>
+            <div id="feedback-reply-original" class="feedback-original-content"></div>
+            <form id="feedback-reply-form" onsubmit="handleFeedbackReplySubmit(event)">
+                <div class="form-group">
+                    <label for="feedback-reply-content">回复内容:</label>
+                    <textarea id="feedback-reply-content" rows="5" required placeholder="请输入回复内容"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>回复可见性:</label>
+                    <div style="display:flex;gap:16px;margin-top:6px;">
+                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                            <input type="radio" name="reply-visibility" value="self" checked>
+                            仅反馈者可见
+                        </label>
+                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                            <input type="radio" name="reply-visibility" value="public">
+                            所有人可见
+                        </label>
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button type="submit" class="btn-primary">发送回复</button>
+                    <button type="button" class="btn-secondary" onclick="closeFeedbackReplyModal()">取消</button>
                 </div>
             </form>
         </div>

@@ -292,7 +292,8 @@ function switchPage(pageName) {
         'evaluation': '教务评价',
         'paper': '论文生成',
         'announcements': '系统公告',
-        'surveys': '问卷调查'
+        'surveys': '问卷调查',
+        'feedback': '反馈建议'
     };
     document.getElementById('page-title').textContent = titles[pageName] || '首页';
 
@@ -340,6 +341,9 @@ function loadPageData(pageName) {
             break;
         case 'surveys':
             loadSurveysList();
+            break;
+        case 'feedback':
+            loadFeedbackPage();
             break;
     }
 }
@@ -1825,3 +1829,137 @@ function displaySurveysList(surveys) {
     contentDiv.innerHTML = html;
 }
 
+// ==================== 反馈建议 ====================
+
+// 加载反馈页面
+async function loadFeedbackPage() {
+    const contentDiv = document.getElementById('feedback-list-content');
+    contentDiv.innerHTML = '<div class="loading">加载中...</div>';
+
+    try {
+        const response = await fetch('/api/feedback', {
+            headers: {
+                'X-Device-ID': getDeviceId()
+            }
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            displayFeedbackList(data.my_feedbacks, data.public_feedbacks);
+        } else {
+            contentDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+        }
+    } catch (error) {
+        console.error('加载反馈列表失败:', error);
+        contentDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+    }
+}
+
+// 提交反馈
+async function submitFeedback() {
+    const content = document.getElementById('feedback-content').value.trim();
+    const visibility = document.querySelector('input[name="feedback-visibility"]:checked').value;
+
+    if (!content) {
+        alert('请输入反馈内容');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/feedback', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Device-ID': getDeviceId()
+            },
+            body: JSON.stringify({ content, visibility })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            document.getElementById('feedback-content').value = '';
+            loadFeedbackPage();
+        } else {
+            alert(data.message || '提交失败');
+        }
+    } catch (error) {
+        console.error('提交反馈失败:', error);
+        alert('网络错误，请重试');
+    }
+}
+
+// 显示反馈列表
+function displayFeedbackList(myFeedbacks, publicFeedbacks) {
+    const contentDiv = document.getElementById('feedback-list-content');
+    let html = '';
+
+    if (myFeedbacks.length === 0 && publicFeedbacks.length === 0) {
+        html = `
+            <div class="empty-state">
+                <div class="empty-state-icon">&#128172;</div>
+                <div class="empty-state-text">暂无反馈</div>
+            </div>
+        `;
+        contentDiv.innerHTML = html;
+        return;
+    }
+
+    // 我的反馈
+    if (myFeedbacks.length > 0) {
+        html += '<div class="feedback-section-title">我的反馈</div>';
+        myFeedbacks.forEach(fb => {
+            html += buildFeedbackCard(fb);
+        });
+    }
+
+    // 公开反馈
+    if (publicFeedbacks.length > 0) {
+        html += '<div class="feedback-section-title">公开反馈</div>';
+        publicFeedbacks.forEach(fb => {
+            html += buildFeedbackCard(fb);
+        });
+    }
+
+    contentDiv.innerHTML = html;
+}
+
+// 构建单条反馈卡片 HTML
+function buildFeedbackCard(fb) {
+    const createTime = new Date(fb.create_time).toLocaleString('zh-CN');
+    const visLabel = fb.visibility === 'public' ? '所有人可见' : '仅自己可见';
+    const visClass = fb.visibility === 'public' ? 'unread-badge' : 'read-badge';
+
+    let html = `
+        <div class="feedback-card">
+            <div class="feedback-card-header">
+                <span class="feedback-username">${fb.is_own ? '我' : fb.username}</span>
+                <span class="${visClass}">${visLabel}</span>
+            </div>
+            <div class="feedback-card-content">${fb.content.replace(/\n/g, '<br>')}</div>
+            <div class="feedback-card-footer">
+                <span class="announcement-item-time">${createTime}</span>
+            </div>
+    `;
+
+    // 回复列表
+    if (fb.replies && fb.replies.length > 0) {
+        fb.replies.forEach(reply => {
+            const replyTime = new Date(reply.create_time).toLocaleString('zh-CN');
+            const replyVisLabel = reply.visibility === 'public' ? '所有人可见' : '仅自己可见';
+            const replyVisClass = reply.visibility === 'public' ? 'unread-badge' : 'read-badge';
+            html += `
+                <div class="feedback-reply">
+                    <div class="feedback-reply-header">
+                        <span class="feedback-reply-author">管理员回复</span>
+                        <span class="${replyVisClass}" style="font-size:10px;">${replyVisLabel}</span>
+                    </div>
+                    <div class="feedback-reply-content">${reply.content.replace(/\n/g, '<br>')}</div>
+                    <div class="feedback-reply-time">${replyTime}</div>
+                </div>
+            `;
+        });
+    }
+
+    html += '</div>';
+    return html;
+}

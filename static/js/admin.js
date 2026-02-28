@@ -81,6 +81,8 @@ function switchTab(tabName) {
         loadAnnouncements();
     } else if (tabName === 'surveys') {
         loadSurveys();
+    } else if (tabName === 'feedback') {
+        loadAdminFeedbacks();
     } else if (tabName === 'config') {
         loadConfig();
     }
@@ -965,6 +967,181 @@ async function deleteSurvey(id) {
         }
     } catch (error) {
         console.error('删除问卷失败:', error);
+        alert('网络错误，请重试');
+    }
+}
+
+// ==================== 反馈管理 ====================
+let currentReplyFeedbackId = null;
+
+async function loadAdminFeedbacks() {
+    const listDiv = document.getElementById('feedback-list');
+    listDiv.innerHTML = '<div class="loading">加载中...</div>';
+
+    try {
+        const response = await fetch('/api/admin/feedback', {
+            headers: {
+                'Admin-Key': adminKey
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            if (data.feedbacks && data.feedbacks.length > 0) {
+                displayAdminFeedbacks(data.feedbacks);
+            } else {
+                listDiv.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">
+                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                        </div>
+                        <div class="empty-state-text">暂无反馈</div>
+                    </div>
+                `;
+            }
+        } else {
+            listDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+        }
+    } catch (error) {
+        console.error('加载反馈失败:', error);
+        listDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+    }
+}
+
+function displayAdminFeedbacks(feedbacks) {
+    const listDiv = document.getElementById('feedback-list');
+
+    let html = '';
+    feedbacks.forEach(fb => {
+        const createTime = new Date(fb.create_time).toLocaleString('zh-CN');
+        const visClass = fb.visibility === 'public' ? 'active' : 'inactive';
+        const visText = fb.visibility === 'public' ? '公开' : '私密';
+
+        html += `
+            <div class="announcement-card">
+                <div class="announcement-header">
+                    <h3>${fb.username}</h3>
+                    <span class="announcement-status ${visClass}">${visText}</span>
+                </div>
+                <div class="announcement-content">
+                    ${fb.content.replace(/\n/g, '<br>')}
+                </div>
+        `;
+
+        // 已有回复
+        if (fb.replies && fb.replies.length > 0) {
+            fb.replies.forEach(reply => {
+                const replyTime = new Date(reply.create_time).toLocaleString('zh-CN');
+                const replyVisText = reply.visibility === 'public' ? '公开' : '私密';
+                html += `
+                    <div style="margin-top:8px;padding:10px;background:var(--bg-secondary);border-radius:8px;border-left:2px solid var(--success);">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                            <span style="font-size:12px;font-weight:600;color:var(--success);">管理员回复 (${replyVisText})</span>
+                            <span style="font-size:11px;color:var(--text-tertiary);">${replyTime}</span>
+                        </div>
+                        <div style="font-size:13px;color:var(--text-secondary);line-height:1.6;">${reply.content.replace(/\n/g, '<br>')}</div>
+                    </div>
+                `;
+            });
+        }
+
+        html += `
+                <div class="announcement-footer">
+                    <span class="announcement-time">${createTime}</span>
+                    <div class="announcement-actions">
+                        <button class="edit-btn" onclick="showFeedbackReplyModal(${fb.id}, ${JSON.stringify(fb.content).replace(/"/g, '&quot;')})">回复</button>
+                        <button class="delete-btn" onclick="deleteAdminFeedback(${fb.id})">删除</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    listDiv.innerHTML = html;
+}
+
+function showFeedbackReplyModal(feedbackId, content) {
+    currentReplyFeedbackId = feedbackId;
+    document.getElementById('feedback-reply-original').innerHTML =
+        '<p style="color:var(--text-secondary);font-size:13px;padding:10px;background:var(--bg-secondary);border-radius:8px;margin-bottom:12px;line-height:1.6;">' +
+        content.replace(/\n/g, '<br>') + '</p>';
+    document.getElementById('feedback-reply-content').value = '';
+    document.querySelector('input[name="reply-visibility"][value="self"]').checked = true;
+
+    const modal = document.getElementById('feedback-reply-modal');
+    const overlay = document.getElementById('overlay');
+    modal.classList.add('active');
+    overlay.classList.add('active');
+}
+
+function closeFeedbackReplyModal() {
+    const modal = document.getElementById('feedback-reply-modal');
+    const overlay = document.getElementById('overlay');
+    modal.classList.remove('active');
+    overlay.classList.remove('active');
+    currentReplyFeedbackId = null;
+}
+
+async function handleFeedbackReplySubmit(event) {
+    event.preventDefault();
+
+    const content = document.getElementById('feedback-reply-content').value.trim();
+    const visibility = document.querySelector('input[name="reply-visibility"]:checked').value;
+
+    if (!content) {
+        alert('回复内容不能为空');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/admin/feedback/${currentReplyFeedbackId}/reply`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Admin-Key': adminKey
+            },
+            body: JSON.stringify({ content, visibility })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('回复成功');
+            closeFeedbackReplyModal();
+            loadAdminFeedbacks();
+        } else {
+            alert(data.message || '回复失败');
+        }
+    } catch (error) {
+        console.error('回复反馈失败:', error);
+        alert('网络错误，请重试');
+    }
+}
+
+async function deleteAdminFeedback(id) {
+    if (!confirm('确定要删除这条反馈及其所有回复吗？')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/admin/feedback/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'Admin-Key': adminKey
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('反馈删除成功');
+            loadAdminFeedbacks();
+        } else {
+            alert(data.message || '删除失败');
+        }
+    } catch (error) {
+        console.error('删除反馈失败:', error);
         alert('网络错误，请重试');
     }
 }

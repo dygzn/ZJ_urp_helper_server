@@ -1585,6 +1585,151 @@ body {
     accent-color: var(--accent);
 }
 
+/* ==================== 反馈建议 ==================== */
+.feedback-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.feedback-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+}
+
+.feedback-textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--divider);
+    border-radius: 10px;
+    background: var(--card-bg);
+    color: var(--text-primary);
+    font-size: 14px;
+    line-height: 1.6;
+    resize: vertical;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.feedback-textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0,122,255,0.1);
+}
+
+.feedback-form-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.feedback-visibility-select {
+    display: flex;
+    gap: 16px;
+}
+
+.visibility-option {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    user-select: none;
+}
+
+.visibility-option input[type="radio"] {
+    cursor: pointer;
+    accent-color: var(--accent);
+}
+
+.feedback-list-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.feedback-section-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    padding: 8px 0 4px;
+    border-bottom: 1px solid var(--divider);
+    margin-top: 8px;
+}
+
+.feedback-card {
+    background: var(--bg-secondary);
+    padding: 16px;
+    border-radius: 12px;
+    border-left: 3px solid var(--accent);
+}
+
+.feedback-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.feedback-username {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.feedback-card-content {
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.7;
+    margin-bottom: 8px;
+}
+
+.feedback-card-footer {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.feedback-reply {
+    margin-top: 10px;
+    padding: 12px;
+    background: var(--card-bg);
+    border-radius: 10px;
+    border-left: 2px solid var(--success);
+}
+
+.feedback-reply-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.feedback-reply-author {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--success);
+}
+
+.feedback-reply-content {
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.feedback-reply-time {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    margin-top: 6px;
+    text-align: right;
+}
+
 /* ==================== 空状态 ==================== */
 .empty-state {
     text-align: center;

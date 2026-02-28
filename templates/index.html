@@ -52,6 +52,10 @@
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
                 <span>问卷调查</span>
             </a>
+            <a href="#" class="nav-item" data-page="feedback">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                <span>反馈建议</span>
+            </a>
         </nav>
         <div class="sidebar-footer">
             <button class="rebind-btn" onclick="showRebindDialog()">换绑账号</button>
@@ -291,6 +295,34 @@
                 <div class="card announcements-container">
                     <h2>问卷调查</h2>
                     <div id="surveys-list-content" class="announcements-list-content">
+                        <div class="loading">加载中</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 反馈建议 -->
+            <section id="page-feedback" class="page">
+                <div class="card feedback-container">
+                    <h2>反馈建议</h2>
+                    <!-- 提交反馈表单 -->
+                    <div class="feedback-form">
+                        <textarea id="feedback-content" class="feedback-textarea" rows="4" placeholder="请输入您的反馈或建议..."></textarea>
+                        <div class="feedback-form-footer">
+                            <div class="feedback-visibility-select">
+                                <label class="visibility-option">
+                                    <input type="radio" name="feedback-visibility" value="self" checked>
+                                    <span>仅自己可见</span>
+                                </label>
+                                <label class="visibility-option">
+                                    <input type="radio" name="feedback-visibility" value="public">
+                                    <span>所有人可见</span>
+                                </label>
+                            </div>
+                            <button class="btn-primary" onclick="submitFeedback()">提交反馈</button>
+                        </div>
+                    </div>
+                    <!-- 反馈列表 -->
+                    <div id="feedback-list-content" class="feedback-list-content">
                         <div class="loading">加载中</div>
                     </div>
                 </div>

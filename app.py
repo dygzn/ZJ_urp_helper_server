@@ -103,6 +103,30 @@ def init_db():
             )
         ''')
 
+        # 反馈表
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS feedbacks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                device_id TEXT NOT NULL,
+                username TEXT NOT NULL,
+                content TEXT NOT NULL,
+                visibility TEXT DEFAULT 'self',
+                create_time TEXT NOT NULL
+            )
+        ''')
+
+        # 反馈回复表
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS feedback_replies (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                feedback_id INTEGER NOT NULL,
+                device_id TEXT NOT NULL DEFAULT 'admin',
+                username TEXT NOT NULL DEFAULT '管理员',
+                content TEXT NOT NULL,
+                create_time TEXT NOT NULL
+            )
+        ''')
+
         # 创建索引以提高查询性能
         conn.execute('''
             CREATE INDEX IF NOT EXISTS idx_username ON users(username)
@@ -119,12 +143,31 @@ def init_db():
         conn.execute('''
             CREATE INDEX IF NOT EXISTS idx_survey_active ON surveys(is_active)
         ''')
+        conn.execute('''
+            CREATE INDEX IF NOT EXISTS idx_feedback_device ON feedbacks(device_id)
+        ''')
+        conn.execute('''
+            CREATE INDEX IF NOT EXISTS idx_feedback_visibility ON feedbacks(visibility)
+        ''')
+        conn.execute('''
+            CREATE INDEX IF NOT EXISTS idx_feedback_reply_fid ON feedback_replies(feedback_id)
+        ''')
 
         # 迁移：为 pending_requests 添加 notified 字段
         try:
             conn.execute('ALTER TABLE pending_requests ADD COLUMN notified INTEGER DEFAULT 0')
         except Exception:
             pass  # 字段已存在
+
+        # 迁移：为 feedback_replies 添加 device_id/username 字段，移除 visibility
+        try:
+            conn.execute("ALTER TABLE feedback_replies ADD COLUMN device_id TEXT NOT NULL DEFAULT 'admin'")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE feedback_replies ADD COLUMN username TEXT NOT NULL DEFAULT '管理员'")
+        except Exception:
+            pass
 
 
 # 在应用启动时初始化数据库
@@ -2040,6 +2083,198 @@ def get_surveys():
     return jsonify({
         'success': True,
         'surveys': surveys
+    })
+
+
+# ==================== API接口：反馈建议 ====================
+
+@app.route('/api/feedback', methods=['GET', 'POST'])
+@require_bindding
+def handle_feedback(user):
+    """提交反馈(POST) / 获取反馈列表(GET)"""
+    if request.method == 'POST':
+        data = request.get_json()
+        content = data.get('content', '').strip()
+        visibility = data.get('visibility', 'self')
+
+        if not content:
+            return jsonify({'success': False, 'message': '反馈内容不能为空'})
+
+        if visibility not in ('self', 'public'):
+            visibility = 'self'
+
+        with get_db() as conn:
+            conn.execute('''
+                INSERT INTO feedbacks (device_id, username, content, visibility, create_time)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (user['device_id'], user['username'], content, visibility, datetime.now().isoformat()))
+
+        return jsonify({
+            'success': True,
+            'message': '反馈提交成功'
+        })
+
+    # GET
+    device_id = user['device_id']
+
+    with get_db() as conn:
+        # 获取自己的所有反馈
+        my_rows = conn.execute('''
+            SELECT id, device_id, username, content, visibility, create_time
+            FROM feedbacks
+            WHERE device_id = ?
+            ORDER BY create_time DESC
+        ''', (device_id,)).fetchall()
+
+        # 获取他人的公开反馈
+        public_rows = conn.execute('''
+            SELECT id, device_id, username, content, visibility, create_time
+            FROM feedbacks
+            WHERE device_id != ? AND visibility = 'public'
+            ORDER BY create_time DESC
+        ''', (device_id,)).fetchall()
+
+        def build_feedback(row, is_own):
+            feedback = {
+                'id': row['id'],
+                'username': row['username'],
+                'content': row['content'],
+                'visibility': row['visibility'],
+                'create_time': row['create_time'],
+                'is_own': is_own,
+                'replies': []
+            }
+            # 获取回复
+            if is_own:
+                # 自己的反馈：看到所有回复
+                replies = conn.execute('''
+                    SELECT id, content, visibility, create_time
+                    FROM feedback_replies
+                    WHERE feedback_id = ?
+                    ORDER BY create_time ASC
+                ''', (row['id'],)).fetchall()
+            else:
+                # 他人的反馈：只看公开回复
+                replies = conn.execute('''
+                    SELECT id, content, visibility, create_time
+                    FROM feedback_replies
+                    WHERE feedback_id = ? AND visibility = 'public'
+                    ORDER BY create_time ASC
+                ''', (row['id'],)).fetchall()
+
+            for r in replies:
+                feedback['replies'].append({
+                    'id': r['id'],
+                    'content': r['content'],
+                    'visibility': r['visibility'],
+                    'create_time': r['create_time']
+                })
+            return feedback
+
+        my_feedbacks = [build_feedback(row, True) for row in my_rows]
+        public_feedbacks = [build_feedback(row, False) for row in public_rows]
+
+    return jsonify({
+        'success': True,
+        'my_feedbacks': my_feedbacks,
+        'public_feedbacks': public_feedbacks
+    })
+
+
+@app.route('/api/admin/feedback', methods=['GET'])
+@require_admin
+def admin_get_feedback():
+    """获取所有反馈及回复"""
+    with get_db() as conn:
+        rows = conn.execute('''
+            SELECT id, device_id, username, content, visibility, create_time
+            FROM feedbacks
+            ORDER BY create_time DESC
+        ''').fetchall()
+
+        feedbacks = []
+        for row in rows:
+            feedback = {
+                'id': row['id'],
+                'device_id': row['device_id'],
+                'username': row['username'],
+                'content': row['content'],
+                'visibility': row['visibility'],
+                'create_time': row['create_time'],
+                'replies': []
+            }
+            replies = conn.execute('''
+                SELECT id, content, visibility, create_time
+                FROM feedback_replies
+                WHERE feedback_id = ?
+                ORDER BY create_time ASC
+            ''', (row['id'],)).fetchall()
+
+            for r in replies:
+                feedback['replies'].append({
+                    'id': r['id'],
+                    'content': r['content'],
+                    'visibility': r['visibility'],
+                    'create_time': r['create_time']
+                })
+            feedbacks.append(feedback)
+
+    return jsonify({
+        'success': True,
+        'feedbacks': feedbacks
+    })
+
+
+@app.route('/api/admin/feedback/<int:feedback_id>/reply', methods=['POST'])
+@require_admin
+def admin_reply_feedback(feedback_id):
+    """
+    回复反馈
+    请求体: {
+        'content': str,
+        'visibility': 'self' | 'public'
+    }
+    """
+    data = request.get_json()
+    content = data.get('content', '').strip()
+    visibility = data.get('visibility', 'self')
+
+    if not content:
+        return jsonify({'success': False, 'message': '回复内容不能为空'})
+
+    if visibility not in ('self', 'public'):
+        visibility = 'self'
+
+    with get_db() as conn:
+        # 检查反馈是否存在
+        feedback = conn.execute('SELECT id FROM feedbacks WHERE id = ?', (feedback_id,)).fetchone()
+        if not feedback:
+            return jsonify({'success': False, 'message': '反馈不存在'})
+
+        conn.execute('''
+            INSERT INTO feedback_replies (feedback_id, content, visibility, create_time)
+            VALUES (?, ?, ?, ?)
+        ''', (feedback_id, content, visibility, datetime.now().isoformat()))
+
+    return jsonify({
+        'success': True,
+        'message': '回复成功'
+    })
+
+
+@app.route('/api/admin/feedback/<int:feedback_id>', methods=['DELETE'])
+@require_admin
+def admin_delete_feedback(feedback_id):
+    """删除反馈及其回复"""
+    with get_db() as conn:
+        cursor = conn.execute('DELETE FROM feedbacks WHERE id = ?', (feedback_id,))
+        if cursor.rowcount == 0:
+            return jsonify({'success': False, 'message': '反馈不存在'})
+        conn.execute('DELETE FROM feedback_replies WHERE feedback_id = ?', (feedback_id,))
+
+    return jsonify({
+        'success': True,
+        'message': '反馈删除成功'
     })
 
 
