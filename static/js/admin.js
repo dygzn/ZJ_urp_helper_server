@@ -79,6 +79,8 @@ function switchTab(tabName) {
         loadComplexRequests();
     } else if (tabName === 'announcements') {
         loadAnnouncements();
+    } else if (tabName === 'surveys') {
+        loadSurveys();
     } else if (tabName === 'config') {
         loadConfig();
     }
@@ -787,6 +789,182 @@ async function deleteAnnouncement(id) {
         }
     } catch (error) {
         console.error('删除公告失败:', error);
+        alert('网络错误，请重试');
+    }
+}
+
+// ==================== 问卷管理 ====================
+let currentSurveyId = null;
+
+async function loadSurveys() {
+    const listDiv = document.getElementById('surveys-list');
+    listDiv.innerHTML = '<div class="loading">加载中...</div>';
+
+    try {
+        const response = await fetch('/api/admin/surveys', {
+            headers: {
+                'Admin-Key': adminKey
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            if (data.surveys && data.surveys.length > 0) {
+                displaySurveys(data.surveys);
+            } else {
+                listDiv.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">
+                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+                        </div>
+                        <div class="empty-state-text">暂无问卷</div>
+                    </div>
+                `;
+            }
+        } else {
+            listDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+        }
+    } catch (error) {
+        console.error('加载问卷失败:', error);
+        listDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+    }
+}
+
+function displaySurveys(surveys) {
+    const listDiv = document.getElementById('surveys-list');
+
+    let html = '';
+    surveys.forEach(survey => {
+        const createTime = new Date(survey.create_time).toLocaleString('zh-CN');
+        const statusClass = survey.is_active ? 'active' : 'inactive';
+        const statusText = survey.is_active ? '启用' : '禁用';
+
+        html += `
+            <div class="announcement-card">
+                <div class="announcement-header">
+                    <h3>${survey.title}</h3>
+                    <span class="announcement-status ${statusClass}">${statusText}</span>
+                </div>
+                <div class="announcement-content">
+                    <a href="${survey.url}" target="_blank" style="color:var(--primary);word-break:break-all;">${survey.url}</a>
+                </div>
+                <div class="announcement-footer">
+                    <span class="announcement-time">发布时间: ${createTime}</span>
+                    <div class="announcement-actions">
+                        <button class="edit-btn" onclick="showEditSurveyModal(${survey.id}, ${JSON.stringify(survey).replace(/"/g, '&quot;')})">编辑</button>
+                        <button class="delete-btn" onclick="deleteSurvey(${survey.id})">删除</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    listDiv.innerHTML = html;
+}
+
+function showCreateSurveyModal() {
+    currentSurveyId = null;
+    document.getElementById('survey-modal-title').textContent = '发布新问卷';
+    document.getElementById('survey-title').value = '';
+    document.getElementById('survey-url').value = '';
+    document.getElementById('survey-active').checked = true;
+
+    const modal = document.getElementById('survey-modal');
+    const overlay = document.getElementById('overlay');
+    modal.classList.add('active');
+    overlay.classList.add('active');
+}
+
+function showEditSurveyModal(id, survey) {
+    currentSurveyId = id;
+    document.getElementById('survey-modal-title').textContent = '编辑问卷';
+    document.getElementById('survey-title').value = survey.title;
+    document.getElementById('survey-url').value = survey.url;
+    document.getElementById('survey-active').checked = survey.is_active;
+
+    const modal = document.getElementById('survey-modal');
+    const overlay = document.getElementById('overlay');
+    modal.classList.add('active');
+    overlay.classList.add('active');
+}
+
+function closeSurveyModal() {
+    const modal = document.getElementById('survey-modal');
+    const overlay = document.getElementById('overlay');
+    modal.classList.remove('active');
+    overlay.classList.remove('active');
+    currentSurveyId = null;
+}
+
+async function handleSurveySubmit(event) {
+    event.preventDefault();
+
+    const title = document.getElementById('survey-title').value.trim();
+    const url = document.getElementById('survey-url').value.trim();
+    const isActive = document.getElementById('survey-active').checked;
+
+    if (!title || !url) {
+        alert('标题和链接不能为空');
+        return;
+    }
+
+    const isEdit = currentSurveyId !== null;
+    const apiUrl = isEdit ? `/api/admin/surveys/${currentSurveyId}` : '/api/admin/surveys';
+    const method = isEdit ? 'PUT' : 'POST';
+
+    try {
+        const response = await fetch(apiUrl, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'Admin-Key': adminKey
+            },
+            body: JSON.stringify({
+                title: title,
+                url: url,
+                is_active: isActive
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert(data.message || (isEdit ? '问卷更新成功' : '问卷发布成功'));
+            closeSurveyModal();
+            loadSurveys();
+        } else {
+            alert(data.message || '操作失败');
+        }
+    } catch (error) {
+        console.error('保存问卷失败:', error);
+        alert('网络错误，请重试');
+    }
+}
+
+async function deleteSurvey(id) {
+    if (!confirm('确定要删除这条问卷吗？')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/admin/surveys/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'Admin-Key': adminKey
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('问卷删除成功');
+            loadSurveys();
+        } else {
+            alert(data.message || '删除失败');
+        }
+    } catch (error) {
+        console.error('删除问卷失败:', error);
         alert('网络错误，请重试');
     }
 }

@@ -92,6 +92,17 @@ def init_db():
             )
         ''')
 
+        # 问卷调查表
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS surveys (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                url TEXT NOT NULL,
+                create_time TEXT NOT NULL,
+                is_active INTEGER DEFAULT 1
+            )
+        ''')
+
         # 创建索引以提高查询性能
         conn.execute('''
             CREATE INDEX IF NOT EXISTS idx_username ON users(username)
@@ -104,6 +115,9 @@ def init_db():
         ''')
         conn.execute('''
             CREATE INDEX IF NOT EXISTS idx_user_read ON user_read_announcements(device_id)
+        ''')
+        conn.execute('''
+            CREATE INDEX IF NOT EXISTS idx_survey_active ON surveys(is_active)
         ''')
 
         # 迁移：为 pending_requests 添加 notified 字段
@@ -1886,6 +1900,146 @@ def mark_announcement_read(announcement_id):
     return jsonify({
         'success': True,
         'message': '已标记为已读'
+    })
+
+
+# ==================== API接口：问卷调查管理 ====================
+
+@app.route('/api/admin/surveys', methods=['GET'])
+@require_admin
+def admin_get_surveys():
+    """获取所有问卷列表"""
+    with get_db() as conn:
+        rows = conn.execute('''
+            SELECT id, title, url, create_time, is_active
+            FROM surveys
+            ORDER BY create_time DESC
+        ''').fetchall()
+
+        surveys = []
+        for row in rows:
+            surveys.append({
+                'id': row['id'],
+                'title': row['title'],
+                'url': row['url'],
+                'create_time': row['create_time'],
+                'is_active': bool(row['is_active'])
+            })
+
+    return jsonify({
+        'success': True,
+        'surveys': surveys
+    })
+
+
+@app.route('/api/admin/surveys', methods=['POST'])
+@require_admin
+def admin_create_survey():
+    """
+    创建新问卷
+    请求体: {
+        'title': str,
+        'url': str
+    }
+    """
+    data = request.get_json()
+    title = data.get('title', '').strip()
+    url = data.get('url', '').strip()
+
+    if not title or not url:
+        return jsonify({'success': False, 'message': '标题和链接不能为空'})
+
+    with get_db() as conn:
+        cursor = conn.execute('''
+            INSERT INTO surveys (title, url, create_time, is_active)
+            VALUES (?, ?, ?, 1)
+        ''', (title, url, datetime.now().isoformat()))
+
+        survey_id = cursor.lastrowid
+
+    return jsonify({
+        'success': True,
+        'message': '问卷发布成功',
+        'survey_id': survey_id
+    })
+
+
+@app.route('/api/admin/surveys/<int:survey_id>', methods=['PUT'])
+@require_admin
+def admin_update_survey(survey_id):
+    """
+    更新问卷
+    请求体: {
+        'title': str,
+        'url': str,
+        'is_active': bool
+    }
+    """
+    data = request.get_json()
+    title = data.get('title', '').strip()
+    url = data.get('url', '').strip()
+    is_active = data.get('is_active', True)
+
+    if not title or not url:
+        return jsonify({'success': False, 'message': '标题和链接不能为空'})
+
+    with get_db() as conn:
+        cursor = conn.execute('''
+            UPDATE surveys
+            SET title = ?, url = ?, is_active = ?
+            WHERE id = ?
+        ''', (title, url, 1 if is_active else 0, survey_id))
+
+        if cursor.rowcount == 0:
+            return jsonify({'success': False, 'message': '问卷不存在'})
+
+    return jsonify({
+        'success': True,
+        'message': '问卷更新成功'
+    })
+
+
+@app.route('/api/admin/surveys/<int:survey_id>', methods=['DELETE'])
+@require_admin
+def admin_delete_survey(survey_id):
+    """删除问卷"""
+    with get_db() as conn:
+        cursor = conn.execute('''
+            DELETE FROM surveys WHERE id = ?
+        ''', (survey_id,))
+
+        if cursor.rowcount == 0:
+            return jsonify({'success': False, 'message': '问卷不存在'})
+
+    return jsonify({
+        'success': True,
+        'message': '问卷删除成功'
+    })
+
+
+@app.route('/api/surveys', methods=['GET'])
+def get_surveys():
+    """获取所有活跃的问卷（用户端）"""
+    with get_db() as conn:
+        rows = conn.execute('''
+            SELECT id, title, url, create_time
+            FROM surveys
+            WHERE is_active = 1
+            ORDER BY create_time DESC
+        ''').fetchall()
+
+        surveys = []
+        for row in rows:
+            surveys.append({
+                'id': row['id'],
+                'title': row['title'],
+                'url': row['url'],
+                'create_time': row['create_time']
+            })
+
+    return jsonify({
+        'success': True,
+        'surveys': surveys
     })
 
 

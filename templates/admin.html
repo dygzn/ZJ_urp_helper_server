@@ -50,6 +50,7 @@
                     <button class="tab-btn" onclick="switchTab('users')" role="tab">用户</button>
                     <button class="tab-btn" onclick="switchTab('complex')" role="tab">论文需求</button>
                     <button class="tab-btn" onclick="switchTab('announcements')" role="tab">公告</button>
+                    <button class="tab-btn" onclick="switchTab('surveys')" role="tab">问卷</button>
                     <button class="tab-btn" onclick="switchTab('config')" role="tab">配置</button>
                 </nav>
 
@@ -129,6 +130,25 @@
                         </div>
                     </div>
                     <div id="announcements-list" class="announcements-list">
+                        <div class="loading">加载中</div>
+                    </div>
+                </section>
+
+                <!-- 问卷管理 -->
+                <section id="tab-surveys" class="tab-content">
+                    <div class="section-header">
+                        <h2>问卷管理</h2>
+                        <div class="section-actions">
+                            <button class="icon-btn" onclick="loadSurveys()" aria-label="刷新">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                            </button>
+                            <button class="btn-primary btn-sm" onclick="showCreateSurveyModal()">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                发布问卷
+                            </button>
+                        </div>
+                    </div>
+                    <div id="surveys-list" class="announcements-list">
                         <div class="loading">加载中</div>
                     </div>
                 </section>
@@ -213,6 +233,34 @@
                 <div class="button-group">
                     <button type="submit" class="btn-primary">保存</button>
                     <button type="button" class="btn-secondary" onclick="closeAnnouncementModal()">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 问卷编辑弹窗 -->
+    <div id="survey-modal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeSurveyModal()" aria-label="关闭">&times;</button>
+            <h2 id="survey-modal-title">发布新问卷</h2>
+            <form id="survey-form" onsubmit="handleSurveySubmit(event)">
+                <div class="form-group">
+                    <label for="survey-title">问卷标题:</label>
+                    <input type="text" id="survey-title" required placeholder="请输入问卷标题">
+                </div>
+                <div class="form-group">
+                    <label for="survey-url">问卷链接:</label>
+                    <input type="url" id="survey-url" required placeholder="https://v.wjx.cn/vm/xxxxx.aspx">
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="survey-active" checked>
+                        启用此问卷
+                    </label>
+                </div>
+                <div class="button-group">
+                    <button type="submit" class="btn-primary">保存</button>
+                    <button type="button" class="btn-secondary" onclick="closeSurveyModal()">取消</button>
                 </div>
             </form>
         </div>

@@ -291,7 +291,8 @@ function switchPage(pageName) {
         'experiments': '实验系统',
         'evaluation': '教务评价',
         'paper': '论文生成',
-        'announcements': '系统公告'
+        'announcements': '系统公告',
+        'surveys': '问卷调查'
     };
     document.getElementById('page-title').textContent = titles[pageName] || '首页';
 
@@ -336,6 +337,9 @@ function loadPageData(pageName) {
             break;
         case 'announcements':
             loadAnnouncementsList();
+            break;
+        case 'surveys':
+            loadSurveysList();
             break;
     }
 }
@@ -1755,6 +1759,61 @@ function displayAnnouncementsList(announcements) {
                 </div>
                 <div class="announcement-item-content">
                     ${ann.content.replace(/\n/g, '<br>')}
+                </div>
+                <div class="announcement-item-footer">
+                    <span class="announcement-item-time">${createTime}</span>
+                </div>
+            </div>
+        `;
+    });
+
+    contentDiv.innerHTML = html;
+}
+
+// ==================== 问卷调查 ====================
+
+// 加载问卷列表页面
+async function loadSurveysList() {
+    const contentDiv = document.getElementById('surveys-list-content');
+    contentDiv.innerHTML = '<div class="loading">加载中...</div>';
+
+    try {
+        const response = await fetch('/api/surveys');
+        const data = await response.json();
+
+        if (data.success) {
+            if (data.surveys && data.surveys.length > 0) {
+                displaySurveysList(data.surveys);
+            } else {
+                contentDiv.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">&#128203;</div>
+                        <div class="empty-state-text">暂无问卷调查</div>
+                    </div>
+                `;
+            }
+        } else {
+            contentDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+        }
+    } catch (error) {
+        console.error('加载问卷列表失败:', error);
+        contentDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+    }
+}
+
+// 显示问卷列表
+function displaySurveysList(surveys) {
+    const contentDiv = document.getElementById('surveys-list-content');
+
+    let html = '';
+    surveys.forEach(survey => {
+        const createTime = new Date(survey.create_time).toLocaleString('zh-CN');
+
+        html += `
+            <div class="announcement-item" style="cursor:pointer;" onclick="window.open('${survey.url}', '_blank')">
+                <div class="announcement-item-header">
+                    <h3>${survey.title}</h3>
+                    <span class="unread-badge">点击填写</span>
                 </div>
                 <div class="announcement-item-footer">
                     <span class="announcement-item-time">${createTime}</span>

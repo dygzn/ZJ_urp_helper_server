@@ -48,6 +48,10 @@
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
                 <span>系统公告</span>
             </a>
+            <a href="#" class="nav-item" data-page="surveys">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+                <span>问卷调查</span>
+            </a>
         </nav>
         <div class="sidebar-footer">
             <button class="rebind-btn" onclick="showRebindDialog()">换绑账号</button>
@@ -277,6 +281,16 @@
                 <div class="card announcements-container">
                     <h2>系统公告</h2>
                     <div id="announcements-list-content" class="announcements-list-content">
+                        <div class="loading">加载中</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 问卷调查 -->
+            <section id="page-surveys" class="page">
+                <div class="card announcements-container">
+                    <h2>问卷调查</h2>
+                    <div id="surveys-list-content" class="announcements-list-content">
                         <div class="loading">加载中</div>
                     </div>
                 </div>
