@@ -13,6 +13,8 @@ from functools import wraps
 import sqlite3
 from contextlib import contextmanager
 import requests
+import threading
+import queue as queue_module
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-change-this'  # 请修改为随机密钥
@@ -153,6 +155,22 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_feedback_reply_fid ON feedback_replies(feedback_id)
         ''')
 
+        # 请求日志表（用于监控）
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS request_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                device_id TEXT,
+                username TEXT,
+                endpoint TEXT NOT NULL,
+                method TEXT NOT NULL,
+                status_code INTEGER,
+                request_time TEXT NOT NULL
+            )
+        ''')
+        conn.execute('CREATE INDEX IF NOT EXISTS idx_log_time ON request_logs(request_time)')
+        conn.execute('CREATE INDEX IF NOT EXISTS idx_log_device ON request_logs(device_id)')
+        conn.execute('CREATE INDEX IF NOT EXISTS idx_log_endpoint ON request_logs(endpoint)')
+
         # 迁移：为 pending_requests 添加 notified 字段
         try:
             conn.execute('ALTER TABLE pending_requests ADD COLUMN notified INTEGER DEFAULT 0')
@@ -174,7 +192,123 @@ def init_db():
 init_db()
 
 
-# ==================== 工具函数 ====================
+# ==================== 请求日志异步写入 ====================
+
+log_queue = queue_module.Queue()
+_log_counter = 0  # 用于触发定期清理
+
+def _log_writer():
+    """后台线程批量写入请求日志"""
+    while True:
+        batch = []
+        batch.append(log_queue.get())
+        while len(batch) < 50:
+            try:
+                batch.append(log_queue.get_nowait())
+            except queue_module.Empty:
+                break
+        try:
+            with get_db() as conn:
+                conn.executemany(
+                    'INSERT INTO request_logs (device_id, username, endpoint, method, status_code, request_time) VALUES (?, ?, ?, ?, ?, ?)',
+                    batch
+                )
+        except Exception:
+            pass
+
+threading.Thread(target=_log_writer, daemon=True).start()
+
+
+@app.after_request
+def log_request(response):
+    """记录 API 请求日志"""
+    global _log_counter
+    path = request.path
+
+    # 只记录 /api/ 开头的请求，排除监控接口自身
+    if not path.startswith('/api/') or path.startswith('/api/admin/monitor'):
+        return response
+
+    # 接口中文名称映射
+    endpoint_names = {
+        '/api/check_bind': '检查绑定',
+        '/api/rebind_notified': '换绑通知已读',
+        '/api/login': '登录绑定',
+        '/api/request_rebind': '申请换绑',
+        '/api/check_login_status': '检查登录状态',
+        '/api/urgent_event': '紧急事件',
+        '/api/schedule': '课表查询',
+        '/api/update_schedule': '更新课表',
+        '/api/exams': '考试安排',
+        '/api/update_exams': '更新考试',
+        '/api/grades': '成绩查询',
+        '/api/experiments': '实验系统',
+        '/api/unevaluated_courses': '待评教课程',
+        '/api/evaluation': '教务评价',
+        '/api/generate_paper': '生成论文',
+        '/api/download_paper': '下载论文',
+        '/api/save_complex_request': '提交论文需求',
+        '/api/get_complex_requests': '查看论文需求',
+        '/api/delete_complex_request': '删除论文需求',
+        '/api/download_finished_paper': '下载完成论文',
+        '/api/download_request_file': '下载需求附件',
+        '/api/update_request_finish_file': '更新完成文件',
+        '/api/submit_feedback': '论文反馈',
+        '/api/confirm_receipt': '确认收货',
+        '/api/theme': '获取主题',
+        '/api/announcements': '公告',
+        '/api/surveys': '问卷列表',
+        '/api/feedback': '反馈建议',
+        '/api/admin/complex_requests': '管理-论文需求',
+        '/api/admin/update_finish_file': '管理-更新文件',
+        '/api/admin/upload_finish_file': '管理-上传文件',
+        '/api/admin/download_attachment': '管理-下载附件',
+        '/api/admin/pending_requests': '管理-待审批',
+        '/api/admin/approve_rebind': '管理-审批换绑',
+        '/api/admin/users': '管理-用户列表',
+        '/api/admin/config': '管理-配置',
+        '/api/admin/theme': '管理-切换主题',
+        '/api/admin/announcements': '管理-公告',
+        '/api/admin/surveys': '管理-问卷',
+        '/api/admin/feedback': '管理-反馈',
+    }
+
+    # 先精确匹配，再前缀匹配（处理带参数的路由如 /api/feedback/1/reply）
+    endpoint_name = endpoint_names.get(path)
+    if not endpoint_name:
+        for prefix, name in endpoint_names.items():
+            if path.startswith(prefix):
+                endpoint_name = name
+                break
+    if not endpoint_name:
+        endpoint_name = path
+
+    device_id = request.headers.get('X-Device-ID', '')
+    username = ''
+    if device_id:
+        try:
+            with get_db() as conn:
+                user = conn.execute('SELECT username FROM users WHERE device_id = ?', (device_id,)).fetchone()
+                if user:
+                    username = user['username']
+        except Exception:
+            pass
+
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    log_queue.put((device_id, username, endpoint_name, request.method, response.status_code, now))
+
+    # 每 1000 次请求触发一次自动清理（7天前的日志）
+    _log_counter += 1
+    if _log_counter >= 1000:
+        _log_counter = 0
+        try:
+            cutoff = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d %H:%M:%S')
+            with get_db() as conn:
+                conn.execute('DELETE FROM request_logs WHERE request_time < ?', (cutoff,))
+        except Exception:
+            pass
+
+    return response
 
 def get_device_id():
     """
@@ -2291,6 +2425,110 @@ def admin_delete_feedback(feedback_id):
     return jsonify({
         'success': True,
         'message': '反馈删除成功'
+    })
+
+
+# ==================== 监控接口 ====================
+
+@app.route('/api/admin/monitor/online', methods=['GET'])
+@require_admin
+def monitor_online():
+    """获取在线用户（最近5分钟有请求的）"""
+    cutoff = (datetime.now() - timedelta(minutes=5)).strftime('%Y-%m-%d %H:%M:%S')
+    with get_db() as conn:
+        rows = conn.execute('''
+            SELECT device_id, username,
+                   MAX(request_time) as last_active,
+                   endpoint as last_endpoint
+            FROM request_logs
+            WHERE request_time >= ? AND device_id != ''
+            GROUP BY device_id
+            ORDER BY last_active DESC
+        ''', (cutoff,)).fetchall()
+
+        # 需要取每个用户最后一次请求的 endpoint
+        users = []
+        for row in rows:
+            last = conn.execute(
+                'SELECT endpoint FROM request_logs WHERE device_id = ? ORDER BY request_time DESC LIMIT 1',
+                (row['device_id'],)
+            ).fetchone()
+            users.append({
+                'device_id': row['device_id'],
+                'username': row['username'] or '未绑定',
+                'last_active': row['last_active'],
+                'last_endpoint': last['endpoint'] if last else ''
+            })
+
+    return jsonify({
+        'success': True,
+        'data': {
+            'online_count': len(users),
+            'users': users
+        }
+    })
+
+
+@app.route('/api/admin/monitor/stats', methods=['GET'])
+@require_admin
+def monitor_stats():
+    """获取今日接口调用统计"""
+    today = datetime.now().strftime('%Y-%m-%d')
+    with get_db() as conn:
+        rows = conn.execute('''
+            SELECT endpoint, method, COUNT(*) as count
+            FROM request_logs
+            WHERE request_time >= ?
+            GROUP BY endpoint, method
+            ORDER BY count DESC
+        ''', (today,)).fetchall()
+
+        total = conn.execute(
+            'SELECT COUNT(*) as total FROM request_logs WHERE request_time >= ?',
+            (today,)
+        ).fetchone()
+
+    return jsonify({
+        'success': True,
+        'data': {
+            'total': total['total'] if total else 0,
+            'stats': [dict(row) for row in rows]
+        }
+    })
+
+
+@app.route('/api/admin/monitor/recent', methods=['GET'])
+@require_admin
+def monitor_recent():
+    """获取最近请求日志"""
+    with get_db() as conn:
+        rows = conn.execute('''
+            SELECT device_id, username, endpoint, method, status_code, request_time
+            FROM request_logs
+            ORDER BY request_time DESC
+            LIMIT 100
+        ''').fetchall()
+
+    return jsonify({
+        'success': True,
+        'data': [dict(row) for row in rows]
+    })
+
+
+@app.route('/api/admin/monitor/logs', methods=['DELETE'])
+@require_admin
+def monitor_cleanup():
+    """清理日志"""
+    days = request.args.get('days', 7, type=int)
+    cutoff = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d %H:%M:%S')
+    with get_db() as conn:
+        result = conn.execute('DELETE FROM request_logs WHERE request_time < ?', (cutoff,))
+        deleted = result.rowcount
+
+    return jsonify({
+        'success': True,
+        'message': f'已清理 {deleted} 条日志',
+        'data': {'deleted': deleted}
     })
 
 

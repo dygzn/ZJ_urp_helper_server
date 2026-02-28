@@ -83,8 +83,16 @@ function switchTab(tabName) {
         loadSurveys();
     } else if (tabName === 'feedback') {
         loadAdminFeedbacks();
+    } else if (tabName === 'monitor') {
+        loadMonitorData();
+        startMonitorRefresh();
     } else if (tabName === 'config') {
         loadConfig();
+    }
+
+    // 离开监控 Tab 时停止自动刷新
+    if (tabName !== 'monitor') {
+        stopMonitorRefresh();
     }
 }
 
@@ -1382,4 +1390,129 @@ function escapeHtml(text) {
 
 function escapeHtmlAttr(text) {
     return text.replace(/'/g, "\\'").replace(/"/g, '\\"');
+}
+
+// ==================== 监控功能 ====================
+
+let monitorTimer = null;
+
+function startMonitorRefresh() {
+    stopMonitorRefresh();
+    monitorTimer = setInterval(loadMonitorData, 30000);
+}
+
+function stopMonitorRefresh() {
+    if (monitorTimer) {
+        clearInterval(monitorTimer);
+        monitorTimer = null;
+    }
+}
+
+async function loadMonitorData() {
+    try {
+        const [onlineRes, statsRes, recentRes] = await Promise.all([
+            fetch('/api/admin/monitor/online', { headers: { 'Admin-Key': adminKey } }),
+            fetch('/api/admin/monitor/stats', { headers: { 'Admin-Key': adminKey } }),
+            fetch('/api/admin/monitor/recent', { headers: { 'Admin-Key': adminKey } })
+        ]);
+
+        const onlineData = await onlineRes.json();
+        const statsData = await statsRes.json();
+        const recentData = await recentRes.json();
+
+        if (onlineData.success) {
+            document.getElementById('online-count').textContent = onlineData.data.online_count;
+            renderOnlineUsers(onlineData.data.users);
+        }
+
+        if (statsData.success) {
+            document.getElementById('today-requests').textContent = statsData.data.total;
+            renderApiStats(statsData.data.stats);
+        }
+
+        if (recentData.success) {
+            renderRecentLogs(recentData.data);
+        }
+    } catch (error) {
+        console.error('加载监控数据失败:', error);
+    }
+}
+
+function renderOnlineUsers(users) {
+    const container = document.getElementById('online-users-list');
+    if (!users.length) {
+        container.innerHTML = '<div class="empty-state">当前无在线用户</div>';
+        return;
+    }
+
+    let html = '<table class="monitor-table"><thead><tr><th>用户名</th><th>最后活跃</th><th>最后操作</th></tr></thead><tbody>';
+    users.forEach(u => {
+        html += `<tr>
+            <td>${escapeHtml(u.username)}</td>
+            <td>${u.last_active.split(' ')[1] || u.last_active}</td>
+            <td>${escapeHtml(u.last_endpoint)}</td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+function renderApiStats(stats) {
+    const container = document.getElementById('api-stats-list');
+    if (!stats.length) {
+        container.innerHTML = '<div class="empty-state">今日暂无请求</div>';
+        return;
+    }
+
+    let html = '<table class="monitor-table"><thead><tr><th>功能</th><th>调用次数</th></tr></thead><tbody>';
+    stats.forEach(s => {
+        html += `<tr>
+            <td>${escapeHtml(s.endpoint)}</td>
+            <td>${s.count}</td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+function renderRecentLogs(logs) {
+    const container = document.getElementById('recent-logs-list');
+    if (!logs.length) {
+        container.innerHTML = '<div class="empty-state">暂无请求记录</div>';
+        return;
+    }
+
+    let html = '<table class="monitor-table"><thead><tr><th>时间</th><th>用户</th><th>功能</th><th>状态</th></tr></thead><tbody>';
+    logs.forEach(log => {
+        const statusClass = log.status_code >= 400 ? 'status-error' : 'status-ok';
+        html += `<tr>
+            <td>${log.request_time.split(' ')[1] || log.request_time}</td>
+            <td>${escapeHtml(log.username || '-')}</td>
+            <td>${escapeHtml(log.endpoint)}</td>
+            <td><span class="${statusClass}">${log.status_code}</span></td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+async function cleanupLogs() {
+    if (!confirm('确定要清理7天前的日志吗？')) return;
+
+    try {
+        const response = await fetch('/api/admin/monitor/logs?days=7', {
+            method: 'DELETE',
+            headers: { 'Admin-Key': adminKey }
+        });
+        const data = await response.json();
+        if (data.success) {
+            alert(data.message);
+            loadMonitorData();
+        } else {
+            alert('清理失败: ' + data.message);
+        }
+    } catch (error) {
+        console.error('清理日志失败:', error);
+        alert('网络错误');
+    }
 }
