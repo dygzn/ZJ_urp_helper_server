@@ -480,9 +480,14 @@ body {
 }
 
 .event-location {
-    font-size: 15px;
-    margin-bottom: 8px;
-    opacity: 0.85;
+    font-size: 18px;
+    margin-bottom: 12px;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.15);
+    padding: 12px 20px;
+    border-radius: 10px;
+    display: inline-block;
+    letter-spacing: 0.5px;
 }
 
 .event-time {
@@ -505,9 +510,13 @@ body {
 
 .event-seat {
     margin-top: 16px;
-    padding-top: 16px;
-    border-top: 1px solid rgba(255,255,255,0.2);
-    font-size: 15px;
+    padding: 12px 20px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    font-size: 18px;
+    font-weight: 600;
+    display: inline-block;
+    letter-spacing: 0.5px;
 }
 
 /* ==================== 课程表 ==================== */

@@ -365,6 +365,10 @@ async function loadUrgentEvent() {
         const data = await response.json();
 
         if (data.success && data.event) {
+            // 如果执行了自动更新,显示提示
+            if (data.auto_updated) {
+                showToast('已自动更新课表和考试表', 'success');
+            }
             displayUrgentEvent(data.event);
         } else {
             contentDiv.innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">暂无紧急事项</p>';
@@ -375,8 +379,23 @@ async function loadUrgentEvent() {
     }
 }
 
+// 倒计时定时器
+let countdownTimer = null;
+
 function displayUrgentEvent(event) {
     const contentDiv = document.getElementById('urgent-content');
+
+    // 清除之前的定时器
+    if (countdownTimer) {
+        clearInterval(countdownTimer);
+        countdownTimer = null;
+    }
+
+    // 如果没有事件
+    if (event.type === 'none') {
+        contentDiv.innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">暂无紧急事项</p>';
+        return;
+    }
 
     const typeText = event.type === 'class' ? '下一节课' : '即将考试';
     const seatHtml = event.seat ? `<div class="event-seat">座位号: ${event.seat}</div>` : '';
@@ -387,11 +406,45 @@ function displayUrgentEvent(event) {
             <div class="event-title">${event.title}</div>
             <div class="event-location">${event.location}</div>
             <div class="event-time">${event.time}</div>
-            <div class="countdown">${event.countdown}</div>
-            <div class="countdown-label">分钟后开始</div>
+            <div class="countdown" id="countdown-display">${formatCountdown(event.countdown)}</div>
+            <div class="countdown-label">后开始</div>
             ${seatHtml}
         </div>
     `;
+
+    // 启动实时倒计时
+    let remainingMinutes = event.countdown;
+    countdownTimer = setInterval(() => {
+        remainingMinutes--;
+        const countdownEl = document.getElementById('countdown-display');
+        if (countdownEl) {
+            if (remainingMinutes <= 0) {
+                clearInterval(countdownTimer);
+                countdownTimer = null;
+                // 倒计时结束,重新加载
+                loadUrgentEvent();
+            } else {
+                countdownEl.textContent = formatCountdown(remainingMinutes);
+            }
+        }
+    }, 60000); // 每分钟更新一次
+}
+
+function formatCountdown(minutes) {
+    if (minutes < 0) return '已开始';
+    if (minutes === 0) return '即将开始';
+
+    const days = Math.floor(minutes / 1440);
+    const hours = Math.floor((minutes % 1440) / 60);
+    const mins = minutes % 60;
+
+    if (days > 0) {
+        return `${days}天${hours}小时${mins}分钟`;
+    } else if (hours > 0) {
+        return `${hours}小时${mins}分钟`;
+    } else {
+        return `${mins}分钟`;
+    }
 }
 
 function refreshUrgentEvent() {
@@ -555,7 +608,9 @@ function displaySchedule(schedule) {
                 if (dayNum && section) {
                     if (section >= 9) hasEvening = true;
                     daysCourses[dayNum].push({
+                        code: course['课程号'] || '',
                         name: course['课程名'],
+                        credit: course['学分'] || '',
                         section: section,
                         duration: duration,
                         location: location,
@@ -593,7 +648,9 @@ function displaySchedule(schedule) {
 
             const dayNames = ['', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'];
             const courseData = encodeURIComponent(JSON.stringify({
+                code: course.code,
                 name: course.name,
+                credit: course.credit,
                 day: dayNames[day] || `星期${day}`,
                 section: course.section,
                 duration: course.duration,
@@ -639,6 +696,8 @@ function showCourseDetail(el) {
 
     document.getElementById('course-detail-name').textContent = course.name;
     document.getElementById('course-detail-body').innerHTML = `
+        ${course.code ? `<div class="course-detail-row"><span class="course-detail-label">课程号</span><span>${course.code}</span></div>` : ''}
+        ${course.credit ? `<div class="course-detail-row"><span class="course-detail-label">学分</span><span>${course.credit}</span></div>` : ''}
         <div class="course-detail-row"><span class="course-detail-label">时间</span><span>${course.day} 第${course.section}-${endSection}节</span></div>
         ${course.location ? `<div class="course-detail-row"><span class="course-detail-label">地点</span><span>${course.location}</span></div>` : ''}
         ${course.campus ? `<div class="course-detail-row"><span class="course-detail-label">校区</span><span>${course.campus}</span></div>` : ''}

@@ -11,15 +11,14 @@ class URP_login:
         self.account = account
         self.password = password
         self.x = requests.session()
-        self.vpncookie_get()
 
 
-    """测试方案"""
+    '''
     def vpncookie_get(self):
         vpn_cookie = self.x.get(url='http://101.35.254.245/vpn',verify=False).json()
         self.x.cookies.update(vpn_cookie)
+    '''
     def login(self):
-        self.vpncookie_get()
         import ddddocr
         import random
         header = {
@@ -87,7 +86,6 @@ class URP_login:
             return True
         else:
             # cookie失效时，重新获取VPN cookie以便后续登录
-            self.vpncookie_get()
             return False
 
 
@@ -268,7 +266,6 @@ class URP_query:
 
     def schedule_cx(self):
         from collections import defaultdict
-
         headers = {
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
             'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
@@ -290,22 +287,23 @@ class URP_query:
         }
         response = self.x.get(f'{self.url}xkAction.do', headers=headers, params=params, verify=False)
         html = response.text
-
+        print(html)                                                  
         soup = BeautifulSoup(html, 'html.parser')
 
-        # 找到课程列表表格（id="kclb"的表格）
-        course_table = soup.find('table', {'id': 'kclb'})
+        # 找到课程列表表格（包含 class="sortable" 的表头）
+        course_table = None
+        for table in soup.find_all('table'):
+            if table.find('th', class_='sortable'):
+                course_table = table
+                break
+
         if not course_table:
             raise Exception("未找到课表数据，学校可能暂未开放课表查询")
 
-        tbody = course_table.find('tbody')
-        if not tbody:
-            raise Exception("课表数据为空")
-
         # 按周次组织课程
         schedule_by_week = defaultdict(list)
-        rows = tbody.find_all('tr', class_='odd')
-        current_course_name = None
+        rows = course_table.find_all('tr', class_='odd')
+        current_course_info = {}
 
         for row in rows:
             tds = row.find_all('td')
@@ -313,34 +311,41 @@ class URP_query:
                 continue
 
             # 检查是否有rowspan，表示新课程开始
-            for td in tds:
-                if td.get('rowspan'):
-                    course_tds = [t for t in tds if t.get('rowspan')]
-                    if len(course_tds) >= 3:
-                        current_course_name = course_tds[2].get_text(strip=True)
-                    break
+            has_rowspan = any(td.get('rowspan') for td in tds)
 
-            # 提取周次、星期、节次、节数、校区、教学楼、教室
-            non_rowspan_tds = [td for td in tds if not td.get('rowspan')]
+            if has_rowspan:
+                # 新课程行：提取课程号、课程名、学分（第2、3、5个有rowspan的td）
+                rowspan_tds = [td for td in tds if td.get('rowspan')]
+                if len(rowspan_tds) >= 5:
+                    current_course_info['课程号'] = rowspan_tds[1].get_text(strip=True)
+                    current_course_info['课程名'] = rowspan_tds[2].get_text(strip=True)
+                    current_course_info['学分'] = rowspan_tds[4].get_text(strip=True)
 
-            if len(non_rowspan_tds) >= 7:
-                week_str = non_rowspan_tds[0].get_text(strip=True)
-                day_str = non_rowspan_tds[1].get_text(strip=True)
-                period_str = non_rowspan_tds[2].get_text(strip=True)
-                duration_str = non_rowspan_tds[3].get_text(strip=True)
-                campus_str = non_rowspan_tds[4].get_text(strip=True)
-                building_str = non_rowspan_tds[5].get_text(strip=True)
-                room_str = non_rowspan_tds[6].get_text(strip=True)
+            # 提取时间地点信息（最后7个td，无论是否有rowspan）
+            # 从后往前取：教室、教学楼、校区、节数、节次、星期、周次
+            if len(tds) >= 7:
+                week_str = tds[-7].get_text(strip=True)
+                day_str = tds[-6].get_text(strip=True)
+                period_str = tds[-5].get_text(strip=True)
+                duration_str = tds[-4].get_text(strip=True)
+                campus_str = tds[-3].get_text(strip=True)
+                building_str = tds[-2].get_text(strip=True)
+                room_str = tds[-1].get_text(strip=True)
 
-                if week_str and current_course_name:
+                if week_str and current_course_info.get('课程名'):
                     weeks = self._parse_weeks(week_str)
                     location = f"{campus_str}{building_str}{room_str}" if campus_str and building_str and room_str else ""
 
+                    # 解析节次（"第一节" -> "1"）
+                    period_num = self._parse_period(period_str)
+
                     for week in weeks:
                         schedule_by_week[week].append({
-                            '课程名': current_course_name,
+                            '课程号': current_course_info.get('课程号', ''),
+                            '课程名': current_course_info['课程名'],
+                            '学分': current_course_info.get('学分', ''),
                             '星期': day_str,
-                            '节次': period_str,
+                            '节次': period_num,
                             '节数': duration_str,
                             '校区': campus_str,
                             '教学楼': building_str,
@@ -373,6 +378,16 @@ class URP_query:
             elif part:
                 weeks.append(int(part))
         return sorted(set(weeks))
+
+    @staticmethod
+    def _parse_period(period_str):
+        """解析节次字符串，如 '第一节' -> '1', '第三节' -> '3'"""
+        period_map = {
+            '第一节': '1', '第二节': '2', '第三节': '3', '第四节': '4',
+            '第五节': '5', '第六节': '6', '第七节': '7', '第八节': '8',
+            '第九节': '9', '第十节': '10'
+        }
+        return period_map.get(period_str, period_str)
 
 
 

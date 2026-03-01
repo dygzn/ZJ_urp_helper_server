@@ -15,9 +15,14 @@ from contextlib import contextmanager
 import requests
 import threading
 import queue as queue_module
+import time
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-change-this'  # 请修改为随机密钥
+
+# 登录状态验证缓存：{username: timestamp}，避免每次请求都发网络验证
+_login_cache = {}
+LOGIN_CACHE_TTL = 900  # 15分钟
 
 # ==================== 配置区域 ====================
 DATA_DIR = 'data'  # 数据存储目录
@@ -55,7 +60,8 @@ def init_db():
                 device_id TEXT PRIMARY KEY,
                 username TEXT NOT NULL,
                 password TEXT NOT NULL,
-                bind_time TEXT NOT NULL
+                bind_time TEXT NOT NULL,
+                last_auto_update TEXT
             )
         ''')
 
@@ -174,6 +180,12 @@ def init_db():
         # 迁移：为 pending_requests 添加 notified 字段
         try:
             conn.execute('ALTER TABLE pending_requests ADD COLUMN notified INTEGER DEFAULT 0')
+        except Exception:
+            pass  # 字段已存在
+
+        # 迁移：为 users 添加 last_auto_update 字段
+        try:
+            conn.execute('ALTER TABLE users ADD COLUMN last_auto_update TEXT')
         except Exception:
             pass  # 字段已存在
 
@@ -401,17 +413,33 @@ def require_login(f):
         if not user:
             return jsonify({'success': False, 'message': '未绑定账号'})
 
-        # 检查登录状态
         username = user['username']
         password = user['password']
 
+        # 检查登录状态
         is_logged_in, _ = check_login_status(username, password, {})
 
         if not is_logged_in:
             return jsonify({'success': False, 'message': '登录已失效，请重新绑定'})
 
-        # 将用户信息传递给路由函数
-        return f(user=user, *args, **kwargs)
+        # 执行路由函数，失败时自动重新登录并重试一次
+        try:
+            return f(user=user, *args, **kwargs)
+        except Exception as e:
+            # Cookie 可能在缓存期内失效了，清除缓存并强制重新验证
+            _login_cache.pop(username, None)
+
+            # 尝试重新登录
+            is_logged_in, _ = check_login_status(username, password, {})
+            if not is_logged_in:
+                return jsonify({'success': False, 'message': '登录已失效，请重新绑定'})
+
+            # 重新登录成功，重试一次
+            try:
+                return f(user=user, *args, **kwargs)
+            except Exception:
+                # 重试仍失败，抛出原始异常
+                raise
 
     return decorated_function
 
@@ -504,7 +532,17 @@ def check_login_status(username, password, cookies):
     """
     检查登录状态，如果未登录则重新登录
     返回: (is_logged_in: bool, cookies: dict)
+    使用内存缓存减少网络验证次数（15分钟内只验证一次）
     """
+    now = time.time()
+
+    # 缓存命中：15分钟内验证过 且 cookie 文件存在 → 跳过网络验证
+    if username in _login_cache and now - _login_cache[username] < LOGIN_CACHE_TTL:
+        cookie_file = f'user_data/{username}/cookie.json'
+        if os.path.exists(cookie_file):
+            return True, {}
+
+    # 缓存未命中或已过期：走网络验证
     from URP import URP_login
 
     url = get_current_urp_url()
@@ -514,10 +552,11 @@ def check_login_status(username, password, cookies):
     is_logged_in = urp.is_logined()
 
     if is_logged_in is True:
-        # 已登录，返回当前cookies
+        _login_cache[username] = now
         current_cookies = urp.x.cookies.get_dict()
         return True, current_cookies
     else:
+        _login_cache.pop(username, None)
         # 未登录，删除旧cookie文件后重新登录
         cookie_file = f'user_data/{username}/cookie.json'
         if os.path.exists(cookie_file):
@@ -527,6 +566,7 @@ def check_login_status(username, password, cookies):
         try:
             success, _, new_cookies = urp.login()
             if success:
+                _login_cache[username] = now
                 return True, new_cookies or urp.x.cookies.get_dict()
             else:
                 return False, {}
@@ -547,17 +587,180 @@ def get_urgent_event(username):
         'countdown': int,  # 倒计时（分钟）
         'seat': str  # 座位号（仅考试）
     }
-
-    TODO: 实现具体的数据爬取逻辑
     """
-    # 临时返回模拟数据
-    return {
-        'type': 'class',
-        'title': '开心度过寒假',
-        'location': '你喜欢的地方',
-        'time': '2026-02-15',
-        'countdown': 0
+    from datetime import datetime, timedelta
+
+    # 读取课表和考试数据
+    schedule_file = os.path.join('user_data', username, 'schedule.json')
+    exams_file = os.path.join('user_data', username, 'exams.json')
+
+    # 计算当前周次 (3月2日星期一是第1周)
+    semester_start = datetime(2026, 3, 2)  # 第1周的星期一
+    now = datetime.now()
+    days_passed = (now - semester_start).days
+    current_week = (days_passed // 7) + 1
+    current_weekday = now.isoweekday()  # 1=周一, 7=周日
+
+    # 课程节次时间映射
+    period_times = {
+        1: (8, 0), 2: (8, 50), 3: (10, 0), 4: (10, 50),
+        5: (14, 0), 6: (14, 50), 7: (16, 0), 8: (16, 50),
+        9: (19, 0), 10: (19, 50)
     }
+
+    next_class = None
+    next_class_time = None
+
+    # 查找下一节课
+    if os.path.exists(schedule_file):
+        with open(schedule_file, 'r', encoding='utf-8') as f:
+            schedule = json.load(f)
+
+        # 遍历所有周次的课程
+        for week_str, courses in schedule.items():
+            week = int(week_str)
+            if week < current_week:
+                continue
+
+            for course in courses:
+                day = int(course['星期'])
+                period = int(course['节次'])
+
+                # 计算课程的绝对时间
+                days_offset = (week - 1) * 7 + (day - 1)
+                course_date = semester_start + timedelta(days=days_offset)
+                hour, minute = period_times.get(period, (8, 0))
+                course_time = course_date.replace(hour=hour, minute=minute)
+
+                # 只考虑未来的课程
+                if course_time > now:
+                    if next_class_time is None or course_time < next_class_time:
+                        next_class_time = course_time
+                        next_class = {
+                            'type': 'class',
+                            'title': course['课程名'],
+                            'location': course['位置'],
+                            'time': course_time.strftime('%Y-%m-%d %H:%M'),
+                            'countdown': int((course_time - now).total_seconds() / 60)
+                        }
+
+    next_exam = None
+    next_exam_time = None
+
+    # 查找最近的考试
+    if os.path.exists(exams_file):
+        with open(exams_file, 'r', encoding='utf-8') as f:
+            exams = json.load(f)
+
+        for week_str, exam_list in exams.items():
+            week = int(week_str)
+            if week < current_week:
+                continue
+
+            for exam in exam_list:
+                day = int(exam['考试星期'])
+                time_str = exam['考试时间'].split('-')[0]  # "09:00-11:00" -> "09:00"
+                hour, minute = map(int, time_str.split(':'))
+
+                # 计算考试的绝对时间
+                days_offset = (week - 1) * 7 + (day - 1)
+                exam_date = semester_start + timedelta(days=days_offset)
+                exam_time = exam_date.replace(hour=hour, minute=minute)
+
+                # 只考虑未来的考试
+                if exam_time > now:
+                    if next_exam_time is None or exam_time < next_exam_time:
+                        next_exam_time = exam_time
+                        next_exam = {
+                            'type': 'exam',
+                            'title': exam['课程'],
+                            'location': exam['位置'],
+                            'time': exam_time.strftime('%Y-%m-%d %H:%M'),
+                            'countdown': int((exam_time - now).total_seconds() / 60),
+                            'seat': exam['座位号']
+                        }
+
+    # 返回最紧急的事件
+    if next_class is None and next_exam is None:
+        return {
+            'type': 'none',
+            'title': '暂无安排',
+            'location': '',
+            'time': '',
+            'countdown': 0
+        }
+    elif next_class is None:
+        return next_exam
+    elif next_exam is None:
+        return next_class
+    else:
+        return next_class if next_class_time < next_exam_time else next_exam
+
+
+def check_and_auto_update(username, password):
+    """
+    检查是否需要自动更新课表和考试表（每日首次访问）
+    返回: (需要更新, 更新结果消息)
+    """
+    from datetime import datetime, date
+
+    today = date.today().isoformat()
+
+    # 查询用户上次自动更新时间
+    with get_db() as conn:
+        cursor = conn.execute(
+            'SELECT last_auto_update FROM users WHERE username = ?',
+            (username,)
+        )
+        row = cursor.fetchone()
+
+        if row is None:
+            return False, '用户不存在'
+
+        last_update = row[0]
+
+        # 如果今天已经更新过，跳过
+        if last_update == today:
+            return False, '今日已更新'
+
+        # 执行自动更新
+        try:
+            from URP import URP_login, URP_query
+            url = get_current_urp_url()
+
+            # 登录
+            urp_login = URP_login(url, username, password)
+            if not urp_login.is_logined():
+                urp_login.login()
+
+            # 更新课表
+            urp_query = URP_query(url, urp_login.x)
+            schedule_data = urp_query.schedule_cx()
+
+            # 保存课表
+            user_dir = os.path.join('user_data', username)
+            os.makedirs(user_dir, exist_ok=True)
+            schedule_file = os.path.join(user_dir, 'schedule.json')
+            with open(schedule_file, 'w', encoding='utf-8') as f:
+                json.dump(schedule_data, f, ensure_ascii=False, indent=2)
+
+            # 更新考试表
+            exams_data = urp_query.exams_cx()
+            exams_file = os.path.join(user_dir, 'exams.json')
+            with open(exams_file, 'w', encoding='utf-8') as f:
+                json.dump(exams_data, f, ensure_ascii=False, indent=2)
+
+            # 更新数据库记录
+            conn.execute(
+                'UPDATE users SET last_auto_update = ? WHERE username = ?',
+                (today, username)
+            )
+            conn.commit()
+
+            return True, '自动更新成功'
+
+        except Exception as e:
+            return False, f'自动更新失败: {str(e)}'
 
 
 def get_schedule(username, week=None):
@@ -996,13 +1199,25 @@ def api_urgent_event(user):
     """
     获取最紧急的事件
     需要先绑定账号
+    首次访问时会自动更新课表和考试表
     """
     try:
+        # 检查并执行每日自动更新
+        updated, message = check_and_auto_update(user['username'], user['password'])
+
         event = get_urgent_event(user['username'])
-        return jsonify({
+
+        response = {
             'success': True,
             'event': event
-        })
+        }
+
+        # 如果执行了自动更新,添加提示信息
+        if updated:
+            response['auto_updated'] = True
+            response['update_message'] = message
+
+        return jsonify(response)
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
