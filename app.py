@@ -578,45 +578,39 @@ def check_login_status(username, password, cookies):
 
 def get_urgent_event(username):
     """
-    获取最紧急的事件（下一节课或最近的考试）
+    获取正在进行的课程和下一个最紧急的事件
     返回: {
-        'type': 'class' | 'exam',  # 事件类型
-        'title': str,  # 课程名称
-        'location': str,  # 地点
-        'time': str,  # 时间
-        'countdown': int,  # 倒计时（分钟）
-        'seat': str  # 座位号（仅考试）
+        'current': {...} | None,  # 正在进行的课程
+        'next': {...} | None      # 下一个事件（课程或考试）
     }
     """
     from datetime import datetime, timedelta
 
-    # 读取课表和考试数据
     schedule_file = os.path.join('user_data', username, 'schedule.json')
     exams_file = os.path.join('user_data', username, 'exams.json')
 
-    # 计算当前周次 (3月2日星期一是第1周)
     semester_start = datetime(2026, 3, 2)  # 第1周的星期一
     now = datetime.now()
     days_passed = (now - semester_start).days
     current_week = (days_passed // 7) + 1
-    current_weekday = now.isoweekday()  # 1=周一, 7=周日
 
-    # 课程节次时间映射
+    # 课程节次：(开始时间, 结束时间)
     period_times = {
-        1: (8, 0), 2: (8, 50), 3: (10, 0), 4: (10, 50),
-        5: (14, 0), 6: (14, 50), 7: (16, 0), 8: (16, 50),
-        9: (19, 0), 10: (19, 50)
+        1: ((8, 20), (9, 5)),   2: ((9, 15), (10, 0)),
+        3: ((10, 15), (11, 0)), 4: ((11, 10), (11, 55)),
+        5: ((14, 10), (14, 55)), 6: ((15, 5), (15, 50)),
+        7: ((16, 5), (16, 50)), 8: ((17, 0), (17, 45)),
+        9: ((19, 0), (19, 45)), 10: ((19, 55), (20, 40))
     }
 
+    current_class = None
     next_class = None
     next_class_time = None
 
-    # 查找下一节课
     if os.path.exists(schedule_file):
         with open(schedule_file, 'r', encoding='utf-8') as f:
             schedule = json.load(f)
 
-        # 遍历所有周次的课程
         for week_str, courses in schedule.items():
             week = int(week_str)
             if week < current_week:
@@ -625,29 +619,44 @@ def get_urgent_event(username):
             for course in courses:
                 day = int(course['星期'])
                 period = int(course['节次'])
+                duration = int(course.get('节数', 1))
 
-                # 计算课程的绝对时间
                 days_offset = (week - 1) * 7 + (day - 1)
                 course_date = semester_start + timedelta(days=days_offset)
-                hour, minute = period_times.get(period, (8, 0))
-                course_time = course_date.replace(hour=hour, minute=minute)
 
-                # 只考虑未来的课程
-                if course_time > now:
-                    if next_class_time is None or course_time < next_class_time:
-                        next_class_time = course_time
+                # 计算开始和结束时间
+                start_h, start_m = period_times.get(period, ((8, 20), (9, 5)))[0]
+                end_period = period + duration - 1
+                end_h, end_m = period_times.get(end_period, ((8, 20), (9, 5)))[1]
+
+                course_start = course_date.replace(hour=start_h, minute=start_m, second=0)
+                course_end = course_date.replace(hour=end_h, minute=end_m, second=0)
+
+                # 判断是否正在进行
+                if course_start <= now <= course_end:
+                    remaining = int((course_end - now).total_seconds() / 60)
+                    current_class = {
+                        'type': 'class',
+                        'title': course['课程名'],
+                        'location': course['位置'],
+                        'time': f"{start_h:02d}:{start_m:02d}-{end_h:02d}:{end_m:02d}",
+                        'remaining': remaining
+                    }
+                # 判断是否是下一个
+                elif course_start > now:
+                    if next_class_time is None or course_start < next_class_time:
+                        next_class_time = course_start
                         next_class = {
                             'type': 'class',
                             'title': course['课程名'],
                             'location': course['位置'],
-                            'time': course_time.strftime('%Y-%m-%d %H:%M'),
-                            'countdown': int((course_time - now).total_seconds() / 60)
+                            'time': course_start.strftime('%Y-%m-%d %H:%M'),
+                            'countdown': int((course_start - now).total_seconds() / 60)
                         }
 
     next_exam = None
     next_exam_time = None
 
-    # 查找最近的考试
     if os.path.exists(exams_file):
         with open(exams_file, 'r', encoding='utf-8') as f:
             exams = json.load(f)
@@ -659,15 +668,14 @@ def get_urgent_event(username):
 
             for exam in exam_list:
                 day = int(exam['考试星期'])
-                time_str = exam['考试时间'].split('-')[0]  # "09:00-11:00" -> "09:00"
-                hour, minute = map(int, time_str.split(':'))
+                time_range = exam['考试时间']  # "19:00-21:00"
+                start_str = time_range.split('-')[0]
+                hour, minute = map(int, start_str.split(':'))
 
-                # 计算考试的绝对时间
                 days_offset = (week - 1) * 7 + (day - 1)
                 exam_date = semester_start + timedelta(days=days_offset)
                 exam_time = exam_date.replace(hour=hour, minute=minute)
 
-                # 只考虑未来的考试
                 if exam_time > now:
                     if next_exam_time is None or exam_time < next_exam_time:
                         next_exam_time = exam_time
@@ -675,26 +683,24 @@ def get_urgent_event(username):
                             'type': 'exam',
                             'title': exam['课程'],
                             'location': exam['位置'],
-                            'time': exam_time.strftime('%Y-%m-%d %H:%M'),
+                            'time': exam_date.strftime('%Y-%m-%d') + ' ' + time_range,
                             'countdown': int((exam_time - now).total_seconds() / 60),
                             'seat': exam['座位号']
                         }
 
-    # 返回最紧急的事件
-    if next_class is None and next_exam is None:
-        return {
-            'type': 'none',
-            'title': '暂无安排',
-            'location': '',
-            'time': '',
-            'countdown': 0
-        }
-    elif next_class is None:
-        return next_exam
-    elif next_exam is None:
-        return next_class
-    else:
-        return next_class if next_class_time < next_exam_time else next_exam
+    # 确定下一个事件（课程和考试中更近的）
+    next_event = None
+    if next_class and next_exam:
+        next_event = next_class if next_class_time < next_exam_time else next_exam
+    elif next_class:
+        next_event = next_class
+    elif next_exam:
+        next_event = next_exam
+
+    return {
+        'current': current_class,
+        'next': next_event
+    }
 
 
 def check_and_auto_update(username, password):

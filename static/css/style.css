@@ -455,19 +455,46 @@ body {
 
 .urgent-content {
     min-height: 180px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
 
 .event-card {
-    background: var(--text-primary);
-    color: #fff;
+    background: #fff;
+    color: var(--text-primary);
     padding: 28px;
     border-radius: 14px;
     text-align: center;
+    border: 1px solid var(--border);
+}
+
+.event-card-current {
+    border-left: 4px solid #2d8cf0;
+}
+
+.event-card-next {
+    padding: 20px;
+    background: var(--bg-secondary, #f8f9fa);
+}
+
+.event-card-next .event-title {
+    font-size: 18px;
+    margin-bottom: 10px;
+}
+
+.event-card-next .countdown {
+    font-size: 28px;
+}
+
+.event-card-next .event-location {
+    font-size: 15px;
+    padding: 8px 16px;
 }
 
 .event-type {
     font-size: var(--text-caption);
-    opacity: 0.7;
+    color: var(--text-tertiary);
     margin-bottom: 8px;
     font-weight: 500;
 }
@@ -477,13 +504,15 @@ body {
     font-weight: 600;
     margin-bottom: 16px;
     letter-spacing: -0.3px;
+    color: var(--text-primary);
 }
 
 .event-location {
     font-size: 18px;
     margin-bottom: 12px;
     font-weight: 600;
-    background: rgba(255, 255, 255, 0.15);
+    background: #eef4ff;
+    color: #2d8cf0;
     padding: 12px 20px;
     border-radius: 10px;
     display: inline-block;
@@ -492,7 +521,7 @@ body {
 
 .event-time {
     font-size: var(--text-caption);
-    opacity: 0.7;
+    color: var(--text-tertiary);
     margin-bottom: 20px;
 }
 
@@ -501,17 +530,19 @@ body {
     font-weight: 700;
     letter-spacing: -1px;
     margin-bottom: 4px;
+    color: #2d8cf0;
 }
 
 .countdown-label {
     font-size: var(--text-caption);
-    opacity: 0.7;
+    color: var(--text-tertiary);
 }
 
 .event-seat {
     margin-top: 16px;
     padding: 12px 20px;
-    background: rgba(255, 255, 255, 0.2);
+    background: #fff7ed;
+    color: #e67e22;
     border-radius: 10px;
     font-size: 18px;
     font-weight: 600;

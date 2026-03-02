@@ -286,8 +286,7 @@ class URP_query:
             'yzxh': f'{self.account}',
         }
         response = self.x.get(f'{self.url}xkAction.do', headers=headers, params=params, verify=False)
-        html = response.text
-        print(html)                                                  
+        html = response.text                                                
         soup = BeautifulSoup(html, 'html.parser')
 
         # 找到课程列表表格（包含 class="sortable" 的表头）

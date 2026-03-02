@@ -365,13 +365,12 @@ async function loadUrgentEvent() {
         const data = await response.json();
 
         if (data.success && data.event) {
-            // 如果执行了自动更新,显示提示
             if (data.auto_updated) {
                 showToast('已自动更新课表和考试表', 'success');
             }
             displayUrgentEvent(data.event);
         } else {
-            contentDiv.innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">暂无紧急事项</p>';
+            contentDiv.innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">今天没有课程和考试，好好休息吧~</p>';
         }
     } catch (error) {
         console.error('加载紧急事件失败:', error);
@@ -382,52 +381,83 @@ async function loadUrgentEvent() {
 // 倒计时定时器
 let countdownTimer = null;
 
-function displayUrgentEvent(event) {
+function displayUrgentEvent(eventData) {
     const contentDiv = document.getElementById('urgent-content');
 
-    // 清除之前的定时器
     if (countdownTimer) {
         clearInterval(countdownTimer);
         countdownTimer = null;
     }
 
-    // 如果没有事件
-    if (event.type === 'none') {
-        contentDiv.innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">暂无紧急事项</p>';
+    const current = eventData.current;
+    const next = eventData.next;
+
+    if (!current && !next) {
+        contentDiv.innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">今天没有课程和考试，好好休息吧~</p>';
         return;
     }
 
-    const typeText = event.type === 'class' ? '下一节课' : '即将考试';
-    const seatHtml = event.seat ? `<div class="event-seat">座位号: ${event.seat}</div>` : '';
+    let html = '';
 
-    contentDiv.innerHTML = `
-        <div class="event-card">
-            <div class="event-type">${typeText}</div>
-            <div class="event-title">${event.title}</div>
-            <div class="event-location">${event.location}</div>
-            <div class="event-time">${event.time}</div>
-            <div class="countdown" id="countdown-display">${formatCountdown(event.countdown)}</div>
-            <div class="countdown-label">后开始</div>
-            ${seatHtml}
-        </div>
-    `;
+    // 正在进行的课程
+    if (current) {
+        html += `
+            <div class="event-card event-card-current">
+                <div class="event-type">正在进行</div>
+                <div class="event-title">${current.title}</div>
+                <div class="event-location">${current.location}</div>
+                <div class="event-time">${current.time}</div>
+                <div class="countdown" id="current-remaining">${current.remaining}分钟</div>
+                <div class="countdown-label">后下课</div>
+            </div>
+        `;
+    }
+
+    // 下一个事件
+    if (next) {
+        const typeText = next.type === 'class' ? '接下来' : '考试提醒';
+        const seatHtml = next.seat ? `<div class="event-seat">座位号: ${next.seat}</div>` : '';
+
+        html += `
+            <div class="event-card${current ? ' event-card-next' : ''}">
+                <div class="event-type">${typeText}</div>
+                <div class="event-title">${next.title}</div>
+                <div class="event-location">${next.location}</div>
+                <div class="event-time">${next.time}</div>
+                <div class="countdown" id="countdown-display">${formatCountdown(next.countdown)}</div>
+                <div class="countdown-label">后开始</div>
+                ${seatHtml}
+            </div>
+        `;
+    }
+
+    contentDiv.innerHTML = html;
 
     // 启动实时倒计时
-    let remainingMinutes = event.countdown;
+    let nextRemaining = next ? next.countdown : 0;
+    let currentRemaining = current ? current.remaining : 0;
     countdownTimer = setInterval(() => {
-        remainingMinutes--;
-        const countdownEl = document.getElementById('countdown-display');
-        if (countdownEl) {
-            if (remainingMinutes <= 0) {
-                clearInterval(countdownTimer);
-                countdownTimer = null;
-                // 倒计时结束,重新加载
+        nextRemaining--;
+        currentRemaining--;
+
+        const currentEl = document.getElementById('current-remaining');
+        if (currentEl) {
+            if (currentRemaining <= 0) {
                 loadUrgentEvent();
-            } else {
-                countdownEl.textContent = formatCountdown(remainingMinutes);
+                return;
             }
+            currentEl.textContent = `${currentRemaining}分钟`;
         }
-    }, 60000); // 每分钟更新一次
+
+        const nextEl = document.getElementById('countdown-display');
+        if (nextEl) {
+            if (nextRemaining <= 0) {
+                loadUrgentEvent();
+                return;
+            }
+            nextEl.textContent = formatCountdown(nextRemaining);
+        }
+    }, 60000);
 }
 
 function formatCountdown(minutes) {
