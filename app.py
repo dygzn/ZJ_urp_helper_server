@@ -12,7 +12,6 @@ import uuid
 from functools import wraps
 import sqlite3
 from contextlib import contextmanager
-import requests
 import threading
 import queue as queue_module
 import time
@@ -254,7 +253,6 @@ def log_request(response):
         '/api/exams': '考试安排',
         '/api/update_exams': '更新考试',
         '/api/grades': '成绩查询',
-        '/api/experiments': '实验系统',
         '/api/unevaluated_courses': '待评教课程',
         '/api/evaluation': '教务评价',
         '/api/generate_paper': '生成论文',
@@ -372,7 +370,8 @@ def get_config():
         'urp_urls': [
             'http://your-urp-url-1.com',
             'http://your-urp-url-2.com'
-        ]
+        ],
+        'semester_start': '2026-03-02'  # 学期第一周星期一的日期
     }
     return load_json_file(CONFIG_FILE, default_config)
 
@@ -488,15 +487,6 @@ def bind_user(device_id, username, password):
         ''', (device_id, username, password, datetime.now().isoformat()))
 
 
-def update_user_cookies(device_id, cookies):
-    """
-    更新用户的cookies（已废弃，cookies现在保存在user_data目录）
-    保留此函数以保持兼容性
-    """
-    # cookies 现在由 URP.py 的 login() 方法自动保存到 user_data/{account}/cookie.json
-    # 不再保存到数据库
-    return True
-
 
 def unbind_user(device_id):
     """解绑用户"""
@@ -589,7 +579,10 @@ def get_urgent_event(username):
     schedule_file = os.path.join('user_data', username, 'schedule.json')
     exams_file = os.path.join('user_data', username, 'exams.json')
 
-    semester_start = datetime(2026, 3, 2)  # 第1周的星期一
+    config = get_config()
+    semester_start_str = config.get('semester_start', '2026-03-02')
+    y, m, d = map(int, semester_start_str.split('-'))
+    semester_start = datetime(y, m, d)  # 第1周的星期一
     now = datetime.now()
     days_passed = (now - semester_start).days
     current_week = (days_passed // 7) + 1
@@ -735,26 +728,14 @@ def check_and_auto_update(username, password):
             url = get_current_urp_url()
 
             # 登录
-            urp_login = URP_login(url, username, password)
-            if not urp_login.is_logined():
-                urp_login.login()
+            urp = URP_login(url, username, password)
+            if not urp.is_logined():
+                urp.login()
 
-            # 更新课表
-            urp_query = URP_query(url, urp_login.x)
-            schedule_data = urp_query.schedule_cx()
-
-            # 保存课表
-            user_dir = os.path.join('user_data', username)
-            os.makedirs(user_dir, exist_ok=True)
-            schedule_file = os.path.join(user_dir, 'schedule.json')
-            with open(schedule_file, 'w', encoding='utf-8') as f:
-                json.dump(schedule_data, f, ensure_ascii=False, indent=2)
-
-            # 更新考试表
-            exams_data = urp_query.exams_cx()
-            exams_file = os.path.join(user_dir, 'exams.json')
-            with open(exams_file, 'w', encoding='utf-8') as f:
-                json.dump(exams_data, f, ensure_ascii=False, indent=2)
+            # 更新课表和考试表（方法内部会自动保存文件）
+            query = URP_query(url, username)
+            query.schedule_cx()
+            query.exam_cx()
 
             # 更新数据库记录
             conn.execute(
@@ -802,7 +783,8 @@ def get_schedule(username, week=None):
         # 返回所有周次的课程
         return {
             'week': None,
-            'schedule': schedule_data
+            'schedule': schedule_data,
+            'semester_start': get_config().get('semester_start', '2026-03-02')
         }
     except Exception as e:
         return {
@@ -902,22 +884,6 @@ def get_grades(username):
         print(f"获取成绩失败: {str(e)}")
         # 返回空列表而不是模拟数据
         return []
-
-
-def get_experiments(username):
-    """
-    获取实验系统信息
-
-    TODO: 实现具体的数据爬取逻辑
-    """
-    # 临时返回模拟数据
-    return [
-        {
-            'name': '物理实验1',
-            'status': '已完成',
-            'score': '90'
-        }
-    ]
 
 
 def get_unevaluated_courses(username):
@@ -1151,7 +1117,6 @@ def api_check_login_status():
     # 检查登录状态
     username = user['username']
     password = user['password']
-    cookies = user.get('cookies', {})
 
     from URP import URP_login
     url = get_current_urp_url()
@@ -1173,9 +1138,6 @@ def api_check_login_status():
             success, message, _ = urp.login()
 
             if success:
-                new_cookies = urp.x.cookies.get_dict()
-                update_user_cookies(device_id, new_cookies)
-
                 return jsonify({
                     'success': True,
                     'logged_in': True,
@@ -1183,8 +1145,6 @@ def api_check_login_status():
                     'message': '重新登录成功'
                 })
             else:
-                requests.post('http://101.35.254.245/login')
-
                 return jsonify({
                     'success': True,
                     'logged_in': False,
@@ -1200,30 +1160,28 @@ def api_check_login_status():
 
 
 @app.route('/api/urgent_event', methods=['GET'])
-@require_login
+@require_bindding
 def api_urgent_event(user):
     """
     获取最紧急的事件
-    需要先绑定账号
-    首次访问时会自动更新课表和考试表
+    只读取本地缓存文件，不需要URP登录
+    每日首次访问时后台自动更新课表和考试表
     """
     try:
-        # 检查并执行每日自动更新
-        updated, message = check_and_auto_update(user['username'], user['password'])
+        # 后台执行每日自动更新，不阻塞响应
+        import threading
+        threading.Thread(
+            target=check_and_auto_update,
+            args=(user['username'], user['password']),
+            daemon=True
+        ).start()
 
         event = get_urgent_event(user['username'])
 
-        response = {
+        return jsonify({
             'success': True,
             'event': event
-        }
-
-        # 如果执行了自动更新,添加提示信息
-        if updated:
-            response['auto_updated'] = True
-            response['update_message'] = message
-
-        return jsonify(response)
+        })
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
@@ -1346,20 +1304,6 @@ def api_grades(user):
         return jsonify({
             'success': True,
             'grades': grades
-        })
-    except Exception as e:
-        return jsonify({'success': False, 'message': str(e)})
-
-
-@app.route('/api/experiments', methods=['GET'])
-@require_login
-def api_experiments(user):
-    """获取实验系统信息"""
-    try:
-        experiments = get_experiments(user['username'])
-        return jsonify({
-            'success': True,
-            'experiments': experiments
         })
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
@@ -1956,68 +1900,46 @@ def admin_approve_rebind():
 @require_admin
 def admin_users():
     """
-    获取绑定用户列表（分页）
-    参数:
-        page: 页码（从1开始，默认1）
-        per_page: 每页数量（默认50）
-        search: 搜索关键词（可选，搜索用户名）
+    获取用户统计：概况 + 每日增长（含累计） + 按专业分布
     """
-    # 获取分页参数
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 50, type=int)
-    search = request.args.get('search', '', type=str).strip()
-
-    # 限制每页数量
-    per_page = min(per_page, 100)  # 最多100条
+    from collections import defaultdict
 
     with get_db() as conn:
-        # 构建查询
-        if search:
-            # 搜索用户名
-            query = '''
-                SELECT device_id, username, bind_time
-                FROM users
-                WHERE username LIKE ?
-                ORDER BY bind_time DESC
-            '''
-            rows = conn.execute(query, (f'%{search}%',)).fetchall()
+        rows = conn.execute('SELECT DISTINCT username FROM users').fetchall()
+
+        # 每个学号最早绑定时间 = 注册日期，按天统计新增
+        daily_rows = conn.execute('''
+            SELECT day, COUNT(*) as cnt FROM (
+                SELECT DATE(MIN(bind_time)) as day
+                FROM users GROUP BY username
+            ) GROUP BY day ORDER BY day ASC
+        ''').fetchall()
+
+    total = len(rows)
+
+    # 构建每日数据：新增 + 累计
+    daily = []
+    cumulative = 0
+    for r in daily_rows:
+        cumulative += r['cnt']
+        daily.append({'date': r['day'], 'count': r['cnt'], 'total': cumulative})
+
+    # 按专业分布
+    classes = defaultdict(int)
+    for row in rows:
+        username = row['username']
+        if len(username) >= 7:
+            classes[username[:7]] += 1
         else:
-            query = '''
-                SELECT device_id, username, bind_time
-                FROM users
-                ORDER BY bind_time DESC
-            '''
-            rows = conn.execute(query).fetchall()
+            classes['其他'] += 1
 
-        # 构建用户列表
-        user_list = []
-        for row in rows:
-            user_list.append({
-                'device_id': row['device_id'],
-                'username': row['username'],
-                'bind_time': row['bind_time']
-            })
-
-    # 计算分页
-    total = len(user_list)
-    total_pages = (total + per_page - 1) // per_page  # 向上取整
-
-    # 获取当前页数据
-    start = (page - 1) * per_page
-    end = start + per_page
-    page_data = user_list[start:end]
+    class_list = [{'class_id': k, 'count': v} for k, v in sorted(classes.items())]
 
     return jsonify({
         'success': True,
-        'users': page_data,
-        'pagination': {
-            'page': page,
-            'per_page': per_page,
-            'total': total,
-            'total_pages': total_pages,
-            'has_prev': page > 1,
-            'has_next': page < total_pages
-        }
+        'total': total,
+        'classes': class_list,
+        'daily': daily
     })
 
 
@@ -2110,6 +2032,33 @@ def admin_set_theme():
         'success': True,
         'message': f'主题已切换为: {"新春主题" if theme == "spring" else "默认主题"}',
         'theme': theme
+    })
+
+
+@app.route('/api/admin/semester', methods=['POST'])
+@require_admin
+def admin_set_semester_start():
+    """设置学期第一周星期一的日期"""
+    data = request.get_json()
+    date_str = data.get('semester_start', '').strip()
+    if not date_str:
+        return jsonify({'success': False, 'message': '请提供日期'})
+
+    # 验证日期格式
+    try:
+        from datetime import datetime
+        parsed = datetime.strptime(date_str, '%Y-%m-%d')
+        if parsed.weekday() != 0:
+            return jsonify({'success': False, 'message': '日期必须是星期一'})
+    except ValueError:
+        return jsonify({'success': False, 'message': '日期格式错误，应为 YYYY-MM-DD'})
+
+    config = get_config()
+    config['semester_start'] = date_str
+    save_config(config)
+    return jsonify({
+        'success': True,
+        'message': f'学期起始日期已设置为: {date_str}'
     })
 
 

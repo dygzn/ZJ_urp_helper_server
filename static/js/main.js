@@ -3,6 +3,7 @@ let currentWeek = parseInt(localStorage.getItem('current_week')) || 1;  // 当�
 let currentUsername = null;  // 当前登录用户名
 let isCheckingLoginStatus = false;  // 是否正在检查登录状态
 let cachedSchedule = null;  // 缓存的课表全量数据，避免切换周次时重复请求
+let semesterStart = null;   // 学期第1周星期一的日期
 
 // ==================== 防止双击放大 ====================
 let lastTouchEnd = 0;
@@ -288,7 +289,6 @@ function switchPage(pageName) {
         'schedule': '课程表',
         'exams': '考试安排',
         'grades': '学分绩点查询',
-        'experiments': '实验系统',
         'evaluation': '教务评价',
         'paper': '论文生成',
         'announcements': '系统公告',
@@ -329,9 +329,6 @@ function loadPageData(pageName) {
         case 'grades':
             loadGrades();
             break;
-        case 'experiments':
-            loadExperiments();
-            break;
         case 'evaluation':
             // 自动查询未评估课程
             checkUnevaluatedCourses();
@@ -350,8 +347,8 @@ function loadPageData(pageName) {
 
 // ==================== 首页：加载紧急事件 ====================
 async function loadUrgentEvent() {
-    // 先检查登录状态
-    await checkLoginStatus();
+    // 后台检查登录状态（不阻塞日程加载）
+    checkLoginStatus();
 
     const contentDiv = document.getElementById('urgent-content');
     contentDiv.innerHTML = '<div class="loading">加载中</div>';
@@ -365,9 +362,6 @@ async function loadUrgentEvent() {
         const data = await response.json();
 
         if (data.success && data.event) {
-            if (data.auto_updated) {
-                showToast('已自动更新课表和考试表', 'success');
-            }
             displayUrgentEvent(data.event);
         } else {
             contentDiv.innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">今天没有课程和考试，好好休息吧~</p>';
@@ -516,12 +510,6 @@ async function updateScheduleData() {
     }
 }
 
-// 更新课程表按钮点击处理
-async function updateSchedule() {
-    // 直接加载当前周的课程表
-    loadSchedule();
-}
-
 async function loadSchedule(week = null, autoFetched = false) {
     const scheduleDays = document.getElementById('schedule-days');
     const messageDiv = document.getElementById('schedule-message');
@@ -545,8 +533,8 @@ async function loadSchedule(week = null, autoFetched = false) {
     // 从缓存渲染指定周次
     function renderFromCache(allSchedule, w) {
         currentWeek = w;
-        document.getElementById('current-week').textContent = w;
         localStorage.setItem('current_week', w);
+        updateScheduleDates(w);
 
         const weekStr = String(w);
         const weekData = allSchedule[weekStr] ? { [weekStr]: allSchedule[weekStr] } : {};
@@ -577,6 +565,10 @@ async function loadSchedule(week = null, autoFetched = false) {
         if (data.success && data.data) {
             const schedule = data.data.schedule || {};
             const hasData = Object.keys(schedule).length > 0;
+
+            if (data.data.semester_start) {
+                semesterStart = new Date(data.data.semester_start + 'T00:00:00');
+            }
 
             if (hasData) {
                 cachedSchedule = schedule;
@@ -641,6 +633,7 @@ function displaySchedule(schedule) {
                         code: course['课程号'] || '',
                         name: course['课程名'],
                         credit: course['学分'] || '',
+                        teacher: course['教师'] || '',
                         section: section,
                         duration: duration,
                         location: location,
@@ -681,6 +674,7 @@ function displaySchedule(schedule) {
                 code: course.code,
                 name: course.name,
                 credit: course.credit,
+                teacher: course.teacher,
                 day: dayNames[day] || `星期${day}`,
                 section: course.section,
                 duration: course.duration,
@@ -712,11 +706,11 @@ function displaySchedule(schedule) {
 
 // 根据课程名称生成颜色索引
 function getColorIndex(courseName) {
-    let hash = 0;
+    let hash = 5381;
     for (let i = 0; i < courseName.length; i++) {
-        hash = courseName.charCodeAt(i) + ((hash << 5) - hash);
+        hash = ((hash << 5) + hash) ^ courseName.charCodeAt(i);
     }
-    return Math.abs(hash) % 10; // 10种颜色
+    return Math.abs(hash) % 15; // 15种颜色
 }
 
 function showCourseDetail(el) {
@@ -727,6 +721,7 @@ function showCourseDetail(el) {
     document.getElementById('course-detail-name').textContent = course.name;
     document.getElementById('course-detail-body').innerHTML = `
         ${course.code ? `<div class="course-detail-row"><span class="course-detail-label">课程号</span><span>${course.code}</span></div>` : ''}
+        ${course.teacher ? `<div class="course-detail-row"><span class="course-detail-label">教师</span><span>${course.teacher}</span></div>` : ''}
         ${course.credit ? `<div class="course-detail-row"><span class="course-detail-label">学分</span><span>${course.credit}</span></div>` : ''}
         <div class="course-detail-row"><span class="course-detail-label">时间</span><span>${course.day} 第${course.section}-${endSection}节</span></div>
         ${course.location ? `<div class="course-detail-row"><span class="course-detail-label">地点</span><span>${course.location}</span></div>` : ''}
@@ -744,9 +739,51 @@ function closeCourseDetail() {
 
 function changeWeek(delta) {
     const newWeek = currentWeek + delta;
-    if (newWeek >= 1 && newWeek <= 30) {  // 假设最多30周
+    if (newWeek >= 1 && newWeek <= 25) {
         loadSchedule(newWeek);
     }
+}
+
+function updateScheduleDates(week) {
+    // 同步下拉框
+    const select = document.getElementById('week-select');
+    if (select) {
+        if (select.options.length === 0) {
+            for (let w = 1; w <= 25; w++) {
+                const opt = document.createElement('option');
+                opt.value = w;
+                opt.textContent = `第${w}周`;
+                select.appendChild(opt);
+            }
+        }
+        select.value = week;
+    }
+
+    if (!semesterStart) return;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    for (let day = 1; day <= 7; day++) {
+        const dateEl = document.getElementById(`schedule-date-${day}`);
+        const dayEl = document.getElementById(`schedule-day-${day}`);
+        if (!dateEl) continue;
+
+        const date = new Date(semesterStart);
+        date.setDate(date.getDate() + (week - 1) * 7 + (day - 1));
+
+        const m = date.getMonth() + 1;
+        const d = date.getDate();
+        dateEl.textContent = `${m}月${d}日`;
+
+        // 高亮今天
+        if (dayEl) {
+            dayEl.classList.toggle('schedule-day-today', date.getTime() === today.getTime());
+        }
+    }
+}
+
+function jumpToWeek(week) {
+    loadSchedule(week);
 }
 
 // ==================== 考试安排相关 ====================
@@ -1003,54 +1040,6 @@ function displayGrades(grades) {
 
         html += '</div></div>';
     }
-
-    contentDiv.innerHTML = html;
-}
-
-// ==================== 实验系统相关 ====================
-async function loadExperiments() {
-    // 先检查登录状态
-    await checkLoginStatus();
-
-    const contentDiv = document.getElementById('experiments-content');
-    contentDiv.innerHTML = '<div class="loading">加载中</div>';
-
-    try {
-        const response = await fetch('/api/experiments', {
-            headers: {
-                'X-Device-ID': getDeviceId()
-            }
-        });
-        const data = await response.json();
-
-        if (data.success && data.experiments && data.experiments.length > 0) {
-            displayExperiments(data.experiments);
-        } else {
-            contentDiv.innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">暂无实验数据</p>';
-        }
-    } catch (error) {
-        console.error('加载实验数据失败:', error);
-        contentDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
-    }
-}
-
-function displayExperiments(experiments) {
-    const contentDiv = document.getElementById('experiments-content');
-
-    let html = '';
-    experiments.forEach(exp => {
-        const statusClass = exp.status === '已完成' ? 'status-completed' : 'status-pending';
-
-        html += `
-            <div class="experiment-card">
-                <div>
-                    <div class="experiment-name">${exp.name}</div>
-                    <div style="font-size:12px;color:#666;margin-top:5px;">成绩: ${exp.score || '未评分'}</div>
-                </div>
-                <div class="experiment-status ${statusClass}">${exp.status}</div>
-            </div>
-        `;
-    });
 
     contentDiv.innerHTML = html;
 }

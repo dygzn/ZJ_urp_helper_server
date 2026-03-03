@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (savedKey) {
         adminKey = savedKey;
         showAdminPanel();
-        loadPendingRequests();
+        loadUsers();
     }
 });
 
@@ -36,7 +36,7 @@ async function handleAdminLogin(event) {
             adminKey = key;
             sessionStorage.setItem('admin_key', key);
             showAdminPanel();
-            loadPendingRequests();
+            loadUsers();
         } else {
             errorDiv.textContent = data.message || '密钥错误';
         }
@@ -322,162 +322,194 @@ async function rejectRequest(requestId) {
     }
 }
 
-// ==================== 加载用户列表 ====================
-let currentPage = 1;
-let currentSearch = '';
+// ==================== 用户统计仪表盘 ====================
 
-async function loadUsers(page = 1, search = '') {
-    const listDiv = document.getElementById('users-list');
-    const paginationDiv = document.getElementById('users-pagination');
+let userStatsData = null;
+let userChartMode = 'new';
 
-    listDiv.innerHTML = '<div class="loading">加载中</div>';
-    paginationDiv.innerHTML = '';
-
-    currentPage = page;
-    currentSearch = search;
-
+async function loadUsers() {
+    const container = document.getElementById('users-list');
+    container.innerHTML = '<div class="loading">加载中</div>';
     try {
-        const params = new URLSearchParams({
-            page: page,
-            per_page: 50,
-            search: search
-        });
-
-        const response = await fetch(`/api/admin/users?${params}`, {
-            headers: {
-                'Admin-Key': adminKey
-            }
-        });
-
+        const response = await fetch('/api/admin/users', { headers: { 'Admin-Key': adminKey } });
         const data = await response.json();
-
         if (data.success) {
-            if (data.users && data.users.length > 0) {
-                displayUsers(data.users);
-                displayPagination(data.pagination);
-            } else {
-                listDiv.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">
-                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                        </div>
-                        <div class="empty-state-text">${search ? '未找到匹配的用户' : '暂无绑定用户'}</div>
-                    </div>
-                `;
-                paginationDiv.innerHTML = '';
-            }
+            userStatsData = data;
+            renderUserDashboard();
         } else {
-            listDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+            container.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
         }
-    } catch (error) {
-        console.error('加载用户列表失败:', error);
-        listDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+    } catch (e) {
+        container.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
     }
 }
 
-function displayUsers(users) {
-    const listDiv = document.getElementById('users-list');
+function renderUserDashboard() {
+    const { total, classes, daily } = userStatsData;
+    const container = document.getElementById('users-list');
 
-    let html = `
-        <table class="users-table">
-            <thead>
-                <tr>
-                    <th>用户名</th>
-                    <th>设备ID</th>
-                    <th>绑定时间</th>
-                </tr>
-            </thead>
-            <tbody>
-    `;
+    if (total === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-state-text">暂无用户</div></div>';
+        return;
+    }
 
-    users.forEach(user => {
-        const bindTime = new Date(user.bind_time).toLocaleString('zh-CN');
+    // 统计数字
+    const today = new Date().toISOString().split('T')[0];
+    const todayNew  = (daily.find(d => d.date === today) || {}).count || 0;
+    const cutWeek   = new Date(Date.now() - 7  * 86400000).toISOString().split('T')[0];
+    const cutMonth  = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
+    const weekNew   = daily.filter(d => d.date > cutWeek ).reduce((s, d) => s + d.count, 0);
+    const monthNew  = daily.filter(d => d.date > cutMonth).reduce((s, d) => s + d.count, 0);
 
-        html += `
-            <tr>
-                <td>${user.username}</td>
-                <td class="device-id">${user.device_id}</td>
-                <td>${bindTime}</td>
-            </tr>
-        `;
+    // ── 概况卡片 ──
+    let html = `<div class="ud-cards">
+        <div class="ud-card">
+            <div class="ud-card-value">${total}</div>
+            <div class="ud-card-label">总用户</div>
+        </div>
+        <div class="ud-card ud-card-green">
+            <div class="ud-card-value">+${todayNew}</div>
+            <div class="ud-card-label">今日新增</div>
+        </div>
+        <div class="ud-card ud-card-blue">
+            <div class="ud-card-value">+${weekNew}</div>
+            <div class="ud-card-label">近 7 日</div>
+        </div>
+        <div class="ud-card ud-card-orange">
+            <div class="ud-card-value">+${monthNew}</div>
+            <div class="ud-card-label">近 30 日</div>
+        </div>
+    </div>`;
+
+    // ── 增长趋势 ──
+    const N = 14;
+    const chartData = [];
+    for (let i = N - 1; i >= 0; i--) {
+        const ds = new Date(Date.now() - i * 86400000).toISOString().split('T')[0];
+        const hit = daily.find(x => x.date === ds);
+        chartData.push({ date: ds, count: hit ? hit.count : 0, total: hit ? hit.total : 0 });
+    }
+    // 补齐累计（无数据天用前一天的累计）
+    for (let i = 0; i < chartData.length; i++) {
+        if (!chartData[i].total) {
+            chartData[i].total = i > 0 ? chartData[i-1].total : (total - monthNew);
+        }
+    }
+
+    const isNew   = userChartMode === 'new';
+    const vals    = chartData.map(d => isNew ? d.count : d.total);
+    const maxVal  = Math.max(...vals, 1);
+    const minVal  = isNew ? 0 : Math.min(...vals);
+    const range   = maxVal - minVal || 1;
+
+    html += `<div class="ud-section">
+        <div class="ud-section-header">
+            <span class="ud-section-title">增长趋势</span>
+            <div class="ud-toggle">
+                <button class="${isNew ? 'active':''}" onclick="switchChartMode('new')">每日新增</button>
+                <button class="${!isNew ? 'active':''}" onclick="switchChartMode('total')">累计总量</button>
+            </div>
+        </div>`;
+
+    if (isNew) {
+        html += `<div class="ud-bar-chart">`;
+        chartData.forEach(d => {
+            const h = (d.count / maxVal * 100).toFixed(1);
+            const label = d.date.substring(5).replace('-', '/');
+            html += `<div class="ud-col">
+                <div class="ud-col-label">${d.count > 0 ? '+'+d.count : ''}</div>
+                <div class="ud-col-track"><div class="ud-col-bar" style="height:${h}%"></div></div>
+                <div class="ud-col-date">${label}</div>
+            </div>`;
+        });
+        html += `</div>`;
+    } else {
+        // SVG 折线图 — 固定 viewBox 宽高，等比缩放
+        const svgW = 560, svgH = 160;
+        const pad  = { t: 24, b: 28, l: 12, r: 12 };
+        const plotW = svgW - pad.l - pad.r;
+        const plotH = svgH - pad.t - pad.b;
+
+        const pts = chartData.map((d, i) => {
+            const x = pad.l + (i / (N - 1)) * plotW;
+            const y = pad.t + plotH - ((d.total - minVal) / range) * plotH;
+            return { x: +x.toFixed(2), y: +y.toFixed(2), val: d.total, date: d.date.substring(5).replace('-', '/') };
+        });
+        const line = pts.map(p => `${p.x},${p.y}`).join(' ');
+        const area = `${pts[0].x},${svgH - pad.b} ${line} ${pts[pts.length-1].x},${svgH - pad.b}`;
+
+        html += `<svg class="ud-line-svg" viewBox="0 0 ${svgW} ${svgH}">
+            <defs>
+                <linearGradient id="lg" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#007AFF" stop-opacity="0.2"/>
+                    <stop offset="100%" stop-color="#007AFF" stop-opacity="0"/>
+                </linearGradient>
+            </defs>
+            <polygon points="${area}" fill="url(#lg)"/>
+            <polyline points="${line}" fill="none" stroke="#007AFF" stroke-width="2" stroke-linejoin="round"/>
+            ${pts.map(p => `<circle cx="${p.x}" cy="${p.y}" r="3.5" fill="#007AFF"/>`).join('')}
+            ${pts.map((p, i) => i % 2 === 0 ? `<text x="${p.x}" y="${svgH - 6}" text-anchor="middle" fill="#AEAEB2" font-size="12">${p.date}</text>` : '').join('')}
+            ${pts.map(p => `<text x="${p.x}" y="${p.y - 8}" text-anchor="middle" fill="#6E6E73" font-size="12">${p.val}</text>`).join('')}
+        </svg>`;
+    }
+    html += `</div>`;
+
+    // ── 用户构成 ──
+    const pieColors = ['#007AFF','#34C759','#FF9500','#FF375F','#5E5CE6','#BF5AF2','#64D2FF','#FFD60A'];
+
+    // 年级汇总
+    const yearMap = {};
+    classes.forEach(cls => {
+        const key = cls.class_id === '其他' ? '其他' : cls.class_id.substring(0, 2);
+        yearMap[key] = (yearMap[key] || 0) + cls.count;
+    });
+    const yearRows = Object.entries(yearMap).sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([k, v]) => ({ label: k === '其他' ? '其他' : '20'+k+' 级', count: v }));
+    const maxYear = Math.max(...yearRows.map(r => r.count));
+
+    // 专业明细：去掉专业代码的前两位 "15"
+    const majorRows = classes.map((cls, i) => {
+        if (cls.class_id === '其他') return { label: '其他', sublabel: null, count: cls.count, color: pieColors[i % pieColors.length] };
+        const year = cls.class_id.substring(0, 2);
+        const major = cls.class_id.substring(4, 7);   // 去掉 "15"，取后3位
+        return { label: '20'+year+' 级', sublabel: major, count: cls.count, color: pieColors[i % pieColors.length] };
+    });
+    const maxMajor = Math.max(...majorRows.map(r => r.count));
+
+    html += `<div class="ud-section">
+        <div class="ud-section-header"><span class="ud-section-title">用户构成</span></div>
+        <div class="ud-dist-block">
+            <div class="ud-dist-group-label">按年级</div>`;
+    yearRows.forEach((r, i) => {
+        const pct = (r.count / total * 100).toFixed(1);
+        const w   = (r.count / maxYear * 100).toFixed(1);
+        html += `<div class="ud-dist-row">
+            <div class="ud-dist-name">${r.label}</div>
+            <div class="ud-dist-track"><div class="ud-dist-bar" style="width:${w}%;background:${pieColors[i % pieColors.length]}"></div></div>
+            <div class="ud-dist-stat">${r.count} <span class="ud-dist-pct">${pct}%</span></div>
+        </div>`;
     });
 
-    html += '</tbody></table>';
-    listDiv.innerHTML = html;
+    html += `<div class="ud-dist-group-label" style="margin-top:14px;">按专业</div>`;
+    majorRows.forEach(r => {
+        const pct = (r.count / total * 100).toFixed(1);
+        const w   = (r.count / maxMajor * 100).toFixed(1);
+        const name = r.sublabel ? `${r.label} · <strong>${r.sublabel}</strong>` : r.label;
+        html += `<div class="ud-dist-row">
+            <div class="ud-dist-name ud-dist-name-major">${name}</div>
+            <div class="ud-dist-track"><div class="ud-dist-bar" style="width:${w}%;background:${r.color}"></div></div>
+            <div class="ud-dist-stat">${r.count} <span class="ud-dist-pct">${pct}%</span></div>
+        </div>`;
+    });
+
+    html += `</div></div>`;
+
+    container.innerHTML = html;
 }
 
-function displayPagination(pagination) {
-    const paginationDiv = document.getElementById('users-pagination');
-
-    const { page, total, total_pages, has_prev, has_next } = pagination;
-
-    let html = `
-        <div class="pagination-info">
-            共 ${total} 个用户，第 ${page} / ${total_pages} 页
-        </div>
-        <div class="pagination-controls">
-            <button class="page-btn" onclick="loadUsers(1, currentSearch)" ${page === 1 ? 'disabled' : ''}>
-                首页
-            </button>
-            <button class="page-btn" onclick="loadUsers(${page - 1}, currentSearch)" ${!has_prev ? 'disabled' : ''}>
-                上一页
-            </button>
-    `;
-
-    // 显示页码（最多显示5个）
-    const maxPages = 5;
-    let startPage = Math.max(1, page - Math.floor(maxPages / 2));
-    let endPage = Math.min(total_pages, startPage + maxPages - 1);
-
-    if (endPage - startPage < maxPages - 1) {
-        startPage = Math.max(1, endPage - maxPages + 1);
-    }
-
-    for (let i = startPage; i <= endPage; i++) {
-        const activeClass = i === page ? 'active' : '';
-        html += `
-            <span class="page-number ${activeClass}" onclick="loadUsers(${i}, currentSearch)" style="cursor:pointer;">
-                ${i}
-            </span>
-        `;
-    }
-
-    html += `
-            <button class="page-btn" onclick="loadUsers(${page + 1}, currentSearch)" ${!has_next ? 'disabled' : ''}>
-                下一页
-            </button>
-            <button class="page-btn" onclick="loadUsers(${total_pages}, currentSearch)" ${page === total_pages ? 'disabled' : ''}>
-                末页
-            </button>
-            <div class="page-jump">
-                <span>跳转到</span>
-                <input type="number" id="jump-page" min="1" max="${total_pages}" value="${page}">
-                <button onclick="jumpToPage()">GO</button>
-            </div>
-        </div>
-    `;
-
-    paginationDiv.innerHTML = html;
-}
-
-function jumpToPage() {
-    const input = document.getElementById('jump-page');
-    const page = parseInt(input.value);
-    if (page && page > 0) {
-        loadUsers(page, currentSearch);
-    }
-}
-
-function searchUsers() {
-    const searchInput = document.getElementById('user-search');
-    const search = searchInput.value.trim();
-    loadUsers(1, search);
-}
-
-function handleUserSearch(event) {
-    if (event.key === 'Enter') {
-        searchUsers();
-    }
+function switchChartMode(mode) {
+    userChartMode = mode;
+    renderUserDashboard();
 }
 
 // ==================== 系统配置管理 ====================
@@ -553,6 +585,12 @@ function displayConfig(config) {
     // 填充URL编辑表单
     document.getElementById('url-1').value = urls[0] || '';
     document.getElementById('url-2').value = urls[1] || '';
+
+    // 填充学期起始日期
+    const semesterInput = document.getElementById('semester-start');
+    if (semesterInput && config.semester_start) {
+        semesterInput.value = config.semester_start;
+    }
 }
 
 async function switchUrl(urlIndex) {
@@ -623,6 +661,37 @@ async function handleUpdateUrls(event) {
         }
     } catch (error) {
         console.error('更新URL配置失败:', error);
+        alert('网络错误，请重试');
+    }
+}
+
+async function handleUpdateSemester(event) {
+    event.preventDefault();
+
+    const dateStr = document.getElementById('semester-start').value;
+    if (!dateStr) {
+        alert('请选择日期');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/admin/semester', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Admin-Key': adminKey
+            },
+            body: JSON.stringify({ semester_start: dateStr })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+            alert(data.message || '学期配置已更新');
+        } else {
+            alert(data.message || '更新失败');
+        }
+    } catch (error) {
+        console.error('更新学期配置失败:', error);
         alert('网络错误，请重试');
     }
 }

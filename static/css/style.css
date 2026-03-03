@@ -599,10 +599,49 @@ body {
     text-align: center;
     font-weight: 600;
     color: var(--accent);
-    padding: 8px 4px;
+    padding: 6px 4px;
     background: rgba(0,122,255,0.06);
     border-radius: 8px;
     font-size: var(--text-caption);
+}
+
+.schedule-day-name {
+    line-height: 1.2;
+}
+
+.schedule-day-date {
+    font-size: 10px;
+    font-weight: 400;
+    color: var(--text-tertiary);
+    line-height: 1.2;
+    margin-top: 1px;
+}
+
+.schedule-day-today {
+    background: var(--accent);
+    color: #fff;
+}
+
+.schedule-day-today .schedule-day-date {
+    color: rgba(255,255,255,0.75);
+}
+
+/* 周选择下拉框 */
+.week-select {
+    appearance: none;
+    -webkit-appearance: none;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 28px 6px 12px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    outline: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
 }
 
 /* 课程表网格 */
@@ -739,6 +778,11 @@ body {
 .course-card-color-7 { background: #30B0C7; }
 .course-card-color-8 { background: #FF6482; }
 .course-card-color-9 { background: #AC8E68; }
+.course-card-color-10 { background: #5E5CE6; }
+.course-card-color-11 { background: #BF5AF2; }
+.course-card-color-12 { background: #64D2FF; color: #1c1c1e; }
+.course-card-color-13 { background: #FFD60A; color: #1c1c1e; }
+.course-card-color-14 { background: #FF375F; }
 
 /* 课程详情弹窗 */
 .course-detail-row {
@@ -912,48 +956,6 @@ body {
     font-size: 28px;
     font-weight: 700;
     letter-spacing: -0.5px;
-}
-
-/* ==================== 实验系统 ==================== */
-.experiments-container {
-    padding: 24px;
-}
-
-.experiment-card {
-    background: var(--bg-secondary);
-    padding: 16px;
-    border-radius: 12px;
-    margin-bottom: 10px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    transition: all var(--duration) var(--ease);
-}
-
-.experiment-card:hover {
-    box-shadow: var(--card-shadow);
-}
-
-.experiment-name {
-    font-weight: 500;
-    color: var(--text-primary);
-}
-
-.experiment-status {
-    padding: 4px 14px;
-    border-radius: 20px;
-    font-size: var(--text-small);
-    font-weight: 500;
-}
-
-.status-completed {
-    background: rgba(52,199,89,0.12);
-    color: var(--success);
-}
-
-.status-pending {
-    background: rgba(255,149,0,0.12);
-    color: var(--warning);
 }
 
 /* ==================== 教务评价 ==================== */
@@ -1931,7 +1933,11 @@ body {
 
     .schedule-header-day {
         font-size: 11px;
-        padding: 6px 2px;
+        padding: 4px 2px;
+    }
+
+    .schedule-day-date {
+        font-size: 9px;
     }
 
     .schedule-grid {

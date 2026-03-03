@@ -13,11 +13,6 @@ class URP_login:
         self.x = requests.session()
 
 
-    '''
-    def vpncookie_get(self):
-        vpn_cookie = self.x.get(url='http://101.35.254.245/vpn',verify=False).json()
-        self.x.cookies.update(vpn_cookie)
-    '''
     def login(self):
         import ddddocr
         import random
@@ -58,7 +53,7 @@ class URP_login:
                 return False, "密码错误", None
             elif '你输入的验证码错误，请您重新输入！' in result:
                 # 验证码错误，重试最多3次
-                for i in range(3):
+                for _ in range(3):
                     success, message, cookies = self.login()
                     if success:
                         return True, message, cookies
@@ -313,12 +308,15 @@ class URP_query:
             has_rowspan = any(td.get('rowspan') for td in tds)
 
             if has_rowspan:
-                # 新课程行：提取课程号、课程名、学分（第2、3、5个有rowspan的td）
+                # 新课程行：提取课程号、课程名、学分、教师
                 rowspan_tds = [td for td in tds if td.get('rowspan')]
                 if len(rowspan_tds) >= 5:
                     current_course_info['课程号'] = rowspan_tds[1].get_text(strip=True)
                     current_course_info['课程名'] = rowspan_tds[2].get_text(strip=True)
                     current_course_info['学分'] = rowspan_tds[4].get_text(strip=True)
+                if len(rowspan_tds) >= 8:
+                    teacher = rowspan_tds[7].get_text(strip=True).rstrip('* ')
+                    current_course_info['教师'] = teacher
 
             # 提取时间地点信息（最后7个td，无论是否有rowspan）
             # 从后往前取：教室、教学楼、校区、节数、节次、星期、周次
@@ -343,6 +341,7 @@ class URP_query:
                             '课程号': current_course_info.get('课程号', ''),
                             '课程名': current_course_info['课程名'],
                             '学分': current_course_info.get('学分', ''),
+                            '教师': current_course_info.get('教师', ''),
                             '星期': day_str,
                             '节次': period_num,
                             '节数': duration_str,
@@ -387,11 +386,6 @@ class URP_query:
             '第九节': '9', '第十节': '10'
         }
         return period_map.get(period_str, period_str)
-
-
-
-
-
 
     def exam_cx(self):
         headers = {
@@ -463,15 +457,3 @@ class URP_query:
             json.dump(exams_by_week, f, ensure_ascii=False, indent=2)
 
         return exams_by_week
-
-    
-
-
-
-
-if __name__ == '__main__':
-    url = 'https://223.112.21.198:6443/7b68f983'
-    account = '2415108133'
-    password = '125979'
-    u= URP_login(url, account, password)
-    print(u.is_logined())

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>管理后台 - URP教务助手</title>
-    <link rel="stylesheet" href="/static/css/admin.css?v=3">
+    <link rel="stylesheet" href="/static/css/admin.css?v=5">
 </head>
 <body>
     <div class="admin-container">
@@ -46,18 +46,18 @@
             <div class="admin-content">
                 <!-- 标签页导航 -->
                 <nav class="tabs" role="tablist">
-                    <button class="tab-btn active" onclick="switchTab('pending')" role="tab">待审批</button>
-                    <button class="tab-btn" onclick="switchTab('users')" role="tab">用户</button>
-                    <button class="tab-btn" onclick="switchTab('complex')" role="tab">论文需求</button>
-                    <button class="tab-btn" onclick="switchTab('announcements')" role="tab">公告</button>
-                    <button class="tab-btn" onclick="switchTab('surveys')" role="tab">问卷</button>
-                    <button class="tab-btn" onclick="switchTab('feedback')" role="tab">反馈</button>
+                    <button class="tab-btn active" onclick="switchTab('users')" role="tab">用户</button>
                     <button class="tab-btn" onclick="switchTab('monitor')" role="tab">监控</button>
+                    <button class="tab-btn" onclick="switchTab('pending')" role="tab">审批</button>
+                    <button class="tab-btn" onclick="switchTab('announcements')" role="tab">公告</button>
+                    <button class="tab-btn" onclick="switchTab('feedback')" role="tab">反馈</button>
+                    <button class="tab-btn" onclick="switchTab('surveys')" role="tab">问卷</button>
+                    <button class="tab-btn" onclick="switchTab('complex')" role="tab">论文需求</button>
                     <button class="tab-btn" onclick="switchTab('config')" role="tab">配置</button>
                 </nav>
 
                 <!-- 待审批换绑请求 -->
-                <section id="tab-pending" class="tab-content active">
+                <section id="tab-pending" class="tab-content">
                     <div class="section-header">
                         <h2>待审批换绑请求</h2>
                         <button class="icon-btn" onclick="loadPendingRequests()" aria-label="刷新">
@@ -70,21 +70,16 @@
                 </section>
 
                 <!-- 用户列表 -->
-                <section id="tab-users" class="tab-content">
+                <section id="tab-users" class="tab-content active">
                     <div class="section-header">
-                        <h2>已绑定用户列表</h2>
+                        <h2>用户统计</h2>
                         <button class="icon-btn" onclick="loadUsers()" aria-label="刷新">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
                         </button>
                     </div>
-                    <div class="search-container">
-                        <input type="text" id="user-search" placeholder="搜索用户名..." onkeyup="handleUserSearch(event)">
-                        <button class="btn-primary btn-sm" onclick="searchUsers()">搜索</button>
-                    </div>
                     <div id="users-list" class="users-list">
                         <div class="loading">加载中</div>
                     </div>
-                    <div id="users-pagination" class="pagination"></div>
                 </section>
 
                 <!-- 复杂论文需求 -->
@@ -226,6 +221,23 @@
                         <button class="icon-btn" onclick="loadConfig()" aria-label="刷新">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
                         </button>
+                    </div>
+                    <div class="config-container">
+                        <div class="config-section">
+                            <h3>学期配置</h3>
+                            <p class="config-desc">设置本学期第一周星期一的日期</p>
+                            <form id="semester-form" onsubmit="handleUpdateSemester(event)">
+                                <div class="form-group">
+                                    <label for="semester-start">起始日期:</label>
+                                    <input type="date" id="semester-start" name="semester_start" required>
+                                </div>
+                                <button type="submit" class="btn-primary btn-full">保存学期配置</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="section-header" style="margin-top:24px;">
+                        <h2>教务系统URL配置</h2>
                     </div>
                     <div class="config-container">
                         <div class="config-section">

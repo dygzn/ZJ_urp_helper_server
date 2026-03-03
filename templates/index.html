@@ -32,10 +32,6 @@
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
                 <span>学分绩点</span>
             </a>
-            <a href="#" class="nav-item" data-page="experiments">
-                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 3h6v5l4 9H5l4-9V3z"/><line x1="9" y1="3" x2="15" y2="3"/></svg>
-                <span>实验系统</span>
-            </a>
             <a href="#" class="nav-item" data-page="evaluation">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                 <span>教务评价</span>
@@ -83,7 +79,7 @@
             <section id="page-home" class="page active">
                 <div class="card urgent-card">
                     <div class="urgent-header">
-                        <h2>今日日程</h2>
+                        <h2>今日程</h2>
                         <button class="icon-btn refresh-btn" onclick="refreshUrgentEvent()" aria-label="刷新">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
                         </button>
@@ -101,13 +97,13 @@
                         <div id="schedule-message" class="schedule-message" style="display:none;"></div>
                         <div class="schedule-header">
                             <div class="schedule-header-time"></div>
-                            <div class="schedule-header-day">周一</div>
-                            <div class="schedule-header-day">周二</div>
-                            <div class="schedule-header-day">周三</div>
-                            <div class="schedule-header-day">周四</div>
-                            <div class="schedule-header-day">周五</div>
-                            <div class="schedule-header-day schedule-header-weekend">周六</div>
-                            <div class="schedule-header-day schedule-header-weekend">周日</div>
+                            <div class="schedule-header-day" id="schedule-day-1"><div class="schedule-day-date" id="schedule-date-1"></div><div class="schedule-day-name">周一</div></div>
+                            <div class="schedule-header-day" id="schedule-day-2"><div class="schedule-day-date" id="schedule-date-2"></div><div class="schedule-day-name">周二</div></div>
+                            <div class="schedule-header-day" id="schedule-day-3"><div class="schedule-day-date" id="schedule-date-3"></div><div class="schedule-day-name">周三</div></div>
+                            <div class="schedule-header-day" id="schedule-day-4"><div class="schedule-day-date" id="schedule-date-4"></div><div class="schedule-day-name">周四</div></div>
+                            <div class="schedule-header-day" id="schedule-day-5"><div class="schedule-day-date" id="schedule-date-5"></div><div class="schedule-day-name">周五</div></div>
+                            <div class="schedule-header-day schedule-header-weekend" id="schedule-day-6"><div class="schedule-day-date" id="schedule-date-6"></div><div class="schedule-day-name">周六</div></div>
+                            <div class="schedule-header-day schedule-header-weekend" id="schedule-day-7"><div class="schedule-day-date" id="schedule-date-7"></div><div class="schedule-day-name">周日</div></div>
                         </div>
                         <div class="schedule-grid">
                             <div class="schedule-timeline">
@@ -127,7 +123,8 @@
                     </div>
                     <div class="week-selector">
                         <button class="btn-secondary btn-sm" onclick="changeWeek(-1)">上一周</button>
-                        <span class="current-week">第 <span id="current-week">1</span> 周</span>
+                        <select id="week-select" class="week-select" onchange="jumpToWeek(parseInt(this.value))">
+                        </select>
                         <button class="btn-secondary btn-sm" onclick="changeWeek(1)">下一周</button>
                     </div>
                     <div class="action-bar">
@@ -156,16 +153,6 @@
                 <div class="card grades-container">
                     <h2>学分绩点查询</h2>
                     <div id="grades-content" class="grades-content">
-                        <div class="loading">加载中</div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- 实验系统 -->
-            <section id="page-experiments" class="page">
-                <div class="card experiments-container">
-                    <h2>实验系统</h2>
-                    <div id="experiments-content" class="experiments-content">
                         <div class="loading">加载中</div>
                     </div>
                 </div>
