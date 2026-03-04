@@ -582,10 +582,12 @@ def get_urgent_event(username):
     config = get_config()
     semester_start_str = config.get('semester_start', '2026-03-02')
     y, m, d = map(int, semester_start_str.split('-'))
-    semester_start = datetime(y, m, d)  # 第1周的星期一
-    now = datetime.now()
+    semester_start = datetime(y, m, d)
+    now = datetime.now().replace(microsecond=0)
+
     days_passed = (now - semester_start).days
-    current_week = (days_passed // 7) + 1
+    # 学期还没开始时 days_passed < 0，current_week 置为 1
+    current_week = max(1, (days_passed // 7) + 1) if days_passed >= 0 else 0
 
     # 课程节次：(开始时间, 结束时间)
     period_times = {
@@ -604,38 +606,54 @@ def get_urgent_event(username):
         with open(schedule_file, 'r', encoding='utf-8') as f:
             schedule = json.load(f)
 
-        for week_str, courses in schedule.items():
+        # 按周次升序遍历，尽早找到 next
+        for week_str in sorted(schedule.keys(), key=int):
             week = int(week_str)
             if week < current_week:
                 continue
+            # 已经找到 current 且 next，且超出当前周，可以停止
+            if current_class and next_class and week > current_week:
+                break
 
-            for course in courses:
+            seen = set()  # 去重：同一时间段只取一次
+            for course in schedule[week_str]:
                 day = int(course['星期'])
                 period = int(course['节次'])
                 duration = int(course.get('节数', 1))
 
+                # 节次超出范围时跳过
+                if period not in period_times:
+                    continue
+                end_period = period + duration - 1
+                if end_period not in period_times:
+                    end_period = max(p for p in period_times if p <= end_period) if any(p <= end_period for p in period_times) else period
+
+                dedup_key = (week, day, period)
+                if dedup_key in seen:
+                    continue
+                seen.add(dedup_key)
+
                 days_offset = (week - 1) * 7 + (day - 1)
                 course_date = semester_start + timedelta(days=days_offset)
 
-                # 计算开始和结束时间
-                start_h, start_m = period_times.get(period, ((8, 20), (9, 5)))[0]
-                end_period = period + duration - 1
-                end_h, end_m = period_times.get(end_period, ((8, 20), (9, 5)))[1]
+                start_h, start_m = period_times[period][0]
+                end_h, end_m = period_times[end_period][1]
 
-                course_start = course_date.replace(hour=start_h, minute=start_m, second=0)
-                course_end = course_date.replace(hour=end_h, minute=end_m, second=0)
+                course_start = course_date.replace(hour=start_h, minute=start_m, second=0, microsecond=0)
+                course_end   = course_date.replace(hour=end_h,   minute=end_m,   second=0, microsecond=0)
 
-                # 判断是否正在进行
                 if course_start <= now <= course_end:
+                    # 正在进行的课，优先取剩余时间最多的（最新开始的）
                     remaining = int((course_end - now).total_seconds() / 60)
-                    current_class = {
-                        'type': 'class',
-                        'title': course['课程名'],
-                        'location': course['位置'],
-                        'time': f"{start_h:02d}:{start_m:02d}-{end_h:02d}:{end_m:02d}",
-                        'remaining': remaining
-                    }
-                # 判断是否是下一个
+                    if current_class is None or course_start > datetime.fromisoformat(current_class.get('_start', '2000-01-01')):
+                        current_class = {
+                            'type': 'class',
+                            'title': course['课程名'],
+                            'location': course['位置'],
+                            'time': f"{start_h:02d}:{start_m:02d}-{end_h:02d}:{end_m:02d}",
+                            'remaining': remaining,
+                            '_start': course_start.isoformat()
+                        }
                 elif course_start > now:
                     if next_class_time is None or course_start < next_class_time:
                         next_class_time = course_start
@@ -647,6 +665,10 @@ def get_urgent_event(username):
                             'countdown': int((course_start - now).total_seconds() / 60)
                         }
 
+    # 清理内部字段
+    if current_class:
+        current_class.pop('_start', None)
+
     next_exam = None
     next_exam_time = None
 
@@ -654,12 +676,12 @@ def get_urgent_event(username):
         with open(exams_file, 'r', encoding='utf-8') as f:
             exams = json.load(f)
 
-        for week_str, exam_list in exams.items():
+        for week_str in sorted(exams.keys(), key=int):
             week = int(week_str)
             if week < current_week:
                 continue
 
-            for exam in exam_list:
+            for exam in exams[week_str]:
                 day = int(exam['考试星期'])
                 time_range = exam['考试时间']  # "19:00-21:00"
                 start_str = time_range.split('-')[0]
@@ -667,7 +689,7 @@ def get_urgent_event(username):
 
                 days_offset = (week - 1) * 7 + (day - 1)
                 exam_date = semester_start + timedelta(days=days_offset)
-                exam_time = exam_date.replace(hour=hour, minute=minute)
+                exam_time = exam_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
 
                 if exam_time > now:
                     if next_exam_time is None or exam_time < next_exam_time:
