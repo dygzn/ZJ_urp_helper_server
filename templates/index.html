@@ -52,6 +52,10 @@
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
                 <span>反馈建议</span>
             </a>
+            <a href="#" class="nav-item" data-page="member">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>
+                <span>会员购买</span>
+            </a>
         </nav>
         <div class="sidebar-footer">
             <button class="rebind-btn" onclick="showRebindDialog()">换绑账号</button>
@@ -316,6 +320,43 @@
                     </div>
                 </div>
             </section>
+
+            <!-- 会员购买 -->
+            <section id="page-member" class="page">
+                <!-- 当前会员状态 -->
+                <div class="card" id="member-status-card">
+                    <div class="loading">加载中</div>
+                </div>
+                <!-- 会员卡片 -->
+                <div class="member-plans">
+                    <div class="member-plan-card member-plan-basic">
+                        <div class="plan-badge">初级会员</div>
+                        <div class="plan-price">¥<span class="price-num">3</span><span class="price-unit">/半年</span></div>
+                        <ul class="plan-features">
+                            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="2 8 6 12 14 4"/></svg>所有基础功能</li>
+                            <li class="plan-feature-extra" id="basic-extra-features">（功能持续扩展中）</li>
+                        </ul>
+                        <button class="btn-plan btn-basic" onclick="showPayDialog('basic')">立即开通 ¥3</button>
+                    </div>
+                    <div class="member-plan-card member-plan-advanced">
+                        <div class="plan-badge plan-badge-advanced">高级会员</div>
+                        <div class="plan-price">¥<span class="price-num">5</span><span class="price-unit">/半年</span></div>
+                        <ul class="plan-features">
+                            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="2 8 6 12 14 4"/></svg>包含初级会员所有功能</li>
+                            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="2 8 6 12 14 4"/></svg>高级专属功能</li>
+                            <li class="plan-feature-extra" id="advanced-extra-features">（功能持续扩展中）</li>
+                        </ul>
+                        <button class="btn-plan btn-advanced" onclick="showPayDialog('advanced')">立即开通 ¥5</button>
+                    </div>
+                </div>
+                <!-- 订单历史 -->
+                <div class="card">
+                    <h3>购买记录</h3>
+                    <div id="member-orders-content">
+                        <div class="loading">加载中</div>
+                    </div>
+                </div>
+            </section>
         </div>
     </main>
 
@@ -417,6 +458,27 @@
                 <button type="button" class="btn-secondary" onclick="closeReceiptModal()">取消</button>
                 <button type="button" class="btn-primary" id="confirm-receipt-btn" onclick="confirmReceipt()">确认签收</button>
             </div>
+        </div>
+    </div>
+
+    <!-- 支付弹窗 -->
+    <div id="pay-modal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closePayDialog()" aria-label="关闭">&times;</button>
+            <h2 id="pay-modal-title">开通会员</h2>
+            <p class="modal-desc" id="pay-modal-desc"></p>
+            <div class="pay-type-group">
+                <label class="pay-type-option">
+                    <input type="radio" name="pay-type" value="alipay" checked>
+                    <span>支付宝</span>
+                </label>
+                <label class="pay-type-option">
+                    <input type="radio" name="pay-type" value="wxpay">
+                    <span>微信支付</span>
+                </label>
+            </div>
+            <button class="btn-primary btn-full" id="pay-confirm-btn" onclick="confirmPay()">确认支付</button>
+            <div id="pay-error" class="error-message"></div>
         </div>
     </div>
 

@@ -32,6 +32,13 @@ CONFIG_FILE = os.path.join(DATA_DIR, 'config.json')  # 系统配置文件
 # 确保数据目录存在
 os.makedirs(DATA_DIR, exist_ok=True)
 
+# ==================== 会员支付配置 ====================
+PAY_API_URL = "https://zfapi.nnt.ltd/api/startOrder"
+MERCHANT_NUM = "622981851413626880"
+PAY_SECRET_KEY = "31351beba3aa2327817b01c78bccf2f5"
+MEMBER_PRICES = {'basic': '3.00', 'advanced': '5.00'}
+MEMBER_DURATION_DAYS = 180  # 半年
+
 
 # ==================== 数据库初始化 ====================
 
@@ -197,6 +204,37 @@ def init_db():
             conn.execute("ALTER TABLE feedback_replies ADD COLUMN username TEXT NOT NULL DEFAULT '管理员'")
         except Exception:
             pass
+
+        # 迁移：为 orders 添加 notify_url 字段
+        try:
+            conn.execute('ALTER TABLE orders ADD COLUMN notify_url TEXT')
+        except Exception:
+            pass
+
+        # 会员信息表（与学号绑定）
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS memberships (
+                username TEXT PRIMARY KEY,
+                member_type TEXT NOT NULL,
+                expire_time TEXT NOT NULL,
+                create_time TEXT NOT NULL
+            )
+        ''')
+
+        # 支付订单表
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS orders (
+                order_no TEXT PRIMARY KEY,
+                device_id TEXT NOT NULL,
+                username TEXT NOT NULL,
+                member_type TEXT NOT NULL,
+                amount TEXT NOT NULL,
+                pay_type TEXT,
+                status TEXT DEFAULT 'pending',
+                create_time TEXT NOT NULL,
+                pay_time TEXT
+            )
+        ''')
 
 
 # 在应用启动时初始化数据库
@@ -457,6 +495,39 @@ def require_bindding(f):
         return f(user=user, *args, **kwargs)
 
     return decorated_function
+
+
+def require_member(level='basic'):
+    """会员权限装饰器，level: 'basic' 或 'advanced'
+    用法：@require_member('basic') 或 @require_member('advanced')
+    """
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            device_id = get_device_id()
+            user = get_user_by_device(device_id)
+            if not user:
+                return jsonify({'success': False, 'message': '请先绑定账号后使用此功能'})
+            username = user['username']
+            with get_db() as conn:
+                row = conn.execute(
+                    'SELECT member_type, expire_time FROM memberships WHERE username = ?',
+                    (username,)
+                ).fetchone()
+            if not row:
+                level_name = '初级会员' if level == 'basic' else '高级会员'
+                return jsonify({'success': False, 'message': f'此功能需要{level_name}，请前往会员购买页面开通', 'require_member': level})
+            member_type = row['member_type']
+            expire_time = datetime.fromisoformat(row['expire_time'])
+            if datetime.now() > expire_time:
+                level_name = '初级会员' if level == 'basic' else '高级会员'
+                return jsonify({'success': False, 'message': f'您的会员已过期，请前往会员购买页面续费', 'require_member': level})
+            # basic: basic 或 advanced 均可；advanced: 仅 advanced
+            if level == 'advanced' and member_type != 'advanced':
+                return jsonify({'success': False, 'message': '此功能需要高级会员，请前往会员购买页面升级', 'require_member': level})
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
 
 
 # ==================== 用户绑定管理 ====================
@@ -2661,67 +2732,234 @@ def monitor_online():
     })
 
 
-@app.route('/api/admin/monitor/stats', methods=['GET'])
-@require_admin
-def monitor_stats():
-    """获取今日接口调用统计"""
-    today = datetime.now().strftime('%Y-%m-%d')
+# ==================== 会员系统 ====================
+
+def _generate_md5(s):
+    import hashlib
+    hl = hashlib.md5()
+    hl.update(s.encode('utf-8'))
+    return hl.hexdigest()
+
+
+def _get_server_url():
+    config = get_config()
+    return config.get('server_url', 'http://localhost:5000').rstrip('/')
+
+
+@app.route('/api/member/status', methods=['GET'])
+@require_bindding
+def member_status(user):
+    """查询当前会员状态"""
+    username = user['username']
     with get_db() as conn:
-        rows = conn.execute('''
-            SELECT endpoint, method, COUNT(*) as count
-            FROM request_logs
-            WHERE request_time >= ?
-            GROUP BY endpoint, method
-            ORDER BY count DESC
-        ''', (today,)).fetchall()
-
-        total = conn.execute(
-            'SELECT COUNT(*) as total FROM request_logs WHERE request_time >= ?',
-            (today,)
+        row = conn.execute(
+            'SELECT member_type, expire_time, create_time FROM memberships WHERE username = ?',
+            (username,)
         ).fetchone()
-
+    if not row:
+        return jsonify({'success': True, 'data': {'is_member': False, 'member_type': None, 'expire_time': None}})
+    expire_dt = datetime.fromisoformat(row['expire_time'])
+    is_expired = datetime.now() > expire_dt
     return jsonify({
         'success': True,
         'data': {
-            'total': total['total'] if total else 0,
-            'stats': [dict(row) for row in rows]
+            'is_member': not is_expired,
+            'member_type': row['member_type'] if not is_expired else None,
+            'expire_time': row['expire_time'],
+            'is_expired': is_expired
         }
     })
 
 
-@app.route('/api/admin/monitor/recent', methods=['GET'])
-@require_admin
-def monitor_recent():
-    """获取最近请求日志"""
+@app.route('/api/member/create_order', methods=['POST'])
+@require_bindding
+def member_create_order(user):
+    """创建支付订单"""
+    data = request.get_json() or {}
+    member_type = data.get('member_type')
+    pay_type = data.get('pay_type', 'alipay')
+
+    if member_type not in MEMBER_PRICES:
+        return jsonify({'success': False, 'message': '无效的会员类型'})
+    if pay_type not in ('alipay', 'wxpay'):
+        return jsonify({'success': False, 'message': '无效的支付类型'})
+
+    username = user['username']
+    device_id = user['device_id']
+    amount = MEMBER_PRICES[member_type]
+    order_no = uuid.uuid4().hex[:20]
+    server_url = _get_server_url()
+    notify_url = f"{server_url}/api/member/pay_notify"
+    return_url = f"{server_url}/?page=member"
+
+    sign_str = MERCHANT_NUM + order_no + amount + notify_url + PAY_SECRET_KEY
+    sign = _generate_md5(sign_str)
+
+    order_data = {
+        'merchantNum': MERCHANT_NUM,
+        'orderNo': order_no,
+        'amount': amount,
+        'notifyUrl': notify_url,
+        'returnUrl': return_url,
+        'payType': pay_type,
+        'sign': sign
+    }
+
+    try:
+        import requests as req_lib
+        res = req_lib.post(PAY_API_URL, data=order_data, timeout=10)
+        if not res.text.startswith('{'):
+            return jsonify({'success': False, 'message': f'支付接口异常: {res.text[:100]}'})
+        pay_result = res.json()
+        if not pay_result.get('success') or not pay_result.get('data', {}).get('payUrl'):
+            return jsonify({'success': False, 'message': pay_result.get('msg', '获取支付链接失败')})
+        pay_url = pay_result['data']['payUrl']
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'支付请求失败: {str(e)}'})
+
+    # 写入订单记录（同时保存 notify_url 供回调验签使用）
     with get_db() as conn:
-        rows = conn.execute('''
-            SELECT device_id, username, endpoint, method, status_code, request_time
-            FROM request_logs
-            ORDER BY request_time DESC
-            LIMIT 100
-        ''').fetchall()
+        conn.execute('''
+            INSERT INTO orders (order_no, device_id, username, member_type, amount, pay_type, status, create_time, notify_url)
+            VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+        ''', (order_no, device_id, username, member_type, amount, pay_type, datetime.now().isoformat(), notify_url))
 
-    return jsonify({
-        'success': True,
-        'data': [dict(row) for row in rows]
-    })
+    return jsonify({'success': True, 'data': {'order_no': order_no, 'pay_url': pay_url}})
 
 
-@app.route('/api/admin/monitor/logs', methods=['DELETE'])
-@require_admin
-def monitor_cleanup():
-    """清理日志"""
-    days = request.args.get('days', 7, type=int)
-    cutoff = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d %H:%M:%S')
+@app.route('/api/member/pay_notify', methods=['GET', 'POST'])
+def member_pay_notify():
+    """支付平台异步回调（GET/POST 均支持）"""
+    params = request.args if request.method == 'GET' else request.form
+
+    try:
+        order_no = params.get('orderNo', '')
+        amount = params.get('amount', '')
+        sign_received = params.get('sign', '')
+
+        with get_db() as conn:
+            order = conn.execute(
+                'SELECT * FROM orders WHERE order_no = ?', (order_no,)
+            ).fetchone()
+
+        if not order:
+            return 'fail', 400
+
+        # 回调签名公式：MD5(state + merchantNum + orderNo + amount + key)
+        state = params.get('state', '')
+        sign_expected = _generate_md5(state + MERCHANT_NUM + order_no + amount + PAY_SECRET_KEY)
+        if sign_received != sign_expected:
+            return 'fail', 400
+
+        with get_db() as conn:
+            order = conn.execute(
+                'SELECT * FROM orders WHERE order_no = ?', (order_no,)
+            ).fetchone()
+            if not order:
+                return 'fail', 400
+            if order['status'] == 'paid':
+                return 'success'
+
+            conn.execute(
+                "UPDATE orders SET status='paid', pay_time=? WHERE order_no=?",
+                (datetime.now().isoformat(), order_no)
+            )
+
+            username = order['username']
+            member_type = order['member_type']
+            existing = conn.execute(
+                'SELECT member_type, expire_time FROM memberships WHERE username = ?', (username,)
+            ).fetchone()
+
+            new_expire = (datetime.now() + timedelta(days=MEMBER_DURATION_DAYS)).isoformat()
+            if existing:
+                final_type = 'advanced' if (member_type == 'advanced' or existing['member_type'] == 'advanced') else 'basic'
+                if member_type == 'advanced':
+                    final_type = 'advanced'
+                conn.execute(
+                    'UPDATE memberships SET member_type=?, expire_time=? WHERE username=?',
+                    (final_type, new_expire, username)
+                )
+            else:
+                conn.execute(
+                    'INSERT INTO memberships (username, member_type, expire_time, create_time) VALUES (?, ?, ?, ?)',
+                    (username, member_type, new_expire, datetime.now().isoformat())
+                )
+
+        return 'success'
+
+    except Exception:
+        return 'fail', 500
+
+
+@app.route('/api/member/pay_return', methods=['GET', 'POST'])
+def member_pay_return():
+    """支付同步跳转（用户支付后跳回页面）"""
+    return '<script>window.close();window.opener&&window.opener.postMessage("pay_done","*")</script>'
+
+
+@app.route('/api/member/orders', methods=['GET'])
+@require_bindding
+def member_orders(user):
+    """查询用户订单历史"""
+    username = user['username']
     with get_db() as conn:
-        result = conn.execute('DELETE FROM request_logs WHERE request_time < ?', (cutoff,))
-        deleted = result.rowcount
+        rows = conn.execute(
+            'SELECT order_no, member_type, amount, pay_type, status, create_time, pay_time FROM orders WHERE username=? ORDER BY create_time DESC LIMIT 20',
+            (username,)
+        ).fetchall()
+    return jsonify({'success': True, 'data': [dict(r) for r in rows]})
 
-    return jsonify({
-        'success': True,
-        'message': f'已清理 {deleted} 条日志',
-        'data': {'deleted': deleted}
-    })
+
+@app.route('/api/admin/members', methods=['GET'])
+@require_admin
+def admin_members():
+    """管理员查看所有会员"""
+    with get_db() as conn:
+        rows = conn.execute(
+            'SELECT username, member_type, expire_time, create_time FROM memberships ORDER BY create_time DESC'
+        ).fetchall()
+    return jsonify({'success': True, 'data': [dict(r) for r in rows]})
+
+
+@app.route('/api/admin/members/grant', methods=['POST'])
+@require_admin
+def admin_members_grant():
+    """管理员手动授权会员"""
+    data = request.get_json() or {}
+    username = data.get('username', '').strip()
+    member_type = data.get('member_type', 'basic')
+    days = int(data.get('days', MEMBER_DURATION_DAYS))
+
+    if not username:
+        return jsonify({'success': False, 'message': '请提供学号'})
+    if member_type not in ('basic', 'advanced'):
+        return jsonify({'success': False, 'message': '无效的会员类型'})
+
+    new_expire = (datetime.now() + timedelta(days=days)).isoformat()
+    with get_db() as conn:
+        conn.execute('''
+            INSERT OR REPLACE INTO memberships (username, member_type, expire_time, create_time)
+            VALUES (?, ?, ?, ?)
+        ''', (username, member_type, new_expire, datetime.now().isoformat()))
+
+    type_name = '初级会员' if member_type == 'basic' else '高级会员'
+    return jsonify({'success': True, 'message': f'已为 {username} 授权 {days} 天{type_name}'})
+
+
+@app.route('/api/admin/members/revoke', methods=['POST'])
+@require_admin
+def admin_members_revoke():
+    """管理员撤销会员"""
+    data = request.get_json() or {}
+    username = data.get('username', '').strip()
+    if not username:
+        return jsonify({'success': False, 'message': '请提供学号'})
+    with get_db() as conn:
+        result = conn.execute('DELETE FROM memberships WHERE username = ?', (username,))
+    if result.rowcount:
+        return jsonify({'success': True, 'message': f'已撤销 {username} 的会员'})
+    return jsonify({'success': False, 'message': f'未找到 {username} 的会员记录'})
 
 
 if __name__ == '__main__':
@@ -2733,3 +2971,4 @@ if __name__ == '__main__':
     print("=" * 50)
 
     app.run(debug=True, host='0.0.0.0', port=5000)
+ 

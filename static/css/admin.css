@@ -89,7 +89,8 @@ body {
 .form-group input[type="text"],
 .form-group input[type="password"],
 .form-group input[type="url"],
-.form-group input[type="number"] {
+.form-group input[type="number"],
+.form-group select {
     width: 100%;
     padding: 11px 14px;
     border: 1px solid var(--bg-tertiary);
@@ -102,10 +103,27 @@ body {
     outline: none;
 }
 
-.form-group input:focus {
+.form-group input:focus,
+.form-group select:focus {
     border-color: var(--accent);
     box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.12);
 }
+
+.form-group select {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
+    cursor: pointer;
+}
+
+.form-group select option {
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+
 
 .form-group textarea {
     width: 100%;
@@ -779,6 +797,107 @@ body {
     text-align: center;
     padding: 48px 20px;
     color: var(--text-tertiary);
+}
+
+/* ==================== Member Management ==================== */
+.member-form-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+}
+
+.member-form-card h3 {
+    margin: 0 0 16px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.member-form-row {
+    display: flex;
+    gap: 16px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.member-form-row .form-group {
+    flex: 1;
+    min-width: 120px;
+}
+
+.member-form-btns {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+    flex: 0 0 auto;
+}
+
+.member-form-msg {
+    margin-top: 10px;
+    font-size: 13px;
+    min-height: 18px;
+}
+
+.member-form-msg-success { color: var(--success); }
+.member-form-msg-error   { color: var(--error); }
+
+.member-table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.member-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.member-table th,
+.member-table td {
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+}
+
+.member-table thead th {
+    background: var(--bg-tertiary);
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.member-table tbody tr:last-child td { border-bottom: none; }
+.member-table tbody tr:hover { background: var(--bg-secondary); }
+
+.member-status-valid {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(52, 199, 89, 0.15);
+    color: var(--success);
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.member-status-expired {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(255, 59, 48, 0.1);
+    color: var(--error);
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.member-username-link {
+    font-family: monospace;
+    font-size: 13px;
+    color: var(--text-primary);
 }
 
 .empty-state-icon {

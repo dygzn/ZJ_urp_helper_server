@@ -88,6 +88,8 @@ function switchTab(tabName) {
         startMonitorRefresh();
     } else if (tabName === 'config') {
         loadConfig();
+    } else if (tabName === 'members') {
+        loadAdminMembers();
     }
 
     // 离开监控 Tab 时停止自动刷新
@@ -1479,28 +1481,11 @@ function stopMonitorRefresh() {
 
 async function loadMonitorData() {
     try {
-        const [onlineRes, statsRes, recentRes] = await Promise.all([
-            fetch('/api/admin/monitor/online', { headers: { 'Admin-Key': adminKey } }),
-            fetch('/api/admin/monitor/stats', { headers: { 'Admin-Key': adminKey } }),
-            fetch('/api/admin/monitor/recent', { headers: { 'Admin-Key': adminKey } })
-        ]);
-
+        const onlineRes = await fetch('/api/admin/monitor/online', { headers: { 'Admin-Key': adminKey } });
         const onlineData = await onlineRes.json();
-        const statsData = await statsRes.json();
-        const recentData = await recentRes.json();
-
         if (onlineData.success) {
             document.getElementById('online-count').textContent = onlineData.data.online_count;
             renderOnlineUsers(onlineData.data.users);
-        }
-
-        if (statsData.success) {
-            document.getElementById('today-requests').textContent = statsData.data.total;
-            renderApiStats(statsData.data.stats);
-        }
-
-        if (recentData.success) {
-            renderRecentLogs(recentData.data);
         }
     } catch (error) {
         console.error('加载监控数据失败:', error);
@@ -1526,62 +1511,106 @@ function renderOnlineUsers(users) {
     container.innerHTML = html;
 }
 
-function renderApiStats(stats) {
-    const container = document.getElementById('api-stats-list');
-    if (!stats.length) {
-        container.innerHTML = '<div class="empty-state">今日暂无请求</div>';
-        return;
-    }
-
-    let html = '<table class="monitor-table"><thead><tr><th>功能</th><th>调用次数</th></tr></thead><tbody>';
-    stats.forEach(s => {
-        html += `<tr>
-            <td>${escapeHtml(s.endpoint)}</td>
-            <td>${s.count}</td>
-        </tr>`;
-    });
-    html += '</tbody></table>';
-    container.innerHTML = html;
-}
-
-function renderRecentLogs(logs) {
-    const container = document.getElementById('recent-logs-list');
-    if (!logs.length) {
-        container.innerHTML = '<div class="empty-state">暂无请求记录</div>';
-        return;
-    }
-
-    let html = '<table class="monitor-table"><thead><tr><th>时间</th><th>用户</th><th>功能</th><th>状态</th></tr></thead><tbody>';
-    logs.forEach(log => {
-        const statusClass = log.status_code >= 400 ? 'status-error' : 'status-ok';
-        html += `<tr>
-            <td>${log.request_time.split(' ')[1] || log.request_time}</td>
-            <td>${escapeHtml(log.username || '-')}</td>
-            <td>${escapeHtml(log.endpoint)}</td>
-            <td><span class="${statusClass}">${log.status_code}</span></td>
-        </tr>`;
-    });
-    html += '</tbody></table>';
-    container.innerHTML = html;
-}
-
-async function cleanupLogs() {
-    if (!confirm('确定要清理7天前的日志吗？')) return;
-
+// ==================== 会员管理 ====================
+async function loadAdminMembers() {
+    const listDiv = document.getElementById('members-list');
+    listDiv.innerHTML = '<div class="loading">加载中</div>';
     try {
-        const response = await fetch('/api/admin/monitor/logs?days=7', {
-            method: 'DELETE',
-            headers: { 'Admin-Key': adminKey }
-        });
-        const data = await response.json();
-        if (data.success) {
-            alert(data.message);
-            loadMonitorData();
-        } else {
-            alert('清理失败: ' + data.message);
+        const resp = await fetch('/api/admin/members', { headers: { 'Admin-Key': adminKey } });
+        const data = await resp.json();
+        if (!data.success) { listDiv.innerHTML = '<p style="color:var(--error);">加载失败</p>'; return; }
+        const members = data.data;
+        if (!members.length) { listDiv.innerHTML = '<p style="text-align:center;color:#888;">暂无会员</p>'; return; }
+        const typeMap = { basic: '初级会员', advanced: '高级会员' };
+        let html = '<div class="member-table-wrap"><table class="member-table"><thead><tr><th>学号</th><th>类型</th><th>到期时间</th><th>开通时间</th><th>状态</th><th>操作</th></tr></thead><tbody>';
+        const now = new Date();
+        for (const m of members) {
+            const expire = new Date(m.expire_time);
+            const valid = expire > now;
+            const statusHtml = valid
+                ? `<span class="member-status-valid">有效</span>`
+                : `<span class="member-status-expired">已过期</span>`;
+            html += `<tr>
+                <td><span class="member-username-link" onclick="fillGrantForm('${m.username}','${m.member_type}')">${m.username}</span></td>
+                <td>${typeMap[m.member_type] || m.member_type}</td>
+                <td>${m.expire_time ? m.expire_time.slice(0,10) : '-'}</td>
+                <td>${m.create_time ? m.create_time.slice(0,10) : '-'}</td>
+                <td>${statusHtml}</td>
+                <td>
+                    <button class="btn-sm btn-danger" onclick="revokeMember('${m.username}')">撤销</button>
+                </td>
+            </tr>`;
         }
-    } catch (error) {
-        console.error('清理日志失败:', error);
-        alert('网络错误');
+        html += '</tbody></table></div>';
+        listDiv.innerHTML = html;
+    } catch (e) {
+        listDiv.innerHTML = '<p style="color:var(--error);">加载失败</p>';
+    }
+}
+
+function fillGrantForm(username, memberType) {
+    document.getElementById('grant-username').value = username;
+    document.getElementById('grant-type').value = memberType;
+    document.getElementById('grant-days').value = 180;
+    document.getElementById('grant-member-msg').textContent = '';
+}
+
+async function handleGrantMember(event) {
+    event.preventDefault();
+    const username = document.getElementById('grant-username').value.trim();
+    const memberType = document.getElementById('grant-type').value;
+    const days = parseInt(document.getElementById('grant-days').value);
+    const msgDiv = document.getElementById('grant-member-msg');
+    msgDiv.className = 'member-form-msg';
+    msgDiv.textContent = '处理中...';
+    try {
+        const resp = await fetch('/api/admin/members/grant', {
+            method: 'POST',
+            headers: { 'Admin-Key': adminKey, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, member_type: memberType, days })
+        });
+        const data = await resp.json();
+        if (data.success) {
+            msgDiv.className = 'member-form-msg member-form-msg-success';
+            msgDiv.textContent = data.message;
+            loadAdminMembers();
+        } else {
+            msgDiv.className = 'member-form-msg member-form-msg-error';
+            msgDiv.textContent = data.message || '操作失败';
+        }
+    } catch (e) {
+        msgDiv.className = 'member-form-msg member-form-msg-error';
+        msgDiv.textContent = '网络错误，请重试';
+    }
+}
+
+async function handleRevokeMember() {
+    const username = document.getElementById('grant-username').value.trim();
+    const msgDiv = document.getElementById('grant-member-msg');
+    if (!username) {
+        msgDiv.className = 'member-form-msg member-form-msg-error';
+        msgDiv.textContent = '请先输入学号';
+        return;
+    }
+    await revokeMember(username);
+}
+
+async function revokeMember(username) {
+    if (!confirm(`确定要撤销 ${username} 的会员资格吗？`)) return;
+    const listDiv = document.getElementById('members-list');
+    try {
+        const resp = await fetch('/api/admin/members/revoke', {
+            method: 'POST',
+            headers: { 'Admin-Key': adminKey, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username })
+        });
+        const data = await resp.json();
+        if (data.success) {
+            loadAdminMembers();
+        } else {
+            alert(data.message || '撤销失败');
+        }
+    } catch (e) {
+        alert('网络错误，请重试');
     }
 }

@@ -293,7 +293,8 @@ function switchPage(pageName) {
         'paper': '论文生成',
         'announcements': '系统公告',
         'surveys': '问卷调查',
-        'feedback': '反馈建议'
+        'feedback': '反馈建议',
+        'member': '会员购买'
     };
     document.getElementById('page-title').textContent = titles[pageName] || '首页';
 
@@ -341,6 +342,9 @@ function loadPageData(pageName) {
             break;
         case 'feedback':
             loadFeedbackPage();
+            break;
+        case 'member':
+            loadMemberPage();
             break;
     }
 }
@@ -2099,4 +2103,136 @@ function buildFeedbackCard(fb) {
         </div>
     `;
     return html;
+}
+
+// ==================== 会员功能 ====================
+
+let _currentPayMemberType = null;
+
+async function loadMemberPage() {
+    await Promise.all([loadMemberStatus(), loadMemberOrders()]);
+}
+
+async function loadMemberStatus() {
+    const card = document.getElementById('member-status-card');
+    try {
+        const resp = await fetch('/api/member/status', {
+            headers: { 'X-Device-ID': getDeviceId() }
+        });
+        const data = await resp.json();
+        if (!data.success) {
+            card.innerHTML = `<p style="color:var(--error);">${data.message || '加载失败'}</p>`;
+            return;
+        }
+        const d = data.data;
+        if (!d.is_member) {
+            if (d.expire_time && d.is_expired) {
+                const typeMap = { basic: '初级会员', advanced: '高级会员' };
+                card.innerHTML = `<div class="member-status-expired"><span>您的${typeMap[d.member_type] || '会员'}已于 ${d.expire_time.slice(0, 10)} 到期</span><span>，请续费继续享受会员服务。</span></div>`;
+            } else {
+                card.innerHTML = `<div class="member-status-none">您当前没有会员，开通会员解锁更多功能。</div>`;
+            }
+        } else {
+            const typeMap = { basic: '初级会员', advanced: '高级会员' };
+            const badgeClass = d.member_type === 'advanced' ? 'member-badge-advanced' : 'member-badge-basic';
+            card.innerHTML = `
+                <div class="member-status-active">
+                    <span class="member-badge ${badgeClass}">${typeMap[d.member_type] || '会员'}</span>
+                    <span class="member-expire">有效期至：${d.expire_time ? d.expire_time.slice(0, 10) : '未知'}</span>
+                </div>`;
+        }
+    } catch (e) {
+        card.innerHTML = `<p style="color:var(--error);">加载失败，请稍后重试</p>`;
+    }
+}
+
+async function loadMemberOrders() {
+    const container = document.getElementById('member-orders-content');
+    try {
+        const resp = await fetch('/api/member/orders', {
+            headers: { 'X-Device-ID': getDeviceId() }
+        });
+        const data = await resp.json();
+        if (!data.success || !data.data.length) {
+            container.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:12px 0;">暂无购买记录</p>';
+            return;
+        }
+        const typeMap = { basic: '初级会员', advanced: '高级会员' };
+        const statusMap = { pending: '待支付', paid: '已支付', failed: '失败' };
+        let html = '<div class="orders-list">';
+        for (const order of data.data) {
+            html += `
+                <div class="order-item">
+                    <div class="order-info">
+                        <span class="order-type">${typeMap[order.member_type] || order.member_type}</span>
+                        <span class="order-amount">¥${order.amount}</span>
+                        <span class="order-status order-status-${order.status}">${statusMap[order.status] || order.status}</span>
+                    </div>
+                    <div class="order-time">${order.create_time ? order.create_time.slice(0, 16) : ''}</div>
+                </div>`;
+        }
+        html += '</div>';
+        container.innerHTML = html;
+    } catch (e) {
+        container.innerHTML = '<p style="color:var(--error);">加载失败</p>';
+    }
+}
+
+function showPayDialog(memberType) {
+    _currentPayMemberType = memberType;
+    const prices = { basic: '3', advanced: '5' };
+    const typeNames = { basic: '初级会员', advanced: '高级会员' };
+    document.getElementById('pay-modal-title').textContent = `开通${typeNames[memberType]}`;
+    document.getElementById('pay-modal-desc').textContent = `价格：¥${prices[memberType]}/半年，到期后可续费`;
+    document.getElementById('pay-error').textContent = '';
+    document.getElementById('pay-confirm-btn').disabled = false;
+    document.getElementById('pay-confirm-btn').textContent = '确认支付';
+    const modal = document.getElementById('pay-modal');
+    const overlay = document.getElementById('overlay');
+    modal.classList.add('active');
+    overlay.classList.add('active');
+}
+
+function closePayDialog() {
+    document.getElementById('pay-modal').classList.remove('active');
+    document.getElementById('overlay').classList.remove('active');
+    _currentPayMemberType = null;
+}
+
+async function confirmPay() {
+    const memberType = _currentPayMemberType;
+    if (!memberType) return;
+    const payType = document.querySelector('input[name="pay-type"]:checked')?.value || 'alipay';
+    const btn = document.getElementById('pay-confirm-btn');
+    const errDiv = document.getElementById('pay-error');
+    btn.disabled = true;
+    btn.textContent = '请求中...';
+    errDiv.textContent = '';
+    try {
+        const resp = await fetch('/api/member/create_order', {
+            method: 'POST',
+            headers: { 'X-Device-ID': getDeviceId(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ member_type: memberType, pay_type: payType })
+        });
+        const data = await resp.json();
+        if (!data.success) {
+            errDiv.textContent = data.message || '创建订单失败';
+            btn.disabled = false;
+            btn.textContent = '确认支付';
+            return;
+        }
+        const payUrl = data.data.pay_url;
+        if (payUrl) {
+            closePayDialog();
+            window.location.href = payUrl;
+        } else {
+            errDiv.textContent = '获取支付链接失败，请重试';
+            btn.disabled = false;
+            btn.textContent = '确认支付';
+        }
+    } catch (e) {
+        errDiv.textContent = '网络错误，请重试';
+        btn.disabled = false;
+        btn.textContent = '确认支付';
+    }
 }

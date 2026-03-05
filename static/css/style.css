@@ -2038,3 +2038,222 @@ body {
         padding: 24px 40px;
     }
 }
+
+/* ==================== 会员页面 ==================== */
+.member-status-active {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 4px 0;
+}
+
+.member-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.member-badge-basic {
+    background: linear-gradient(135deg, #a8edea, #6ec6c6);
+    color: #1a5a5a;
+}
+
+.member-badge-advanced {
+    background: linear-gradient(135deg, #f9d423, #f37335);
+    color: #5a2e00;
+}
+
+.member-expire {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.member-status-none,
+.member-status-expired {
+    font-size: 14px;
+    color: var(--text-secondary);
+    padding: 4px 0;
+}
+
+.member-plans {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.member-plan-card {
+    background: var(--card-bg, #fff);
+    border-radius: var(--card-radius);
+    box-shadow: var(--card-shadow);
+    padding: 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    border: 1.5px solid var(--divider);
+    position: relative;
+}
+
+.member-plan-advanced {
+    border-color: #f37335;
+}
+
+.plan-badge {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.plan-badge-advanced {
+    color: #f37335;
+}
+
+.plan-price {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.price-num {
+    font-size: 32px;
+}
+
+.price-unit {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 400;
+}
+
+.plan-features {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    flex: 1;
+}
+
+.plan-features li {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+
+.plan-features li svg {
+    width: 14px;
+    height: 14px;
+    stroke: var(--success);
+    flex-shrink: 0;
+}
+
+.plan-feature-extra {
+    color: var(--text-tertiary);
+    font-size: 11px;
+}
+
+.btn-plan {
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.btn-plan:active { opacity: 0.7; }
+
+.btn-basic {
+    background: linear-gradient(135deg, #a8edea, #6ec6c6);
+    color: #1a5a5a;
+}
+
+.btn-advanced {
+    background: linear-gradient(135deg, #f9d423, #f37335);
+    color: #5a2e00;
+}
+
+/* 支付类型选择 */
+.pay-type-group {
+    display: flex;
+    gap: 16px;
+    margin: 16px 0;
+}
+
+.pay-type-option {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+/* 订单列表 */
+.orders-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.order-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    background: var(--bg-secondary);
+    border-radius: 10px;
+}
+
+.order-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.order-type {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.order-amount {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.order-status {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+.order-status-paid {
+    background: #d4f5e2;
+    color: #1a7a3a;
+}
+
+.order-status-pending {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.order-status-failed {
+    background: #ffe0de;
+    color: var(--error);
+}
+
+.order-time {
+    font-size: 11px;
+    color: var(--text-tertiary);
+}
+
+@media (max-width: 480px) {
+    .member-plans {
+        grid-template-columns: 1fr;
+    }
+}
