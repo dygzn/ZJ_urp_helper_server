@@ -390,14 +390,65 @@ function displayUrgentEvent(eventData) {
     const current = eventData.current;
     const next = eventData.next;
 
-    if (!current && !next) {
-        contentDiv.innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">今天没有课程和考试，好好休息吧~</p>';
-        return;
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+
+    function parseDateStr(timeStr) {
+        return timeStr ? timeStr.split(' ')[0] : null;
     }
+
+    function getStartTime(timeStr) {
+        if (!timeStr) return '';
+        const t = timeStr.split(' ')[1] || '';
+        return t.split('-')[0];
+    }
+
+    function getTimeLabel(timeStr) {
+        const datePart = parseDateStr(timeStr);
+        if (!datePart) return timeStr;
+        const startTime = getStartTime(timeStr);
+        const eventDate = new Date(datePart + 'T00:00:00');
+        const todayDate = new Date(todayStr + 'T00:00:00');
+        const diffDays = Math.round((eventDate - todayDate) / 86400000);
+        const dayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+        const dayName = dayNames[eventDate.getDay()];
+
+        if (diffDays === 0) return `今天 ${startTime}`;
+        if (diffDays === 1) return `明天 ${startTime}`;
+        if (diffDays === 2) return `后天 ${startTime}`;
+        if (diffDays <= 6) return `${dayName} ${startTime}`;
+        if (diffDays <= 13) return `下周${dayName.slice(1)} ${startTime}`;
+        const m = eventDate.getMonth() + 1;
+        const d = eventDate.getDate();
+        return `${m}月${d}日 ${startTime}`;
+    }
+
+    const nextDateStr = next ? parseDateStr(next.time) : null;
+    const nextIsToday = nextDateStr === todayStr;
+    const noMoreToday = !current && !nextIsToday;
 
     let html = '';
 
-    // 正在进行的课程
+    // 今天没课或课程已结束时，显示关怀语
+    if (noMoreToday) {
+        const dow = now.getDay();
+        const nextDiffDays = nextDateStr
+            ? Math.round((new Date(nextDateStr + 'T00:00:00') - new Date(todayStr + 'T00:00:00')) / 86400000)
+            : 999;
+        let restMsg;
+        if (dow === 5 && nextDiffDays >= 3) {
+            // 周五且下一节课不在本周末
+            restMsg = '周末快乐！好好放松一下吧~';
+        } else if (dow === 6 && nextDiffDays >= 2) {
+            // 周六且下一节课不是周日
+            restMsg = '周末愉快，充充电准备新的一周~';
+        } else {
+            restMsg = '今天没课了，好好休息~';
+        }
+        html += `<p class="rest-message">${restMsg}</p>`;
+    }
+
+    // 正在进行的课程（保留倒计时）
     if (current) {
         html += `
             <div class="event-card event-card-current">
@@ -413,65 +464,48 @@ function displayUrgentEvent(eventData) {
 
     // 下一个事件
     if (next) {
-        const typeText = next.type === 'class' ? '接下来' : '考试提醒';
+        let typeText;
+        if (next.type === 'exam') {
+            typeText = '考试提醒';
+        } else if (nextIsToday && current) {
+            typeText = '接下来';
+        } else if (nextIsToday) {
+            typeText = '今天还有课';
+        } else {
+            typeText = '下一节课';
+        }
         const seatHtml = next.seat ? `<div class="event-seat">座位号: ${next.seat}</div>` : '';
+        const timeLabel = getTimeLabel(next.time);
 
         html += `
-            <div class="event-card${current ? ' event-card-next' : ''}">
+            <div class="event-card${current ? ' event-card-next' : ' event-card-upcoming'}">
                 <div class="event-type">${typeText}</div>
                 <div class="event-title">${next.title}</div>
                 <div class="event-location">${next.location}</div>
-                <div class="event-time">${next.time}</div>
-                <div class="countdown" id="countdown-display">${formatCountdown(next.countdown)}</div>
-                <div class="countdown-label">后开始</div>
+                <div class="event-time-label">${timeLabel}</div>
                 ${seatHtml}
             </div>
         `;
+    } else if (!current) {
+        html += '<p class="rest-message" style="margin-top:8px;font-size:13px;">近期没有更多课程安排</p>';
     }
 
     contentDiv.innerHTML = html;
 
-    // 启动实时倒计时
-    let nextRemaining = next ? next.countdown : 0;
-    let currentRemaining = current ? current.remaining : 0;
-    countdownTimer = setInterval(() => {
-        nextRemaining--;
-        currentRemaining--;
-
-        const currentEl = document.getElementById('current-remaining');
-        if (currentEl) {
-            if (currentRemaining <= 0) {
+    // 仅为进行中的课程保留倒计时
+    if (current) {
+        let currentRemaining = current.remaining;
+        countdownTimer = setInterval(() => {
+            currentRemaining--;
+            const el = document.getElementById('current-remaining');
+            if (!el || currentRemaining <= 0) {
+                clearInterval(countdownTimer);
+                countdownTimer = null;
                 loadUrgentEvent();
                 return;
             }
-            currentEl.textContent = `${currentRemaining}分钟`;
-        }
-
-        const nextEl = document.getElementById('countdown-display');
-        if (nextEl) {
-            if (nextRemaining <= 0) {
-                loadUrgentEvent();
-                return;
-            }
-            nextEl.textContent = formatCountdown(nextRemaining);
-        }
-    }, 60000);
-}
-
-function formatCountdown(minutes) {
-    if (minutes < 0) return '已开始';
-    if (minutes === 0) return '即将开始';
-
-    const days = Math.floor(minutes / 1440);
-    const hours = Math.floor((minutes % 1440) / 60);
-    const mins = minutes % 60;
-
-    if (days > 0) {
-        return `${days}天${hours}小时${mins}分钟`;
-    } else if (hours > 0) {
-        return `${hours}小时${mins}分钟`;
-    } else {
-        return `${mins}分钟`;
+            el.textContent = `${currentRemaining}分钟`;
+        }, 60000);
     }
 }
 
@@ -1647,20 +1681,10 @@ async function generatePaper() {
     }
 
     btn.disabled = true;
-    btn.textContent = '生成中...';
-
-    // 显示进度条
-    resultDiv.innerHTML = `
-        <div class="progress-container">
-            <div class="progress-bar">
-                <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
-            </div>
-            <div class="progress-text" id="progress-text">准备生成...</div>
-            <div class="progress-percent" id="progress-percent">0%</div>
-        </div>
-    `;
+    btn.textContent = '检查权限...';
 
     try {
+        // 先用 HEAD-like 方式发请求，检查权限
         const response = await fetch('/api/generate_paper', {
             method: 'POST',
             headers: {
@@ -1676,6 +1700,40 @@ async function generatePaper() {
                 template: template
             })
         });
+
+        // 如果返回 JSON（权限不足/参数错误等），直接提示，不显示进度条
+        const contentType = response.headers.get('Content-Type') || '';
+        if (contentType.includes('application/json')) {
+            const errData = await response.json();
+            const msg = errData.message || '请求失败';
+            if (errData.require_member) {
+                resultDiv.className = 'paper-result result-error';
+                resultDiv.innerHTML = `
+                    <div style="text-align:center;padding:24px;">
+                        <div style="font-size:32px;margin-bottom:10px;">🔒</div>
+                        <div style="font-size:15px;font-weight:600;color:var(--danger);margin-bottom:8px;">${msg}</div>
+                        <button class="btn-primary" style="margin-top:12px;" onclick="switchPage('member')">去购买会员</button>
+                    </div>
+                `;
+            } else {
+                alert(msg);
+            }
+            btn.disabled = false;
+            btn.textContent = '生成论文';
+            return;
+        }
+
+        // 权限通过，显示进度条
+        btn.textContent = '生成中...';
+        resultDiv.innerHTML = `
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+                </div>
+                <div class="progress-text" id="progress-text">准备生成...</div>
+                <div class="progress-percent" id="progress-percent">0%</div>
+            </div>
+        `;
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();

@@ -492,6 +492,36 @@ body {
     padding: 8px 16px;
 }
 
+.event-card-upcoming {
+    background: var(--bg-secondary, #f8f9fa);
+}
+
+.event-card-upcoming .event-title {
+    font-size: 20px;
+    margin-bottom: 10px;
+}
+
+.event-card-upcoming .event-location {
+    font-size: 15px;
+    padding: 8px 16px;
+}
+
+.event-time-label {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--accent, #2d8cf0);
+    margin-top: 10px;
+    letter-spacing: 0.3px;
+}
+
+.rest-message {
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 15px;
+    padding: 12px 0 4px;
+    margin: 0 0 8px;
+}
+
 .event-type {
     font-size: var(--text-caption);
     color: var(--text-tertiary);

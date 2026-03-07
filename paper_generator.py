@@ -8,9 +8,8 @@ from docx.oxml import OxmlElement
 import os
 import uuid
 
-# API 配置
-API_KEY = os.environ.get('API_KEY', 'sk-ULAwi9TpkK5EygJPKxvsVTTX1gA6EUjF7oWa7KoYwQ13ljV2')
-API_BASE_URL = 'https://api.mcxhm.cn'
+# API 配置（已迁移至 config.json，由 app.py 传入）
+_DEFAULT_API_BASE_URL = 'https://api.mcxhm.cn'
 
 # 字号定义（Word字号对应磅值）
 FONT_SIZE_2 = Pt(22)      # 二号 - 论文标题
@@ -96,12 +95,12 @@ def get_available_templates():
             for key, val in PAPER_TEMPLATES.items()}
 
 
-def generate_paper_content(title, subject, requirements, keywords, wordcount, template='simple'):
+def generate_paper_content(title, subject, requirements, keywords, wordcount, template='simple', api_key='', base_url=_DEFAULT_API_BASE_URL):
     """
     调用 API 根据模板分段生成论文内容
     """
-    if not API_KEY:
-        raise ValueError("请设置 API_KEY")
+    if not api_key:
+        raise ValueError("请先在管理后台配置 API Key")
 
     wc = int(wordcount)
 
@@ -110,7 +109,7 @@ def generate_paper_content(title, subject, requirements, keywords, wordcount, te
     sections = tmpl['sections']
 
     # 创建 Anthropic 客户端（使用第三方供应商）
-    client = anthropic.Anthropic(api_key=API_KEY, base_url=API_BASE_URL)
+    client = anthropic.Anthropic(api_key=api_key, base_url=base_url)
 
     def call_api(prompt, max_tokens=4000):
         message = client.messages.create(
@@ -200,12 +199,12 @@ def generate_paper_content(title, subject, requirements, keywords, wordcount, te
         raise ValueError(f"请求失败: {str(e)}")
 
 
-def generate_paper_content_with_progress(title, subject, requirements, keywords, wordcount, template='simple'):
+def generate_paper_content_with_progress(title, subject, requirements, keywords, wordcount, template='simple', api_key='', base_url=_DEFAULT_API_BASE_URL):
     """
     生成论文内容的生成器版本，每完成一个章节就 yield 进度信息
     """
-    if not API_KEY:
-        raise ValueError("请设置 API_KEY")
+    if not api_key:
+        raise ValueError("请先在管理后台配置 API Key")
 
     wc = int(wordcount)
 
@@ -215,7 +214,7 @@ def generate_paper_content_with_progress(title, subject, requirements, keywords,
     total_sections = len(sections)
 
     # 创建 Anthropic 客户端（使用第三方供应商）
-    client = anthropic.Anthropic(api_key=API_KEY, base_url=API_BASE_URL)
+    client = anthropic.Anthropic(api_key=api_key, base_url=base_url)
 
     def call_api(prompt, max_tokens=4000):
         message = client.messages.create(

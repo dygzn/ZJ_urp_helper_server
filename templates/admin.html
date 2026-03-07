@@ -259,6 +259,27 @@
                     </div>
 
                     <div class="section-header" style="margin-top:24px;">
+                        <h2>论文生成 API 配置</h2>
+                    </div>
+                    <div class="config-container">
+                        <div class="config-section">
+                            <h3>API Key & Base URL</h3>
+                            <p class="config-desc">配置论文生成功能所使用的 Claude API 密钥和接入地址</p>
+                            <form id="paper-api-form" onsubmit="handleUpdatePaperApi(event)">
+                                <div class="form-group">
+                                    <label for="paper-api-key">API Key:</label>
+                                    <input type="text" id="paper-api-key" placeholder="sk-..." autocomplete="off">
+                                </div>
+                                <div class="form-group">
+                                    <label for="paper-api-base-url">Base URL:</label>
+                                    <input type="url" id="paper-api-base-url" placeholder="https://api.example.com">
+                                </div>
+                                <button type="submit" class="btn-primary btn-full">保存 API 配置</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="section-header" style="margin-top:24px;">
                         <h2>教务系统URL配置</h2>
                     </div>
                     <div class="config-container">

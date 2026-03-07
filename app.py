@@ -409,7 +409,9 @@ def get_config():
             'http://your-urp-url-1.com',
             'http://your-urp-url-2.com'
         ],
-        'semester_start': '2026-03-02'  # 学期第一周星期一的日期
+        'semester_start': '2026-03-02',  # 学期第一周星期一的日期
+        'paper_api_key': '',
+        'paper_api_base_url': 'https://api.mcxhm.cn'
     }
     return load_json_file(CONFIG_FILE, default_config)
 
@@ -1451,6 +1453,7 @@ def api_evaluation(user):
 # ==================== API接口：论文生成 ====================
 
 @app.route('/api/generate_paper', methods=['POST'])
+@require_member('advanced')
 def api_generate_paper():
     """生成论文（带进度的SSE流）"""
     data = request.get_json()
@@ -1464,11 +1467,16 @@ def api_generate_paper():
     wordcount = data.get('wordcount', '3000')
     template = data.get('template', 'simple')
 
+    cfg = get_config()
+    paper_api_key = cfg.get('paper_api_key', '')
+    paper_api_base_url = cfg.get('paper_api_base_url', 'https://api.mcxhm.cn')
+
     def generate():
         from paper_generator import generate_paper_content_with_progress
         try:
             for progress in generate_paper_content_with_progress(
-                title, subject, requirements, keywords, wordcount, template
+                title, subject, requirements, keywords, wordcount, template,
+                api_key=paper_api_key, base_url=paper_api_base_url
             ):
                 yield f"data: {json.dumps(progress, ensure_ascii=False)}\n\n"
         except Exception as e:
@@ -2095,6 +2103,22 @@ def admin_switch_url():
             return jsonify({'success': False, 'message': 'URL索引超出范围'})
 
     return jsonify({'success': False, 'message': '缺少必要参数'})
+
+
+@app.route('/api/admin/config/paper_api', methods=['POST'])
+@require_admin
+def admin_update_paper_api():
+    """更新论文生成 API 配置"""
+    data = request.get_json()
+    api_key = data.get('api_key', '').strip()
+    base_url = data.get('base_url', '').strip()
+    if not base_url:
+        return jsonify({'success': False, 'message': 'Base URL 不能为空'})
+    config = get_config()
+    config['paper_api_key'] = api_key
+    config['paper_api_base_url'] = base_url
+    save_config(config)
+    return jsonify({'success': True, 'message': 'API 配置已保存'})
 
 
 # ==================== API接口：主题管理 ====================

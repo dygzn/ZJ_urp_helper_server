@@ -593,6 +593,30 @@ function displayConfig(config) {
     if (semesterInput && config.semester_start) {
         semesterInput.value = config.semester_start;
     }
+
+    // 填充论文 API 配置
+    const paperKeyInput = document.getElementById('paper-api-key');
+    const paperUrlInput = document.getElementById('paper-api-base-url');
+    if (paperKeyInput) paperKeyInput.value = config.paper_api_key || '';
+    if (paperUrlInput) paperUrlInput.value = config.paper_api_base_url || 'https://api.mcxhm.cn';
+}
+
+async function handleUpdatePaperApi(event) {
+    event.preventDefault();
+    const api_key = document.getElementById('paper-api-key').value.trim();
+    const base_url = document.getElementById('paper-api-base-url').value.trim();
+    if (!base_url) { alert('Base URL 不能为空'); return; }
+    try {
+        const resp = await fetch('/api/admin/config/paper_api', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Admin-Key': adminKey },
+            body: JSON.stringify({ api_key, base_url })
+        });
+        const data = await resp.json();
+        alert(data.message || (data.success ? '保存成功' : '保存失败'));
+    } catch (e) {
+        alert('网络错误，请重试');
+    }
 }
 
 async function switchUrl(urlIndex) {
