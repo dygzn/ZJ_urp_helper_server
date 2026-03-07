@@ -52,7 +52,6 @@
                     <button class="tab-btn" onclick="switchTab('announcements')" role="tab">公告</button>
                     <button class="tab-btn" onclick="switchTab('feedback')" role="tab">反馈</button>
                     <button class="tab-btn" onclick="switchTab('surveys')" role="tab">问卷</button>
-                    <button class="tab-btn" onclick="switchTab('complex')" role="tab">论文需求</button>
                     <button class="tab-btn" onclick="switchTab('members')" role="tab">会员</button>
                     <button class="tab-btn" onclick="switchTab('config')" role="tab">配置</button>
                 </nav>
@@ -79,36 +78,6 @@
                         </button>
                     </div>
                     <div id="users-list" class="users-list">
-                        <div class="loading">加载中</div>
-                    </div>
-                </section>
-
-                <!-- 复杂论文需求 -->
-                <section id="tab-complex" class="tab-content">
-                    <div class="section-header">
-                        <h2>复杂论文需求管理</h2>
-                        <button class="icon-btn" onclick="loadComplexRequests()" aria-label="刷新">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-                        </button>
-                    </div>
-                    <div class="complex-stats">
-                        <div class="stat-item">
-                            <span class="stat-number" id="complex-total">-</span>
-                            <span class="stat-label">总需求</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-number" id="complex-pending">-</span>
-                            <span class="stat-label">待处理</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-number" id="complex-completed">-</span>
-                            <span class="stat-label">已完成</span>
-                        </div>
-                    </div>
-                    <div class="complex-hint">
-                        点击"标记完成"按钮可上传论文文件，系统会自动重命名为 <code>{request_id}_finished.docx</code>
-                    </div>
-                    <div id="complex-list" class="complex-list">
                         <div class="loading">加载中</div>
                     </div>
                 </section>
@@ -259,27 +228,6 @@
                     </div>
 
                     <div class="section-header" style="margin-top:24px;">
-                        <h2>论文生成 API 配置</h2>
-                    </div>
-                    <div class="config-container">
-                        <div class="config-section">
-                            <h3>API Key & Base URL</h3>
-                            <p class="config-desc">配置论文生成功能所使用的 Claude API 密钥和接入地址</p>
-                            <form id="paper-api-form" onsubmit="handleUpdatePaperApi(event)">
-                                <div class="form-group">
-                                    <label for="paper-api-key">API Key:</label>
-                                    <input type="text" id="paper-api-key" placeholder="sk-..." autocomplete="off">
-                                </div>
-                                <div class="form-group">
-                                    <label for="paper-api-base-url">Base URL:</label>
-                                    <input type="url" id="paper-api-base-url" placeholder="https://api.example.com">
-                                </div>
-                                <button type="submit" class="btn-primary btn-full">保存 API 配置</button>
-                            </form>
-                        </div>
-                    </div>
-
-                    <div class="section-header" style="margin-top:24px;">
                         <h2>教务系统URL配置</h2>
                     </div>
                     <div class="config-container">
@@ -403,27 +351,6 @@
                     <button type="button" class="btn-secondary" onclick="closeFeedbackReplyModal()">取消</button>
                 </div>
             </form>
-        </div>
-    </div>
-
-    <!-- 标记完成确认弹窗 -->
-    <div id="complete-modal" class="modal">
-        <div class="modal-content">
-            <button class="modal-close" onclick="closeCompleteModal()" aria-label="关闭">&times;</button>
-            <h2>上传完成论文</h2>
-            <div id="complete-details" class="approve-details"></div>
-            <div class="form-group" style="margin-top: 15px;">
-                <label>上传论文文件（将自动重命名）:</label>
-                <div class="file-upload-box">
-                    <input type="file" id="finish-file-input" accept=".docx,.doc" onchange="handleFinishFileSelect(event)">
-                    <div class="file-upload-hint">支持 .doc, .docx 格式</div>
-                </div>
-                <div id="finish-file-info" class="uploaded-file-info" style="display: none;"></div>
-            </div>
-            <div class="button-group">
-                <button type="button" class="btn-success" id="confirm-complete-btn" onclick="confirmUploadAndComplete()">上传并标记完成</button>
-                <button type="button" class="btn-secondary" onclick="closeCompleteModal()">取消</button>
-            </div>
         </div>
     </div>
 

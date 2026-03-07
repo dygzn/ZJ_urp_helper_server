@@ -36,10 +36,6 @@
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                 <span>教务评价</span>
             </a>
-            <a href="#" class="nav-item" data-page="paper">
-                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v16H4z"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></svg>
-                <span>论文生成</span>
-            </a>
             <a href="#" class="nav-item" data-page="announcements">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
                 <span>系统公告</span>
@@ -174,105 +170,6 @@
                 </div>
             </section>
 
-            <!-- 论文生成 -->
-            <section id="page-paper" class="page">
-                <div class="card paper-container">
-                    <h2>论文生成</h2>
-                    <div class="paper-warning">
-                        <svg class="warning-icon-svg" viewBox="0 0 24 24" fill="none" stroke="#FF9500" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                        <span class="warning-text">本功能仅适用于应付日常课程作业，毕业论文、学位论文等重要学术成果请勿使用，后果自负</span>
-                    </div>
-                    <div class="paper-mode-tabs">
-                        <button class="paper-mode-tab active" data-mode="simple" onclick="switchPaperMode('simple')">简单生成</button>
-                        <button class="paper-mode-tab" data-mode="complex" onclick="switchPaperMode('complex')">复杂生成</button>
-                    </div>
-
-                    <!-- 简单模式 -->
-                    <div id="simple-mode-form" class="paper-content">
-                        <div class="mode-description simple-desc">
-                            <div class="desc-title">简单生成模式</div>
-                            <div class="desc-content">固定模板 + 快速生成，内容较为模式化，适合各类水课、通识课的结课小论文</div>
-                        </div>
-                        <div class="form-group">
-                            <label for="paper-template">论文模板</label>
-                            <select id="paper-template" class="form-select">
-                                <option value="simple">简单报告 (摘要→引言→正文→结论→参考文献)</option>
-                                <option value="standard">标准学术论文 (摘要→引言→文献综述→研究方法→结果分析→结论→参考文献)</option>
-                                <option value="graduation">毕业论文 (摘要→绪论→文献综述→理论基础→研究设计→实证分析→结论与建议→参考文献)</option>
-                                <option value="experiment">实验报告 (摘要→实验目的→实验原理→实验步骤→实验结果→结论→参考文献)</option>
-                                <option value="research">调研报告 (摘要→引言→调研背景→调研方法→调研结果→分析讨论→结论建议→参考文献)</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="paper-title">论文标题</label>
-                            <input type="text" id="paper-title" placeholder="请输入论文标题">
-                        </div>
-                        <div class="form-group">
-                            <label for="paper-subject">论文学科/方向</label>
-                            <input type="text" id="paper-subject" placeholder="例如：计算机科学、经济学、心理学">
-                        </div>
-                        <div class="form-group">
-                            <label for="paper-requirements">内容要求</label>
-                            <textarea id="paper-requirements" rows="5" placeholder="请输入论文的具体要求，如字数、结构、重点内容等"></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label for="paper-keywords">关键词</label>
-                            <input type="text" id="paper-keywords" placeholder="多个关键词用逗号分隔">
-                        </div>
-                        <div class="form-group">
-                            <label for="paper-wordcount">论文字数</label>
-                            <select id="paper-wordcount" class="form-select">
-                                <option value="1000">1000字</option>
-                                <option value="1500">1500字</option>
-                                <option value="2000" selected>2000字</option>
-                                <option value="3000">3000字</option>
-                                <option value="5000">5000字</option>
-                            </select>
-                        </div>
-                        <div class="paper-actions">
-                            <button class="btn-primary" id="generate-paper-btn" onclick="generatePaper()">生成论文</button>
-                        </div>
-                        <div id="paper-result" class="paper-result"></div>
-                    </div>
-
-                    <!-- 复杂模式 -->
-                    <div id="complex-mode-form" class="paper-content" style="display:none;">
-                        <div class="mode-description complex-desc">
-                            <div class="desc-title">复杂生成模式</div>
-                            <div class="desc-content">定制化模板 + Claude Opus4.6 满血顶配模型，质量有保障。提交需求后人工审核生成，不满意可反馈修改，适合专业课结课论文</div>
-                        </div>
-                        <div class="sample-paper-box">
-                            <span>查看生成效果：</span>
-                            <a href="/static/samples/sample_paper.docx" download class="sample-paper-link">下载示例论文</a>
-                        </div>
-                        <div class="form-group">
-                            <label for="complex-title">论文标题</label>
-                            <input type="text" id="complex-title" placeholder="请输入论文标题">
-                        </div>
-                        <div class="form-group">
-                            <label for="complex-requirements">具体要求（包含字数要求）</label>
-                            <textarea id="complex-requirements" rows="8" placeholder="请详细描述论文要求，包括：&#10;1. 论文字数要求&#10;2. 论文结构要求&#10;3. 研究方向和重点&#10;4. 其他特殊要求"></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label>或上传要求文件</label>
-                            <div class="file-upload-box">
-                                <input type="file" id="complex-file" accept=".txt,.doc,.docx,.pdf" onchange="handleFileSelect(event)">
-                                <div class="file-upload-hint">支持 .txt, .doc, .docx, .pdf 格式</div>
-                            </div>
-                            <div id="uploaded-file-info" class="uploaded-file-info" style="display:none;"></div>
-                        </div>
-                        <div class="paper-actions">
-                            <button class="btn-primary" onclick="saveComplexRequest()">保存需求</button>
-                        </div>
-                        <div id="complex-requests-list" class="paper-drafts-list" style="display:none;">
-                            <h4>已保存的需求</h4>
-                            <div id="requests-container"></div>
-                        </div>
-                        <div id="complex-result" class="paper-result"></div>
-                    </div>
-                </div>
-            </section>
-
             <!-- 系统公告 -->
             <section id="page-announcements" class="page">
                 <div class="card announcements-container">
@@ -357,6 +254,7 @@
                     </div>
                 </div>
             </section>
+
         </div>
     </main>
 
@@ -413,50 +311,6 @@
                     不再显示此公告
                 </label>
                 <button class="btn-primary" onclick="closeAnnouncementPopup()">关闭</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 反馈弹窗 -->
-    <div id="feedback-modal" class="modal">
-        <div class="modal-content">
-            <button class="modal-close" onclick="closeFeedbackModal()" aria-label="关闭">&times;</button>
-            <h2>反馈修改意见</h2>
-            <div class="feedback-info">
-                <span>论文标题：</span>
-                <span id="feedback-title" class="feedback-title-text"></span>
-            </div>
-            <div class="form-group">
-                <label for="feedback-content">修改意见</label>
-                <textarea id="feedback-content" rows="6" placeholder="请详细描述需要修改的内容，如：&#10;1. 第X章节需要补充...&#10;2. 参考文献格式不对...&#10;3. 结论部分需要加强..."></textarea>
-            </div>
-            <p class="feedback-hint">提交后论文将重新变为待处理状态，管理员将根据您的意见进行修改</p>
-            <div class="button-group">
-                <button type="button" class="btn-secondary" onclick="closeFeedbackModal()">取消</button>
-                <button type="button" class="btn-primary" id="submit-feedback-btn" onclick="submitFeedback()">提交反馈</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 签收弹窗 -->
-    <div id="receipt-modal" class="modal">
-        <div class="modal-content">
-            <button class="modal-close" onclick="closeReceiptModal()" aria-label="关闭">&times;</button>
-            <h2>满意签收</h2>
-            <div class="feedback-info">
-                <span>论文标题：</span>
-                <span id="receipt-title" class="feedback-title-text"></span>
-            </div>
-            <div class="receipt-warning">
-                <svg class="warning-icon-svg" viewBox="0 0 24 24" fill="none" stroke="#FF3B30" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                <div class="warning-content">
-                    <p><strong>请确保已经下载论文文件！</strong></p>
-                    <p>签收后该需求将被删除，无法再下载或修改。</p>
-                </div>
-            </div>
-            <div class="button-group">
-                <button type="button" class="btn-secondary" onclick="closeReceiptModal()">取消</button>
-                <button type="button" class="btn-primary" id="confirm-receipt-btn" onclick="confirmReceipt()">确认签收</button>
             </div>
         </div>
     </div>
