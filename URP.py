@@ -363,8 +363,8 @@ class URP_query:
 
     @staticmethod
     def _parse_weeks(week_str):
-        """解析周次字符串，如 '1,5-13周' → [1, 5, 6, ..., 13]"""
-        week_str = week_str.replace('周', '').strip()
+        """解析周次字符串，如 '第1-16周' '1,5-13周' → [1, 5, 6, ..., 13]"""
+        week_str = week_str.replace('周', '').replace('第', '').strip()
         if not week_str:
             return []
         weeks = []

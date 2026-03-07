@@ -9,8 +9,8 @@ import os
 import uuid
 
 # API 配置
-API_KEY = os.environ.get('API_KEY', 'sk-V7DM43nyOnVoEA9cyT2p1b3alqXGkvAOpCKmbfwoYtxUGUFe')
-API_BASE_URL = 'https://api.coolyeah.net'
+API_KEY = os.environ.get('API_KEY', 'sk-ULAwi9TpkK5EygJPKxvsVTTX1gA6EUjF7oWa7KoYwQ13ljV2')
+API_BASE_URL = 'https://api.mcxhm.cn'
 
 # 字号定义（Word字号对应磅值）
 FONT_SIZE_2 = Pt(22)      # 二号 - 论文标题
