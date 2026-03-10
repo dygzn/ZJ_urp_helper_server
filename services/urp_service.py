@@ -68,6 +68,26 @@ def check_login_status(username, password, cookies):
             return False, {}
 
 
+def _get_freshman_year():
+    """返回当前最新一届新生的入学年份（4位整数）。
+    每年 8 月份起换届：
+      - 1–7 月：上一学年入学的新生（如 2026-03 → 2025）
+      - 8–12 月：当年入学的新生（如 2026-09 → 2026）
+    """
+    now = datetime.now()
+    return now.year if now.month >= 8 else now.year - 1
+
+
+def _is_freshman(username):
+    """判断用户是否属于最新一届新生（使用不同校区作息）。
+    学号格式为 YY + 系科代码 + 流水号，前两位即入学年份（如 2415108133 → 24届）。
+    """
+    year = _get_freshman_year()
+    if len(username) >= 2 and username[:2].isdigit():
+        return int(username[:2]) == year % 100
+    return False
+
+
 def get_urgent_event(username):
     """获取正在进行的课程和下一个最紧急的事件"""
     schedule_file = os.path.join('user_data', username, 'schedule.json')
@@ -82,13 +102,24 @@ def get_urgent_event(username):
     days_passed = (now - semester_start).days
     current_week = max(1, (days_passed // 7) + 1) if days_passed >= 0 else 0
 
-    period_times = {
-        1: ((8, 20), (9, 5)),   2: ((9, 15), (10, 0)),
-        3: ((10, 15), (11, 0)), 4: ((11, 10), (11, 55)),
-        5: ((14, 10), (14, 55)), 6: ((15, 5), (15, 50)),
-        7: ((16, 5), (16, 50)), 8: ((17, 0), (17, 45)),
-        9: ((19, 0), (19, 45)), 10: ((19, 55), (20, 40))
-    }
+    # 最新一届新生（另一校区）：45分钟/节，课间10分钟
+    # 上午 08:00 起，下午 13:30 起，晚上 18:30 起
+    if _is_freshman(username):
+        period_times = {
+            1: ((8,  0),  (8, 45)),  2: ((8, 55),  (9, 40)),
+            3: ((9, 50),  (10, 35)), 4: ((10, 45), (11, 30)),
+            5: ((13, 30), (14, 15)), 6: ((14, 25), (15, 10)),
+            7: ((15, 20), (16, 5)),  8: ((16, 15), (17, 0)),
+            9: ((18, 30), (19, 15)), 10: ((19, 25), (20, 10)),
+        }
+    else:
+        period_times = {
+            1: ((8, 20), (9, 5)),   2: ((9, 15), (10, 0)),
+            3: ((10, 15), (11, 0)), 4: ((11, 10), (11, 55)),
+            5: ((14, 10), (14, 55)), 6: ((15, 5), (15, 50)),
+            7: ((16, 5), (16, 50)), 8: ((17, 0), (17, 45)),
+            9: ((19, 0), (19, 45)), 10: ((19, 55), (20, 40)),
+        }
 
     current_class = None
     next_class = None
@@ -201,7 +232,8 @@ def get_urgent_event(username):
 
     return {
         'current': current_class,
-        'next': next_event
+        'next': next_event,
+        'is_freshman': _is_freshman(username),
     }
 
 
@@ -326,6 +358,65 @@ def get_grades(username):
     except Exception as e:
         print(f"获取成绩失败: {str(e)}")
         return []
+
+
+def get_semesters(username):
+    """获取所有学期列表"""
+    from URP import URP_query
+    url = get_current_urp_url()
+    try:
+        urp_query = URP_query(url, username)
+        return urp_query.get_semesters()
+    except Exception as e:
+        print(f"获取学期列表失败: {str(e)}")
+        return []
+
+
+def get_current_semester_grades(username):
+    """获取本学期成绩"""
+    from URP import URP_query
+    url = get_current_urp_url()
+    urp_query = URP_query(url, username)
+    courses = urp_query.score_current_semester()
+    return [{'course': c.get('课程名', ''), 'score': c.get('成绩', '')} for c in courses]
+
+
+def get_grades_by_semester(username, semester):
+    """获取指定学期的及格成绩"""
+    from URP import URP_query
+    url = get_current_urp_url()
+    try:
+        urp_query = URP_query(url, username)
+        courses = urp_query.score_by_semester(semester)
+        return [{'course': c.get('课程名', ''), 'score': c.get('成绩', '')} for c in courses]
+    except Exception as e:
+        print(f"获取学期成绩失败: {str(e)}")
+        return []
+
+
+def get_failed_grades(username):
+    """获取全部不及格成绩"""
+    from URP import URP_query
+    url = get_current_urp_url()
+    try:
+        urp_query = URP_query(url, username)
+        courses = urp_query.score_failed()
+        return [{'course': c.get('课程名', ''), 'score': c.get('成绩', '')} for c in courses]
+    except Exception as e:
+        print(f"获取不及格成绩失败: {str(e)}")
+        return []
+
+
+def get_gpa(username):
+    """获取学分绩点和学位绩点"""
+    from URP import URP_query
+    url = get_current_urp_url()
+    try:
+        urp_query = URP_query(url, username)
+        return urp_query.score_gpa()
+    except Exception as e:
+        print(f"获取绩点失败: {str(e)}")
+        return {}
 
 
 def get_unevaluated_courses(username):

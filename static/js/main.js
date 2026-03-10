@@ -365,6 +365,7 @@ async function loadUrgentEvent() {
         const data = await response.json();
 
         if (data.success && data.event) {
+            updateScheduleTimeline(data.event.is_freshman);
             displayUrgentEvent(data.event);
         } else {
             contentDiv.innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">今天没有课程和考试，好好休息吧~</p>';
@@ -377,6 +378,45 @@ async function loadUrgentEvent() {
 
 // 倒计时定时器
 let countdownTimer = null;
+let nextCountdownTimer = null;
+
+// ==================== 校区作息时间 ====================
+let userIsFreshman = false;
+
+const PERIOD_TIMES_DEFAULT = [
+    { start: '08:20', end: '09:05' }, { start: '09:15', end: '10:00' },
+    { start: '10:15', end: '11:00' }, { start: '11:10', end: '11:55' },
+    { start: '14:10', end: '14:55' }, { start: '15:05', end: '15:50' },
+    { start: '16:05', end: '16:50' }, { start: '17:00', end: '17:45' },
+    { start: '19:00', end: '19:45' }, { start: '19:55', end: '20:40' },
+];
+
+const PERIOD_TIMES_FRESHMAN = [
+    { start: '08:00', end: '08:45' }, { start: '08:55', end: '09:40' },
+    { start: '09:50', end: '10:35' }, { start: '10:45', end: '11:30' },
+    { start: '13:30', end: '14:15' }, { start: '14:25', end: '15:10' },
+    { start: '15:20', end: '16:05' }, { start: '16:15', end: '17:00' },
+    { start: '18:30', end: '19:15' }, { start: '19:25', end: '20:10' },
+];
+
+function updateScheduleTimeline(isFreshman) {
+    userIsFreshman = !!isFreshman;
+    const times = isFreshman ? PERIOD_TIMES_FRESHMAN : PERIOD_TIMES_DEFAULT;
+    document.querySelectorAll('.timeline-item').forEach((item, i) => {
+        if (!times[i]) return;
+        item.querySelector('.timeline-time-start').textContent = times[i].start;
+        item.querySelector('.timeline-time-end').textContent = times[i].end;
+    });
+}
+
+function formatMinutes(minutes) {
+    if (minutes >= 60) {
+        const h = Math.floor(minutes / 60);
+        const m = minutes % 60;
+        return m > 0 ? `${h}小时${m}分钟` : `${h}小时`;
+    }
+    return `${minutes}分钟`;
+}
 
 function displayUrgentEvent(eventData) {
     const contentDiv = document.getElementById('urgent-content');
@@ -384,6 +424,10 @@ function displayUrgentEvent(eventData) {
     if (countdownTimer) {
         clearInterval(countdownTimer);
         countdownTimer = null;
+    }
+    if (nextCountdownTimer) {
+        clearInterval(nextCountdownTimer);
+        nextCountdownTimer = null;
     }
 
     const current = eventData.current;
@@ -475,6 +519,9 @@ function displayUrgentEvent(eventData) {
         }
         const seatHtml = next.seat ? `<div class="event-seat">座位号: ${next.seat}</div>` : '';
         const timeLabel = getTimeLabel(next.time);
+        const nextCountdownHtml = (nextIsToday && next.countdown != null)
+            ? `<div class="countdown${next.countdown <= 10 ? ' countdown-urgent' : ''}" id="next-remaining">${formatMinutes(next.countdown)}</div><div class="countdown-label">后上课</div>`
+            : '';
 
         html += `
             <div class="event-card${current ? ' event-card-next' : ' event-card-upcoming'}">
@@ -483,6 +530,7 @@ function displayUrgentEvent(eventData) {
                 <div class="event-location">${next.location}</div>
                 <div class="event-time-label">${timeLabel}</div>
                 ${seatHtml}
+                ${nextCountdownHtml}
             </div>
         `;
     } else if (!current) {
@@ -491,7 +539,7 @@ function displayUrgentEvent(eventData) {
 
     contentDiv.innerHTML = html;
 
-    // 仅为进行中的课程保留倒计时
+    // 正在进行中的课程倒计时（每分钟更新）
     if (current) {
         let currentRemaining = current.remaining;
         countdownTimer = setInterval(() => {
@@ -504,6 +552,25 @@ function displayUrgentEvent(eventData) {
                 return;
             }
             el.textContent = `${currentRemaining}分钟`;
+        }, 60000);
+    }
+
+    // 下一节课倒计时（每分钟更新）
+    if (next && nextIsToday && next.countdown != null) {
+        let nextRemaining = next.countdown;
+        nextCountdownTimer = setInterval(() => {
+            nextRemaining--;
+            const el = document.getElementById('next-remaining');
+            if (!el || nextRemaining <= 0) {
+                clearInterval(nextCountdownTimer);
+                nextCountdownTimer = null;
+                loadUrgentEvent();
+                return;
+            }
+            el.textContent = formatMinutes(nextRemaining);
+            if (nextRemaining <= 10) {
+                el.classList.add('countdown-urgent');
+            }
         }, 60000);
     }
 }
@@ -739,6 +806,7 @@ function displaySchedule(schedule) {
     scheduleGrid.classList.toggle('has-evening', hasEvening);
     scheduleGrid.classList.toggle('no-weekend', !hasWeekend);
     document.querySelector('.schedule-header').classList.toggle('no-weekend', !hasWeekend);
+    updateScheduleTimeline(userIsFreshman);
 }
 
 // 根据课程名称生成颜色索引
@@ -982,30 +1050,127 @@ function displayExams(exams) {
 }
 
 // ==================== 成绩查询相关 ====================
-async function loadGrades() {
-    // 先检查登录状态
+
+function gradesBackToMenu() {
+    document.getElementById('grades-menu').style.display = '';
+    document.getElementById('grades-result').style.display = 'none';
+}
+
+function gradesShowResult(title) {
+    document.getElementById('grades-menu').style.display = 'none';
+    document.getElementById('grades-result').style.display = '';
+    document.getElementById('grades-result-title').textContent = title;
+    document.getElementById('grades-content').innerHTML = '<div class="loading">加载中</div>';
+}
+
+async function gradesShowCurrentSemester() {
     await checkLoginStatus();
-
-    const contentDiv = document.getElementById('grades-content');
-    contentDiv.innerHTML = '<div class="loading">加载中</div>';
-
+    gradesShowResult('本学期成绩');
     try {
-        const response = await fetch('/api/grades', {
-            headers: {
-                'X-Device-ID': getDeviceId()
-            }
-        });
-        const data = await response.json();
+        const resp = await fetch('/api/grades/current', { headers: { 'X-Device-ID': getDeviceId() } });
+        const data = await resp.json();
+        if (data.success && data.grades && data.grades.length > 0) {
+            displayGrades(data.grades);
+        } else if (!data.success) {
+            document.getElementById('grades-content').innerHTML = `<p style="text-align:center;color:var(--error);">${data.message || '查询失败'}</p>`;
+        } else {
+            document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">暂无成绩数据</p>';
+        }
+    } catch (e) {
+        document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+    }
+}
 
+async function gradesShowSemesterPicker() {
+    await checkLoginStatus();
+    const modal = document.getElementById('semester-picker-modal');
+    const overlay = document.getElementById('overlay');
+    const list = document.getElementById('semester-picker-list');
+    list.innerHTML = '<div class="loading">加载中...</div>';
+    modal.classList.add('active');
+    overlay.classList.add('active');
+    try {
+        const resp = await fetch('/api/grades/semesters', { headers: { 'X-Device-ID': getDeviceId() } });
+        const data = await resp.json();
+        if (!data.success || !data.semesters.length) {
+            list.innerHTML = '<p style="color:var(--text-tertiary);text-align:center;">暂无学期数据</p>';
+            return;
+        }
+        list.innerHTML = data.semesters.map(s => `
+            <button class="semester-option-btn" onclick="gradesPickSemester('${s.replace(/'/g, "\\'")}')">${s}</button>
+        `).join('');
+    } catch (e) {
+        list.innerHTML = '<p style="color:var(--error);text-align:center;">加载失败</p>';
+    }
+}
+
+function closeSemesterPicker() {
+    document.getElementById('semester-picker-modal').classList.remove('active');
+    document.getElementById('overlay').classList.remove('active');
+}
+
+async function gradesPickSemester(semester) {
+    closeSemesterPicker();
+    gradesShowResult(`及格成绩（${semester}）`);
+    try {
+        const resp = await fetch(`/api/grades/by_semester?semester=${encodeURIComponent(semester)}`, { headers: { 'X-Device-ID': getDeviceId() } });
+        const data = await resp.json();
         if (data.success && data.grades && data.grades.length > 0) {
             displayGrades(data.grades);
         } else {
-            contentDiv.innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">暂无成绩数据</p>';
+            document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">该学期暂无成绩数据</p>';
         }
-    } catch (error) {
-        console.error('加载成绩失败:', error);
-        contentDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+    } catch (e) {
+        document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
     }
+}
+
+async function gradesLoadFailed() {
+    await checkLoginStatus();
+    gradesShowResult('不及格成绩');
+    try {
+        const resp = await fetch('/api/grades/failed', { headers: { 'X-Device-ID': getDeviceId() } });
+        const data = await resp.json();
+        if (data.success && data.grades && data.grades.length > 0) {
+            displayGrades(data.grades);
+        } else {
+            document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">没有不及格成绩，继续加油！</p>';
+        }
+    } catch (e) {
+        document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+    }
+}
+
+async function gradesLoadGpa() {
+    await checkLoginStatus();
+    gradesShowResult('学分绩点');
+    try {
+        const resp = await fetch('/api/grades/gpa', { headers: { 'X-Device-ID': getDeviceId() } });
+        const data = await resp.json();
+        if (!data.success) {
+            document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+            return;
+        }
+        const gpa = data.gpa;
+        const creditGpa = gpa['学分绩点'];
+        const degreeGpa = gpa['学位绩点'];
+        let html = '<div class="gpa-info-card"><h3 class="gpa-title">绩点信息</h3><div class="gpa-items">';
+        if (creditGpa !== null && creditGpa !== undefined) {
+            html += `<div class="gpa-item"><span class="gpa-label">学分绩点</span><span class="gpa-value">${creditGpa}</span></div>`;
+        }
+        if (degreeGpa !== null && degreeGpa !== undefined) {
+            html += `<div class="gpa-item"><span class="gpa-label">学位绩点</span><span class="gpa-value">${degreeGpa}</span></div>`;
+        }
+        html += '</div></div>';
+        document.getElementById('grades-content').innerHTML = html;
+    } catch (e) {
+        document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+    }
+}
+
+// 切换到成绩页时不自动加载，等用户点击功能按钮
+function loadGrades() {
+    gradesBackToMenu();
 }
 
 function displayGrades(grades) {

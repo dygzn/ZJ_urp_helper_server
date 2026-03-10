@@ -29,6 +29,92 @@ class URP_query:
 
     # ==================== 成绩查询 ====================
 
+    def _fetch_score_html(self):
+        """获取成绩总览页面 HTML"""
+        score_url = f"{self.url}gradeLnAllAction.do?type=ln&oper=qbinfo&"
+        return self.x.get(score_url, verify=False, timeout=10).text
+
+    def get_semesters(self):
+        """获取所有学期列表（解析页面锚点）"""
+        html = self._fetch_score_html()
+        soup = BeautifulSoup(html, 'html.parser')
+        anchors = soup.find_all('a', attrs={'name': True})
+        semesters = []
+        for a in anchors:
+            name = a.get('name', '').strip()
+            if name and ('学年' in name or '学期' in name):
+                semesters.append(name)
+        return semesters
+
+    def score_by_semester(self, semester):
+        """查询指定学期的及格成绩"""
+        html = self._fetch_score_html()
+        soup = BeautifulSoup(html, 'html.parser')
+
+        anchor = soup.find('a', attrs={'name': semester})
+        if not anchor:
+            return []
+
+        score_table = None
+        for elem in anchor.next_siblings:
+            if getattr(elem, 'name', None) == 'a' and elem.get('name'):
+                break
+            if getattr(elem, 'name', None):
+                t = elem.find('table', class_='displayTag', id='user')
+                if t:
+                    score_table = t
+                    break
+        if not score_table:
+            return []
+
+        courses = []
+        for r in score_table.find_all('tr'):
+            tds = r.find_all('td')
+            if len(tds) < 8:
+                continue
+            courses.append({'课程名': tds[2].get_text(strip=True), '成绩': tds[7].get_text(strip=True)})
+        return courses
+
+    def score_current_semester(self):
+        """查询本学期成绩"""
+        response = self.x.get(f'{self.url}bxqcjcxAction.do', params={
+            'mytype': 'bxqcj', 'yzxh': self.account
+        }, verify=False, timeout=10)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        # 检测错误提示页面
+        error_td = soup.find('td', class_='errorTop')
+        if error_td:
+            raise Exception('本学期成绩查询未打开')
+        courses = []
+        for row in soup.find_all('tr', class_='odd'):
+            cols = row.find_all('td')
+            if len(cols) >= 8:
+                courses.append({'课程名': cols[2].get_text(strip=True), '成绩': cols[7].get_text(strip=True)})
+        return courses
+
+    def score_failed(self):
+        """查询全部不及格成绩"""
+        response = self.x.get(f'{self.url}gradeLnAllAction.do', params={
+            'type': 'ln', 'oper': 'bjg', 'yzxh': self.account
+        }, verify=False)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        courses = []
+        for row in soup.find_all('tr', class_='odd'):
+            cols = row.find_all('td')
+            if len(cols) >= 8:
+                courses.append({'课程名': cols[2].get_text(strip=True), '成绩': cols[7].get_text(strip=True)})
+        return courses
+
+    def score_gpa(self):
+        """查询学分绩点和学位绩点"""
+        response = self.x.get(f'{self.url}gradeLnAllAction.do', params={'oper': 'queryXfjd'}, verify=False)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        inputs = soup.find_all('input', style="width: 60px;")
+        return {
+            '学分绩点': inputs[0].get('value') if len(inputs) > 0 else None,
+            '学位绩点': inputs[1].get('value') if len(inputs) > 1 else None,
+        }
+
     def score_query(self):
         score_url = f"{self.url}gradeLnAllAction.do?type=ln&oper=qbinfo&"
         html = self.x.get(score_url, verify=False, timeout=10).text
@@ -57,7 +143,7 @@ class URP_query:
                 continue
             courses.append({'课程名': tds[2].get_text(strip=True), '成绩': tds[7].get_text(strip=True)})
 
-        # 补考成绩
+        # 不及格成绩
         response = self.x.get(f'{self.url}gradeLnAllAction.do', params={
             'type': 'ln', 'oper': 'bjg', 'yzxh': self.account
         }, verify=False)

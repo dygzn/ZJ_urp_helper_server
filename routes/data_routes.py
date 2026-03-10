@@ -7,7 +7,8 @@ from auth import require_login, require_bindding
 from services.urp_service import (
     get_urgent_event, get_schedule, get_exams, get_grades,
     get_unevaluated_courses, do_evaluation, check_and_auto_update,
-    check_login_status
+    check_login_status, get_semesters, get_grades_by_semester,
+    get_failed_grades, get_gpa, get_current_semester_grades
 )
 from services.config_service import get_current_urp_url
 
@@ -101,6 +102,59 @@ def api_grades(user):
     try:
         grades = get_grades(user['username'])
         return jsonify({'success': True, 'grades': grades})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@data_bp.route('/api/grades/current', methods=['GET'])
+@require_login
+def api_grades_current(user):
+    try:
+        grades = get_current_semester_grades(user['username'])
+        return jsonify({'success': True, 'grades': grades})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@data_bp.route('/api/grades/semesters', methods=['GET'])
+@require_login
+def api_grade_semesters(user):
+    try:
+        semesters = get_semesters(user['username'])
+        return jsonify({'success': True, 'semesters': semesters})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@data_bp.route('/api/grades/by_semester', methods=['GET'])
+@require_login
+def api_grades_by_semester(user):
+    semester = request.args.get('semester', '')
+    if not semester:
+        return jsonify({'success': False, 'message': '请指定学期'})
+    try:
+        grades = get_grades_by_semester(user['username'], semester)
+        return jsonify({'success': True, 'grades': grades, 'semester': semester})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@data_bp.route('/api/grades/failed', methods=['GET'])
+@require_login
+def api_grades_failed(user):
+    try:
+        grades = get_failed_grades(user['username'])
+        return jsonify({'success': True, 'grades': grades})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@data_bp.route('/api/grades/gpa', methods=['GET'])
+@require_login
+def api_grades_gpa(user):
+    try:
+        gpa = get_gpa(user['username'])
+        return jsonify({'success': True, 'gpa': gpa})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
