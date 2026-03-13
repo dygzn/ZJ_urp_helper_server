@@ -30,7 +30,7 @@
             </a>
             <a href="#" class="nav-item" data-page="grades">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-                <span>学分绩点</span>
+                <span>成绩查询</span>
             </a>
             <a href="#" class="nav-item" data-page="evaluation">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
@@ -51,6 +51,10 @@
             <a href="#" class="nav-item" data-page="member">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>
                 <span>会员购买</span>
+            </a>
+            <a href="#" class="nav-item" data-page="paper">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                <span>论文生成</span>
             </a>
         </nav>
         <div class="sidebar-footer">
@@ -171,6 +175,11 @@
                         <span class="grade-action-label">学分绩点</span>
                         <span class="grade-action-desc">查询学分绩点与学位绩点</span>
                     </button>
+                    <button class="grade-action-btn" onclick="gradesShowExamPicker()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                        <span class="grade-action-label">考试成绩</span>
+                        <span class="grade-action-desc">补考及各类考试成绩查询</span>
+                    </button>
                 </div>
                 <div id="grades-result" style="display:none;">
                     <button class="grades-back-btn" onclick="gradesBackToMenu()">
@@ -281,6 +290,61 @@
                 </div>
             </section>
 
+            <!-- 论文生成 -->
+            <section id="page-paper" class="page">
+                <div class="card paper-form-card">
+                    <div class="paper-form-group">
+                        <label class="paper-label">论文主题 <span class="paper-required">*</span></label>
+                        <input type="text" id="paper-topic" class="paper-input" placeholder="请输入论文主题">
+                    </div>
+                    <div class="paper-form-group">
+                        <label class="paper-label">额外要求</label>
+                        <textarea id="paper-requirements" class="paper-textarea" rows="3" placeholder="选填，如：结合具体案例分析、不少于X字的某章节..."></textarea>
+                    </div>
+                    <div class="paper-form-row">
+                        <div class="paper-form-group paper-form-col">
+                            <label class="paper-label">写作语言</label>
+                            <select id="paper-language" class="paper-select">
+                                <option value="中文">中文</option>
+                                <option value="English">English</option>
+                            </select>
+                        </div>
+                        <div class="paper-form-group paper-form-col">
+                            <label class="paper-label">全文字数</label>
+                            <input type="number" id="paper-word-count" class="paper-input" value="2000" step="1000" min="1000">
+                        </div>
+                    </div>
+                    <div class="paper-form-row">
+                        <div class="paper-form-group paper-form-col">
+                            <label class="paper-label">摘要字数</label>
+                            <input type="number" id="paper-abstract-words" class="paper-input" value="200" min="100">
+                        </div>
+                        <div class="paper-form-group paper-form-col">
+                            <label class="paper-label">关键词数量</label>
+                            <input type="number" id="paper-keyword-count" class="paper-input" value="5" min="3" max="10">
+                        </div>
+                    </div>
+                    <div class="paper-form-row">
+                        <div class="paper-form-group paper-form-col">
+                            <label class="paper-label">参考文献条数</label>
+                            <input type="number" id="paper-reference-count" class="paper-input" value="10" min="5">
+                        </div>
+                        <div class="paper-form-group paper-form-col">
+                            <label class="paper-label">参考文献格式</label>
+                            <input type="text" id="paper-reference-style" class="paper-input" value="GB/T 7714-2015">
+                        </div>
+                    </div>
+                    <div class="paper-form-group">
+                        <label class="paper-label">自定义章节 <span class="paper-hint">（不填则由服务器决定）</span></label>
+                        <div id="paper-sections-list" class="paper-sections-list"></div>
+                        <button type="button" class="paper-add-section-btn" onclick="paperAddSection()">+ 添加章节</button>
+                    </div>
+                    <div id="paper-error" class="paper-error" style="display:none;"></div>
+                    <button id="paper-submit-btn" class="btn-primary btn-full paper-submit-btn" onclick="paperGenerate()">生成论文</button>
+                </div>
+                <div id="paper-queue" class="paper-queue"></div>
+            </section>
+
         </div>
     </main>
 
@@ -368,6 +432,17 @@
             <button class="modal-close" onclick="closeSemesterPicker()" aria-label="关闭">&times;</button>
             <h2>选择学期</h2>
             <div id="semester-picker-list" class="semester-picker-list">
+                <div class="loading">加载中...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 考试成绩选择弹窗 -->
+    <div id="exam-picker-modal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeExamPicker()" aria-label="关闭">&times;</button>
+            <h2 id="exam-picker-title">选择学期</h2>
+            <div id="exam-picker-body" class="semester-picker-list">
                 <div class="loading">加载中...</div>
             </div>
         </div>

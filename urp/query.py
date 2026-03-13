@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import requests
 import urllib3
 from collections import defaultdict
@@ -93,17 +94,30 @@ class URP_query:
         return courses
 
     def score_failed(self):
-        """查询全部不及格成绩"""
+        """查询不及格成绩，分为尚不及格和曾不及格"""
         response = self.x.get(f'{self.url}gradeLnAllAction.do', params={
             'type': 'ln', 'oper': 'bjg', 'yzxh': self.account
         }, verify=False)
         soup = BeautifulSoup(response.text, 'html.parser')
-        courses = []
-        for row in soup.find_all('tr', class_='odd'):
-            cols = row.find_all('td')
-            if len(cols) >= 8:
-                courses.append({'课程名': cols[2].get_text(strip=True), '成绩': cols[7].get_text(strip=True)})
-        return courses
+
+        def parse_table(table):
+            courses = []
+            for row in table.find_all('tr', class_='odd'):
+                cols = row.find_all('td')
+                if len(cols) >= 9:
+                    courses.append({
+                        '课程名': cols[2].get_text(strip=True),
+                        '成绩':   cols[7].get_text(strip=True).replace('\xa0', '').strip(),
+                        '学分':   cols[4].get_text(strip=True),
+                        '考试时间': cols[8].get_text(strip=True),
+                    })
+            return courses
+
+        tables = soup.find_all('table', class_='displayTag')
+        return {
+            'current': parse_table(tables[0]) if len(tables) > 0 else [],
+            'past':    parse_table(tables[1]) if len(tables) > 1 else [],
+        }
 
     def score_gpa(self):
         """查询学分绩点和学位绩点"""
@@ -115,52 +129,45 @@ class URP_query:
             '学位绩点': inputs[1].get('value') if len(inputs) > 1 else None,
         }
 
-    def score_query(self):
-        score_url = f"{self.url}gradeLnAllAction.do?type=ln&oper=qbinfo&"
-        html = self.x.get(score_url, verify=False, timeout=10).text
+    def get_exam_sessions(self):
+        """获取考试成绩查询页面的所有学期及考试名称列表"""
+        response = self.x.get(f'{self.url}cjSearchAction.do', params={
+            'oper': 'getKscjList', 'yzxh': self.account
+        }, verify=False)
+        html = response.text
         soup = BeautifulSoup(html, 'html.parser')
+        semesters = []
+        select = soup.find('select', {'name': 'jxzxjh'})
+        if select:
+            for opt in select.find_all('option'):
+                val = opt.get('value', '').strip()
+                text = opt.get_text(strip=True)
+                if val:
+                    semesters.append({'value': val, 'text': text})
+        exams = []
+        for name, ksbh, jxzxjh in re.findall(
+            r'new Array\("([^"]+)","([^"]+)","([^"]+)"\)', html
+        ):
+            exams.append({'name': name, 'ksbh': ksbh, 'jxzxjh': jxzxjh})
 
-        anchor = soup.find('a', attrs={'name': '2025-2026学年秋(两学期)'})
-        if not anchor:
-            return []
+        return {'semesters': semesters, 'exams': exams}
 
-        score_table = None
-        for elem in anchor.next_siblings:
-            if getattr(elem, 'name', None) == 'a' and elem.get('name'):
-                break
-            if getattr(elem, 'name', None):
-                t = elem.find('table', class_='displayTag', id='user')
-                if t:
-                    score_table = t
-                    break
-        if not score_table:
-            return []
-
-        courses = []
-        for r in score_table.find_all('tr'):
-            tds = r.find_all('td')
-            if len(tds) < 8:
-                continue
-            courses.append({'课程名': tds[2].get_text(strip=True), '成绩': tds[7].get_text(strip=True)})
-
-        # 不及格成绩
-        response = self.x.get(f'{self.url}gradeLnAllAction.do', params={
-            'type': 'ln', 'oper': 'bjg', 'yzxh': self.account
+    def score_resit(self, jxzxjh, ksbh):
+        """查询指定考试的成绩"""
+        response = self.x.post(f'{self.url}cjSearchAction.do', params={'oper': 'tjcx'}, data={
+            'jxzxjh': jxzxjh, 'ksbh': ksbh, 'yzxh': self.account
         }, verify=False)
         soup = BeautifulSoup(response.text, 'html.parser')
+        courses = []
         for row in soup.find_all('tr', class_='odd'):
             cols = row.find_all('td')
-            if len(cols) >= 8:
-                courses.append({'课程名': cols[2].get_text(strip=True), '成绩': cols[7].get_text(strip=True)})
-
-        # 绩点
-        response = self.x.get(f'{self.url}gradeLnAllAction.do', params={'oper': 'queryXfjd'}, verify=False)
-        soup = BeautifulSoup(response.text, 'html.parser')
-        inputs = soup.find_all('input', style="width: 60px;")
-        courses.append({'课程名': ' 学分绩点', '成绩': inputs[0].get('value') if len(inputs) > 0 else None})
-        courses.append({'课程名': ' 学位绩点', '成绩': inputs[1].get('value') if len(inputs) > 1 else None})
+            if len(cols) >= 6:
+                courses.append({
+                    '课程名': cols[2].get_text(strip=True),
+                    '学分':   cols[4].get_text(strip=True),
+                    '成绩':   cols[5].get_text(strip=True),
+                })
         return courses
-
     # ==================== 评教 ====================
 
     def check_evaluation(self):

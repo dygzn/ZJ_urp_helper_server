@@ -288,12 +288,13 @@ function switchPage(pageName) {
         'home': '首页',
         'schedule': '课程表',
         'exams': '考试安排',
-        'grades': '学分绩点查询',
+        'grades': '成绩查询',
         'evaluation': '教务评价',
         'announcements': '系统公告',
         'surveys': '问卷调查',
         'feedback': '反馈建议',
-        'member': '会员购买'
+        'member': '会员购买',
+        'paper': '论文生成'
     };
     document.getElementById('page-title').textContent = titles[pageName] || '首页';
 
@@ -345,6 +346,9 @@ function loadPageData(pageName) {
         case 'member':
             loadMemberPage();
             break;
+        case 'paper':
+            // 论文生成页面无需自动加载
+            break;
     }
 }
 
@@ -367,6 +371,9 @@ async function loadUrgentEvent() {
         if (data.success && data.event) {
             updateScheduleTimeline(data.event.is_freshman);
             displayUrgentEvent(data.event);
+        } else if (data.success) {
+            updateScheduleTimeline(data.is_freshman);
+            contentDiv.innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">今天没有课程和考试，好好休息吧~</p>';
         } else {
             contentDiv.innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">今天没有课程和考试，好好休息吧~</p>';
         }
@@ -393,9 +400,9 @@ const PERIOD_TIMES_DEFAULT = [
 
 const PERIOD_TIMES_FRESHMAN = [
     { start: '08:00', end: '08:45' }, { start: '08:55', end: '09:40' },
-    { start: '09:50', end: '10:35' }, { start: '10:45', end: '11:30' },
+    { start: '09:55', end: '10:40' }, { start: '10:50', end: '11:35' },
     { start: '13:30', end: '14:15' }, { start: '14:25', end: '15:10' },
-    { start: '15:20', end: '16:05' }, { start: '16:15', end: '17:00' },
+    { start: '15:25', end: '16:10' }, { start: '16:20', end: '17:05' },
     { start: '18:30', end: '19:15' }, { start: '19:25', end: '20:10' },
 ];
 
@@ -618,9 +625,19 @@ async function loadSchedule(week = null, autoFetched = false) {
     const scheduleDays = document.getElementById('schedule-days');
     const messageDiv = document.getElementById('schedule-message');
 
-    // 如果没有指定周次，使用当前周次
+    // 根据学期开始日期算出实际当前周
+    function calcActualWeek() {
+        if (!semesterStart) return null;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const diffDays = Math.floor((today - semesterStart) / (1000 * 60 * 60 * 24));
+        if (diffDays < 0) return 1;
+        return Math.min(Math.floor(diffDays / 7) + 1, 25);
+    }
+
+    // 没有指定周次时：优先用实际当前周，否则降级到上次记录
     if (week === null) {
-        week = currentWeek;
+        week = calcActualWeek() ?? currentWeek;
     }
 
     // 辅助函数：显示提示消息
@@ -672,6 +689,10 @@ async function loadSchedule(week = null, autoFetched = false) {
 
             if (data.data.semester_start) {
                 semesterStart = new Date(data.data.semester_start + 'T00:00:00');
+                // API 返回后重新算一次，覆盖之前的降级值
+                if (week === currentWeek) {
+                    week = calcActualWeek() ?? week;
+                }
             }
 
             if (hasData) {
@@ -1131,11 +1152,32 @@ async function gradesLoadFailed() {
     try {
         const resp = await fetch('/api/grades/failed', { headers: { 'X-Device-ID': getDeviceId() } });
         const data = await resp.json();
-        if (data.success && data.grades && data.grades.length > 0) {
-            displayGrades(data.grades);
-        } else {
-            document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">没有不及格成绩，继续加油！</p>';
+        if (!data.success) {
+            document.getElementById('grades-content').innerHTML = `<p style="text-align:center;color:var(--error);">${data.message || '查询失败'}</p>`;
+            return;
         }
+        const current = data.current || [];
+        const past = data.past || [];
+        if (current.length === 0 && past.length === 0) {
+            document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">没有不及格成绩，继续加油！</p>';
+            return;
+        }
+        let html = '';
+        const fmtDate = s => (s && s.length === 8) ? `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}` : (s || '-');
+        const buildTable = (list) => {
+            let t = '<table class="grades-table"><thead><tr><th>课程名称</th><th>学分</th><th>成绩</th><th>考试时间</th></tr></thead><tbody>';
+            list.forEach(g => {
+                t += `<tr><td>${g.course}</td><td>${g.credit}</td><td class="score-low">${g.score}</td><td>${fmtDate(g.exam_time)}</td></tr>`;
+            });
+            return t + '</tbody></table>';
+        };
+        if (current.length > 0) {
+            html += `<div class="failed-section"><div class="failed-section-title failed-current">尚不及格</div>${buildTable(current)}</div>`;
+        }
+        if (past.length > 0) {
+            html += `<div class="failed-section"><div class="failed-section-title failed-past">曾不及格</div>${buildTable(past)}</div>`;
+        }
+        document.getElementById('grades-content').innerHTML = html;
     } catch (e) {
         document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
     }
@@ -1166,6 +1208,88 @@ async function gradesLoadGpa() {
     } catch (e) {
         document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
     }
+}
+
+// ==================== 考试成绩选择器 ====================
+
+let _examSessions = null; // 缓存会话数据
+
+async function gradesShowExamPicker() {
+    await checkLoginStatus();
+    const modal = document.getElementById('exam-picker-modal');
+    const overlay = document.getElementById('overlay');
+    modal.classList.add('active');
+    overlay.classList.add('active');
+    document.getElementById('exam-picker-title').textContent = '选择学期';
+    const body = document.getElementById('exam-picker-body');
+    body.innerHTML = '<div class="loading">加载中...</div>';
+
+    if (!_examSessions) {
+        try {
+            const resp = await fetch('/api/grades/exam_sessions', { headers: { 'X-Device-ID': getDeviceId() } });
+            const data = await resp.json();
+            if (!data.success) {
+                body.innerHTML = `<p style="color:var(--error);text-align:center;">${data.message || '加载失败'}</p>`;
+                return;
+            }
+            _examSessions = data;
+        } catch (e) {
+            body.innerHTML = '<p style="color:var(--error);text-align:center;">加载失败</p>';
+            return;
+        }
+    }
+
+    // 倒序取最新 8 个学期
+    const semesters = [..._examSessions.semesters].reverse().slice(0, 8);
+    body.innerHTML = semesters.map(s =>
+        `<button class="semester-option-btn" onclick="examPickSemester('${s.value}', '${s.text.replace(/'/g, "\\'")}')">${s.text}</button>`
+    ).join('');
+}
+
+function examPickSemester(jxzxjh, semesterText) {
+    document.getElementById('exam-picker-title').textContent = semesterText;
+    const exams = (_examSessions.exams || []).filter(e => e.jxzxjh === jxzxjh);
+    const body = document.getElementById('exam-picker-body');
+    if (exams.length === 0) {
+        body.innerHTML = '<p style="color:var(--text-tertiary);text-align:center;">该学期暂无考试记录</p>';
+        return;
+    }
+    body.innerHTML = exams.map(e =>
+        `<button class="semester-option-btn" onclick="examPickExam('${e.jxzxjh}','${e.ksbh}','${e.name.replace(/'/g, "\\'")}')">${e.name}</button>`
+    ).join('');
+}
+
+async function examPickExam(jxzxjh, ksbh, examName) {
+    closeExamPicker();
+    gradesShowResult(examName);
+    try {
+        const resp = await fetch(`/api/grades/exam_scores?jxzxjh=${encodeURIComponent(jxzxjh)}&ksbh=${encodeURIComponent(ksbh)}`, {
+            headers: { 'X-Device-ID': getDeviceId() }
+        });
+        const data = await resp.json();
+        if (!data.success) {
+            document.getElementById('grades-content').innerHTML = `<p style="text-align:center;color:var(--error);">${data.message || '查询失败'}</p>`;
+            return;
+        }
+        if (!data.grades || data.grades.length === 0) {
+            document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">暂无成绩数据</p>';
+            return;
+        }
+        let html = '<table class="grades-table"><thead><tr><th>课程名称</th><th>学分</th><th>成绩</th></tr></thead><tbody>';
+        data.grades.forEach(g => {
+            const scoreClass = (parseFloat(g.score) < 60) ? 'score-low' : '';
+            html += `<tr><td>${g.course}</td><td>${g.credit}</td><td class="${scoreClass}">${g.score || '-'}</td></tr>`;
+        });
+        html += '</tbody></table>';
+        document.getElementById('grades-content').innerHTML = html;
+    } catch (e) {
+        document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+    }
+}
+
+function closeExamPicker() {
+    document.getElementById('exam-picker-modal').classList.remove('active');
+    document.getElementById('overlay').classList.remove('active');
 }
 
 // 切换到成绩页时不自动加载，等用户点击功能按钮
@@ -1946,4 +2070,202 @@ async function confirmPay() {
         btn.disabled = false;
         btn.textContent = '确认支付';
     }
+}
+
+// ==================== 论文生成 ====================
+
+function paperAddSection(value = '') {
+    const list = document.getElementById('paper-sections-list');
+    const div = document.createElement('div');
+    div.className = 'paper-section-item';
+    div.innerHTML = `<input type="text" class="paper-input paper-section-input" placeholder="如：一、绪论" value="${value}">
+        <button type="button" class="paper-remove-section-btn" onclick="this.parentElement.remove()">×</button>`;
+    list.appendChild(div);
+}
+
+async function paperGenerate() {
+    const topic = document.getElementById('paper-topic').value.trim();
+    const errorDiv = document.getElementById('paper-error');
+    const btn = document.getElementById('paper-submit-btn');
+
+    errorDiv.style.display = 'none';
+
+    if (!topic) {
+        errorDiv.textContent = '请填写论文主题';
+        errorDiv.style.display = 'block';
+        return;
+    }
+
+    const payload = {
+        topic,
+        language: document.getElementById('paper-language').value,
+        word_count: parseInt(document.getElementById('paper-word-count').value) || 2000,
+        abstract_words: parseInt(document.getElementById('paper-abstract-words').value) || 200,
+        keyword_count: parseInt(document.getElementById('paper-keyword-count').value) || 5,
+        reference_count: parseInt(document.getElementById('paper-reference-count').value) || 10,
+        reference_style: document.getElementById('paper-reference-style').value.trim() || 'GB/T 7714-2015',
+    };
+
+    const requirements = document.getElementById('paper-requirements').value.trim();
+    if (requirements) payload.requirements = requirements;
+
+    const sectionInputs = document.querySelectorAll('.paper-section-input');
+    const sections = Array.from(sectionInputs).map(i => i.value.trim()).filter(Boolean);
+    if (sections.length > 0) payload.sections = sections;
+
+    btn.disabled = true;
+    btn.textContent = '提交中...';
+
+    try {
+        const genResp = await fetch('/api/paper/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        const genData = await genResp.json();
+        if (!genResp.ok || genData.error) {
+            errorDiv.textContent = genData.error || '提交失败，请稍后重试';
+            errorDiv.style.display = 'block';
+            return;
+        }
+        paperEnqueueJob(genData.job_id, topic);
+    } catch (e) {
+        errorDiv.textContent = '网络错误，请检查网络后重试';
+        errorDiv.style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '生成论文';
+    }
+}
+
+function paperEnqueueJob(jobId, topic) {
+    const queue = document.getElementById('paper-queue');
+
+    const card = document.createElement('div');
+    card.className = 'paper-job-card';
+    card.id = `paper-job-${jobId}`;
+    card.innerHTML = `
+        <div class="paper-job-left">
+            <svg class="paper-job-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" stroke-opacity="0.2"/>
+                <path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/>
+            </svg>
+        </div>
+        <div class="paper-job-body">
+            <div class="paper-job-topic">${topic}</div>
+            <div class="paper-job-status-text">正在排队...</div>
+            <div class="paper-job-elapsed"></div>
+        </div>
+        <div class="paper-job-action"></div>
+    `;
+    queue.prepend(card);
+
+    const statusEl = card.querySelector('.paper-job-status-text');
+    const elapsedEl = card.querySelector('.paper-job-elapsed');
+    const spinnerEl = card.querySelector('.paper-job-spinner');
+    const actionEl = card.querySelector('.paper-job-action');
+
+    const phases = [
+        { after: 0,   text: '正在排队...' },
+        { after: 3,   text: 'AI 构建论文框架中...' },
+        { after: 20,  text: '撰写各章节内容...' },
+        { after: 60,  text: '深化论述，补充细节...' },
+        { after: 120, text: '润色语言，优化表达...' },
+        { after: 180, text: '整理参考文献...' },
+        { after: 240, text: '即将完成，请稍等...' },
+    ];
+
+    const startTime = Date.now();
+
+    function getElapsed() {
+        return Math.floor((Date.now() - startTime) / 1000);
+    }
+
+    function formatElapsed(secs) {
+        const m = Math.floor(secs / 60), s = secs % 60;
+        return m > 0 ? `${m} 分 ${s} 秒` : `${s} 秒`;
+    }
+
+    const tickTimer = setInterval(() => {
+        const elapsed = getElapsed();
+        const phase = [...phases].reverse().find(p => elapsed >= p.after);
+        if (phase) statusEl.textContent = phase.text;
+        elapsedEl.textContent = `已等待 ${formatElapsed(elapsed)}`;
+    }, 1000);
+
+    function finishJob(success, errorMsg) {
+        clearInterval(tickTimer);
+        spinnerEl.style.display = 'none';
+
+        if (success) {
+            card.classList.add('paper-job-done');
+            statusEl.textContent = '生成完成！';
+            elapsedEl.textContent = `用时 ${formatElapsed(getElapsed())}`;
+            const dlBtn = document.createElement('button');
+            dlBtn.className = 'paper-job-dl-btn';
+            dlBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v10M7 15l5 5 5-5"/><line x1="3" y1="21" x2="21" y2="21"/></svg> 下载论文`;
+            dlBtn.onclick = async () => {
+                try {
+                    const resp = await fetch(`/api/paper/download/${jobId}`);
+                    if (!resp.ok) {
+                        alert('下载失败，请稍后重试');
+                        return;
+                    }
+                    const blob = await resp.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${topic}.docx`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    URL.revokeObjectURL(url);
+                } catch (e) {
+                    alert('下载失败，请检查网络');
+                }
+            };
+            actionEl.appendChild(dlBtn);
+        } else {
+            card.classList.add('paper-job-failed');
+            statusEl.textContent = '生成失败';
+            elapsedEl.textContent = errorMsg || '';
+        }
+    }
+
+    const MAX_ATTEMPTS = 60;
+    let attempt = 0;
+
+    async function poll() {
+        if (attempt >= MAX_ATTEMPTS) {
+            finishJob(false, '等待超时，请重新提交');
+            return;
+        }
+        attempt++;
+        try {
+            const resp = await fetch(`/api/paper/status/${jobId}`);
+            const data = await resp.json();
+
+            if (data.error) {
+                finishJob(false, data.error);
+                return;
+            }
+
+            if (data.status === 'done') {
+                finishJob(true);
+                return;
+            }
+
+            if (data.status === 'failed') {
+                finishJob(false, data.error || '生成失败，请重新提交');
+                return;
+            }
+
+            // pending 或 running，继续轮询
+            setTimeout(poll, 5000);
+        } catch (e) {
+            setTimeout(poll, 5000);
+        }
+    }
+
+    setTimeout(poll, 3000);
 }

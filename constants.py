@@ -17,3 +17,8 @@ MERCHANT_NUM = "622981851413626880"
 PAY_SECRET_KEY = "31351beba3aa2327817b01c78bccf2f5"
 MEMBER_PRICES = {'basic': '3.00', 'advanced': '5.00'}
 MEMBER_DURATION_DAYS = 180  # 半年
+
+# 论文生成服务
+PAPER_API_URL = "http://101.35.254.245/api/paper/generate"
+PAPER_SECRET_KEY = "urp_helper_paper_secret_2024"
+

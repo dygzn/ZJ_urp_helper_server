@@ -102,14 +102,14 @@ def get_urgent_event(username):
     days_passed = (now - semester_start).days
     current_week = max(1, (days_passed // 7) + 1) if days_passed >= 0 else 0
 
-    # 最新一届新生（另一校区）：45分钟/节，课间10分钟
+    # 最新一届新生（另一校区）：45分钟/节，课间10分钟，大课间（2-3、6-7）15分钟
     # 上午 08:00 起，下午 13:30 起，晚上 18:30 起
     if _is_freshman(username):
         period_times = {
             1: ((8,  0),  (8, 45)),  2: ((8, 55),  (9, 40)),
-            3: ((9, 50),  (10, 35)), 4: ((10, 45), (11, 30)),
+            3: ((9, 55),  (10, 40)), 4: ((10, 50), (11, 35)),
             5: ((13, 30), (14, 15)), 6: ((14, 25), (15, 10)),
-            7: ((15, 20), (16, 5)),  8: ((16, 15), (17, 0)),
+            7: ((15, 25), (16, 10)), 8: ((16, 20), (17, 5)),
             9: ((18, 30), (19, 15)), 10: ((19, 25), (20, 10)),
         }
     else:
@@ -395,16 +395,14 @@ def get_grades_by_semester(username, semester):
 
 
 def get_failed_grades(username):
-    """获取全部不及格成绩"""
+    """获取不及格成绩，分为尚不及格和曾不及格"""
     from URP import URP_query
     url = get_current_urp_url()
-    try:
-        urp_query = URP_query(url, username)
-        courses = urp_query.score_failed()
-        return [{'course': c.get('课程名', ''), 'score': c.get('成绩', '')} for c in courses]
-    except Exception as e:
-        print(f"获取不及格成绩失败: {str(e)}")
-        return []
+    urp_query = URP_query(url, username)
+    result = urp_query.score_failed()
+    def fmt(courses):
+        return [{'course': c.get('课程名', ''), 'score': c.get('成绩', ''), 'credit': c.get('学分', ''), 'exam_time': c.get('考试时间', '')} for c in courses]
+    return {'current': fmt(result.get('current', [])), 'past': fmt(result.get('past', []))}
 
 
 def get_gpa(username):
@@ -417,6 +415,31 @@ def get_gpa(username):
     except Exception as e:
         print(f"获取绩点失败: {str(e)}")
         return {}
+
+
+def get_exam_sessions(username):
+    """获取考试成绩查询的所有学期和考试名称列表"""
+    from URP import URP_query
+    url = get_current_urp_url()
+    try:
+        urp_query = URP_query(url, username)
+        return urp_query.get_exam_sessions()
+    except Exception as e:
+        print(f"获取考试列表失败: {str(e)}")
+        return {'semesters': [], 'exams': []}
+
+
+def get_exam_scores(username, jxzxjh, ksbh):
+    """查询指定考试的成绩"""
+    from URP import URP_query
+    url = get_current_urp_url()
+    try:
+        urp_query = URP_query(url, username)
+        courses = urp_query.score_resit(jxzxjh, ksbh)
+        return [{'course': c.get('课程名', ''), 'credit': c.get('学分', ''), 'score': c.get('成绩', '')} for c in courses]
+    except Exception as e:
+        print(f"查询考试成绩失败: {str(e)}")
+        return []
 
 
 def get_unevaluated_courses(username):

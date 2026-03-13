@@ -12,6 +12,7 @@ from routes.data_routes import data_bp
 from routes.admin_routes import admin_bp
 from routes.member_routes import member_bp
 from routes.misc_routes import misc_bp
+from routes.paper_routes import paper_bp
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-change-this'
@@ -28,6 +29,7 @@ app.register_blueprint(data_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(member_bp)
 app.register_blueprint(misc_bp)
+app.register_blueprint(paper_bp)
 
 
 @app.route('/')

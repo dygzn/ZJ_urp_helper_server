@@ -1023,6 +1023,19 @@ body {
 .score-medium { color: var(--warning); font-weight: 600; }
 .score-low { color: var(--error); font-weight: 600; }
 
+/* 不及格成绩分节 */
+.failed-section { margin-bottom: 20px; }
+.failed-section-title {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 4px;
+    display: inline-block;
+    margin-bottom: 10px;
+}
+.failed-current { background: rgba(var(--error-rgb, 255,59,48), 0.12); color: var(--error); }
+.failed-past    { background: rgba(var(--warning-rgb, 255,149,0), 0.12); color: var(--warning); }
+
 /* 绩点信息卡片 */
 .gpa-info-card {
     margin-top: 24px;
@@ -2394,6 +2407,277 @@ body {
 
 @media (max-width: 480px) {
     .member-plans {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ==================== 论文生成 ==================== */
+.paper-form-card {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.paper-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.paper-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+
+.paper-form-col {
+    min-width: 0;
+}
+
+.paper-label {
+    font-size: var(--text-caption);
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.paper-required {
+    color: var(--error);
+}
+
+.paper-hint {
+    font-weight: 400;
+    color: var(--text-tertiary);
+}
+
+.paper-input,
+.paper-textarea,
+.paper-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: var(--text-body);
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+    outline: none;
+    font-family: inherit;
+}
+
+.paper-input:focus,
+.paper-textarea:focus,
+.paper-select:focus {
+    border-color: var(--accent);
+}
+
+.paper-textarea {
+    resize: vertical;
+    min-height: 72px;
+}
+
+.paper-sections-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.paper-section-item {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.paper-section-input {
+    flex: 1;
+}
+
+.paper-remove-section-btn {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 6px;
+    background: var(--bg-tertiary, #f0f0f0);
+    color: var(--text-secondary);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+}
+
+.paper-remove-section-btn:hover {
+    background: #ffe0de;
+    color: var(--error);
+}
+
+.paper-add-section-btn {
+    align-self: flex-start;
+    padding: 7px 14px;
+    border: 1.5px dashed var(--border);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--accent);
+    font-size: var(--text-caption);
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.paper-add-section-btn:hover {
+    border-color: var(--accent);
+    background: var(--bg-secondary);
+}
+
+.paper-error {
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: #ffe0de;
+    color: var(--error);
+    font-size: var(--text-caption);
+}
+
+.paper-submit-btn {
+    margin-top: 4px;
+}
+
+.paper-status {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 20px;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    margin-bottom: 4px;
+}
+
+.paper-status-icon {
+    color: var(--accent);
+}
+
+.paper-spinner {
+    width: 32px;
+    height: 32px;
+    animation: paper-spin 1s linear infinite;
+}
+
+@keyframes paper-spin {
+    to { transform: rotate(360deg); }
+}
+
+.paper-status-text {
+    font-size: var(--text-body);
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.paper-status-hint {
+    font-size: var(--text-caption);
+    color: var(--text-tertiary);
+}
+
+/* 论文任务队列 */
+.paper-queue {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.paper-job-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: var(--bg-card);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    transition: border-color 0.3s;
+}
+
+.paper-job-card.paper-job-done {
+    border-color: var(--success, #52c41a);
+}
+
+.paper-job-card.paper-job-failed {
+    border-color: var(--error);
+}
+
+.paper-job-left {
+    flex-shrink: 0;
+    color: var(--accent);
+}
+
+.paper-job-spinner {
+    width: 22px;
+    height: 22px;
+    animation: paper-spin 1s linear infinite;
+}
+
+.paper-job-done .paper-job-left {
+    color: var(--success, #52c41a);
+}
+
+.paper-job-failed .paper-job-left {
+    color: var(--error);
+}
+
+.paper-job-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.paper-job-topic {
+    font-size: var(--text-body);
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 2px;
+}
+
+.paper-job-status-text {
+    font-size: var(--text-caption);
+    color: var(--text-secondary);
+}
+
+.paper-job-elapsed {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    margin-top: 2px;
+}
+
+.paper-job-action {
+    flex-shrink: 0;
+}
+
+.paper-job-dl-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 7px 14px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: var(--text-caption);
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity 0.2s;
+}
+
+.paper-job-dl-btn:hover {
+    opacity: 0.85;
+}
+
+@media (max-width: 480px) {
+    .paper-form-row {
         grid-template-columns: 1fr;
     }
 }
