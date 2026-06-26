@@ -5,481 +5,156 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>URP教务助手</title>
     <link rel="stylesheet" href="/static/css/style.css">
-    <link rel="stylesheet" href="/static/css/theme-spring.css">
 </head>
 <body>
-    <!-- 新春装饰元素（主题激活时显示） -->
-    <div class="spring-petals">
-        <span class="petal">🌸</span>
-        <span class="petal">🌺</span>
-        <span class="petal">🌸</span>
-        <span class="petal">✿</span>
-        <span class="petal">🌸</span>
-        <span class="petal">🌺</span>
-        <span class="petal">✿</span>
-        <span class="petal">🌸</span>
-    </div>
-    <div class="lantern-group">
-        <div class="lantern-wrapper left">
-            <div class="lantern-line"></div>
-            <div class="lantern">
-                <div class="lantern-inner"></div>
-                <span class="lantern-text">春</span>
-            </div>
-            <div class="lantern-tassel"></div>
-        </div>
-        <div class="lantern-wrapper right">
-            <div class="lantern-line"></div>
-            <div class="lantern">
-                <div class="lantern-inner"></div>
-                <span class="lantern-text">福</span>
-            </div>
-            <div class="lantern-tassel"></div>
-        </div>
-    </div>
 
-    <!-- 侧边栏导航菜单 -->
     <div id="sidebar" class="sidebar">
         <div class="sidebar-header">
             <h2>URP教务助手</h2>
-            <button class="close-btn" onclick="closeSidebar()">×</button>
+            <button class="close-btn" type="button" onclick="closeSidebar()">x</button>
         </div>
         <nav class="sidebar-nav">
-            <a href="#" class="nav-item active" data-page="home">
-                <span class="icon">🏠</span>
-                <span>首页</span>
-            </a>
-            <a href="#" class="nav-item" data-page="schedule">
-                <span class="icon">📅</span>
-                <span>课程表</span>
-            </a>
-            <a href="#" class="nav-item" data-page="exams">
-                <span class="icon">📝</span>
-                <span>考试安排</span>
-            </a>
-            <a href="#" class="nav-item" data-page="grades">
-                <span class="icon">📊</span>
-                <span>学分绩点查询</span>
-            </a>
-            <a href="#" class="nav-item" data-page="experiments">
-                <span class="icon">🔬</span>
-                <span>实验系统</span>
-            </a>
-            <a href="#" class="nav-item" data-page="evaluation">
-                <span class="icon">⭐</span>
-                <span>教务评价</span>
-            </a>
-            <a href="#" class="nav-item" data-page="paper">
-                <span class="icon">📄</span>
-                <span>论文生成</span>
-            </a>
-            <a href="#" class="nav-item" data-page="announcements">
-                <span class="icon">📢</span>
-                <span>系统公告</span>
-            </a>
+            <a href="#" class="nav-item active" data-page="home"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg><span>首页</span></a>
+            <a href="#" class="nav-item" data-page="schedule"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="9" y1="4" x2="9" y2="2"/><line x1="15" y1="4" x2="15" y2="2"/></svg><span>课程表</span></a>
+            <a href="#" class="nav-item" data-page="exams"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span>考试安排</span></a>
+            <a href="#" class="nav-item" data-page="grades"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span>成绩查询</span></a>
+            <a href="#" class="nav-item" data-page="evaluation"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><span>教学评估</span></a>
+            <a href="#" class="nav-item" data-page="announcements"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg><span>系统公告</span></a>
+            <a href="#" class="nav-item" data-page="surveys"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg><span>问卷调查</span></a>
+            <a href="#" class="nav-item" data-page="feedback"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg><span>反馈建议</span></a>
+            <a href="#" class="nav-item" data-page="member"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg><span>会员购买</span></a>
         </nav>
         <div class="sidebar-footer">
-            <button class="rebind-btn" onclick="showRebindDialog()">换绑账号</button>
+            <button class="rebind-btn" type="button" onclick="showRebindDialog()">换绑账号</button>
             <p class="user-info">当前用户: <span id="sidebar-username">未登录</span></p>
         </div>
     </div>
 
-    <!-- 主内容区域 -->
     <div id="main-content" class="main-content">
-        <!-- 顶部导航栏 -->
         <header class="header">
-            <button class="menu-btn" onclick="openSidebar()">
-                <span></span>
-                <span></span>
-                <span></span>
-            </button>
+            <button class="menu-btn" type="button" onclick="openSidebar()"><span></span><span></span><span></span></button>
             <h1 id="page-title">首页</h1>
-            <!-- 登录状态指示器 -->
-            <div id="login-status-indicator" class="login-status-indicator">
-                <span class="status-dot status-checking"></span>
-                <span class="status-text">检查中</span>
-            </div>
+            <div id="login-status-indicator" class="login-status-indicator"><span class="status-dot status-checking"></span><span class="status-text">检查中</span></div>
         </header>
 
-        <!-- 页面内容容器 -->
         <div class="content-wrapper">
-            <!-- 首页：紧急事项提示 -->
             <div id="page-home" class="page active">
                 <div class="urgent-card">
-                    <div class="urgent-header">
-                        <h2>接下来最紧急的事情</h2>
-                        <button class="refresh-btn" onclick="refreshUrgentEvent()">🔄</button>
-                    </div>
-                    <div id="urgent-content" class="urgent-content">
-                        <div class="loading">加载中...</div>
-                    </div>
+                    <div class="urgent-header"><h2>接下来最紧急的事情</h2><button class="refresh-btn" type="button" onclick="refreshUrgentEvent()">刷新</button></div>
+                    <div id="urgent-content" class="urgent-content"><div class="loading">加载中...</div></div>
                 </div>
             </div>
 
-            <!-- 课程表页面 -->
             <div id="page-schedule" class="page">
                 <div class="schedule-container">
-                    <!-- 课程表内容 -->
+                    <h2>课程表</h2>
+                    <p class="page-section-desc">查看当前周课程，也可以手动刷新或重新从教务系统更新课程表。</p>
+                    <div id="schedule-message" class="schedule-message" style="display:none;"></div>
                     <div id="schedule-content" class="schedule-content">
-                        <!-- 课程表头部：日期和星期 -->
-                        <div class="schedule-header">
-                            <div class="schedule-header-time"></div>
-                            <div class="schedule-header-day">周一</div>
-                            <div class="schedule-header-day">周二</div>
-                            <div class="schedule-header-day">周三</div>
-                            <div class="schedule-header-day">周四</div>
-                            <div class="schedule-header-day">周五</div>
-                            <div class="schedule-header-day">周六</div>
-                            <div class="schedule-header-day">周日</div>
-                        </div>
-
-                        <!-- 课程表网格 -->
+                        <div class="schedule-header"><div class="schedule-header-time"></div><div class="schedule-header-day">周一</div><div class="schedule-header-day">周二</div><div class="schedule-header-day">周三</div><div class="schedule-header-day">周四</div><div class="schedule-header-day">周五</div><div class="schedule-header-day">周六</div><div class="schedule-header-day">周日</div></div>
                         <div class="schedule-grid">
-                            <!-- 时间轴 -->
                             <div class="schedule-timeline">
-                                <div class="timeline-item">
-                                    <div class="timeline-section">1</div>
-                                    <div class="timeline-time-start">08:20</div>
-                                    <div class="timeline-time-end">09:05</div>
-                                </div>
-                                <div class="timeline-item">
-                                    <div class="timeline-section">2</div>
-                                    <div class="timeline-time-start">09:15</div>
-                                    <div class="timeline-time-end">10:00</div>
-                                </div>
-                                <div class="timeline-item">
-                                    <div class="timeline-section">3</div>
-                                    <div class="timeline-time-start">10:20</div>
-                                    <div class="timeline-time-end">11:05</div>
-                                </div>
-                                <div class="timeline-item">
-                                    <div class="timeline-section">4</div>
-                                    <div class="timeline-time-start">11:15</div>
-                                    <div class="timeline-time-end">12:00</div>
-                                </div>
-                                <div class="timeline-item">
-                                    <div class="timeline-section">5</div>
-                                    <div class="timeline-time-start">14:00</div>
-                                    <div class="timeline-time-end">14:45</div>
-                                </div>
-                                <div class="timeline-item">
-                                    <div class="timeline-section">6</div>
-                                    <div class="timeline-time-start">14:55</div>
-                                    <div class="timeline-time-end">15:40</div>
-                                </div>
-                                <div class="timeline-item">
-                                    <div class="timeline-section">7</div>
-                                    <div class="timeline-time-start">16:00</div>
-                                    <div class="timeline-time-end">16:45</div>
-                                </div>
-                                <div class="timeline-item">
-                                    <div class="timeline-section">8</div>
-                                    <div class="timeline-time-start">16:55</div>
-                                    <div class="timeline-time-end">17:40</div>
-                                </div>
+                                <div class="timeline-item"><div class="timeline-section">1</div><div class="timeline-time-start">08:20</div><div class="timeline-time-end">09:05</div></div>
+                                <div class="timeline-item"><div class="timeline-section">2</div><div class="timeline-time-start">09:15</div><div class="timeline-time-end">10:00</div></div>
+                                <div class="timeline-item"><div class="timeline-section">3</div><div class="timeline-time-start">10:20</div><div class="timeline-time-end">11:05</div></div>
+                                <div class="timeline-item"><div class="timeline-section">4</div><div class="timeline-time-start">11:15</div><div class="timeline-time-end">12:00</div></div>
+                                <div class="timeline-item"><div class="timeline-section">5</div><div class="timeline-time-start">14:00</div><div class="timeline-time-end">14:45</div></div>
+                                <div class="timeline-item"><div class="timeline-section">6</div><div class="timeline-time-start">14:55</div><div class="timeline-time-end">15:40</div></div>
+                                <div class="timeline-item"><div class="timeline-section">7</div><div class="timeline-time-start">16:00</div><div class="timeline-time-end">16:45</div></div>
+                                <div class="timeline-item"><div class="timeline-section">8</div><div class="timeline-time-start">16:55</div><div class="timeline-time-end">17:40</div></div>
                             </div>
-
-                            <!-- 课程卡片区域 -->
-                            <div class="schedule-days" id="schedule-days">
-                                <!-- 动态生成课程卡片 -->
-                            </div>
+                            <div class="schedule-days" id="schedule-days"></div>
                         </div>
                     </div>
-
-                    <!-- 周次切换器 -->
-                    <div class="week-selector" style="margin-top: 20px;">
-                        <button class="week-btn" onclick="changeWeek(-1)">◀ 上周</button>
+                    <div class="action-bar schedule-bottom-controls">
+                        <button class="btn-secondary" type="button" onclick="changeWeek(-1)">上一周</button>
+                        <label class="week-select-wrap" for="week-select"><span>周次</span><select id="week-select" onchange="changeWeek(parseInt(this.value,10)-currentWeek)"></select></label>
                         <span class="current-week">第 <span id="current-week">1</span> 周</span>
-                        <button class="week-btn" onclick="changeWeek(1)">下周 ▶</button>
-                    </div>
-
-                    <!-- 操作按钮 -->
-                    <div style="text-align: center; margin-top: 20px;">
-                        <button class="update-schedule-btn" onclick="loadSchedule()">🔄 刷新显示</button>
-                        <button class="update-schedule-btn" onclick="updateScheduleData()" style="margin-left: 10px; background-color: #4caf50;">📥 更新课程表</button>
+                        <button class="btn-secondary" type="button" onclick="changeWeek(1)">下一周</button>
+                        <button class="btn-primary" type="button" onclick="loadSchedule()">刷新显示</button>
+                        <button class="btn-primary" type="button" onclick="updateScheduleData()">更新课程表</button>
                     </div>
                 </div>
             </div>
 
-            <!-- 考试安排页面 -->
-            <div id="page-exams" class="page">
-                <div class="exams-container">
-                    <h2>考试安排</h2>
+            <div id="page-exams" class="page"><div class="exams-container"><h2>考试安排</h2><p class="page-section-desc">展示已缓存的考试安排，也可以重新从教务系统获取。</p><div id="exams-content" class="exams-content"><div class="loading">加载中...</div></div><div class="action-bar"><button class="btn-primary" type="button" onclick="loadExams()">刷新显示</button><button class="btn-primary" type="button" onclick="updateExamsData()">更新考试安排</button></div></div></div>
 
-                    <div id="exams-content" class="exams-content">
-                        <div class="loading">加载中...</div>
-                    </div>
-
-                    <!-- 操作按钮 -->
-                    <div style="text-align: center; margin-top: 20px;">
-                        <button class="update-schedule-btn" onclick="loadExams()">🔄 刷新显示</button>
-                        <button class="update-schedule-btn" onclick="updateExamsData()" style="margin-left: 10px; background-color: #4caf50;">📥 更新考试安排</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 成绩查询页面 -->
             <div id="page-grades" class="page">
-                <div class="grades-container">
-                    <h2>学分绩点查询</h2>
-                    <div id="grades-content" class="grades-content">
-                        <div class="loading">加载中...</div>
+                <div class="grades-container grades-dashboard">
+                    <div class="grades-dashboard-main">
+                        <h2>成绩查询</h2>
+                        <div id="grades-menu" class="grades-menu grades-card-grid">
+                            <button class="grade-action-btn grade-action-btn-summary" type="button" onclick="gradesLoadLatestSummary()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-7"/></svg>
+                                <span class="grade-action-label">一键查本学期成绩</span>
+                                <span class="grade-action-desc">自动展示最新学期及格成绩和不及格成绩</span>
+                            </button>
+                            <button class="grade-action-btn" type="button" onclick="gradesShowCurrentSemester()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                                <span class="grade-action-label">本学期成绩</span>
+                                <span class="grade-action-desc">查看当前学期已出的课程成绩</span>
+                            </button>
+                            <button class="grade-action-btn" type="button" onclick="gradesShowSemesterPicker()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 6h6M9 10h6M9 14h4"/></svg>
+                                <span class="grade-action-label">按学期查询</span>
+                                <span class="grade-action-desc">选择学期查看历史及格成绩</span>
+                            </button>
+                            <button class="grade-action-btn grade-action-btn-warn" type="button" onclick="gradesLoadFailed()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+                                <span class="grade-action-label">不及格成绩</span>
+                                <span class="grade-action-desc">查看尚不及格和曾不及格记录</span>
+                            </button>
+                            <button class="grade-action-btn grade-action-btn-accent" type="button" onclick="gradesLoadGpa()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19V9M12 19V5M19 19v-7"/></svg>
+                                <span class="grade-action-label">学分绩点</span>
+                                <span class="grade-action-desc">查询学分绩点和学位绩点</span>
+                            </button>
+                            <button class="grade-action-btn" type="button" onclick="gradesShowExamPicker()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M9 15l2 2 4-5"/></svg>
+                                <span class="grade-action-label">考试成绩</span>
+                                <span class="grade-action-desc">按考试场次查询成绩明细</span>
+                            </button>
+                        </div>
+                        <div id="grades-result" class="grades-result" style="display:none;">
+                            <div class="grades-result-header"><button class="grades-back-btn" type="button" onclick="gradesBackToMenu()">返回</button><h3 id="grades-result-title"></h3></div>
+                            <div id="grades-content" class="grades-content"></div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- 实验系统页面 -->
-            <div id="page-experiments" class="page">
-                <div class="experiments-container">
-                    <h2>实验系统</h2>
-                    <div id="experiments-content" class="experiments-content">
-                        <div class="loading">加载中...</div>
-                    </div>
-                </div>
-            </div>
+            <div id="page-evaluation" class="page"><div class="evaluation-container"><h2>教学评估</h2><p class="page-section-desc">查询待评课程，支持一键提交默认评教。</p><div class="action-bar"><button class="btn-primary" id="do-eval-btn" type="button" onclick="checkUnevaluatedCourses()">刷新查询</button><button class="btn-primary" id="one-click-eval-btn" type="button" onclick="oneClickEvaluation()">一键评教</button></div><div id="evaluation-result" class="evaluation-result"></div></div></div>
 
-            <!-- 教务评价页面 -->
-            <div id="page-evaluation" class="page">
-                <div class="evaluation-container">
-                    <h2>教务评价</h2>
-                    <!-- 刷新查询按钮 -->
-                    <div style="text-align: center; margin-bottom: 20px;">
-                        <button class="update-schedule-btn" onclick="checkUnevaluatedCourses()">🔄 刷新查询</button>
-                        <button class="update-schedule-btn" id="one-click-eval-btn" onclick="oneClickEvaluation()" style="margin-left: 10px; background-color: #4caf50;">一键评教</button>
-                    </div>
-                    <div id="evaluation-result" class="evaluation-result"></div>
-                </div>
-            </div>
+            <div id="page-announcements" class="page"><div class="announcements-container"><h2>系统公告</h2><p class="page-section-desc">查看管理员发布的公告和通知。</p><div id="announcements-list-content" class="announcements-list-content"><div class="loading">加载中...</div></div></div></div>
 
-            <!-- 论文生成页面 -->
-            <div id="page-paper" class="page">
-                <div class="paper-container">
-                    <h2>论文生成</h2>
-                    <!-- 免责提醒 -->
-                    <div class="paper-warning">
-                        <span class="warning-icon">⚠️</span>
-                        <span class="warning-text">本功能仅适用于应付日常课程作业，毕业论文、学位论文等重要学术成果请勿使用，后果自负</span>
-                    </div>
-                    <!-- 模式切换 -->
-                    <div class="paper-mode-tabs">
-                        <button class="paper-mode-tab active" data-mode="simple" onclick="switchPaperMode('simple')">简单生成</button>
-                        <button class="paper-mode-tab" data-mode="complex" onclick="switchPaperMode('complex')">复杂生成</button>
-                    </div>
+            <div id="page-surveys" class="page"><div class="surveys-container"><h2>问卷调查</h2><p class="page-section-desc">参与管理员发布的问卷调查。</p><div id="surveys-list-content" class="surveys-list-content"><div class="loading">加载中...</div></div></div></div>
 
-                    <!-- 简单模式表单 -->
-                    <div id="simple-mode-form" class="paper-content">
-                        <div class="mode-description simple-desc">
-                            <div class="desc-title">💡 简单生成模式</div>
-                            <div class="desc-content">固定模板 + 快速生成，内容较为模式化，适合各类水课、通识课的结课小论文</div>
-                        </div>
-                        <div class="form-group">
-                            <label for="paper-template">论文模板</label>
-                            <select id="paper-template" class="form-select">
-                                <option value="simple">简单报告 (摘要→引言→正文→结论→参考文献)</option>
-                                <option value="standard">标准学术论文 (摘要→引言→文献综述→研究方法→结果分析→结论→参考文献)</option>
-                                <option value="graduation">毕业论文 (摘要→绪论→文献综述→理论基础→研究设计→实证分析→结论与建议→参考文献)</option>
-                                <option value="experiment">实验报告 (摘要→实验目的→实验原理→实验步骤→实验结果→结论→参考文献)</option>
-                                <option value="research">调研报告 (摘要→引言→调研背景→调研方法→调研结果→分析讨论→结论建议→参考文献)</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="paper-title">论文标题</label>
-                            <input type="text" id="paper-title" placeholder="请输入论文标题">
-                        </div>
-                        <div class="form-group">
-                            <label for="paper-subject">论文学科/方向</label>
-                            <input type="text" id="paper-subject" placeholder="例如：计算机科学、经济学、心理学">
-                        </div>
-                        <div class="form-group">
-                            <label for="paper-requirements">内容要求</label>
-                            <textarea id="paper-requirements" rows="5" placeholder="请输入论文的具体要求，如字数、结构、重点内容等"></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label for="paper-keywords">关键词</label>
-                            <input type="text" id="paper-keywords" placeholder="多个关键词用逗号分隔">
-                        </div>
-                        <div class="form-group">
-                            <label for="paper-wordcount">论文字数</label>
-                            <select id="paper-wordcount" class="form-select">
-                                <option value="1000">1000字</option>
-                                <option value="1500">1500字</option>
-                                <option value="2000" selected>2000字</option>
-                                <option value="3000">3000字</option>
-                                <option value="5000">5000字</option>
-                            </select>
-                        </div>
-                        <div class="paper-actions">
-                            <button class="update-schedule-btn" id="generate-paper-btn" onclick="generatePaper()" style="background-color: #4caf50;">生成论文</button>
-                        </div>
-                        <div id="paper-result" class="paper-result" style="margin-top: 20px;"></div>
-                    </div>
+            <div id="page-feedback" class="page"><div class="feedback-container"><h2>反馈建议</h2><p class="page-section-desc">提交问题或建议，也可以查看自己的反馈回复。</p><div class="feedback-new-box"><textarea id="new-feedback-content" rows="5" placeholder="请输入反馈内容"></textarea><div class="feedback-visibility-row"><label><input type="radio" name="feedback-visibility" value="public" checked> 公开</label><label><input type="radio" name="feedback-visibility" value="private"> 仅管理员可见</label><label><input type="checkbox" id="feedback-anonymous"> 匿名</label><button class="btn-primary" type="button" onclick="submitNewFeedback()">提交反馈</button></div></div><div id="feedback-list-content" class="feedback-list-content"><div class="loading">加载中...</div></div></div></div>
 
-                    <!-- 复杂模式表单 -->
-                    <div id="complex-mode-form" class="paper-content" style="display: none;">
-                        <div class="mode-description complex-desc">
-                            <div class="desc-title">🚀 复杂生成模式</div>
-                            <div class="desc-content">定制化模板 + Claude Opus4.6  满血顶配模型，质量有保障。提交需求后人工审核生成，不满意可反馈修改，适合专业课结课论文</div>
-                        </div>
-                        <!-- 示例论文下载 -->
-                        <div class="sample-paper-box">
-                            <span class="sample-paper-icon">📄</span>
-                            <span class="sample-paper-text">查看生成效果：</span>
-                            <a href="/static/samples/sample_paper.docx" download class="sample-paper-link">下载示例论文</a>
-                        </div>
-                        <div class="form-group">
-                            <label for="complex-title">论文标题</label>
-                            <input type="text" id="complex-title" placeholder="请输入论文标题">
-                        </div>
-                        <div class="form-group">
-                            <label for="complex-requirements">具体要求（包含字数要求）</label>
-                            <textarea id="complex-requirements" rows="8" placeholder="请详细描述论文要求，包括：&#10;1. 论文字数要求&#10;2. 论文结构要求&#10;3. 研究方向和重点&#10;4. 其他特殊要求"></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label>或上传要求文件</label>
-                            <div class="file-upload-box">
-                                <input type="file" id="complex-file" accept=".txt,.doc,.docx,.pdf" onchange="handleFileSelect(event)">
-                                <div class="file-upload-hint">支持 .txt, .doc, .docx, .pdf 格式</div>
-                            </div>
-                            <div id="uploaded-file-info" class="uploaded-file-info" style="display: none;"></div>
-                        </div>
-                        <div class="paper-actions">
-                            <button class="update-schedule-btn" onclick="saveComplexRequest()" style="background-color: #2196f3;">保存需求</button>
-                        </div>
-                        <!-- 已保存需求列表 -->
-                        <div id="complex-requests-list" class="paper-drafts-list" style="display: none;">
-                            <h4>已保存的需求</h4>
-                            <div id="requests-container"></div>
-                        </div>
-                        <div id="complex-result" class="paper-result" style="margin-top: 20px;"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 系统公告页面 -->
-            <div id="page-announcements" class="page">
-                <div class="announcements-container">
-                    <h2>系统公告</h2>
-                    <div id="announcements-list-content" class="announcements-list-content">
-                        <div class="loading">加载中...</div>
-                    </div>
-                </div>
-            </div>
+            <div id="page-member" class="page"><div class="member-container"><h2>会员购买</h2><p class="page-section-desc">初级会员用于解锁受限查询；高级会员主要是支持项目，并拥有更高提现额度。续费会自动叠加到原到期日之后。</p><div id="member-status-card" class="member-status-card member-status-panel"><div class="loading">加载中...</div></div><div class="member-plans"><div class="member-plan-card"><h3>初级会员</h3><p class="member-plan-price">9.9 元 / 半年</p><p>可使用被管理员设置为会员可用的查询能力，例如成绩查询等。</p><button class="btn-primary btn-full" type="button" onclick="showPayDialog('basic')">开通初级会员</button></div><div class="member-plan-card member-plan-advanced"><h3>高级会员</h3><p class="member-plan-price">19.9 元 / 半年</p><p>功能上不额外增加查询能力，主要用于支持项目；同时提现额度更高。</p><button class="btn-primary btn-full" type="button" onclick="showPayDialog('advanced')">开通高级会员</button></div></div><div id="active-pay-links" class="active-pay-links"></div><div id="member-orders-content" class="member-orders-content"></div><div id="invitation-card" class="invitation-card"><h3>邀请与返佣</h3><div id="invitation-earnings-content"><div class="loading">加载中...</div></div></div></div></div>
         </div>
     </div>
 
-    <!-- 登录/绑定弹窗 -->
-    <div id="login-modal" class="modal">
-        <div class="modal-content">
-            <h2>绑定教务账号</h2>
-            <p class="modal-desc">首次使用需要绑定您的教务系统账号</p>
-            <form id="login-form" onsubmit="handleLogin(event)">
-                <div class="form-group">
-                    <label for="username">学号</label>
-                    <input type="text" id="username" name="username" required placeholder="请输入学号">
-                </div>
-                <div class="form-group">
-                    <label for="password">密码</label>
-                    <input type="password" id="password" name="password" required placeholder="请输入密码">
-                </div>
-                <button type="submit" class="submit-btn">绑定账号</button>
-            </form>
-            <div id="login-error" class="error-message"></div>
-        </div>
-    </div>
+    <div id="login-modal" class="modal"><div class="modal-content"><h2>绑定教务账号</h2><p class="modal-desc">首次使用需要绑定教务系统账号；没有账号时也可以先进入访客模式。</p><form id="login-form" onsubmit="handleLogin(event)"><div class="form-group"><label for="username">学号</label><input type="text" id="username" name="username" required placeholder="请输入学号"></div><div class="form-group"><label for="password">密码</label><input type="password" id="password" name="password" required placeholder="请输入密码"></div><div class="form-group"><label for="inviter">邀请人学号</label><input type="text" id="inviter" name="inviter" placeholder="选填，首次绑定后不可修改"></div><button type="submit" class="btn-primary btn-full">绑定账号</button><button type="button" id="btn-skip-bind" class="btn-secondary btn-full" onclick="skipBind()">暂不绑定，进入访客模式</button></form><div id="login-error" class="error-message"></div></div></div>
 
-    <!-- 换绑申请弹窗 -->
-    <div id="rebind-modal" class="modal">
-        <div class="modal-content">
-            <button class="modal-close" onclick="closeRebindDialog()">×</button>
-            <h2>申请换绑账号</h2>
-            <p class="modal-desc">换绑需要管理员审批</p>
-            <form id="rebind-form" onsubmit="handleRebind(event)">
-                <div class="form-group">
-                    <label for="new-username">新学号</label>
-                    <input type="text" id="new-username" name="new_username" required placeholder="请输入新学号">
-                </div>
-                <div class="form-group">
-                    <label for="reason">换绑原因</label>
-                    <textarea id="reason" name="reason" required placeholder="请说明换绑原因"></textarea>
-                </div>
-                <button type="submit" class="submit-btn">提交申请</button>
-            </form>
-            <div id="rebind-error" class="error-message"></div>
-        </div>
-    </div>
+    <div id="rebind-modal" class="modal"><div class="modal-content"><button class="modal-close" type="button" onclick="closeRebindDialog()">x</button><h2>申请换绑账号</h2><p class="modal-desc">换绑需要管理员审核，通过后才会替换当前绑定账号。</p><form id="rebind-form" onsubmit="handleRebind(event)"><div class="form-group"><label for="new-username">新学号</label><input type="text" id="new-username" name="new_username" required placeholder="请输入新学号"></div><div class="form-group"><label for="reason">换绑原因</label><textarea id="reason" name="reason" required placeholder="请说明换绑原因"></textarea></div><button type="submit" class="btn-primary btn-full">提交申请</button></form><div id="rebind-error" class="error-message"></div></div></div>
 
-    <!-- 公告弹窗 -->
-    <div id="announcement-popup" class="modal announcement-popup">
-        <div class="modal-content announcement-modal-content">
-            <button class="modal-close" onclick="closeAnnouncementPopup()">×</button>
-            <h2 id="announcement-popup-title">系统公告</h2>
-            <div id="announcement-popup-content" class="announcement-popup-content"></div>
-            <div class="announcement-popup-footer">
-                <label class="never-show-label">
-                    <input type="checkbox" id="never-show-checkbox">
-                    不再显示此公告
-                </label>
-                <button class="close-announcement-btn" onclick="closeAnnouncementPopup()">关闭</button>
-            </div>
-        </div>
-    </div>
+    <div id="announcement-popup" class="modal announcement-popup"><div class="modal-content announcement-modal-content"><button class="modal-close" type="button" onclick="closeAnnouncementPopup()">x</button><h2 id="announcement-popup-title">系统公告</h2><div id="announcement-popup-content" class="announcement-popup-content"></div><div class="announcement-popup-footer"><label class="never-show-label"><input type="checkbox" id="never-show-checkbox"> 不再显示此公告</label><button class="btn-primary" type="button" onclick="closeAnnouncementPopup()">关闭</button></div></div></div>
 
-    <!-- 反馈修改弹窗 -->
-    <div id="feedback-modal" class="modal">
-        <div class="modal-content">
-            <button class="modal-close" onclick="closeFeedbackModal()">×</button>
-            <h2>反馈修改意见</h2>
-            <div class="feedback-info">
-                <span>论文标题：</span>
-                <span id="feedback-title" class="feedback-title-text"></span>
-            </div>
-            <div class="form-group">
-                <label for="feedback-content">修改意见</label>
-                <textarea id="feedback-content" rows="6" placeholder="请详细描述需要修改的内容，如：&#10;1. 第X章节需要补充...&#10;2. 参考文献格式不对...&#10;3. 结论部分需要加强..."></textarea>
-            </div>
-            <p class="feedback-hint">提交后论文将重新变为待处理状态，管理员将根据您的意见进行修改</p>
-            <div class="button-group">
-                <button type="button" class="submit-btn" id="submit-feedback-btn" onclick="submitFeedback()">提交反馈</button>
-                <button type="button" class="cancel-btn" onclick="closeFeedbackModal()">取消</button>
-            </div>
-        </div>
-    </div>
+    <div id="withdraw-modal" class="modal"><div class="modal-content"><button class="modal-close" type="button" onclick="closeWithdrawDialog()">x</button><h2>申请提现</h2><div id="withdraw-available" class="withdraw-available"><div class="loading">加载中...</div></div><form id="withdraw-form" onsubmit="handleWithdraw(event)"><div class="form-group"><label for="withdraw-real-name">真实姓名</label><input type="text" id="withdraw-real-name" required placeholder="请输入真实姓名"></div><div class="form-group"><label for="withdraw-alipay">支付宝账号</label><input type="text" id="withdraw-alipay" required placeholder="请输入支付宝账号"></div><button type="submit" class="btn-primary btn-full">提交提现申请</button></form><div id="withdraw-error" class="error-message"></div><div id="withdraw-history" class="withdraw-history"></div></div></div>
 
-    <!-- 满意签收弹窗 -->
-    <div id="receipt-modal" class="modal">
-        <div class="modal-content">
-            <button class="modal-close" onclick="closeReceiptModal()">×</button>
-            <h2>满意签收</h2>
-            <div class="feedback-info">
-                <span>论文标题：</span>
-                <span id="receipt-title" class="feedback-title-text"></span>
-            </div>
-            <div class="receipt-warning">
-                <span class="warning-icon">⚠️</span>
-                <div class="warning-content">
-                    <p><strong>请确保已经下载论文文件！</strong></p>
-                    <p>签收后该需求将被删除，无法再下载或修改。</p>
-                </div>
-            </div>
-            <div class="button-group">
-                <button type="button" class="submit-btn" id="confirm-receipt-btn" onclick="confirmReceipt()">确认签收</button>
-                <button type="button" class="cancel-btn" onclick="closeReceiptModal()">取消</button>
-            </div>
-        </div>
-    </div>
+    <div id="pay-modal" class="modal"><div class="modal-content"><button class="modal-close" type="button" onclick="closePayDialog()">x</button><h2 id="pay-modal-title">开通会员</h2><p id="pay-modal-desc" class="modal-desc"></p><div class="pay-type-options"><label><input type="radio" name="pay-type" value="alipay" checked> 支付宝</label><label><input type="radio" name="pay-type" value="wechat"> 微信</label></div><button id="pay-confirm-btn" class="btn-primary btn-full" type="button" onclick="confirmPay()">确认支付</button><div id="pay-error" class="error-message"></div></div></div>
 
-    <!-- 遮罩层 -->
+    <div id="semester-picker-modal" class="modal"><div class="modal-content"><button class="modal-close" type="button" onclick="closeSemesterPicker()">x</button><h2>选择学期</h2><div id="semester-picker-list" class="semester-picker-list"></div></div></div>
+
+    <div id="exam-picker-modal" class="modal"><div class="modal-content"><button class="modal-close" type="button" onclick="closeExamPicker()">x</button><h2 id="exam-picker-title">选择学期</h2><div id="exam-picker-body" class="exam-picker-body"></div></div></div>
+
+    <div id="course-detail-modal" class="modal"><div class="modal-content"><button class="modal-close" type="button" onclick="closeCourseDetail()">x</button><h2 id="course-detail-name">课程详情</h2><div id="course-detail-body" class="course-detail-body"></div></div></div>
+
+    <div id="other-major-modal" class="modal"><div class="modal-content"><button class="modal-close" type="button" onclick="closeOtherMajorModal()">x</button><h2>其它专业课程</h2><div id="other-major-modal-body" class="other-major-modal-body"></div></div></div>
+
     <div id="overlay" class="overlay" onclick="closeSidebar()"></div>
 
-    <!-- JavaScript -->
     <script src="/static/js/main.js"></script>
-    <script>
-        // 加载全局主题
-        fetch('/api/theme').then(r => r.json()).then(data => {
-            if (data.success && data.theme === 'spring') {
-                document.body.classList.add('theme-spring');
-            }
-        }).catch(() => {});
-    </script>
 </body>
 </html>

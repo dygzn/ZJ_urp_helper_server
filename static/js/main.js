@@ -1,7 +1,10 @@
 // ==================== 全局变量 ====================
-let currentWeek = parseInt(localStorage.getItem('current_week')) || 1;  // 当前查看的周次，从 localStorage 读取
-let currentUsername = null;  // 当前登录用户名
-let isCheckingLoginStatus = false;  // 是否正在检查登录状态
+let currentWeek = parseInt(localStorage.getItem('current_week')) || 1;
+let currentUsername = null;
+let isCheckingLoginStatus = false;
+let cachedSchedule = null;
+let semesterStart = null;   // 学期第1周星期一的日期
+let isGuestMode = false;    // 访客模式（未绑定账号）
 
 // ==================== 防止双击放大 ====================
 let lastTouchEnd = 0;
@@ -93,19 +96,19 @@ async function checkBindStatus() {
         });
         const data = await response.json();
 
+        if (data.rebind_notifications && data.rebind_notifications.length > 0) {
+            showRebindNotifications(data.rebind_notifications);
+        }
+
         if (data.success && data.bound) {
-            // 已绑定，显示用户名
             currentUsername = data.username;
             document.getElementById('sidebar-username').textContent = currentUsername;
 
-            // 恢复上次访问的页面，如果没有则默认首页
-            const lastPage = localStorage.getItem('current_page') || 'home';
+            let lastPage = localStorage.getItem('current_page') || 'home';
+            if (lastPage === 'tools') lastPage = 'home';
             switchPage(lastPage);
-
-            // 加载并显示公告
             loadAndShowAnnouncements();
         } else {
-            // 未绑定，显示登录弹窗
             showLoginModal();
         }
     } catch (error) {
@@ -125,12 +128,21 @@ function hideLoginModal() {
     modal.classList.remove('active');
 }
 
-// 处理登录表单提交
+function skipBind() {
+    isGuestMode = true;
+    hideLoginModal();
+    document.getElementById('sidebar-username').textContent = '访客';
+    switchPage('home');
+    loadAndShowAnnouncements();
+}
+
 async function handleLogin(event) {
     event.preventDefault();
 
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
+    const inviterInput = document.getElementById('inviter');
+    const inviter = inviterInput ? inviterInput.value.trim() : '';
     const errorDiv = document.getElementById('login-error');
 
     errorDiv.textContent = '';
@@ -142,7 +154,7 @@ async function handleLogin(event) {
                 'Content-Type': 'application/json',
                 'X-Device-ID': getDeviceId()
             },
-            body: JSON.stringify({ username, password })
+            body: JSON.stringify({ username, password, inviter })
         });
 
         const data = await response.json();
@@ -174,15 +186,25 @@ function closeRebindDialog() {
     document.getElementById('overlay').classList.remove('active');
 }
 
-// 处理换绑表单提交
 async function handleRebind(event) {
     event.preventDefault();
 
-    const newUsername = document.getElementById('new-username').value;
-    const reason = document.getElementById('reason').value;
+    const newUsername = document.getElementById('new-username').value.trim();
+    const reason = document.getElementById('reason').value.trim();
     const errorDiv = document.getElementById('rebind-error');
+    const submitBtn = document.querySelector('#rebind-form button[type="submit"]');
 
     errorDiv.textContent = '';
+
+    if (!newUsername || !reason) {
+        errorDiv.textContent = '请填写新学号和换绑原因';
+        return;
+    }
+
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = '提交中...';
+    }
 
     try {
         const response = await fetch('/api/request_rebind', {
@@ -191,13 +213,13 @@ async function handleRebind(event) {
                 'Content-Type': 'application/json',
                 'X-Device-ID': getDeviceId()
             },
-            body: JSON.stringify({ new_username: newUsername, reason: reason })
+            body: JSON.stringify({ new_username: newUsername, reason })
         });
 
         const data = await response.json();
 
         if (data.success) {
-            alert('换绑申请已提交，请等待管理员审批');
+            alert(data.message || '换绑申请已提交，请等待管理员审批');
             closeRebindDialog();
             document.getElementById('rebind-form').reset();
         } else {
@@ -206,7 +228,35 @@ async function handleRebind(event) {
     } catch (error) {
         console.error('提交换绑申请失败:', error);
         errorDiv.textContent = '网络错误，请重试';
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = '提交申请';
+        }
     }
+}
+
+function showRebindNotifications(notifications) {
+    const messages = notifications.map(n => {
+        if (n.status === 'approved') {
+            return `你的换绑申请（${n.old_username} → ${n.new_username}）已通过，请重新登录绑定新账号`;
+        }
+        if (n.status === 'rejected') {
+            return `你的换绑申请（${n.old_username} → ${n.new_username}）已被拒绝`;
+        }
+        return `你的换绑申请（${n.old_username} → ${n.new_username}）状态已更新`;
+    });
+    alert(messages.join('\n'));
+
+    const requestIds = notifications.map(n => n.request_id);
+    fetch('/api/rebind_notified', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Device-ID': getDeviceId()
+        },
+        body: JSON.stringify({ request_ids: requestIds })
+    }).catch(() => {});
 }
 
 // ==================== 侧边栏控制 ====================
@@ -258,11 +308,12 @@ function switchPage(pageName) {
         'home': '首页',
         'schedule': '课程表',
         'exams': '考试安排',
-        'grades': '学分绩点查询',
-        'experiments': '实验系统',
-        'evaluation': '教务评价',
-        'paper': '论文生成',
-        'announcements': '系统公告'
+        'grades': '成绩查询',
+        'evaluation': '教学评估',
+        'announcements': '系统公告',
+        'surveys': '问卷调查',
+        'feedback': '反馈建议',
+        'member': '会员购买',
     };
     document.getElementById('page-title').textContent = titles[pageName] || '首页';
 
@@ -284,6 +335,22 @@ function switchPage(pageName) {
 }
 
 function loadPageData(pageName) {
+    const needsBind = ['schedule', 'exams', 'grades', 'evaluation'];
+    if (isGuestMode && needsBind.includes(pageName)) {
+        const pages = {
+            'schedule': '课程表', 'exams': '考试安排', 'grades': '成绩查询',
+            'evaluation': '教务评价'
+        };
+        const targetPage = document.getElementById(`page-${pageName}`);
+        if (targetPage) {
+            targetPage.innerHTML = `
+                <div class="card" style="text-align:center;padding:40px 20px;">
+                    <p style="color:var(--text-secondary);margin-bottom:16px;">${pages[pageName]}需要绑定教务账号</p>
+                    <button class="btn-primary" onclick="showLoginModal()">立即绑定</button>
+                </div>`;
+        }
+        return;
+    }
     switch(pageName) {
         case 'home':
             loadUrgentEvent();
@@ -298,25 +365,36 @@ function loadPageData(pageName) {
         case 'grades':
             loadGrades();
             break;
-        case 'experiments':
-            loadExperiments();
-            break;
         case 'evaluation':
-            // 自动查询未评估课程
-            checkUnevaluatedCourses();
+            document.getElementById('evaluation-result').innerHTML = '';
             break;
         case 'announcements':
             loadAnnouncementsList();
+            break;
+        case 'surveys':
+            loadSurveysList();
+            break;
+        case 'feedback':
+            loadFeedbackPage();
+            break;
+        case 'member':
+            loadMemberPage();
             break;
     }
 }
 
 // ==================== 首页：加载紧急事件 ====================
 async function loadUrgentEvent() {
-    // 先检查登录状态
-    await checkLoginStatus();
+    // 后台检查登录状态（不阻塞日程加载）
+    checkLoginStatus();
 
     const contentDiv = document.getElementById('urgent-content');
+
+    if (isGuestMode) {
+        contentDiv.innerHTML = '<p style="text-align:center;color:var(--text-secondary);">绑定教务账号后可查看今日课程和考试安排</p>';
+        return;
+    }
+
     contentDiv.innerHTML = '<div class="loading">加载中</div>';
 
     try {
@@ -328,33 +406,217 @@ async function loadUrgentEvent() {
         const data = await response.json();
 
         if (data.success && data.event) {
+            updateScheduleTimeline(data.event.is_freshman);
             displayUrgentEvent(data.event);
+        } else if (data.success) {
+            updateScheduleTimeline(data.is_freshman);
+            contentDiv.innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">今天没有课程和考试，好好休息吧~</p>';
         } else {
-            contentDiv.innerHTML = '<p style="text-align:center;color:#999;">暂无紧急事项</p>';
+            contentDiv.innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">今天没有课程和考试，好好休息吧~</p>';
         }
     } catch (error) {
         console.error('加载紧急事件失败:', error);
-        contentDiv.innerHTML = '<p style="text-align:center;color:#f44336;">加载失败</p>';
+        contentDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
     }
 }
 
-function displayUrgentEvent(event) {
+// 倒计时定时器
+let countdownTimer = null;
+let nextCountdownTimer = null;
+
+// ==================== 校区作息时间 ====================
+let userIsFreshman = false;
+
+const PERIOD_TIMES_DEFAULT = [
+    { start: '08:20', end: '09:05' }, { start: '09:15', end: '10:00' },
+    { start: '10:15', end: '11:00' }, { start: '11:10', end: '11:55' },
+    { start: '14:10', end: '14:55' }, { start: '15:05', end: '15:50' },
+    { start: '16:05', end: '16:50' }, { start: '17:00', end: '17:45' },
+    { start: '19:00', end: '19:45' }, { start: '19:55', end: '20:40' },
+];
+
+const PERIOD_TIMES_FRESHMAN = [
+    { start: '08:00', end: '08:45' }, { start: '08:55', end: '09:40' },
+    { start: '09:55', end: '10:40' }, { start: '10:50', end: '11:35' },
+    { start: '13:30', end: '14:15' }, { start: '14:25', end: '15:10' },
+    { start: '15:25', end: '16:10' }, { start: '16:20', end: '17:05' },
+    { start: '18:30', end: '19:15' }, { start: '19:25', end: '20:10' },
+];
+
+function updateScheduleTimeline(isFreshman) {
+    userIsFreshman = !!isFreshman;
+    const times = isFreshman ? PERIOD_TIMES_FRESHMAN : PERIOD_TIMES_DEFAULT;
+    document.querySelectorAll('.timeline-item').forEach((item, i) => {
+        if (!times[i]) return;
+        item.querySelector('.timeline-time-start').textContent = times[i].start;
+        item.querySelector('.timeline-time-end').textContent = times[i].end;
+    });
+}
+
+function formatMinutes(minutes) {
+    if (minutes >= 60) {
+        const h = Math.floor(minutes / 60);
+        const m = minutes % 60;
+        return m > 0 ? `${h}小时${m}分钟` : `${h}小时`;
+    }
+    return `${minutes}分钟`;
+}
+
+function displayUrgentEvent(eventData) {
     const contentDiv = document.getElementById('urgent-content');
 
-    const typeText = event.type === 'class' ? '📚 下一节课' : '📝 即将考试';
-    const seatHtml = event.seat ? `<div class="event-seat">座位号: ${event.seat}</div>` : '';
+    if (countdownTimer) {
+        clearInterval(countdownTimer);
+        countdownTimer = null;
+    }
+    if (nextCountdownTimer) {
+        clearInterval(nextCountdownTimer);
+        nextCountdownTimer = null;
+    }
 
-    contentDiv.innerHTML = `
-        <div class="event-card">
-            <div class="event-type">${typeText}</div>
-            <div class="event-title">${event.title}</div>
-            <div class="event-location">📍 ${event.location}</div>
-            <div class="event-time">🕐 ${event.time}</div>
-            <div class="countdown">${event.countdown}</div>
-            <div class="countdown-label">分钟后开始</div>
-            ${seatHtml}
-        </div>
-    `;
+    const current = eventData.current;
+    const next = eventData.next;
+
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+
+    function parseDateStr(timeStr) {
+        return timeStr ? timeStr.split(' ')[0] : null;
+    }
+
+    function getStartTime(timeStr) {
+        if (!timeStr) return '';
+        const t = timeStr.split(' ')[1] || '';
+        return t.split('-')[0];
+    }
+
+    function getTimeLabel(timeStr) {
+        const datePart = parseDateStr(timeStr);
+        if (!datePart) return timeStr;
+        const startTime = getStartTime(timeStr);
+        const eventDate = new Date(datePart + 'T00:00:00');
+        const todayDate = new Date(todayStr + 'T00:00:00');
+        const diffDays = Math.round((eventDate - todayDate) / 86400000);
+        const dayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+        const dayName = dayNames[eventDate.getDay()];
+
+        if (diffDays === 0) return `今天 ${startTime}`;
+        if (diffDays === 1) return `明天 ${startTime}`;
+        if (diffDays === 2) return `后天 ${startTime}`;
+        if (diffDays <= 6) return `${dayName} ${startTime}`;
+        if (diffDays <= 13) return `下周${dayName.slice(1)} ${startTime}`;
+        const m = eventDate.getMonth() + 1;
+        const d = eventDate.getDate();
+        return `${m}月${d}日 ${startTime}`;
+    }
+
+    const nextDateStr = next ? parseDateStr(next.time) : null;
+    const nextIsToday = nextDateStr === todayStr;
+    const noMoreToday = !current && !nextIsToday;
+
+    let html = '';
+
+    // 今天没课或课程已结束时，显示关怀语
+    if (noMoreToday) {
+        const dow = now.getDay();
+        const nextDiffDays = nextDateStr
+            ? Math.round((new Date(nextDateStr + 'T00:00:00') - new Date(todayStr + 'T00:00:00')) / 86400000)
+            : 999;
+        let restMsg;
+        if (dow === 5 && nextDiffDays >= 3) {
+            // 周五且下一节课不在本周末
+            restMsg = '周末快乐！好好放松一下吧~';
+        } else if (dow === 6 && nextDiffDays >= 2) {
+            // 周六且下一节课不是周日
+            restMsg = '周末愉快，充充电准备新的一周~';
+        } else {
+            restMsg = '今天没课了，好好休息~';
+        }
+        html += `<p class="rest-message">${restMsg}</p>`;
+    }
+
+    // 正在进行的课程（保留倒计时）
+    if (current) {
+        html += `
+            <div class="event-card event-card-current">
+                <div class="event-type">正在进行</div>
+                <div class="event-title">${current.title}</div>
+                <div class="event-location">${current.location}</div>
+                <div class="event-time">${current.time}</div>
+                <div class="countdown" id="current-remaining">${current.remaining}分钟</div>
+                <div class="countdown-label">后下课</div>
+            </div>
+        `;
+    }
+
+    // 下一个事件
+    if (next) {
+        let typeText;
+        if (next.type === 'exam') {
+            typeText = '考试提醒';
+        } else if (nextIsToday && current) {
+            typeText = '接下来';
+        } else if (nextIsToday) {
+            typeText = '今天还有课';
+        } else {
+            typeText = '下一节课';
+        }
+        const seatHtml = next.seat ? `<div class="event-seat">座位号: ${next.seat}</div>` : '';
+        const timeLabel = getTimeLabel(next.time);
+        const nextCountdownHtml = (nextIsToday && next.countdown != null)
+            ? `<div class="countdown${next.countdown <= 10 ? ' countdown-urgent' : ''}" id="next-remaining">${formatMinutes(next.countdown)}</div><div class="countdown-label">后上课</div>`
+            : '';
+
+        html += `
+            <div class="event-card${current ? ' event-card-next' : ' event-card-upcoming'}">
+                <div class="event-type">${typeText}</div>
+                <div class="event-title">${next.title}</div>
+                <div class="event-location">${next.location}</div>
+                <div class="event-time-label">${timeLabel}</div>
+                ${seatHtml}
+                ${nextCountdownHtml}
+            </div>
+        `;
+    } else if (!current) {
+        html += '<p class="rest-message" style="margin-top:8px;font-size:13px;">近期没有更多课程安排</p>';
+    }
+
+    contentDiv.innerHTML = html;
+
+    // 正在进行中的课程倒计时（每分钟更新）
+    if (current) {
+        let currentRemaining = current.remaining;
+        countdownTimer = setInterval(() => {
+            currentRemaining--;
+            const el = document.getElementById('current-remaining');
+            if (!el || currentRemaining <= 0) {
+                clearInterval(countdownTimer);
+                countdownTimer = null;
+                loadUrgentEvent();
+                return;
+            }
+            el.textContent = `${currentRemaining}分钟`;
+        }, 60000);
+    }
+
+    // 下一节课倒计时（每分钟更新）
+    if (next && nextIsToday && next.countdown != null) {
+        let nextRemaining = next.countdown;
+        nextCountdownTimer = setInterval(() => {
+            nextRemaining--;
+            const el = document.getElementById('next-remaining');
+            if (!el || nextRemaining <= 0) {
+                clearInterval(nextCountdownTimer);
+                nextCountdownTimer = null;
+                loadUrgentEvent();
+                return;
+            }
+            el.textContent = formatMinutes(nextRemaining);
+            if (nextRemaining <= 10) {
+                el.classList.add('countdown-urgent');
+            }
+        }, 60000);
+    }
 }
 
 function refreshUrgentEvent() {
@@ -362,6 +624,142 @@ function refreshUrgentEvent() {
 }
 
 // ==================== 课程表相关 ====================
+// 其他班级课表功能
+let otherMajorScheduleData = null;  // 临时存储其他班级课表，不覆盖 cachedSchedule
+let gradeData = {};      // {grade: {major: [class_num, ...]}}，加载一次后缓存
+let omSelected = { grade: null, major: null, class_num: null };  // 弹窗内当前选中状态
+
+async function showOtherMajorModal() {
+    const modal = document.getElementById('other-major-modal');
+    const overlay = document.getElementById('overlay');
+    const body = document.getElementById('other-major-modal-body');
+
+    modal.classList.add('active');
+    overlay.classList.add('active');
+
+    if (Object.keys(gradeData).length > 0) {
+        _renderOtherMajorModal();
+        return;
+    }
+
+    body.innerHTML = '<div class="loading">加载中...</div>';
+    try {
+        const resp = await fetch('/api/schedule/other_majors', {
+            headers: { 'X-Device-ID': getDeviceId() }
+        });
+        const data = await resp.json();
+        if (!data.success || !Object.keys(data.data).length) {
+            body.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:20px 0;">暂无其他班级的课表数据</p>';
+            return;
+        }
+        gradeData = data.data;
+        // 默认选第一个年级和专业
+        omSelected.grade = Object.keys(gradeData)[0];
+        omSelected.major = Object.keys(gradeData[omSelected.grade])[0];
+        omSelected.class_num = gradeData[omSelected.grade][omSelected.major][0];
+        _renderOtherMajorModal();
+    } catch (e) {
+        body.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:20px 0;">加载失败，请重试</p>';
+    }
+}
+
+function _renderOtherMajorModal() {
+    const grades = Object.keys(gradeData);
+    const majors = omSelected.grade ? Object.keys(gradeData[omSelected.grade] || {}) : [];
+    const classes = (omSelected.grade && omSelected.major)
+        ? (gradeData[omSelected.grade][omSelected.major] || []) : [];
+
+    document.getElementById('other-major-modal-body').innerHTML = `
+        <p class="other-major-section-label">年级</p>
+        <div class="other-major-chips">
+            ${grades.map(g => `
+                <button class="other-major-chip ${g === omSelected.grade ? 'selected' : ''}"
+                        onclick="omSelectGrade('${g}')">${g}级</button>
+            `).join('')}
+        </div>
+        <p class="other-major-section-label">专业</p>
+        <div class="other-major-chips">
+            ${majors.map(m => `
+                <button class="other-major-chip ${m === omSelected.major ? 'selected' : ''}"
+                        onclick="omSelectMajor('${m}')">${m}</button>
+            `).join('')}
+        </div>
+        <p class="other-major-section-label">班级</p>
+        <div class="other-major-chips">
+            ${classes.map(c => `
+                <button class="other-major-chip ${c === omSelected.class_num ? 'selected' : ''}"
+                        onclick="omSelectClass('${c}')">${c}班</button>
+            `).join('')}
+        </div>
+        <div class="other-major-confirm">
+            <button class="btn-primary btn-full" onclick="loadOtherMajorSchedule()">查看该班课表</button>
+        </div>
+    `;
+}
+
+function omSelectGrade(grade) {
+    omSelected.grade = grade;
+    omSelected.major = Object.keys(gradeData[grade] || {})[0] || null;
+    omSelected.class_num = omSelected.major ? (gradeData[grade][omSelected.major][0] || null) : null;
+    _renderOtherMajorModal();
+}
+
+function omSelectMajor(major) {
+    omSelected.major = major;
+    omSelected.class_num = (gradeData[omSelected.grade][major] || [])[0] || null;
+    _renderOtherMajorModal();
+}
+
+function omSelectClass(cls) {
+    omSelected.class_num = cls;
+    _renderOtherMajorModal();
+}
+
+function closeOtherMajorModal() {
+    document.getElementById('other-major-modal').classList.remove('active');
+    document.getElementById('overlay').classList.remove('active');
+}
+
+async function loadOtherMajorSchedule() {
+    const { grade, major, class_num } = omSelected;
+    if (!grade || !major || !class_num) return;
+
+    closeOtherMajorModal();
+
+    const scheduleMsg = document.getElementById('schedule-message');
+    scheduleMsg.style.display = 'block';
+    scheduleMsg.textContent = '加载中...';
+
+    try {
+        const resp = await fetch(`/api/schedule/other_major?grade=${encodeURIComponent(grade)}&major=${encodeURIComponent(major)}&class_num=${encodeURIComponent(class_num)}`, {
+            headers: { 'X-Device-ID': getDeviceId() }
+        });
+        const data = await resp.json();
+        if (!data.success) {
+            scheduleMsg.textContent = data.message || '加载失败';
+            return;
+        }
+        otherMajorScheduleData = data.data.schedule;
+        if (data.data.semester_start && !semesterStart) {
+            semesterStart = new Date(data.data.semester_start);
+        }
+        scheduleMsg.innerHTML = `${grade}级 专业${major} ${class_num}班（仅课程名与时间）&emsp;<button class="btn-secondary btn-sm" onclick="backToMySchedule()">返回我的课表</button>`;
+        displaySchedule({ [currentWeek]: otherMajorScheduleData[String(currentWeek)] || [] });
+    } catch (e) {
+        scheduleMsg.textContent = '加载失败，请重试';
+    }
+}
+
+function backToMySchedule() {
+    otherMajorScheduleData = null;
+    document.getElementById('schedule-message').style.display = 'none';
+    if (cachedSchedule) {
+        displaySchedule({ [currentWeek]: cachedSchedule[String(currentWeek)] || [] });
+    } else {
+        loadSchedule(currentWeek);
+    }
+}
+
 // 更新课程表数据（从服务器获取最新数据）
 async function updateScheduleData() {
     const btn = event.target;
@@ -381,6 +779,7 @@ async function updateScheduleData() {
 
         if (data.success) {
             alert('课程表更新成功');
+            cachedSchedule = null;  // 清除缓存，重新拉取
             // 重新加载课程表
             loadSchedule();
         } else {
@@ -388,31 +787,69 @@ async function updateScheduleData() {
         }
     } catch (error) {
         console.error('更新课程表失败:', error);
-        alert('网络错误，请重试');
+        alert('更新课程表失败，学校可能暂未开放课表查询');
     } finally {
         btn.disabled = false;
         btn.textContent = originalText;
     }
 }
 
-// 更新课程表按钮点击处理
-async function updateSchedule() {
-    // 直接加载当前周的课程表
-    loadSchedule();
-}
+async function loadSchedule(week = null, autoFetched = false) {
+    const scheduleDays = document.getElementById('schedule-days');
+    const messageDiv = document.getElementById('schedule-message');
 
-async function loadSchedule(week = null) {
-    const contentDiv = document.getElementById('schedule-content');
-
-    // 如果没有指定周次，使用当前周次
-    if (week === null) {
-        week = currentWeek;
+    // 根据学期开始日期算出实际当前周
+    function calcActualWeek() {
+        if (!semesterStart) return null;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const diffDays = Math.floor((today - semesterStart) / (1000 * 60 * 60 * 24));
+        if (diffDays < 0) return 1;
+        return Math.min(Math.floor(diffDays / 7) + 1, 25);
     }
 
-    const weekParam = `?week=${week}`;
+    // 没有指定周次时：优先用实际当前周，否则降级到上次记录
+    if (week === null) {
+        week = calcActualWeek() ?? currentWeek;
+    }
 
+    // 辅助函数：显示提示消息
+    function showMessage(text, isError = false) {
+        messageDiv.textContent = text;
+        messageDiv.className = 'schedule-message' + (isError ? ' schedule-message-error' : '');
+        messageDiv.style.display = 'block';
+    }
+
+    function hideMessage() {
+        messageDiv.style.display = 'none';
+    }
+
+    // 从缓存渲染指定周次
+    function renderFromCache(allSchedule, w) {
+        currentWeek = w;
+        localStorage.setItem('current_week', w);
+        updateScheduleDates(w);
+
+        const weekStr = String(w);
+        const weekData = allSchedule[weekStr] ? { [weekStr]: allSchedule[weekStr] } : {};
+        if (Object.keys(weekData).length > 0) {
+            hideMessage();
+            displaySchedule(weekData);
+        } else {
+            scheduleDays.innerHTML = '';
+            showMessage(`第${w}周没有课程`);
+        }
+    }
+
+    // 如果有缓存，直接从缓存渲染
+    if (cachedSchedule) {
+        renderFromCache(cachedSchedule, week);
+        return;
+    }
+
+    // 没有缓存，请求全量数据（不传 week 参数）
     try {
-        const response = await fetch(`/api/schedule${weekParam}`, {
+        const response = await fetch('/api/schedule', {
             headers: {
                 'X-Device-ID': getDeviceId()
             }
@@ -420,32 +857,64 @@ async function loadSchedule(week = null) {
         const data = await response.json();
 
         if (data.success && data.data) {
-            // 更新当前周次
-            if (data.data.week !== null) {
-                currentWeek = data.data.week;
-                document.getElementById('current-week').textContent = currentWeek;
-                // 保存当前周次到 localStorage
-                localStorage.setItem('current_week', currentWeek);
+            const schedule = data.data.schedule || {};
+            const hasData = Object.keys(schedule).length > 0;
+
+            if (data.data.semester_start) {
+                semesterStart = new Date(data.data.semester_start + 'T00:00:00');
+                // API 返回后重新算一次，覆盖之前的降级值
+                if (week === currentWeek) {
+                    week = calcActualWeek() ?? week;
+                }
             }
 
-            // 显示课程表（即使没有数据也显示空表格）
-            displaySchedule(data.data.schedule || {});
+            if (hasData) {
+                cachedSchedule = schedule;
+                renderFromCache(schedule, week);
+            } else if (!autoFetched) {
+                // 没有缓存数据，自动从教务系统获取
+                scheduleDays.innerHTML = '';
+                showMessage('正在从教务系统获取课表...');
+                try {
+                    const updateResp = await fetch('/api/update_schedule', {
+                        method: 'POST',
+                        headers: { 'X-Device-ID': getDeviceId() }
+                    });
+                    const updateData = await updateResp.json();
+                    if (updateData.success) {
+                        loadSchedule(week, true);
+                        return;
+                    } else {
+                        showMessage(updateData.message || '获取课表失败', true);
+                    }
+                } catch (e) {
+                    showMessage('获取课表失败，学校可能暂未开放查询', true);
+                }
+            } else {
+                scheduleDays.innerHTML = '';
+                showMessage(data.data.message || '暂无课程数据');
+            }
         } else {
-            contentDiv.innerHTML = `<p style="text-align:center;color:#999;padding:40px;">${data.message || '暂无课程数据'}</p>`;
+            scheduleDays.innerHTML = '';
+            showMessage(data.message || '暂无课程数据');
         }
     } catch (error) {
         console.error('加载课程表失败:', error);
-        contentDiv.innerHTML = '<p style="text-align:center;color:#f44336;padding:40px;">加载失败，请检查网络连接</p>';
+        scheduleDays.innerHTML = '';
+        showMessage('加载失败，请检查网络连接', true);
     }
 }
 
 function displaySchedule(schedule) {
     const scheduleDays = document.getElementById('schedule-days');
+    const scheduleGrid = document.querySelector('.schedule-grid');
 
     // 为每个星期创建课程列表
     const daysCourses = {
         1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: []
     };
+
+    let hasEvening = false;
 
     // 遍历所有周次的课程
     Object.values(schedule).forEach(weekCourses => {
@@ -457,11 +926,18 @@ function displaySchedule(schedule) {
                 const location = course['位置'] || '';
 
                 if (dayNum && section) {
+                    if (section >= 9) hasEvening = true;
                     daysCourses[dayNum].push({
+                        code: course['课程号'] || '',
                         name: course['课程名'],
+                        credit: course['学分'] || '',
+                        teacher: course['教师'] || '',
                         section: section,
                         duration: duration,
-                        location: location
+                        location: location,
+                        campus: course['校区'] || '',
+                        building: course['教学楼'] || '',
+                        room: course['教室'] || ''
                     });
                 }
             });
@@ -470,13 +946,17 @@ function displaySchedule(schedule) {
 
     // 检测是否是手机端
     const isMobile = window.innerWidth <= 768;
-    const sectionHeight = isMobile ? 60 : 80;
-    const gap = isMobile ? 4 : 8;
+    const sectionHeight = isMobile ? 56 : 76;
+    const gap = isMobile ? 3 : 6;
+
+    // 检测周末是否有课
+    const hasWeekend = daysCourses[6].length > 0 || daysCourses[7].length > 0;
 
     // 生成课程卡片HTML
     let html = '';
     for (let day = 1; day <= 7; day++) {
-        html += '<div class="schedule-day-column">';
+        const weekendClass = day >= 6 ? ' schedule-day-weekend' : '';
+        html += `<div class="schedule-day-column${weekendClass}">`;
 
         const courses = daysCourses[day];
         courses.forEach((course, index) => {
@@ -487,9 +967,26 @@ function displaySchedule(schedule) {
             // 为课程分配颜色（基于课程名称的哈希值）
             const colorIndex = getColorIndex(course.name);
 
+            const dayNames = ['', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'];
+            const courseData = encodeURIComponent(JSON.stringify({
+                code: course.code,
+                name: course.name,
+                credit: course.credit,
+                teacher: course.teacher,
+                day: dayNames[day] || `星期${day}`,
+                section: course.section,
+                duration: course.duration,
+                campus: course.campus,
+                building: course.building,
+                room: course.room,
+                location: course.location
+            }));
+
             html += `
                 <div class="course-card course-card-color-${colorIndex}"
-                     style="position: absolute; top: ${top}px; height: ${height}px; left: 0; right: 0;">
+                     style="position: absolute; top: ${top}px; height: ${height}px; left: 0; right: 0;"
+                     data-course="${courseData}"
+                     onclick="showCourseDetail(this)">
                     <div class="course-card-name">${course.name}</div>
                     ${course.location ? `<div class="course-card-location">${course.location}</div>` : ''}
                 </div>
@@ -500,21 +997,104 @@ function displaySchedule(schedule) {
     }
 
     scheduleDays.innerHTML = html;
+    scheduleGrid.classList.toggle('has-evening', hasEvening);
+    scheduleGrid.classList.toggle('no-weekend', !hasWeekend);
+    document.querySelector('.schedule-header').classList.toggle('no-weekend', !hasWeekend);
+    updateScheduleTimeline(userIsFreshman);
 }
 
 // 根据课程名称生成颜色索引
 function getColorIndex(courseName) {
-    let hash = 0;
+    let hash = 5381;
     for (let i = 0; i < courseName.length; i++) {
-        hash = courseName.charCodeAt(i) + ((hash << 5) - hash);
+        hash = ((hash << 5) + hash) ^ courseName.charCodeAt(i);
     }
-    return Math.abs(hash) % 10; // 10种颜色
+    return Math.abs(hash) % 15; // 15种颜色
+}
+
+function showCourseDetail(el) {
+    const course = JSON.parse(decodeURIComponent(el.dataset.course));
+    const modal = document.getElementById('course-detail-modal');
+    const endSection = course.section + course.duration - 1;
+
+    document.getElementById('course-detail-name').textContent = course.name;
+    document.getElementById('course-detail-body').innerHTML = `
+        ${course.code ? `<div class="course-detail-row"><span class="course-detail-label">课程号</span><span>${course.code}</span></div>` : ''}
+        ${course.teacher ? `<div class="course-detail-row"><span class="course-detail-label">教师</span><span>${course.teacher}</span></div>` : ''}
+        ${course.credit ? `<div class="course-detail-row"><span class="course-detail-label">学分</span><span>${course.credit}</span></div>` : ''}
+        <div class="course-detail-row"><span class="course-detail-label">时间</span><span>${course.day} 第${course.section}-${endSection}节</span></div>
+        ${course.location ? `<div class="course-detail-row"><span class="course-detail-label">地点</span><span>${course.location}</span></div>` : ''}
+        ${course.campus ? `<div class="course-detail-row"><span class="course-detail-label">校区</span><span>${course.campus}</span></div>` : ''}
+        ${course.building ? `<div class="course-detail-row"><span class="course-detail-label">教学楼</span><span>${course.building}</span></div>` : ''}
+        ${course.room ? `<div class="course-detail-row"><span class="course-detail-label">教室</span><span>${course.room}</span></div>` : ''}
+    `;
+
+    modal.classList.add('active');
+}
+
+function closeCourseDetail() {
+    document.getElementById('course-detail-modal').classList.remove('active');
 }
 
 function changeWeek(delta) {
     const newWeek = currentWeek + delta;
-    if (newWeek >= 1 && newWeek <= 30) {  // 假设最多30周
-        loadSchedule(newWeek);
+    if (newWeek >= 1 && newWeek <= 25) {
+        if (otherMajorScheduleData) {
+            currentWeek = newWeek;
+            document.getElementById('week-select').value = newWeek;
+            updateScheduleDates(newWeek);
+            displaySchedule({ [newWeek]: otherMajorScheduleData[String(newWeek)] || [] });
+        } else {
+            loadSchedule(newWeek);
+        }
+    }
+}
+
+function updateScheduleDates(week) {
+    // 同步下拉框
+    const select = document.getElementById('week-select');
+    if (select) {
+        if (select.options.length === 0) {
+            for (let w = 1; w <= 25; w++) {
+                const opt = document.createElement('option');
+                opt.value = w;
+                opt.textContent = `第 ${w} 周`;
+                select.appendChild(opt);
+            }
+        }
+        select.value = week;
+    }
+
+    if (!semesterStart) return;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    for (let day = 1; day <= 7; day++) {
+        const dateEl = document.getElementById(`schedule-date-${day}`);
+        const dayEl = document.getElementById(`schedule-day-${day}`);
+        if (!dateEl) continue;
+
+        const date = new Date(semesterStart);
+        date.setDate(date.getDate() + (week - 1) * 7 + (day - 1));
+
+        const m = date.getMonth() + 1;
+        const d = date.getDate();
+        dateEl.textContent = `${m}月${d}日`;
+
+        // 高亮今天
+        if (dayEl) {
+            dayEl.classList.toggle('schedule-day-today', date.getTime() === today.getTime());
+        }
+    }
+}
+
+function jumpToWeek(week) {
+    if (otherMajorScheduleData) {
+        currentWeek = week;
+        updateScheduleDates(week);
+        displaySchedule({ [week]: otherMajorScheduleData[String(week)] || [] });
+    } else {
+        loadSchedule(week);
     }
 }
 
@@ -545,14 +1125,14 @@ async function updateExamsData() {
         }
     } catch (error) {
         console.error('更新考试安排失败:', error);
-        alert('网络错误，请重试');
+        alert('更新考试安排失败，学校可能暂未开放考试查询');
     } finally {
         btn.disabled = false;
         btn.textContent = originalText;
     }
 }
 
-async function loadExams() {
+async function loadExams(autoFetched = false) {
     const contentDiv = document.getElementById('exams-content');
     contentDiv.innerHTML = '<div class="loading">加载中</div>';
 
@@ -566,12 +1146,30 @@ async function loadExams() {
 
         if (data.success && data.exams && data.exams.length > 0) {
             displayExams(data.exams);
+        } else if (!autoFetched) {
+            // 没有缓存数据，自动从教务系统获取
+            contentDiv.innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">正在从教务系统获取考试安排...</p>';
+            try {
+                const updateResp = await fetch('/api/update_exams', {
+                    method: 'POST',
+                    headers: { 'X-Device-ID': getDeviceId() }
+                });
+                const updateData = await updateResp.json();
+                if (updateData.success) {
+                    loadExams(true);
+                    return;
+                } else {
+                    contentDiv.innerHTML = `<p style="text-align:center;color:var(--error);">${updateData.message || '获取考试安排失败'}</p>`;
+                }
+            } catch (e) {
+                contentDiv.innerHTML = '<p style="text-align:center;color:var(--error);">获取考试安排失败，学校可能暂未开放查询</p>';
+            }
         } else {
-            contentDiv.innerHTML = '<p style="text-align:center;color:#999;">暂无考试安排</p>';
+            contentDiv.innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">暂无考试安排</p>';
         }
     } catch (error) {
         console.error('加载考试安排失败:', error);
-        contentDiv.innerHTML = '<p style="text-align:center;color:#f44336;">加载失败</p>';
+        contentDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
     }
 }
 
@@ -612,8 +1210,26 @@ function displayExams(exams) {
                 timeInfo = exam.time;
             }
 
+            // 计算倒计时和紧急程度
+            let urgencyClass = 'exam-normal';
+            let countdownHtml = '';
+            if (exam.date) {
+                const examDate = new Date(exam.date);
+                const now = new Date();
+                const diffDays = Math.ceil((examDate - now) / (1000 * 60 * 60 * 24));
+                if (diffDays <= 3 && diffDays >= 0) {
+                    urgencyClass = 'exam-urgent';
+                    countdownHtml = `<div class="exam-countdown" style="color:var(--error);">${diffDays}天后考试</div>`;
+                } else if (diffDays <= 7 && diffDays > 3) {
+                    urgencyClass = 'exam-soon';
+                    countdownHtml = `<div class="exam-countdown" style="color:var(--warning);">${diffDays}天后考试</div>`;
+                } else if (diffDays > 7) {
+                    countdownHtml = `<div class="exam-countdown" style="color:var(--accent);">${diffDays}天后考试</div>`;
+                }
+            }
+
             html += `
-                <div class="exam-card">
+                <div class="exam-card ${urgencyClass}">
                     <div class="exam-course">${exam.course}</div>
                     <div class="exam-info">
                         <div class="exam-info-item">
@@ -626,6 +1242,7 @@ function displayExams(exams) {
                             <strong>座位号:</strong> ${exam.seat}
                         </div>
                     </div>
+                    ${countdownHtml}
                 </div>
             `;
         });
@@ -640,30 +1257,315 @@ function displayExams(exams) {
 }
 
 // ==================== 成绩查询相关 ====================
-async function loadGrades() {
-    // 先检查登录状态
+
+function gradesBackToMenu() {
+    document.getElementById('grades-menu').style.display = '';
+    document.getElementById('grades-result').style.display = 'none';
+}
+
+function gradesShowResult(title) {
+    document.getElementById('grades-menu').style.display = 'none';
+    document.getElementById('grades-result').style.display = '';
+    document.getElementById('grades-result-title').textContent = title;
+    document.getElementById('grades-content').innerHTML = '<div class="loading">加载中</div>';
+}
+
+function gradesEscape(value) {
+    return String(value ?? '').replace(/[&<>"']/g, ch => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    }[ch]));
+}
+
+function gradesScoreClass(scoreValue) {
+    const score = parseFloat(scoreValue);
+    if (isNaN(score)) return 'score-medium';
+    if (score >= 90) return 'score-high';
+    if (score < 60) return 'score-low';
+    return 'score-medium';
+}
+
+function gradesBuildSimpleTable(grades) {
+    let html = '<table class="grades-table"><thead><tr><th>课程名称</th><th>成绩</th></tr></thead><tbody>';
+    grades.forEach(grade => {
+        const scoreClass = gradesScoreClass(grade.score);
+        html += `<tr><td>${gradesEscape(grade.course || '-')}</td><td class="${scoreClass}">${gradesEscape(grade.score || '-')}</td></tr>`;
+    });
+    return html + '</tbody></table>';
+}
+
+function gradesFormatExamTime(value) {
+    const s = String(value || '').trim();
+    return s.length === 8 ? `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}` : (s || '-');
+}
+
+function gradesBuildFailedTable(list) {
+    let html = '<table class="grades-table"><thead><tr><th>课程名称</th><th>学分</th><th>成绩</th><th>考试时间</th></tr></thead><tbody>';
+    list.forEach(g => {
+        html += `<tr><td>${gradesEscape(g.course || '-')}</td><td>${gradesEscape(g.credit || '-')}</td><td class="score-low">${gradesEscape(g.score || '-')}</td><td>${gradesEscape(gradesFormatExamTime(g.exam_time))}</td></tr>`;
+    });
+    return html + '</tbody></table>';
+}
+
+async function gradesLoadLatestSummary() {
     await checkLoginStatus();
-
-    const contentDiv = document.getElementById('grades-content');
-    contentDiv.innerHTML = '<div class="loading">加载中</div>';
-
+    gradesShowResult('一键查本学期成绩');
     try {
-        const response = await fetch('/api/grades', {
-            headers: {
-                'X-Device-ID': getDeviceId()
-            }
-        });
-        const data = await response.json();
+        const resp = await fetch('/api/grades/latest_summary', { headers: { 'X-Device-ID': getDeviceId() } });
+        const data = await resp.json();
+        if (!data.success) {
+            document.getElementById('grades-content').innerHTML = `<p style="text-align:center;color:var(--error);">${gradesEscape(data.message || '查询失败')}</p>`;
+            return;
+        }
 
+        const passed = data.passed || [];
+        const failed = data.failed || {};
+        const currentFailed = failed.current || [];
+        const pastFailed = failed.past || [];
+        const semester = data.semester || '最新学期';
+        let html = `
+            <div class="grade-summary-meta">
+                <span>最新学期：${gradesEscape(semester)}</span>
+                <span>及格 ${passed.length} 门</span>
+                <span>尚不及格 ${currentFailed.length} 门</span>
+                <span>曾不及格 ${pastFailed.length} 门</span>
+            </div>
+        `;
+
+        html += '<div class="failed-section">';
+        html += '<div class="failed-section-title passed-latest">最新学期及格成绩</div>';
+        html += passed.length ? gradesBuildSimpleTable(passed) : '<p class="grade-summary-empty">最新学期暂无及格成绩数据</p>';
+        html += '</div>';
+
+        html += '<div class="failed-section">';
+        html += '<div class="failed-section-title failed-current">尚不及格</div>';
+        html += currentFailed.length ? gradesBuildFailedTable(currentFailed) : '<p class="grade-summary-empty">暂无尚不及格成绩</p>';
+        html += '</div>';
+
+        html += '<div class="failed-section">';
+        html += '<div class="failed-section-title failed-past">曾不及格</div>';
+        html += pastFailed.length ? gradesBuildFailedTable(pastFailed) : '<p class="grade-summary-empty">暂无曾不及格成绩</p>';
+        html += '</div>';
+
+        document.getElementById('grades-content').innerHTML = html;
+    } catch (e) {
+        document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+    }
+}
+async function gradesShowCurrentSemester() {
+    await checkLoginStatus();
+    gradesShowResult('本学期成绩');
+    try {
+        const resp = await fetch('/api/grades/current', { headers: { 'X-Device-ID': getDeviceId() } });
+        const data = await resp.json();
+        if (data.success && data.grades && data.grades.length > 0) {
+            displayGrades(data.grades);
+        } else if (!data.success) {
+            document.getElementById('grades-content').innerHTML = `<p style="text-align:center;color:var(--error);">${data.message || '查询失败'}</p>`;
+        } else {
+            document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">暂无成绩数据</p>';
+        }
+    } catch (e) {
+        document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+    }
+}
+
+async function gradesShowSemesterPicker() {
+    await checkLoginStatus();
+    const modal = document.getElementById('semester-picker-modal');
+    const overlay = document.getElementById('overlay');
+    const list = document.getElementById('semester-picker-list');
+    list.innerHTML = '<div class="loading">加载中...</div>';
+    modal.classList.add('active');
+    overlay.classList.add('active');
+    try {
+        const resp = await fetch('/api/grades/semesters', { headers: { 'X-Device-ID': getDeviceId() } });
+        const data = await resp.json();
+        if (!data.success || !data.semesters.length) {
+            list.innerHTML = '<p style="color:var(--text-tertiary);text-align:center;">暂无学期数据</p>';
+            return;
+        }
+        list.innerHTML = data.semesters.map(s => `
+            <button class="semester-option-btn" onclick="gradesPickSemester('${s.replace(/'/g, "\\'")}')">${s}</button>
+        `).join('');
+    } catch (e) {
+        list.innerHTML = '<p style="color:var(--error);text-align:center;">加载失败</p>';
+    }
+}
+
+function closeSemesterPicker() {
+    document.getElementById('semester-picker-modal').classList.remove('active');
+    document.getElementById('overlay').classList.remove('active');
+}
+
+async function gradesPickSemester(semester) {
+    closeSemesterPicker();
+    gradesShowResult(`及格成绩（${semester}）`);
+    try {
+        const resp = await fetch(`/api/grades/by_semester?semester=${encodeURIComponent(semester)}`, { headers: { 'X-Device-ID': getDeviceId() } });
+        const data = await resp.json();
         if (data.success && data.grades && data.grades.length > 0) {
             displayGrades(data.grades);
         } else {
-            contentDiv.innerHTML = '<p style="text-align:center;color:#999;">暂无成绩数据</p>';
+            document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">该学期暂无成绩数据</p>';
         }
-    } catch (error) {
-        console.error('加载成绩失败:', error);
-        contentDiv.innerHTML = '<p style="text-align:center;color:#f44336;">加载失败</p>';
+    } catch (e) {
+        document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
     }
+}
+
+async function gradesLoadFailed() {
+    await checkLoginStatus();
+    gradesShowResult('不及格成绩');
+    try {
+        const resp = await fetch('/api/grades/failed', { headers: { 'X-Device-ID': getDeviceId() } });
+        const data = await resp.json();
+        if (!data.success) {
+            document.getElementById('grades-content').innerHTML = `<p style="text-align:center;color:var(--error);">${data.message || '查询失败'}</p>`;
+            return;
+        }
+        const current = data.current || [];
+        const past = data.past || [];
+        if (current.length === 0 && past.length === 0) {
+            document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">没有不及格成绩，继续加油！</p>';
+            return;
+        }
+        let html = '';
+        const fmtDate = s => (s && s.length === 8) ? `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}` : (s || '-');
+        const buildTable = (list) => {
+            let t = '<table class="grades-table"><thead><tr><th>课程名称</th><th>学分</th><th>成绩</th><th>考试时间</th></tr></thead><tbody>';
+            list.forEach(g => {
+                t += `<tr><td>${g.course}</td><td>${g.credit}</td><td class="score-low">${g.score}</td><td>${fmtDate(g.exam_time)}</td></tr>`;
+            });
+            return t + '</tbody></table>';
+        };
+        if (current.length > 0) {
+            html += `<div class="failed-section"><div class="failed-section-title failed-current">尚不及格</div>${buildTable(current)}</div>`;
+        }
+        if (past.length > 0) {
+            html += `<div class="failed-section"><div class="failed-section-title failed-past">曾不及格</div>${buildTable(past)}</div>`;
+        }
+        document.getElementById('grades-content').innerHTML = html;
+    } catch (e) {
+        document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+    }
+}
+
+async function gradesLoadGpa() {
+    await checkLoginStatus();
+    gradesShowResult('学分绩点');
+    try {
+        const resp = await fetch('/api/grades/gpa', { headers: { 'X-Device-ID': getDeviceId() } });
+        const data = await resp.json();
+        if (!data.success) {
+            document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+            return;
+        }
+        const gpa = data.gpa;
+        const creditGpa = gpa['学分绩点'];
+        const degreeGpa = gpa['学位绩点'];
+        let html = '<div class="gpa-info-card"><h3 class="gpa-title">绩点信息</h3><div class="gpa-items">';
+        if (creditGpa !== null && creditGpa !== undefined) {
+            html += `<div class="gpa-item"><span class="gpa-label">学分绩点</span><span class="gpa-value">${creditGpa}</span></div>`;
+        }
+        if (degreeGpa !== null && degreeGpa !== undefined) {
+            html += `<div class="gpa-item"><span class="gpa-label">学位绩点</span><span class="gpa-value">${degreeGpa}</span></div>`;
+        }
+        html += '</div></div>';
+        document.getElementById('grades-content').innerHTML = html;
+    } catch (e) {
+        document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+    }
+}
+
+// ==================== 考试成绩选择器 ====================
+
+let _examSessions = null; // 缓存会话数据
+
+async function gradesShowExamPicker() {
+    await checkLoginStatus();
+    const modal = document.getElementById('exam-picker-modal');
+    const overlay = document.getElementById('overlay');
+    modal.classList.add('active');
+    overlay.classList.add('active');
+    document.getElementById('exam-picker-title').textContent = '选择学期';
+    const body = document.getElementById('exam-picker-body');
+    body.innerHTML = '<div class="loading">加载中...</div>';
+
+    if (!_examSessions) {
+        try {
+            const resp = await fetch('/api/grades/exam_sessions', { headers: { 'X-Device-ID': getDeviceId() } });
+            const data = await resp.json();
+            if (!data.success) {
+                body.innerHTML = `<p style="color:var(--error);text-align:center;">${data.message || '加载失败'}</p>`;
+                return;
+            }
+            _examSessions = data;
+        } catch (e) {
+            body.innerHTML = '<p style="color:var(--error);text-align:center;">加载失败</p>';
+            return;
+        }
+    }
+
+    // 倒序取最新 8 个学期
+    const semesters = [..._examSessions.semesters].reverse().slice(0, 8);
+    body.innerHTML = semesters.map(s =>
+        `<button class="semester-option-btn" onclick="examPickSemester('${s.value}', '${s.text.replace(/'/g, "\\'")}')">${s.text}</button>`
+    ).join('');
+}
+
+function examPickSemester(jxzxjh, semesterText) {
+    document.getElementById('exam-picker-title').textContent = semesterText;
+    const exams = (_examSessions.exams || []).filter(e => e.jxzxjh === jxzxjh);
+    const body = document.getElementById('exam-picker-body');
+    if (exams.length === 0) {
+        body.innerHTML = '<p style="color:var(--text-tertiary);text-align:center;">该学期暂无考试记录</p>';
+        return;
+    }
+    body.innerHTML = exams.map(e =>
+        `<button class="semester-option-btn" onclick="examPickExam('${e.jxzxjh}','${e.ksbh}','${e.name.replace(/'/g, "\\'")}')">${e.name}</button>`
+    ).join('');
+}
+
+async function examPickExam(jxzxjh, ksbh, examName) {
+    closeExamPicker();
+    gradesShowResult(examName);
+    try {
+        const resp = await fetch(`/api/grades/exam_scores?jxzxjh=${encodeURIComponent(jxzxjh)}&ksbh=${encodeURIComponent(ksbh)}`, {
+            headers: { 'X-Device-ID': getDeviceId() }
+        });
+        const data = await resp.json();
+        if (!data.success) {
+            document.getElementById('grades-content').innerHTML = `<p style="text-align:center;color:var(--error);">${data.message || '查询失败'}</p>`;
+            return;
+        }
+        if (!data.grades || data.grades.length === 0) {
+            document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">暂无成绩数据</p>';
+            return;
+        }
+        let html = '<table class="grades-table"><thead><tr><th>课程名称</th><th>学分</th><th>成绩</th></tr></thead><tbody>';
+        data.grades.forEach(g => {
+            const scoreClass = (parseFloat(g.score) < 60) ? 'score-low' : '';
+            html += `<tr><td>${g.course}</td><td>${g.credit}</td><td class="${scoreClass}">${g.score || '-'}</td></tr>`;
+        });
+        html += '</tbody></table>';
+        document.getElementById('grades-content').innerHTML = html;
+    } catch (e) {
+        document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+    }
+}
+
+function closeExamPicker() {
+    document.getElementById('exam-picker-modal').classList.remove('active');
+    document.getElementById('overlay').classList.remove('active');
+}
+
+// 切换到成绩页时不自动加载，等用户点击功能按钮
+function loadGrades() {
+    gradesBackToMenu();
 }
 
 function displayGrades(grades) {
@@ -739,97 +1641,80 @@ function displayGrades(grades) {
     contentDiv.innerHTML = html;
 }
 
-// ==================== 实验系统相关 ====================
-async function loadExperiments() {
-    // 先检查登录状态
-    await checkLoginStatus();
-
-    const contentDiv = document.getElementById('experiments-content');
-    contentDiv.innerHTML = '<div class="loading">加载中</div>';
-
-    try {
-        const response = await fetch('/api/experiments', {
-            headers: {
-                'X-Device-ID': getDeviceId()
-            }
-        });
-        const data = await response.json();
-
-        if (data.success && data.experiments && data.experiments.length > 0) {
-            displayExperiments(data.experiments);
-        } else {
-            contentDiv.innerHTML = '<p style="text-align:center;color:#999;">暂无实验数据</p>';
-        }
-    } catch (error) {
-        console.error('加载实验数据失败:', error);
-        contentDiv.innerHTML = '<p style="text-align:center;color:#f44336;">加载失败</p>';
-    }
-}
-
-function displayExperiments(experiments) {
-    const contentDiv = document.getElementById('experiments-content');
-
-    let html = '';
-    experiments.forEach(exp => {
-        const statusClass = exp.status === '已完成' ? 'status-completed' : 'status-pending';
-
-        html += `
-            <div class="experiment-card">
-                <div>
-                    <div class="experiment-name">${exp.name}</div>
-                    <div style="font-size:12px;color:#666;margin-top:5px;">成绩: ${exp.score || '未评分'}</div>
-                </div>
-                <div class="experiment-status ${statusClass}">${exp.status}</div>
-            </div>
-        `;
-    });
-
-    contentDiv.innerHTML = html;
-}
-
 // ==================== 教务评价相关 ====================
-// 全局变量：保存未评估课程的完整数据
+
 let unevaluatedCoursesData = [];
 
-async function checkUnevaluatedCourses() {
-    // 先检查登录状态
+async function doFullEvaluation() {
     await checkLoginStatus();
-
     const resultDiv = document.getElementById('evaluation-result');
+    const btn = document.getElementById('do-eval-btn');
+    btn.disabled = true; btn.textContent = '评估中...';
     resultDiv.innerHTML = '<div class="loading">正在查询未评估课程...</div>';
 
     try {
-        const response = await fetch('/api/unevaluated_courses', {
-            headers: {
-                'X-Device-ID': getDeviceId()
-            }
-        });
-
+        const response = await fetch('/api/unevaluated_courses', { headers: { 'X-Device-ID': getDeviceId() } });
         const data = await response.json();
 
+        if (!data.success) {
+            resultDiv.className = 'evaluation-result result-error';
+            resultDiv.textContent = data.message || '查询失败';
+            btn.disabled = false; btn.textContent = '完成教学评估'; return;
+        }
+
+        if (!data.has_courses) {
+            resultDiv.className = 'evaluation-result result-success';
+            resultDiv.innerHTML = `<div style="text-align:center;padding:20px;"><div style="font-size:40px;margin-bottom:10px;color:var(--success);">✓</div><div style="font-size:17px;color:var(--success);font-weight:600;">${data.message || '没有未评估的课程'}</div></div>`;
+            btn.disabled = false; btn.textContent = '完成教学评估'; return;
+        }
+
+        // 显示找到的课程
+        let coursesHtml = '<div style="margin-bottom:15px;">';
+        data.courses.forEach(course => {
+            coursesHtml += `<div style="background:var(--bg-secondary);padding:10px 14px;margin-bottom:6px;border-radius:10px;"><span style="font-weight:600;">${course['未评课程']}</span><span style="color:var(--text-secondary);margin-left:10px;">教师: ${course['教师']}</span></div>`;
+        });
+        coursesHtml += '</div>';
+        resultDiv.innerHTML = coursesHtml + '<div class="loading">正在提交评教...</div>';
+
+        const evalResponse = await fetch('/api/evaluation', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Device-ID': getDeviceId() }, body: JSON.stringify({ courses: data.courses }) });
+        const evalData = await evalResponse.json();
+
+        if (evalData.success) {
+            unevaluatedCoursesData = [];
+            resultDiv.className = 'evaluation-result result-success';
+            resultDiv.innerHTML = `<div style="text-align:center;padding:20px;"><div style="font-size:40px;margin-bottom:10px;color:var(--success);">✓</div><div style="font-size:17px;color:var(--success);font-weight:600;">${evalData.message || '评估成功'}</div></div>`;
+        } else {
+            resultDiv.className = 'evaluation-result result-error';
+            resultDiv.textContent = evalData.message || '评价失败';
+        }
+    } catch (error) {
+        resultDiv.className = 'evaluation-result result-error';
+        resultDiv.textContent = '网络错误，请重试';
+    }
+    btn.disabled = false; btn.textContent = '完成教学评估';
+}
+
+async function checkUnevaluatedCourses() {
+    await checkLoginStatus();
+    const resultDiv = document.getElementById('evaluation-result');
+    resultDiv.innerHTML = '<div class="loading">正在查询未评估课程...</div>';
+    try {
+        const response = await fetch('/api/unevaluated_courses', { headers: { 'X-Device-ID': getDeviceId() } });
+        const data = await response.json();
         if (data.success) {
             if (data.has_courses) {
-                // 保存完整的课程数据（包含 wjbm, bpr, pgnr 等参数）
                 unevaluatedCoursesData = data.courses;
-                // 显示课程列表和完成评估按钮
                 displayUnevaluatedCourses(data.courses);
             } else {
-                // 没有未评估课程
                 unevaluatedCoursesData = [];
                 resultDiv.className = 'evaluation-result result-success';
-                resultDiv.innerHTML = `
-                    <div style="text-align:center;padding:20px;">
-                        <div style="font-size:48px;margin-bottom:10px;">✅</div>
-                        <div style="font-size:18px;color:#4caf50;">${data.message}</div>
-                    </div>
-                `;
+                resultDiv.innerHTML = `<div style="text-align:center;padding:20px;"><div style="font-size:40px;margin-bottom:10px;color:var(--success);">✓</div><div style="font-size:17px;color:var(--success);font-weight:600;">${data.message}</div></div>`;
             }
         } else {
             resultDiv.className = 'evaluation-result result-error';
             resultDiv.textContent = data.message || '查询失败';
         }
     } catch (error) {
-        console.error('查询未评估课程失败:', error);
         resultDiv.className = 'evaluation-result result-error';
         resultDiv.textContent = '网络错误，请重试';
     }
@@ -837,641 +1722,73 @@ async function checkUnevaluatedCourses() {
 
 function displayUnevaluatedCourses(courses) {
     const resultDiv = document.getElementById('evaluation-result');
-
-    let html = '<div class="unevaluated-courses">';
-    html += '<h3 style="margin-bottom:15px;color:#333;">未评估课程列表</h3>';
-
+    let html = '<div class="unevaluated-courses"><h3 style="margin-bottom:15px;font-weight:600;">未评估课程列表</h3>';
     courses.forEach(course => {
-        html += `
-            <div class="course-item" style="background:#f5f5f5;padding:15px;margin-bottom:10px;border-radius:8px;">
-                <div style="font-size:16px;font-weight:bold;margin-bottom:5px;">${course['未评课程']}</div>
-                <div style="font-size:14px;color:#666;">教师: ${course['教师']}</div>
-            </div>
-        `;
+        html += `<div style="background:var(--bg-secondary);padding:14px 16px;margin-bottom:8px;border-radius:12px;"><div style="font-size:15px;font-weight:600;margin-bottom:4px;">${course['未评课程']}</div><div style="font-size:14px;color:var(--text-secondary);">教师: ${course['教师']}</div></div>`;
     });
-
-    html += '<button class="eval-btn" onclick="doEvaluation()" style="margin-top:20px;">完成评估</button>';
-    html += '</div>';
-
+    html += '<div style="text-align:center;margin-top:20px;"><button class="btn-primary" onclick="doEvaluation()">完成评估</button></div></div>';
     resultDiv.innerHTML = html;
 }
 
 async function doEvaluation() {
-    // 先检查登录状态
     await checkLoginStatus();
-
     const resultDiv = document.getElementById('evaluation-result');
-    const btn = document.querySelector('.eval-btn');
-
-    // 检查是否有课程数据
-    if (!unevaluatedCoursesData || unevaluatedCoursesData.length === 0) {
-        alert('没有未评估的课程');
-        return;
-    }
-
-    btn.disabled = true;
-    btn.textContent = '评价中...';
-
+    if (!unevaluatedCoursesData || unevaluatedCoursesData.length === 0) { alert('没有未评估的课程'); return; }
+    resultDiv.innerHTML = '<div class="loading">正在提交评教...</div>';
     try {
-        // 发送课程数据（包含 wjbm, bpr, pgnr 等参数）
-        const response = await fetch('/api/evaluation', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Device-ID': getDeviceId()
-            },
-            body: JSON.stringify({
-                courses: unevaluatedCoursesData
-            })
-        });
-
+        const response = await fetch('/api/evaluation', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Device-ID': getDeviceId() }, body: JSON.stringify({ courses: unevaluatedCoursesData }) });
         const data = await response.json();
-
         if (data.success) {
-            // 清空课程数据
             unevaluatedCoursesData = [];
-
             resultDiv.className = 'evaluation-result result-success';
-            resultDiv.innerHTML = `
-                <div style="text-align:center;padding:20px;">
-                    <div style="font-size:48px;margin-bottom:10px;">✅</div>
-                    <div style="font-size:18px;color:#4caf50;">${data.message || '评价完成'}</div>
-                </div>
-            `;
+            resultDiv.innerHTML = `<div style="text-align:center;padding:20px;"><div style="font-size:40px;margin-bottom:10px;color:var(--success);">✓</div><div style="font-size:17px;color:var(--success);font-weight:600;">${data.message || '评价完成'}</div></div>`;
         } else {
             resultDiv.className = 'evaluation-result result-error';
             resultDiv.textContent = data.message || '评价失败';
-            btn.disabled = false;
-            btn.textContent = '完成评估';
         }
     } catch (error) {
-        console.error('执行评价失败:', error);
         resultDiv.className = 'evaluation-result result-error';
         resultDiv.textContent = '网络错误，请重试';
-        btn.disabled = false;
-        btn.textContent = '完成评估';
     }
 }
 
 async function oneClickEvaluation() {
     await checkLoginStatus();
-
     const resultDiv = document.getElementById('evaluation-result');
     const btn = document.getElementById('one-click-eval-btn');
-
-    btn.disabled = true;
-    btn.textContent = '评教中...';
+    btn.disabled = true; btn.textContent = '评教中...';
     resultDiv.innerHTML = '<div class="loading">正在查询未评估课程...</div>';
-
     try {
-        const response = await fetch('/api/unevaluated_courses', {
-            headers: { 'X-Device-ID': getDeviceId() }
-        });
+        const response = await fetch('/api/unevaluated_courses', { headers: { 'X-Device-ID': getDeviceId() } });
         const data = await response.json();
-
         if (!data.success) {
             resultDiv.className = 'evaluation-result result-error';
             resultDiv.textContent = data.message || '查询失败';
-            btn.disabled = false;
-            btn.textContent = '一键评教';
-            return;
+            btn.disabled = false; btn.textContent = '一键评教'; return;
         }
-
         if (!data.has_courses) {
             resultDiv.className = 'evaluation-result result-success';
-            resultDiv.innerHTML = `
-                <div style="text-align:center;padding:20px;">
-                    <div style="font-size:48px;margin-bottom:10px;">✅</div>
-                    <div style="font-size:18px;color:#4caf50;">没有未评估的课程</div>
-                </div>
-            `;
-            btn.disabled = false;
-            btn.textContent = '一键评教';
-            return;
+            resultDiv.innerHTML = `<div style="text-align:center;padding:20px;"><div style="font-size:40px;margin-bottom:10px;color:var(--success);">✓</div><div style="font-size:17px;color:var(--success);font-weight:600;">没有未评估的课程</div></div>`;
+            btn.disabled = false; btn.textContent = '一键评教'; return;
         }
-
         resultDiv.innerHTML = '<div class="loading">正在提交评教...</div>';
-
-        const evalResponse = await fetch('/api/evaluation', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Device-ID': getDeviceId()
-            },
-            body: JSON.stringify({ courses: data.courses })
-        });
+        const evalResponse = await fetch('/api/evaluation', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Device-ID': getDeviceId() }, body: JSON.stringify({ courses: data.courses }) });
         const evalData = await evalResponse.json();
-
         if (evalData.success) {
             unevaluatedCoursesData = [];
             resultDiv.className = 'evaluation-result result-success';
-            resultDiv.innerHTML = `
-                <div style="text-align:center;padding:20px;">
-                    <div style="font-size:48px;margin-bottom:10px;">✅</div>
-                    <div style="font-size:18px;color:#4caf50;">${evalData.message}</div>
-                </div>
-            `;
+            resultDiv.innerHTML = `<div style="text-align:center;padding:20px;"><div style="font-size:40px;margin-bottom:10px;color:var(--success);">✓</div><div style="font-size:17px;color:var(--success);font-weight:600;">${evalData.message}</div></div>`;
         } else {
             resultDiv.className = 'evaluation-result result-error';
             resultDiv.textContent = evalData.message || '评价失败';
         }
     } catch (error) {
-        console.error('一键评教失败:', error);
         resultDiv.className = 'evaluation-result result-error';
         resultDiv.textContent = '网络错误，请重试';
     }
-
-    btn.disabled = false;
-    btn.textContent = '一键评教';
+    btn.disabled = false; btn.textContent = '一键评教';
 }
 
-// ==================== 论文生成模式管理 ====================
-
-let currentPaperMode = 'simple';
-let selectedFile = null;
-
-// 切换论文生成模式
-function switchPaperMode(mode) {
-    currentPaperMode = mode;
-
-    // 更新标签页样式
-    document.querySelectorAll('.paper-mode-tab').forEach(tab => {
-        tab.classList.toggle('active', tab.dataset.mode === mode);
-    });
-
-    // 切换表单显示
-    document.getElementById('simple-mode-form').style.display = mode === 'simple' ? 'block' : 'none';
-    document.getElementById('complex-mode-form').style.display = mode === 'complex' ? 'block' : 'none';
-
-    // 切换到复杂模式时自动加载已保存的需求
-    if (mode === 'complex') {
-        loadComplexRequests();
-    }
-}
-
-// 文件选择处理
-function handleFileSelect(event) {
-    const file = event.target.files[0];
-    if (file) {
-        selectedFile = file;
-        const fileInfo = document.getElementById('uploaded-file-info');
-        fileInfo.style.display = 'flex';
-        fileInfo.innerHTML = `
-            <span class="uploaded-file-name">📎 ${file.name}</span>
-            <button class="uploaded-file-remove" onclick="removeSelectedFile()">移除</button>
-        `;
-    }
-}
-
-// 移除已选文件
-function removeSelectedFile() {
-    selectedFile = null;
-    document.getElementById('complex-file').value = '';
-    document.getElementById('uploaded-file-info').style.display = 'none';
-}
-
-// 保存复杂需求到服务器
-async function saveComplexRequest() {
-    const title = document.getElementById('complex-title').value.trim();
-    const requirements = document.getElementById('complex-requirements').value.trim();
-    const resultDiv = document.getElementById('complex-result');
-
-    if (!title) {
-        alert('请输入论文标题');
-        return;
-    }
-
-    if (!requirements && !selectedFile) {
-        alert('请输入具体要求或上传要求文件');
-        return;
-    }
-
-    resultDiv.innerHTML = '<div class="loading">保存中...</div>';
-
-    try {
-        let response;
-
-        if (selectedFile) {
-            // 有文件上传，使用 FormData
-            const formData = new FormData();
-            formData.append('title', title);
-            formData.append('requirements', requirements);
-            formData.append('file', selectedFile);
-
-            response = await fetch('/api/save_complex_request', {
-                method: 'POST',
-                headers: {
-                    'X-Device-ID': getDeviceId()
-                },
-                body: formData
-            });
-        } else {
-            // 纯文本需求
-            response = await fetch('/api/save_complex_request', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Device-ID': getDeviceId()
-                },
-                body: JSON.stringify({ title, requirements })
-            });
-        }
-
-        const data = await response.json();
-
-        if (data.success) {
-            resultDiv.innerHTML = '<div class="result-success" style="padding:15px;text-align:center;color:#4caf50;">✅ 需求保存成功</div>';
-            // 清空表单
-            document.getElementById('complex-title').value = '';
-            document.getElementById('complex-requirements').value = '';
-            removeSelectedFile();
-            // 刷新列表
-            loadComplexRequests();
-        } else {
-            resultDiv.innerHTML = `<div class="result-error" style="padding:15px;text-align:center;color:#f44336;">❌ ${data.message}</div>`;
-        }
-    } catch (error) {
-        console.error('保存需求失败:', error);
-        resultDiv.innerHTML = '<div class="result-error" style="padding:15px;text-align:center;color:#f44336;">❌ 网络错误，请重试</div>';
-    }
-}
-
-// 加载已保存的复杂需求
-async function loadComplexRequests() {
-    const listDiv = document.getElementById('complex-requests-list');
-    const container = document.getElementById('requests-container');
-
-    listDiv.style.display = 'block';
-    container.innerHTML = '<div class="loading">加载中...</div>';
-
-    try {
-        const response = await fetch('/api/get_complex_requests', {
-            headers: {
-                'X-Device-ID': getDeviceId()
-            }
-        });
-        const data = await response.json();
-
-        if (data.success) {
-            if (data.requests.length === 0) {
-                container.innerHTML = '<div class="no-drafts">暂无保存的需求</div>';
-            } else {
-                container.innerHTML = data.requests.map(req => {
-                    const date = new Date(req.created_at);
-                    const dateStr = date.toLocaleDateString('zh-CN') + ' ' + date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-                    const fileTag = req.file
-                        ? `<a href="/api/download_request_file/${req.id}" style="color:#2196f3;font-size:12px;margin-left:8px;text-decoration:none;">📎 下载附件</a>`
-                        : '';
-                    const finishTag = req.finish_file
-                        ? `<span style="color:#4caf50;font-size:12px;margin-left:8px;">✅ 已完成</span>`
-                        : '<span style="color:#ff9800;font-size:12px;margin-left:8px;">⏳ 待处理</span>';
-                    const downloadBtn = req.finish_file
-                        ? `<button class="draft-btn" style="background:#4caf50;color:white;" onclick="downloadFinishedPaper('${req.finish_file}', '${req.id}')">下载论文</button>`
-                        : '';
-                    const feedbackBtn = req.finish_file
-                        ? `<button class="draft-btn draft-btn-feedback" onclick="showFeedbackModal('${req.id}', '${escapeHtmlAttr(req.title)}')">反馈修改</button>`
-                        : '';
-                    const confirmBtn = req.finish_file
-                        ? `<button class="draft-btn draft-btn-confirm" onclick="showConfirmReceiptModal('${req.id}', '${escapeHtmlAttr(req.title)}')">满意签收</button>`
-                        : '';
-
-                    return `
-                        <div class="draft-item">
-                            <div class="draft-info">
-                                <div class="draft-title">${escapeHtml(req.title)}${fileTag}${finishTag}</div>
-                                <div class="draft-meta">${dateStr}</div>
-                            </div>
-                            <div class="draft-actions">
-                                ${downloadBtn}
-                                ${feedbackBtn}
-                                ${confirmBtn}
-                                <button class="draft-btn draft-btn-load" onclick="loadRequest('${req.id}')">加载</button>
-                                <button class="draft-btn draft-btn-delete" onclick="deleteRequest('${req.id}')">删除</button>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            }
-        } else {
-            container.innerHTML = `<div class="no-drafts" style="color:#f44336;">${data.message}</div>`;
-        }
-    } catch (error) {
-        console.error('加载需求失败:', error);
-        container.innerHTML = '<div class="no-drafts" style="color:#f44336;">加载失败，请重试</div>';
-    }
-}
-
-// 加载指定需求到表单
-async function loadRequest(requestId) {
-    try {
-        const response = await fetch('/api/get_complex_requests', {
-            headers: {
-                'X-Device-ID': getDeviceId()
-            }
-        });
-        const data = await response.json();
-
-        if (data.success) {
-            const req = data.requests.find(r => r.id === requestId);
-            if (req) {
-                document.getElementById('complex-title').value = req.title || '';
-                document.getElementById('complex-requirements').value = req.requirements || '';
-
-                if (req.file) {
-                    alert('草稿已加载。注意：附件需要重新上传');
-                } else {
-                    alert('草稿已加载');
-                }
-
-                // 滚动到表单顶部
-                document.getElementById('complex-mode-form').scrollIntoView({ behavior: 'smooth' });
-            }
-        }
-    } catch (error) {
-        console.error('加载需求失败:', error);
-        alert('加载失败，请重试');
-    }
-}
-
-// 删除需求
-async function deleteRequest(requestId) {
-    if (!confirm('确定要删除这个需求吗？')) {
-        return;
-    }
-
-    try {
-        const response = await fetch(`/api/delete_complex_request/${requestId}`, {
-            method: 'DELETE',
-            headers: {
-                'X-Device-ID': getDeviceId()
-            }
-        });
-        const data = await response.json();
-
-        if (data.success) {
-            loadComplexRequests();
-        } else {
-            alert(data.message);
-        }
-    } catch (error) {
-        console.error('删除需求失败:', error);
-        alert('删除失败，请重试');
-    }
-}
-
-// HTML转义
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-// 下载已完成的论文
-function downloadFinishedPaper(filename, requestId) {
-    window.location.href = `/api/download_finished_paper/${encodeURIComponent(requestId)}`;
-}
-
-// HTML属性转义
-function escapeHtmlAttr(text) {
-    return text.replace(/'/g, "\\'").replace(/"/g, '\\"');
-}
-
-// ==================== 反馈修改功能 ====================
-
-let pendingFeedbackRequestId = null;
-
-// 显示反馈弹窗
-function showFeedbackModal(requestId, title) {
-    pendingFeedbackRequestId = requestId;
-
-    const modal = document.getElementById('feedback-modal');
-    const overlay = document.getElementById('overlay');
-
-    document.getElementById('feedback-title').textContent = title;
-    document.getElementById('feedback-content').value = '';
-
-    modal.classList.add('active');
-    overlay.classList.add('active');
-}
-
-// 关闭反馈弹窗
-function closeFeedbackModal() {
-    const modal = document.getElementById('feedback-modal');
-    const overlay = document.getElementById('overlay');
-
-    modal.classList.remove('active');
-    overlay.classList.remove('active');
-    pendingFeedbackRequestId = null;
-}
-
-// 提交反馈
-async function submitFeedback() {
-    if (!pendingFeedbackRequestId) return;
-
-    const feedback = document.getElementById('feedback-content').value.trim();
-    if (!feedback) {
-        alert('请输入修改意见');
-        return;
-    }
-
-    const btn = document.getElementById('submit-feedback-btn');
-    btn.disabled = true;
-    btn.textContent = '提交中...';
-
-    try {
-        const response = await fetch(`/api/submit_feedback/${pendingFeedbackRequestId}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Device-ID': getDeviceId()
-            },
-            body: JSON.stringify({ feedback })
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            alert('反馈提交成功，论文将重新处理');
-            closeFeedbackModal();
-            loadComplexRequests();
-        } else {
-            alert(data.message || '提交失败');
-        }
-    } catch (error) {
-        console.error('提交反馈失败:', error);
-        alert('网络错误，请重试');
-    } finally {
-        btn.disabled = false;
-        btn.textContent = '提交反馈';
-    }
-}
-
-// ==================== 满意签收功能 ====================
-
-let pendingReceiptRequestId = null;
-
-// 显示签收确认弹窗
-function showConfirmReceiptModal(requestId, title) {
-    pendingReceiptRequestId = requestId;
-
-    const modal = document.getElementById('receipt-modal');
-    const overlay = document.getElementById('overlay');
-
-    document.getElementById('receipt-title').textContent = title;
-
-    modal.classList.add('active');
-    overlay.classList.add('active');
-}
-
-// 关闭签收弹窗
-function closeReceiptModal() {
-    const modal = document.getElementById('receipt-modal');
-    const overlay = document.getElementById('overlay');
-
-    modal.classList.remove('active');
-    overlay.classList.remove('active');
-    pendingReceiptRequestId = null;
-}
-
-// 确认签收
-async function confirmReceipt() {
-    if (!pendingReceiptRequestId) return;
-
-    const btn = document.getElementById('confirm-receipt-btn');
-    btn.disabled = true;
-    btn.textContent = '签收中...';
-
-    try {
-        const response = await fetch(`/api/confirm_receipt/${pendingReceiptRequestId}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Device-ID': getDeviceId()
-            }
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            alert('签收成功，感谢您的使用！');
-            closeReceiptModal();
-            loadComplexRequests();
-        } else {
-            alert(data.message || '签收失败');
-        }
-    } catch (error) {
-        console.error('签收失败:', error);
-        alert('网络错误，请重试');
-    } finally {
-        btn.disabled = false;
-        btn.textContent = '确认签收';
-    }
-}
-
-// ==================== 论文生成 ====================
-
-async function generatePaper() {
-    const title = document.getElementById('paper-title').value.trim();
-    const subject = document.getElementById('paper-subject').value.trim();
-    const requirements = document.getElementById('paper-requirements').value.trim();
-    const keywords = document.getElementById('paper-keywords').value.trim();
-    const wordcount = document.getElementById('paper-wordcount').value;
-    const template = document.getElementById('paper-template').value;
-    const resultDiv = document.getElementById('paper-result');
-    const btn = document.getElementById('generate-paper-btn');
-
-    if (!title) {
-        alert('请输入论文标题');
-        return;
-    }
-
-    btn.disabled = true;
-    btn.textContent = '生成中...';
-
-    // 显示进度条
-    resultDiv.innerHTML = `
-        <div class="progress-container">
-            <div class="progress-bar">
-                <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
-            </div>
-            <div class="progress-text" id="progress-text">准备生成...</div>
-            <div class="progress-percent" id="progress-percent">0%</div>
-        </div>
-    `;
-
-    try {
-        const response = await fetch('/api/generate_paper', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Device-ID': getDeviceId()
-            },
-            body: JSON.stringify({
-                title: title,
-                subject: subject,
-                requirements: requirements,
-                keywords: keywords,
-                wordcount: wordcount,
-                template: template
-            })
-        });
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n\n');
-            buffer = lines.pop() || '';
-
-            for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                    try {
-                        const data = JSON.parse(line.slice(6));
-
-                        if (data.type === 'progress') {
-                            // 更新进度条
-                            const progressFill = document.getElementById('progress-fill');
-                            const progressText = document.getElementById('progress-text');
-                            const progressPercent = document.getElementById('progress-percent');
-
-                            if (progressFill) progressFill.style.width = data.percent + '%';
-                            if (progressText) progressText.textContent = '正在生成: ' + data.section;
-                            if (progressPercent) progressPercent.textContent = data.percent + '%';
-                        } else if (data.type === 'complete') {
-                            // 生成完成
-                            resultDiv.className = 'paper-result result-success';
-                            resultDiv.innerHTML = `
-                                <div style="text-align:center;padding:20px;">
-                                    <div style="font-size:48px;margin-bottom:10px;">✅</div>
-                                    <div style="font-size:18px;color:#4caf50;margin-bottom:20px;">论文生成成功</div>
-                                    <a href="/api/download_paper/${data.filename}" class="update-schedule-btn" style="display:inline-block;text-decoration:none;background-color:#2196f3;">下载论文</a>
-                                </div>
-                            `;
-                        } else if (data.type === 'error') {
-                            // 生成出错
-                            resultDiv.className = 'paper-result result-error';
-                            resultDiv.textContent = data.message || '生成失败';
-                        }
-                    } catch (e) {
-                        console.error('解析SSE数据失败:', e);
-                    }
-                }
-            }
-        }
-    } catch (error) {
-        console.error('论文生成失败:', error);
-        resultDiv.className = 'paper-result result-error';
-        resultDiv.textContent = '网络错误，请重试';
-    }
-
-    btn.disabled = false;
-    btn.textContent = '生成论文';
-}
 
 // ==================== 公告功能 ====================
 let currentPopupAnnouncementId = null;
@@ -1564,17 +1881,17 @@ async function loadAnnouncementsList() {
             } else {
                 contentDiv.innerHTML = `
                     <div class="empty-state">
-                        <div class="empty-state-icon">📢</div>
+                        <div class="empty-state-icon">&#128276;</div>
                         <div class="empty-state-text">暂无公告</div>
                     </div>
                 `;
             }
         } else {
-            contentDiv.innerHTML = '<p style="text-align:center;color:#f44336;">加载失败</p>';
+            contentDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
         }
     } catch (error) {
         console.error('加载公告列表失败:', error);
-        contentDiv.innerHTML = '<p style="text-align:center;color:#f44336;">加载失败</p>';
+        contentDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
     }
 }
 
@@ -1605,4 +1922,838 @@ function displayAnnouncementsList(announcements) {
 
     contentDiv.innerHTML = html;
 }
+
+// ==================== 问卷调查 ====================
+
+// 加载问卷列表页面
+async function loadSurveysList() {
+    const contentDiv = document.getElementById('surveys-list-content');
+    contentDiv.innerHTML = '<div class="loading">加载中...</div>';
+
+    try {
+        const response = await fetch('/api/surveys');
+        const data = await response.json();
+
+        if (data.success) {
+            if (data.surveys && data.surveys.length > 0) {
+                displaySurveysList(data.surveys);
+            } else {
+                contentDiv.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">&#128203;</div>
+                        <div class="empty-state-text">暂无问卷调查</div>
+                    </div>
+                `;
+            }
+        } else {
+            contentDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+        }
+    } catch (error) {
+        console.error('加载问卷列表失败:', error);
+        contentDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+    }
+}
+
+// 显示问卷列表
+function displaySurveysList(surveys) {
+    const contentDiv = document.getElementById('surveys-list-content');
+
+    let html = '';
+    surveys.forEach(survey => {
+        const createTime = new Date(survey.create_time).toLocaleString('zh-CN');
+
+        html += `
+            <div class="announcement-item" style="cursor:pointer;" onclick="window.open('${survey.url}', '_blank')">
+                <div class="announcement-item-header">
+                    <h3>${survey.title}</h3>
+                    <span class="unread-badge">点击填写</span>
+                </div>
+                <div class="announcement-item-footer">
+                    <span class="announcement-item-time">${createTime}</span>
+                </div>
+            </div>
+        `;
+    });
+
+    contentDiv.innerHTML = html;
+}
+
+// ==================== 反馈建议 ====================
+
+// 加载反馈页面
+async function loadFeedbackPage() {
+    const contentDiv = document.getElementById('feedback-list-content');
+    contentDiv.innerHTML = '<div class="loading">加载中...</div>';
+
+    try {
+        const response = await fetch('/api/feedback', {
+            headers: {
+                'X-Device-ID': getDeviceId()
+            }
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            displayFeedbackList(data.my_feedbacks, data.public_feedbacks);
+        } else {
+            contentDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+        }
+    } catch (error) {
+        console.error('加载反馈列表失败:', error);
+        contentDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+    }
+}
+
+// 提交新反馈
+async function submitNewFeedback() {
+    const content = document.getElementById('new-feedback-content').value.trim();
+    const visibility = document.querySelector('input[name="feedback-visibility"]:checked').value;
+
+    if (!content) {
+        alert('请输入反馈内容');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/feedback', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Device-ID': getDeviceId()
+            },
+            body: JSON.stringify({ content, visibility })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            document.getElementById('new-feedback-content').value = '';
+            loadFeedbackPage();
+        } else {
+            alert(data.message || '提交失败');
+        }
+    } catch (error) {
+        console.error('提交反馈失败:', error);
+        alert('网络错误，请重试');
+    }
+}
+
+// 提交回复
+async function submitFeedbackReply(feedbackId) {
+    const textarea = document.getElementById(`reply-input-${feedbackId}`);
+    const content = textarea.value.trim();
+
+    if (!content) {
+        alert('请输入回复内容');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/feedback/${feedbackId}/reply`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Device-ID': getDeviceId()
+            },
+            body: JSON.stringify({ content })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            loadFeedbackPage();
+        } else {
+            alert(data.message || '回复失败');
+        }
+    } catch (error) {
+        console.error('回复失败:', error);
+        alert('网络错误，请重试');
+    }
+}
+
+// 切换回复框显示
+function toggleReplyBox(feedbackId) {
+    const box = document.getElementById(`reply-box-${feedbackId}`);
+    box.style.display = box.style.display === 'none' ? 'block' : 'none';
+}
+
+// 显示反馈列表
+function displayFeedbackList(myFeedbacks, publicFeedbacks) {
+    const contentDiv = document.getElementById('feedback-list-content');
+    let html = '';
+
+    if (myFeedbacks.length === 0 && publicFeedbacks.length === 0) {
+        html = `
+            <div class="empty-state">
+                <div class="empty-state-icon">&#128172;</div>
+                <div class="empty-state-text">暂无反馈</div>
+            </div>
+        `;
+        contentDiv.innerHTML = html;
+        return;
+    }
+
+    // 我的反馈
+    if (myFeedbacks.length > 0) {
+        html += '<div class="feedback-section-title">我的反馈</div>';
+        myFeedbacks.forEach(fb => {
+            html += buildFeedbackCard(fb);
+        });
+    }
+
+    // 公开反馈
+    if (publicFeedbacks.length > 0) {
+        html += '<div class="feedback-section-title">公开反馈</div>';
+        publicFeedbacks.forEach(fb => {
+            html += buildFeedbackCard(fb);
+        });
+    }
+
+    contentDiv.innerHTML = html;
+}
+
+// 构建单条反馈卡片 HTML（论坛楼层模式）
+function buildFeedbackCard(fb) {
+    const createTime = new Date(fb.create_time).toLocaleString('zh-CN');
+    const visLabel = fb.visibility === 'public' ? '所有人可见' : '仅自己可见';
+    const visClass = fb.visibility === 'public' ? 'unread-badge' : 'read-badge';
+
+    let html = `
+        <div class="feedback-card">
+            <div class="feedback-floor">
+                <div class="feedback-floor-header">
+                    <span class="feedback-floor-num">1楼</span>
+                    <span class="feedback-username">${fb.is_own ? '我' : fb.username}</span>
+                    <span class="${visClass}" style="margin-left:auto;">${visLabel}</span>
+                </div>
+                <div class="feedback-floor-content">${fb.content.replace(/\n/g, '<br>')}</div>
+                <div class="feedback-floor-time">${createTime}</div>
+            </div>
+    `;
+
+    // 回复楼层
+    if (fb.replies && fb.replies.length > 0) {
+        fb.replies.forEach((reply, index) => {
+            const replyTime = new Date(reply.create_time).toLocaleString('zh-CN');
+            const isAdmin = reply.username === '管理员';
+            html += `
+                <div class="feedback-floor ${isAdmin ? 'feedback-floor-admin' : ''}">
+                    <div class="feedback-floor-header">
+                        <span class="feedback-floor-num">${index + 2}楼</span>
+                        <span class="feedback-username${isAdmin ? ' admin-tag' : ''}">${reply.username}</span>
+                    </div>
+                    <div class="feedback-floor-content">${reply.content.replace(/\n/g, '<br>')}</div>
+                    <div class="feedback-floor-time">${replyTime}</div>
+                </div>
+            `;
+        });
+    }
+
+    // 回复按钮和输入框
+    html += `
+            <div class="feedback-reply-bar">
+                <button class="feedback-reply-btn" onclick="toggleReplyBox(${fb.id})">回复</button>
+            </div>
+            <div id="reply-box-${fb.id}" class="feedback-reply-box" style="display:none;">
+                <textarea id="reply-input-${fb.id}" class="feedback-reply-textarea" rows="2" placeholder="输入回复内容..."></textarea>
+                <button class="btn-primary btn-sm" onclick="submitFeedbackReply(${fb.id})">发送</button>
+            </div>
+        </div>
+    `;
+    return html;
+}
+
+// ==================== 会员功能 ====================
+
+let _currentPayMemberType = null;
+
+async function loadMemberPage() {
+    await Promise.all([loadMemberStatus(), loadMemberOrders(), loadInvitationEarnings()]);
+}
+
+async function loadMemberStatus() {
+    const card = document.getElementById('member-status-card');
+    try {
+        const resp = await fetch('/api/member/status', {
+            headers: { 'X-Device-ID': getDeviceId() }
+        });
+        const data = await resp.json();
+        if (!data.success) {
+            card.innerHTML = `<p style="color:var(--error);">${data.message || '加载失败'}</p>`;
+            return;
+        }
+        const d = data.data;
+        if (!d.is_member) {
+            if (d.expire_time && d.is_expired) {
+                const typeMap = { basic: '初级会员', advanced: '高级会员' };
+                card.innerHTML = `<div class="member-status-expired"><span>您的${typeMap[d.member_type] || '会员'}已于 ${d.expire_time.slice(0, 10)} 到期</span><span>，请续费继续享受会员服务。</span></div>`;
+            } else {
+                card.innerHTML = `<div class="member-status-none">您当前没有会员，开通会员解锁更多功能。</div>`;
+            }
+        } else {
+            const typeMap = { basic: '初级会员', advanced: '高级会员' };
+            const badgeClass = d.member_type === 'advanced' ? 'member-badge-advanced' : 'member-badge-basic';
+            card.innerHTML = `
+                <div class="member-status-active">
+                    <span class="member-badge ${badgeClass}">${typeMap[d.member_type] || '会员'}</span>
+                    <span class="member-expire">有效期至：${d.expire_time ? d.expire_time.slice(0, 10) : '未知'}</span>
+                </div>`;
+        }
+    } catch (e) {
+        card.innerHTML = `<p style="color:var(--error);">加载失败，请稍后重试</p>`;
+    }
+}
+
+async function loadInvitationEarnings() {
+    const card = document.getElementById('invitation-card');
+    const content = document.getElementById('invitation-earnings-content');
+    try {
+        const [inviterResp, earningsResp, withdrawalsResp, memberResp] = await Promise.all([
+            fetch('/api/invitation/my_inviter', { headers: { 'X-Device-ID': getDeviceId() } }),
+            fetch('/api/invitation/earnings', { headers: { 'X-Device-ID': getDeviceId() } }),
+            fetch('/api/invitation/withdrawals', { headers: { 'X-Device-ID': getDeviceId() } }),
+            fetch('/api/member/status', { headers: { 'X-Device-ID': getDeviceId() } })
+        ]);
+        const inviterData = await inviterResp.json();
+        const earningsData = await earningsResp.json();
+        const withdrawalsData = await withdrawalsResp.json();
+        const memberData = await memberResp.json();
+
+        const isMember = memberData.success && memberData.data && memberData.data.is_member;
+        const memberType = isMember ? memberData.data.member_type : null;
+        const rateText = memberType === 'advanced' ? '20%' : (isMember ? '10%' : '0%');
+
+        let html = '';
+
+        // 显示我的邀请人
+        if (inviterData.success && inviterData.data && inviterData.data.inviter) {
+            html += `<div class="inviter-info"><span class="inviter-label">邀请人：</span><span>${inviterData.data.inviter}</span></div>`;
+        } else {
+            html += `<div class="inviter-set-form">
+                <input type="text" id="inviter-set-input" class="inviter-set-input" placeholder="填写邀请你的同学学号">
+                <button class="inviter-set-btn" onclick="handleSetInviter()">绑定</button>
+                <span id="inviter-set-error" class="inviter-set-error"></span>
+            </div>`;
+        }
+
+        // 收益数据（由 API 返回）
+        const inviteeTotal = (earningsData.success && earningsData.data) ? (parseFloat(earningsData.data.invitee_total) || 0) : 0;
+        const rate = (earningsData.success && earningsData.data) ? earningsData.data.rate : '10%';
+        const earned = (earningsData.success && earningsData.data) ? (parseFloat(earningsData.data.earned) || 0) : 0;
+        const withdrawn = (earningsData.success && earningsData.data) ? (parseFloat(earningsData.data.withdrawn) || 0) : 0;
+        const available = (earningsData.success && earningsData.data) ? (parseFloat(earningsData.data.available) || 0) : 0;
+
+        // 提现状态
+        let hasPending = false;
+        if (withdrawalsData.success && withdrawalsData.data) {
+            withdrawalsData.data.forEach(r => {
+                if (r.status === 'pending') hasPending = true;
+            });
+        }
+
+        // 提现按钮状态
+        let btnText, btnDisabled, btnOpacity;
+        if (!isMember) {
+            btnText = '开通会员后可提现';
+            btnDisabled = true;
+            btnOpacity = '0.5';
+        } else if (hasPending) {
+            btnText = '审核中';
+            btnDisabled = true;
+            btnOpacity = '0.5';
+        } else {
+            btnText = '提现';
+            btnDisabled = false;
+            btnOpacity = '1';
+        }
+
+        // 团队充值 + 收益显示
+        html += `<div class="earnings-summary">
+            <div class="earnings-row"><span>团队充值</span><span>¥${inviteeTotal.toFixed(2)}</span></div>
+            <div class="earnings-row"><span>分佣比例</span><span class="earnings-rate">${rate}</span></div>
+            <div class="earnings-row earnings-row-total"><span>累计收益</span><span class="earnings-amount">¥${earned.toFixed(2)}</span></div>
+        </div>`;
+        html += `<div class="earnings-total">
+            <span class="earnings-label">可提现</span><span class="earnings-amount">¥${available.toFixed(2)}</span>
+            <button class="btn-withdraw" onclick="showWithdrawDialog()" ${btnDisabled ? 'disabled' : ''} style="opacity:${btnOpacity}">${btnText}</button>
+        </div>`;
+        if (withdrawn > 0) {
+            html += `<div class="earnings-withdrawn"><span>已提现：¥${withdrawn.toFixed(2)}</span></div>`;
+        }
+
+        // 收益明细
+        if (earningsData.success && earningsData.data && earningsData.data.earnings && earningsData.data.earnings.length > 0) {
+            html += '<div class="earnings-list">';
+            earningsData.data.earnings.forEach(e => {
+                html += `<div class="earning-item"><span>${e.invitee_username} 开通会员</span><span class="earning-amount">+¥${parseFloat(e.amount).toFixed(2)}</span><span class="earning-time">${e.create_time ? e.create_time.slice(0, 10) : ''}</span></div>`;
+            });
+            html += '</div>';
+        }
+
+        // 邀请提示
+        if (!isMember) {
+            html += `<div class="invite-hint">开通会员后邀请新用户绑定，对方开会员你赚收益：<strong>初级会员10%</strong>，<strong>高级会员20%</strong></div>`;
+        } else {
+            html += `<div class="invite-hint">邀请新用户绑定账号，对方开通会员你即可获得 <strong>${rateText}</strong> 收益（会员专属）</div>`;
+        }
+
+        card.style.display = '';
+        content.innerHTML = html;
+    } catch (e) {
+        card.style.display = 'none';
+    }
+}
+
+async function loadMemberOrders() {
+    const container = document.getElementById('member-orders-content');
+    const payLinksDiv = document.getElementById('active-pay-links');
+    if (payLinksDiv) {
+        payLinksDiv.style.display = 'none';
+        payLinksDiv.innerHTML = '';
+    }
+    try {
+        const resp = await fetch('/api/member/orders', {
+            headers: { 'X-Device-ID': getDeviceId() }
+        });
+        const data = await resp.json();
+        if (!data.success || !data.data.length) {
+            container.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:12px 0;">暂无购买记录</p>';
+            return;
+        }
+
+        // 检查是否有有效支付链接
+        const activeOrders = data.data.filter(o => o.active_pay_url);
+        if (activeOrders.length > 0 && payLinksDiv) {
+            const typeMap = { basic: '初级会员', advanced: '高级会员' };
+            let linksHtml = '<div style="font-weight:600;margin-bottom:8px;">有效期内的支付链接</div>';
+            for (const order of activeOrders) {
+                const expireMin = Math.ceil(order.expire_seconds / 60);
+                linksHtml += `
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;flex-wrap:wrap;gap:8px;">
+                        <span>${typeMap[order.member_type]} ¥${order.amount} — <span style="color:var(--error);">剩余${expireMin}分钟</span></span>
+                        <a href="${order.active_pay_url}" class="btn-primary" style="font-size:13px;padding:6px 16px;text-decoration:none;">立即支付</a>
+                    </div>`;
+            }
+            payLinksDiv.innerHTML = linksHtml;
+            payLinksDiv.style.display = 'block';
+        }
+
+        const typeMap = { basic: '初级会员', advanced: '高级会员' };
+        const statusMap = { pending: '待支付', paid: '已支付', failed: '失败' };
+        let html = '<div class="orders-list">';
+        for (const order of data.data) {
+            let payLinkHtml = order.active_pay_url ? ` <a class="btn-primary" href="${order.active_pay_url}" style="font-size:12px;padding:2px 10px;text-decoration:none;">去支付</a>` : '';
+            html += `
+                <div class="order-item">
+                    <div class="order-info">
+                        <span class="order-type">${typeMap[order.member_type] || order.member_type}</span>
+                        <span class="order-amount">¥${order.amount}</span>
+                        <span class="order-status order-status-${order.status}">${statusMap[order.status] || order.status}${payLinkHtml}</span>
+                    </div>
+                    <div class="order-time">${order.create_time ? order.create_time.slice(0, 16) : ''}</div>
+                </div>`;
+        }
+        html += '</div>';
+        container.innerHTML = html;
+    } catch (e) {
+        container.innerHTML = '<p style="color:var(--error);">加载失败</p>';
+    }
+}
+
+function showPayDialog(memberType) {
+    _currentPayMemberType = memberType;
+    const prices = { basic: '3', advanced: '5' };
+    const typeNames = { basic: '初级会员', advanced: '高级会员' };
+    document.getElementById('pay-modal-title').textContent = `开通${typeNames[memberType]}`;
+    document.getElementById('pay-modal-desc').textContent = `价格：¥${prices[memberType]}/半年，续费会自动叠加到原到期日后`;
+    document.getElementById('pay-error').textContent = '';
+    document.getElementById('pay-confirm-btn').disabled = false;
+    document.getElementById('pay-confirm-btn').textContent = '确认支付';
+    const modal = document.getElementById('pay-modal');
+    const overlay = document.getElementById('overlay');
+    modal.classList.add('active');
+    overlay.classList.add('active');
+}
+
+function closePayDialog() {
+    document.getElementById('pay-modal').classList.remove('active');
+    document.getElementById('overlay').classList.remove('active');
+    _currentPayMemberType = null;
+}
+
+async function confirmPay() {
+    const memberType = _currentPayMemberType;
+    if (!memberType) return;
+    const payType = document.querySelector('input[name="pay-type"]:checked')?.value || 'alipay';
+    const btn = document.getElementById('pay-confirm-btn');
+    const errDiv = document.getElementById('pay-error');
+    btn.disabled = true;
+    btn.textContent = '请求中...';
+    errDiv.textContent = '';
+    try {
+        const resp = await fetch('/api/member/create_order', {
+            method: 'POST',
+            headers: { 'X-Device-ID': getDeviceId(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ member_type: memberType, pay_type: payType })
+        });
+        const data = await resp.json();
+        if (!data.success) {
+            errDiv.textContent = data.message || '创建订单失败';
+            btn.disabled = false;
+            btn.textContent = '确认支付';
+            return;
+        }
+        const payUrl = data.data.pay_url;
+        if (payUrl) {
+            closePayDialog();
+            window.location.href = payUrl;
+        } else {
+            errDiv.textContent = '获取支付链接失败，请重试';
+            btn.disabled = false;
+            btn.textContent = '确认支付';
+        }
+    } catch (e) {
+        errDiv.textContent = '网络错误，请重试';
+        btn.disabled = false;
+        btn.textContent = '确认支付';
+    }
+}
+
+
+// ==================== 设置邀请人 ====================
+async function handleSetInviter() {
+    const input = document.getElementById('inviter-set-input');
+    const errEl = document.getElementById('inviter-set-error');
+    const inviter = (input.value || '').trim();
+    if (!inviter) {
+        errEl.textContent = '请填写学号';
+        return;
+    }
+    errEl.textContent = '';
+    try {
+        const resp = await fetch('/api/invitation/set', {
+            method: 'POST',
+            headers: { 'X-Device-ID': getDeviceId(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ inviter })
+        });
+        const data = await resp.json();
+        if (data.success) {
+            loadInvitationEarnings();
+        } else {
+            errEl.textContent = data.message || '设置失败';
+        }
+    } catch (e) {
+        errEl.textContent = '网络错误，请重试';
+    }
+}
+
+// ==================== 提现功能 ====================
+let _withdrawAvailable = 0;
+
+async function showWithdrawDialog() {
+    const modal = document.getElementById('withdraw-modal');
+    const overlay = document.getElementById('overlay');
+    const errDiv = document.getElementById('withdraw-error');
+    errDiv.textContent = '';
+    document.getElementById('withdraw-real-name').value = '';
+    document.getElementById('withdraw-alipay').value = '';
+    document.getElementById('withdraw-available').innerHTML = '<div class="loading">加载中</div>';
+    document.getElementById('withdraw-history').innerHTML = '';
+
+    try {
+        const [earningsResp, historyResp] = await Promise.all([
+            fetch('/api/invitation/earnings', { headers: { 'X-Device-ID': getDeviceId() } }),
+            fetch('/api/invitation/withdrawals', { headers: { 'X-Device-ID': getDeviceId() } })
+        ]);
+        const earningsData = await earningsResp.json();
+        const historyData = await historyResp.json();
+
+        const inviteeTotal = (earningsData.success && earningsData.data) ? (parseFloat(earningsData.data.invitee_total) || 0) : 0;
+        const rate = (earningsData.success && earningsData.data) ? earningsData.data.rate : '10%';
+        const earned = (earningsData.success && earningsData.data) ? (parseFloat(earningsData.data.earned) || 0) : 0;
+        const available = (earningsData.success && earningsData.data) ? (parseFloat(earningsData.data.available) || 0) : 0;
+
+        _withdrawAvailable = available;
+        document.getElementById('withdraw-available').innerHTML = `
+            <div class="withdraw-amount-row">
+                <span>团队充值</span><span>¥${inviteeTotal.toFixed(2)}</span>
+            </div>
+            <div class="withdraw-amount-row">
+                <span>分佣比例</span><span>${rate}</span>
+            </div>
+            <div class="withdraw-amount-row">
+                <span>累计收益</span><span>¥${earned.toFixed(2)}</span>
+            </div>
+            <div class="withdraw-amount-row">
+                <span>可提现金额</span><span class="withdraw-available-amount">¥${available.toFixed(2)}</span>
+            </div>
+        `;
+
+        // 提现记录
+        if (historyData.success && historyData.data && historyData.data.length > 0) {
+            const statusMap = { pending: '审核中', approved: '已转账', rejected: '已拒绝' };
+            let histHtml = '<div class="withdraw-history-title">提现记录</div>';
+            historyData.data.forEach(r => {
+                histHtml += `<div class="withdraw-history-item">
+                    <span>¥${parseFloat(r.amount).toFixed(2)}</span>
+                    <span class="withdraw-status withdraw-status-${r.status}">${statusMap[r.status] || r.status}</span>
+                    <span class="withdraw-history-time">${r.create_time ? r.create_time.slice(0, 10) : ''}</span>
+                </div>`;
+            });
+            document.getElementById('withdraw-history').innerHTML = histHtml;
+        }
+
+        modal.classList.add('active');
+        overlay.classList.add('active');
+    } catch (e) {
+        errDiv.textContent = '加载失败，请重试';
+    }
+}
+
+function closeWithdrawDialog() {
+    document.getElementById('withdraw-modal').classList.remove('active');
+    document.getElementById('overlay').classList.remove('active');
+}
+
+async function handleWithdraw(event) {
+    event.preventDefault();
+    const realName = document.getElementById('withdraw-real-name').value.trim();
+    const alipay = document.getElementById('withdraw-alipay').value.trim();
+    const errDiv = document.getElementById('withdraw-error');
+    errDiv.textContent = '';
+
+    if (_withdrawAvailable <= 0) {
+        errDiv.textContent = '暂无可提现金额';
+        return;
+    }
+
+    try {
+        const resp = await fetch('/api/invitation/withdraw', {
+            method: 'POST',
+            headers: { 'X-Device-ID': getDeviceId(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ real_name: realName, alipay_account: alipay })
+        });
+        const data = await resp.json();
+        if (data.success) {
+            alert(data.message);
+            closeWithdrawDialog();
+            loadInvitationEarnings();
+        } else {
+            errDiv.textContent = data.message || '提现申请失败';
+        }
+    } catch (e) {
+        errDiv.textContent = '网络错误，请重试';
+    }
+}
+
+
+let signClasses = [];
+let signStreamController = null;
+
+async function signCheckStatus() {
+    try {
+        const resp = await fetch('/api/sign/status', {
+            headers: { 'X-Device-ID': getDeviceId() },
+        });
+        const data = await resp.json();
+        if (data.success && data.classes && data.classes.length > 0) {
+            signClasses = data.classes;
+            signShowControlCard(signClasses);
+            if (data.running) {
+                document.getElementById('sign-start-btn').style.display = 'none';
+                document.getElementById('sign-stop-btn').style.display = '';
+                document.getElementById('sign-log-card').style.display = '';
+                signStartStream();
+            }
+        }
+    } catch (e) { /* 忽略 */ }
+}
+
+function signAppendLog(msg) {
+    const el = document.getElementById('sign-log-content');
+    if (!el) return;
+    el.textContent += msg + '\n';
+    el.scrollTop = el.scrollHeight;
+}
+
+async function signLogin() {
+    const username = document.getElementById('sign-username').value.trim();
+    const password = document.getElementById('sign-password').value.trim();
+    const errDiv = document.getElementById('sign-login-error');
+    errDiv.style.display = 'none';
+    if (!username || !password) {
+        errDiv.textContent = '请输入用户名和密码';
+        errDiv.style.display = 'block';
+        return;
+    }
+    try {
+        const resp = await fetch('/api/sign/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Device-ID': getDeviceId() },
+            body: JSON.stringify({ username, password }),
+        });
+        const data = await resp.json();
+        if (data.success) {
+            signClasses = data.classes || [];
+            signShowControlCard(signClasses);
+        } else {
+            errDiv.textContent = data.msg || '登录失败';
+            errDiv.style.display = 'block';
+        }
+    } catch (e) {
+        errDiv.textContent = '网络错误，请重试';
+        errDiv.style.display = 'block';
+    }
+}
+
+async function signLoginLink() {
+    const link = document.getElementById('sign-wechat-link').value.trim();
+    const errDiv = document.getElementById('sign-login-error');
+    errDiv.style.display = 'none';
+    if (!link) {
+        errDiv.textContent = '请粘贴微信跳转链接';
+        errDiv.style.display = 'block';
+        return;
+    }
+    try {
+        const resp = await fetch('/api/sign/login_link', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Device-ID': getDeviceId() },
+            body: JSON.stringify({ link }),
+        });
+        const data = await resp.json();
+        if (data.success) {
+            signClasses = data.classes || [];
+            signShowControlCard(signClasses);
+        } else {
+            errDiv.textContent = data.msg || '登录失败';
+            errDiv.style.display = 'block';
+        }
+    } catch (e) {
+        errDiv.textContent = '网络错误，请重试';
+        errDiv.style.display = 'block';
+    }
+}
+
+function signShowControlCard(classes) {
+    document.getElementById('sign-login-card').style.display = 'none';
+    document.getElementById('sign-control-card').style.display = '';
+
+    const select = document.getElementById('sign-course-select');
+    select.innerHTML = '';
+    classes.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = JSON.stringify({ course_id: c.CourseID, class_id: c.TClassID });
+        opt.textContent = c.CourseName + (c.ClassName ? ' - ' + c.ClassName : '');
+        select.appendChild(opt);
+    });
+}
+
+function signLogout() {
+    signClasses = [];
+    signStopStream();
+    document.getElementById('sign-control-card').style.display = 'none';
+    document.getElementById('sign-log-card').style.display = 'none';
+    document.getElementById('sign-login-card').style.display = '';
+    document.getElementById('sign-login-error').style.display = 'none';
+    document.getElementById('sign-username').value = '';
+    document.getElementById('sign-password').value = '';
+    document.getElementById('sign-wechat-link').value = '';
+}
+
+async function signStart() {
+    const errDiv = document.getElementById('sign-control-error');
+    errDiv.style.display = 'none';
+
+    const selected = document.getElementById('sign-course-select').value;
+    if (!selected) {
+        errDiv.textContent = '请选择课程';
+        errDiv.style.display = 'block';
+        return;
+    }
+    const { course_id, class_id } = JSON.parse(selected);
+    const seconds = parseInt(document.getElementById('sign-seconds').value) || 10;
+    const duration = parseInt(document.getElementById('sign-duration').value) || 180;
+    const notify_email = document.getElementById('sign-email').value.trim();
+
+    try {
+        const resp = await fetch('/api/sign/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Device-ID': getDeviceId() },
+            body: JSON.stringify({ course_id, class_id, seconds, duration, notify_email }),
+        });
+        const data = await resp.json();
+        if (data.success) {
+            document.getElementById('sign-start-btn').style.display = 'none';
+            document.getElementById('sign-stop-btn').style.display = '';
+            document.getElementById('sign-log-card').style.display = '';
+            document.getElementById('sign-log-content').textContent = '';
+            signStartStream();
+        } else {
+            errDiv.textContent = data.msg || '启动失败';
+            errDiv.style.display = 'block';
+        }
+    } catch (e) {
+        errDiv.textContent = '网络错误，请重试';
+        errDiv.style.display = 'block';
+    }
+}
+
+async function signStop() {
+    try {
+        await fetch('/api/sign/stop', {
+            method: 'POST',
+            headers: { 'X-Device-ID': getDeviceId() },
+        });
+    } catch (e) { /* ignore */ }
+    signStopStream();
+    document.getElementById('sign-start-btn').style.display = '';
+    document.getElementById('sign-stop-btn').style.display = 'none';
+}
+
+function signStopStream() {
+    if (signStreamController) {
+        signStreamController.abort();
+        signStreamController = null;
+    }
+}
+
+async function signStartStream() {
+    signStopStream();
+    const controller = new AbortController();
+    signStreamController = controller;
+
+    try {
+        const resp = await fetch('/api/sign/stream', {
+            headers: { 'X-Device-ID': getDeviceId() },
+            signal: controller.signal,
+        });
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buf += decoder.decode(value, { stream: true });
+            const lines = buf.split('\n');
+            buf = lines.pop();
+            for (const line of lines) {
+                if (line.startsWith('data:')) {
+                    const raw = line.slice(5).trim();
+                    try {
+                        const obj = JSON.parse(raw);
+                        if (obj.msg !== undefined) signAppendLog(obj.msg);
+                    } catch (_) {
+                        if (raw) signAppendLog(raw);
+                    }
+                }
+            }
+        }
+    } catch (e) {
+        if (e.name !== 'AbortError') {
+            signAppendLog('[连接断开]');
+        }
+    }
+    document.getElementById('sign-start-btn').style.display = '';
+    document.getElementById('sign-stop-btn').style.display = 'none';
+}
+
 

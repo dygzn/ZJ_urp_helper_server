@@ -4,331 +4,141 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>管理后台 - URP教务助手</title>
-    <link rel="stylesheet" href="/static/css/admin.css">
-    <link rel="stylesheet" href="/static/css/theme-spring.css">
+    <link rel="stylesheet" href="/static/css/admin.css?v=7">
 </head>
 <body>
-    <!-- 新春装饰元素 -->
-    <div class="spring-petals">
-        <span class="petal">🌸</span>
-        <span class="petal">🌺</span>
-        <span class="petal">🌸</span>
-        <span class="petal">✿</span>
-        <span class="petal">🌸</span>
-        <span class="petal">🌺</span>
-        <span class="petal">✿</span>
-        <span class="petal">🌸</span>
-    </div>
-    <div class="lantern-group">
-        <div class="lantern-wrapper left">
-            <div class="lantern-line"></div>
-            <div class="lantern">
-                <div class="lantern-inner"></div>
-                <span class="lantern-text">春</span>
-            </div>
-            <div class="lantern-tassel"></div>
-        </div>
-        <div class="lantern-wrapper right">
-            <div class="lantern-line"></div>
-            <div class="lantern">
-                <div class="lantern-inner"></div>
-                <span class="lantern-text">福</span>
-            </div>
-            <div class="lantern-tassel"></div>
-        </div>
-    </div>
-
     <div class="admin-container">
-        <!-- 登录界面 -->
         <div id="admin-login" class="admin-login">
             <div class="login-box">
                 <h1>管理后台</h1>
                 <p class="login-desc">请输入管理员密钥</p>
                 <form id="admin-login-form" onsubmit="handleAdminLogin(event)">
-                    <div class="form-group">
-                        <input type="password" id="admin-key" placeholder="管理员密钥" required>
-                    </div>
+                    <div class="form-group"><input type="password" id="admin-key" placeholder="管理员密钥" required></div>
                     <button type="submit" class="login-btn">登录</button>
                 </form>
                 <div id="login-error" class="error-message"></div>
             </div>
         </div>
 
-        <!-- 管理界面 -->
-        <div id="admin-panel" class="admin-panel" style="display: none;">
+        <div id="admin-panel" class="admin-panel" style="display:none;">
             <header class="admin-header">
                 <h1>URP教务助手 - 管理后台</h1>
-                <button class="logout-btn" onclick="adminLogout()">退出登录</button>
+                <button class="logout-btn" type="button" onclick="adminLogout()">退出</button>
             </header>
 
             <div class="admin-content">
-                <!-- 标签页导航 -->
-                <div class="tabs">
-                    <button class="tab-btn active" onclick="switchTab('pending')">待审批换绑请求</button>
-                    <button class="tab-btn" onclick="switchTab('users')">用户列表</button>
-                    <button class="tab-btn" onclick="switchTab('complex')">复杂论文需求</button>
-                    <button class="tab-btn" onclick="switchTab('announcements')">公告管理</button>
-                    <button class="tab-btn" onclick="switchTab('config')">系统配置</button>
-                </div>
+                <nav class="tabs" role="tablist">
+                    <button class="tab-btn active" type="button" onclick="switchTab('users')" role="tab">用户</button>
+                    <button class="tab-btn" type="button" onclick="switchTab('monitor')" role="tab">监控</button>
+                    <button class="tab-btn" type="button" onclick="switchTab('pending')" role="tab">审批</button>
+                    <button class="tab-btn" type="button" onclick="switchTab('announcements')" role="tab">公告</button>
+                    <button class="tab-btn" type="button" onclick="switchTab('feedback')" role="tab">反馈</button>
+                    <button class="tab-btn" type="button" onclick="switchTab('surveys')" role="tab">问卷</button>
+                    <button class="tab-btn" type="button" onclick="switchTab('members')" role="tab">会员</button>
+                    <button class="tab-btn" type="button" onclick="switchTab('withdrawals')" role="tab">提现</button>
+                    <button class="tab-btn" type="button" onclick="switchTab('config')" role="tab">配置</button>
+                </nav>
 
-                <!-- 待审批换绑请求 -->
-                <div id="tab-pending" class="tab-content active">
-                    <div class="section-header">
-                        <h2>待审批换绑请求</h2>
-                        <button class="refresh-btn" onclick="loadPendingRequests()">🔄 刷新</button>
-                    </div>
-                    <div id="pending-list" class="pending-list">
-                        <div class="loading">加载中...</div>
-                    </div>
-                </div>
+                <section id="tab-users" class="tab-content active">
+                    <div class="section-header"><h2>用户统计</h2><button class="icon-btn" type="button" onclick="loadUsers()">刷新</button></div>
+                    <div id="users-list" class="users-list"><div class="loading">加载中...</div></div>
+                </section>
 
-                <!-- 用户列表 -->
-                <div id="tab-users" class="tab-content">
-                    <div class="section-header">
-                        <h2>已绑定用户列表</h2>
-                        <button class="refresh-btn" onclick="loadUsers()">🔄 刷新</button>
-                    </div>
+                <section id="tab-monitor" class="tab-content">
+                    <div class="section-header"><h2>在线监控</h2><button class="icon-btn" type="button" onclick="loadMonitorData()">刷新</button></div>
+                    <div class="monitor-summary"><span>在线人数：</span><strong id="online-count">-</strong></div>
+                    <div id="online-users-list" class="online-users-list"><div class="loading">加载中...</div></div>
+                </section>
 
-                    <!-- 搜索框 -->
-                    <div class="search-container">
-                        <input type="text" id="user-search" placeholder="搜索用户名..." onkeyup="handleUserSearch(event)">
-                        <button class="search-btn" onclick="searchUsers()">🔍 搜索</button>
-                    </div>
+                <section id="tab-pending" class="tab-content">
+                    <div class="section-header"><h2>待审批换绑请求</h2><button class="icon-btn" type="button" onclick="loadPendingRequests()">刷新</button></div>
+                    <div id="pending-list" class="pending-list"><div class="loading">加载中...</div></div>
+                </section>
 
-                    <!-- 用户列表 -->
-                    <div id="users-list" class="users-list">
-                        <div class="loading">加载中...</div>
-                    </div>
+                <section id="tab-announcements" class="tab-content">
+                    <div class="section-header"><h2>公告管理</h2><div class="button-group"><button class="icon-btn" type="button" onclick="loadAnnouncements()">刷新</button><button class="btn-primary" type="button" onclick="showCreateAnnouncementModal()">发布公告</button></div></div>
+                    <div id="announcements-list" class="announcements-list"><div class="loading">加载中...</div></div>
+                </section>
 
-                    <!-- 分页控件 -->
-                    <div id="users-pagination" class="pagination"></div>
-                </div>
+                <section id="tab-feedback" class="tab-content">
+                    <div class="section-header"><h2>用户反馈</h2><button class="icon-btn" type="button" onclick="loadAdminFeedbacks()">刷新</button></div>
+                    <div id="feedback-list" class="feedback-list"><div class="loading">加载中...</div></div>
+                </section>
 
-                <!-- 复杂论文需求 -->
-                <div id="tab-complex" class="tab-content">
-                    <div class="section-header">
-                        <h2>复杂论文需求管理</h2>
-                        <button class="refresh-btn" onclick="loadComplexRequests()">🔄 刷新</button>
-                    </div>
+                <section id="tab-surveys" class="tab-content">
+                    <div class="section-header"><h2>问卷管理</h2><div class="button-group"><button class="icon-btn" type="button" onclick="loadSurveys()">刷新</button><button class="btn-primary" type="button" onclick="showCreateSurveyModal()">发布问卷</button></div></div>
+                    <div id="surveys-list" class="surveys-list"><div class="loading">加载中...</div></div>
+                </section>
 
-                    <!-- 统计信息 -->
-                    <div class="complex-stats">
-                        <div class="stat-item">
-                            <span class="stat-number" id="complex-total">-</span>
-                            <span class="stat-label">总需求</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-number" id="complex-pending">-</span>
-                            <span class="stat-label">待处理</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-number" id="complex-completed">-</span>
-                            <span class="stat-label">已完成</span>
-                        </div>
+                <section id="tab-members" class="tab-content">
+                    <div class="section-header"><h2>会员管理</h2><button class="icon-btn" type="button" onclick="loadAdminMembers()">刷新</button></div>
+                    <div class="config-section">
+                        <h3>手动开通/续费</h3>
+                        <form class="form-grid" onsubmit="handleGrantMember(event)">
+                            <input id="grant-username" type="text" placeholder="学号">
+                            <select id="grant-type"><option value="basic">初级会员</option><option value="advanced">高级会员</option></select>
+                            <input id="grant-days" type="number" value="180" min="1" placeholder="天数">
+                            <button class="btn-primary" type="submit">确认开通</button>
+                            </form>
+                        <div id="grant-member-msg" class="hint-message"></div>
                     </div>
+                    <div class="config-section"><label><input type="checkbox" id="grades-member-required"> 成绩查询需要会员</label><span id="grades-member-status" class="hint-message"></span></div>
+                    <div id="members-list" class="members-list"><div class="loading">加载中...</div></div>
+                </section>
 
-                    <!-- 提示信息 -->
-                    <div class="complex-hint">
-                        点击"标记完成"按钮可上传论文文件，系统会自动重命名为 <code>{request_id}_finished.docx</code>
-                    </div>
+                <section id="tab-withdrawals" class="tab-content">
+                    <div class="section-header"><h2>提现管理</h2><button class="icon-btn" type="button" onclick="loadAdminWithdrawals()">刷新</button></div>
+                    <div id="commission-stats" class="commission-stats"><div class="loading">加载中...</div></div>
+                    <div id="withdrawals-list" class="withdrawals-list"><div class="loading">加载中...</div></div>
+                </section>
 
-                    <!-- 需求列表 -->
-                    <div id="complex-list" class="complex-list">
-                        <div class="loading">加载中...</div>
-                    </div>
-                </div>
-
-                <!-- 公告管理 -->
-                <div id="tab-announcements" class="tab-content">
-                    <div class="section-header">
-                        <h2>公告管理</h2>
-                        <button class="refresh-btn" onclick="loadAnnouncements()">🔄 刷新</button>
-                        <button class="create-btn" onclick="showCreateAnnouncementModal()">➕ 发布新公告</button>
-                    </div>
-                    <div id="announcements-list" class="announcements-list">
-                        <div class="loading">加载中...</div>
-                    </div>
-                </div>
-
-                <!-- 系统配置 -->
-                <div id="tab-config" class="tab-content">
-                    <div class="section-header">
-                        <h2>教务系统URL配置</h2>
-                        <button class="refresh-btn" onclick="loadConfig()">🔄 刷新</button>
-                    </div>
+                <section id="tab-config" class="tab-content">
+                    <div class="section-header"><h2>系统配置</h2><button class="icon-btn" type="button" onclick="loadConfig()">刷新</button></div>
                     <div class="config-container">
                         <div class="config-section">
-                            <h3>当前使用的URL</h3>
-                            <div id="current-url" class="current-url-display">
-                                <div class="loading">加载中...</div>
+                            <h3>数据库配置</h3>
+                            <p class="config-desc">两台服务器共享充值和会员数据时请选择 MySQL / MariaDB。</p>
+                            <form id="database-form" onsubmit="handleUpdateDatabase(event)">
+                                <label for="database-type">数据库类型</label>
+                                <select id="database-type" onchange="toggleDatabaseFields()"><option value="sqlite">SQLite（本机）</option><option value="mysql">MySQL / MariaDB（多服务器共享）</option></select>
+                            <div id="database-sqlite-fields" class="database-fields"><label for="database-sqlite-path">SQLite 路径</label><input id="database-sqlite-path" type="text" placeholder="data/urp_helper.db"></div>
+                            <div id="database-mysql-fields" class="database-fields" style="display:none;">
+                                <label for="database-mysql-host">主机地址</label><input id="database-mysql-host" type="text" placeholder="127.0.0.1">
+                                <label for="database-mysql-port">端口</label><input id="database-mysql-port" type="number" placeholder="3306">
+                                <label for="database-mysql-name">数据库名</label><input id="database-mysql-name" type="text" placeholder="urp">
+                                <label for="database-mysql-user">用户名</label><input id="database-mysql-user" type="text" placeholder="urp">
+                                <label for="database-mysql-password">密码</label><input id="database-mysql-password" type="password" placeholder="数据库密码">
                             </div>
+                            <button class="btn-primary btn-full" type="submit">测试并保存数据库配置</button>
+                            </form>
+                            <button class="btn-secondary btn-full" type="button" onclick="handleMigrateSqliteData()">从本机 SQLite 导入数据</button>
+                            <div id="database-config-status" class="hint-message"></div>
                         </div>
-
                         <div class="config-section">
-                            <h3>切换URL</h3>
-                            <p class="config-desc">选择要使用的教务系统URL</p>
-                            <div id="url-options" class="url-options">
-                                <div class="loading">加载中...</div>
-                            </div>
-                        </div>
-
-                        <div class="config-section">
-                            <h3>编辑URL列表</h3>
-                            <p class="config-desc">修改可用的教务系统URL（每行一个）</p>
+                            <h3>教务系统 URL</h3>
+                            <div id="current-url" class="current-url-display"><div class="loading">加载中...</div></div>
+                            <div id="url-options" class="url-options"><div class="loading">加载中...</div></div>
                             <form id="url-form" onsubmit="handleUpdateUrls(event)">
-                                <div class="form-group">
-                                    <label for="url-1">URL 1:</label>
-                                    <input type="url" id="url-1" name="url_1" required placeholder="http://urp1.example.com">
-                                </div>
-                                <div class="form-group">
-                                    <label for="url-2">URL 2:</label>
-                                    <input type="url" id="url-2" name="url_2" required placeholder="http://urp2.example.com">
-                                </div>
-                                <button type="submit" class="submit-btn">保存URL配置</button>
+                                <label for="url-1">URL 1</label><input type="url" id="url-1" name="url_1" placeholder="http://urp1.example.com">
+                                <label for="url-2">URL 2</label><input type="url" id="url-2" name="url_2" placeholder="http://urp2.example.com">
+                                <button type="submit" class="btn-primary btn-full">保存 URL 配置</button>
                             </form>
                         </div>
-
-                        <div class="config-section">
-                            <h3>全局主题</h3>
-                            <p class="config-desc">切换网站全局样式主题，对所有用户生效</p>
-                            <div class="theme-switch-container">
-                                <span class="theme-switch-label">默认主题</span>
-                                <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()"></button>
-                                <span class="theme-switch-label">🧧 新春主题</span>
-                                <span class="theme-status" id="theme-status">加载中...</span>
-                            </div>
-                        </div>
                     </div>
-                </div>
+                </section>
             </div>
         </div>
     </div>
 
-    <!-- 审批弹窗 -->
-    <div id="approve-modal" class="modal">
-        <div class="modal-content">
-            <button class="modal-close" onclick="closeApproveModal()">×</button>
-            <h2>审批换绑请求</h2>
-            <div id="approve-details" class="approve-details"></div>
-            <p class="modal-desc">批准后将解绑该设备的旧账号，用户需要重新登录绑定新账号</p>
-            <div class="button-group">
-                <button type="button" class="approve-btn" onclick="handleApprove()">批准</button>
-                <button type="button" class="reject-btn" onclick="handleReject()">拒绝</button>
-            </div>
-        </div>
-    </div>
+    <div id="approve-modal" class="modal"><div class="modal-content"><button class="modal-close" type="button" onclick="closeApproveModal()" aria-label="关闭">&times;</button><h2>审批换绑请求</h2><div id="approve-details" class="approve-details"></div><p class="modal-desc">批准后将解绑该设备的旧账号，用户需要重新登录并绑定新账号。</p><div class="button-group"><button type="button" class="btn-success" onclick="handleApprove()">批准</button><button type="button" class="btn-danger" onclick="handleReject()">拒绝</button></div></div></div>
 
-    <!-- 公告编辑弹窗 -->
-    <div id="announcement-modal" class="modal">
-        <div class="modal-content">
-            <button class="modal-close" onclick="closeAnnouncementModal()">×</button>
-            <h2 id="announcement-modal-title">发布新公告</h2>
-            <form id="announcement-form" onsubmit="handleAnnouncementSubmit(event)">
-                <div class="form-group">
-                    <label for="announcement-title">公告标题:</label>
-                    <input type="text" id="announcement-title" required placeholder="请输入公告标题">
-                </div>
-                <div class="form-group">
-                    <label for="announcement-content">公告内容:</label>
-                    <textarea id="announcement-content" rows="8" required placeholder="请输入公告内容"></textarea>
-                </div>
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="announcement-active" checked>
-                        启用此公告
-                    </label>
-                </div>
-                <div class="button-group">
-                    <button type="submit" class="submit-btn">保存</button>
-                    <button type="button" class="cancel-btn" onclick="closeAnnouncementModal()">取消</button>
-                </div>
-            </form>
-        </div>
-    </div>
+    <div id="announcement-modal" class="modal"><div class="modal-content"><button class="modal-close" type="button" onclick="closeAnnouncementModal()" aria-label="关闭">&times;</button><h2 id="announcement-modal-title">发布新公告</h2><form id="announcement-form" onsubmit="handleAnnouncementSubmit(event)"><div class="form-group"><label for="announcement-title">公告标题</label><input type="text" id="announcement-title" required placeholder="请输入公告标题"></div><div class="form-group"><label for="announcement-content">公告内容</label><textarea id="announcement-content" rows="8" required placeholder="请输入公告内容"></textarea></div><label><input type="checkbox" id="announcement-active" checked> 启用此公告</label><div class="button-group"><button type="submit" class="btn-primary">保存</button><button type="button" class="btn-secondary" onclick="closeAnnouncementModal()">取消</button></div></form></div></div>
 
-    <!-- 标记完成确认弹窗 -->
-    <div id="complete-modal" class="modal">
-        <div class="modal-content">
-            <button class="modal-close" onclick="closeCompleteModal()">×</button>
-            <h2>上传完成论文</h2>
-            <div id="complete-details" class="approve-details"></div>
-            <div class="form-group" style="margin-top: 15px;">
-                <label>上传论文文件（将自动重命名）:</label>
-                <div class="file-upload-box" style="border: 2px dashed #4caf50; background: #f1f8e9;">
-                    <input type="file" id="finish-file-input" accept=".docx,.doc" onchange="handleFinishFileSelect(event)">
-                    <div class="file-upload-hint">支持 .doc, .docx 格式</div>
-                </div>
-                <div id="finish-file-info" class="uploaded-file-info" style="display: none;"></div>
-            </div>
-            <div class="button-group">
-                <button type="button" class="approve-btn" id="confirm-complete-btn" onclick="confirmUploadAndComplete()">上传并标记完成</button>
-                <button type="button" class="cancel-btn" onclick="closeCompleteModal()">取消</button>
-            </div>
-        </div>
-    </div>
+    <div id="survey-modal" class="modal"><div class="modal-content"><button class="modal-close" type="button" onclick="closeSurveyModal()" aria-label="关闭">&times;</button><h2 id="survey-modal-title">发布新问卷</h2><form id="survey-form" onsubmit="handleSurveySubmit(event)"><div class="form-group"><label for="survey-title">问卷标题</label><input type="text" id="survey-title" required placeholder="请输入问卷标题"></div><div class="form-group"><label for="survey-url">问卷链接</label><input type="url" id="survey-url" required placeholder="https://v.wjx.cn/vm/xxxxx.aspx"></div><label><input type="checkbox" id="survey-active" checked> 启用此问卷</label><div class="button-group"><button type="submit" class="btn-primary">保存</button><button type="button" class="btn-secondary" onclick="closeSurveyModal()">取消</button></div></form></div></div>
 
-    <!-- 遮罩层 -->
+    <div id="feedback-reply-modal" class="modal"><div class="modal-content"><button class="modal-close" type="button" onclick="closeFeedbackReplyModal()" aria-label="关闭">&times;</button><h2>回复反馈</h2><div id="feedback-reply-original" class="feedback-reply-original"></div><form onsubmit="handleFeedbackReplySubmit(event)"><div class="form-group"><label for="feedback-reply-content">回复内容</label><textarea id="feedback-reply-content" rows="5" placeholder="请输入回复内容"></textarea></div><div class="button-group"><button type="submit" class="btn-primary">发送回复</button><button type="button" class="btn-secondary" onclick="closeFeedbackReplyModal()">取消</button></div></form></div></div>
+
     <div id="overlay" class="overlay"></div>
-
     <script src="/static/js/admin.js"></script>
-    <script>
-        // 主题管理
-        let currentTheme = 'default';
-
-        function loadTheme() {
-            fetch('/api/theme').then(r => r.json()).then(data => {
-                if (data.success) {
-                    currentTheme = data.theme;
-                    applyTheme(currentTheme);
-                    updateThemeUI();
-                }
-            }).catch(() => {});
-        }
-
-        function applyTheme(theme) {
-            if (theme === 'spring') {
-                document.body.classList.add('theme-spring');
-            } else {
-                document.body.classList.remove('theme-spring');
-            }
-        }
-
-        function updateThemeUI() {
-            const toggle = document.getElementById('theme-toggle');
-            const status = document.getElementById('theme-status');
-            if (!toggle || !status) return;
-            if (currentTheme === 'spring') {
-                toggle.classList.add('active');
-                status.textContent = '🧧 新春主题已启用';
-            } else {
-                toggle.classList.remove('active');
-                status.textContent = '默认主题';
-            }
-        }
-
-        function toggleTheme() {
-            const newTheme = currentTheme === 'spring' ? 'default' : 'spring';
-            fetch('/api/admin/theme', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Admin-Key': adminKey
-                },
-                body: JSON.stringify({ theme: newTheme })
-            }).then(r => r.json()).then(data => {
-                if (data.success) {
-                    currentTheme = data.theme;
-                    applyTheme(currentTheme);
-                    updateThemeUI();
-                    alert(data.message);
-                } else {
-                    alert('切换失败: ' + data.message);
-                }
-            }).catch(() => alert('网络错误'));
-        }
-
-        // 页面加载时获取主题
-        loadTheme();
-    </script>
 </body>
 </html>

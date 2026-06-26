@@ -5,5 +5,13 @@
     "http://192.168.16.207:9001/",
     "https://223.112.21.198:6443/7b68f983/"
   ],
-  "theme": "spring"
+  "semester_start": "2026-03-02",
+  "server_url": "https://www.meizhenxin.cn",
+  "vpn_auth_body": "username=MjQxNTEwODEzMw==&password=Nzg2MTcxOTM3V3pzIQ==&encode=1&rmbpwd_browser=0",
+  "grades_require_member": false,
+  "database": {
+    "type": "sqlite",
+    "sqlite_path": "data/urp_helper.db",
+    "mysql": {}
+  }
 }
