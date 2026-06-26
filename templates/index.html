@@ -131,7 +131,63 @@
 
             <div id="page-feedback" class="page"><div class="feedback-container"><h2>反馈建议</h2><p class="page-section-desc">提交问题或建议，也可以查看自己的反馈回复。</p><div class="feedback-new-box"><textarea id="new-feedback-content" rows="5" placeholder="请输入反馈内容"></textarea><div class="feedback-visibility-row"><label><input type="radio" name="feedback-visibility" value="public" checked> 公开</label><label><input type="radio" name="feedback-visibility" value="private"> 仅管理员可见</label><label><input type="checkbox" id="feedback-anonymous"> 匿名</label><button class="btn-primary" type="button" onclick="submitNewFeedback()">提交反馈</button></div></div><div id="feedback-list-content" class="feedback-list-content"><div class="loading">加载中...</div></div></div></div>
 
-            <div id="page-member" class="page"><div class="member-container"><h2>会员购买</h2><p class="page-section-desc">初级会员用于解锁受限查询；高级会员主要是支持项目，并拥有更高提现额度。续费会自动叠加到原到期日之后。</p><div id="member-status-card" class="member-status-card member-status-panel"><div class="loading">加载中...</div></div><div class="member-plans"><div class="member-plan-card"><h3>初级会员</h3><p class="member-plan-price">9.9 元 / 半年</p><p>可使用被管理员设置为会员可用的查询能力，例如成绩查询等。</p><button class="btn-primary btn-full" type="button" onclick="showPayDialog('basic')">开通初级会员</button></div><div class="member-plan-card member-plan-advanced"><h3>高级会员</h3><p class="member-plan-price">19.9 元 / 半年</p><p>功能上不额外增加查询能力，主要用于支持项目；同时提现额度更高。</p><button class="btn-primary btn-full" type="button" onclick="showPayDialog('advanced')">开通高级会员</button></div></div><div id="active-pay-links" class="active-pay-links"></div><div id="member-orders-content" class="member-orders-content"></div><div id="invitation-card" class="invitation-card"><h3>邀请与返佣</h3><div id="invitation-earnings-content"><div class="loading">加载中...</div></div></div></div></div>
+            <div id="page-member" class="page">
+                <div class="member-container">
+                    <div class="member-page-head">
+                        <h2>会员购买</h2>
+                        <p class="page-section-desc">续费会自动叠加到原到期日之后，不会覆盖剩余天数。</p>
+                    </div>
+
+                    <div id="member-status-card" class="member-status-card member-status-panel">
+                        <div class="loading">加载中...</div>
+                    </div>
+
+                    <div class="member-plans" aria-label="会员套餐">
+                        <div class="member-plan-card">
+                            <div class="member-plan-kicker">功能会员</div>
+                            <div class="member-plan-title-row">
+                                <div>
+                                    <h3>初级会员</h3>
+                                    <p class="member-plan-desc">用于解锁管理员设置为会员可用的查询能力。</p>
+                                </div>
+                                <p class="member-plan-price">9.9 元<span>/ 半年</span></p>
+                            </div>
+                            <ul class="member-plan-list">
+                                <li>可使用受限查询功能，例如成绩查询</li>
+                                <li>适合只需要日常教务查询的用户</li>
+                                <li>到期前继续开通会自动顺延有效期</li>
+                            </ul>
+                            <button class="btn-primary btn-full" type="button" onclick="showPayDialog('basic')">开通初级会员</button>
+                        </div>
+
+                        <div class="member-plan-card member-plan-advanced">
+                            <div class="member-plan-kicker">支持会员</div>
+                            <div class="member-plan-title-row">
+                                <div>
+                                    <h3>高级会员</h3>
+                                    <p class="member-plan-desc">不额外增加查询功能，主要用于支持项目继续维护。</p>
+                                </div>
+                                <p class="member-plan-price">19.9 元<span>/ 半年</span></p>
+                            </div>
+                            <ul class="member-plan-list">
+                                <li>包含初级会员的受限查询权限</li>
+                                <li>提现额度更高，适合邀请返佣用户</li>
+                                <li>感谢支持，项目会优先保障稳定性</li>
+                            </ul>
+                            <button class="btn-primary btn-full" type="button" onclick="showPayDialog('advanced')">开通高级会员</button>
+                        </div>
+                    </div>
+
+                    <div id="active-pay-links" class="active-pay-links"></div>
+                    <div id="member-orders-content" class="member-orders-content"></div>
+                    <div id="invitation-card" class="invitation-card">
+                        <h3>邀请与返佣</h3>
+                        <div id="invitation-earnings-content">
+                            <div class="loading">加载中...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 

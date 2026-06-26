@@ -3565,3 +3565,180 @@ body {
     }
 }
 
+/* 会员页面：克制版套餐卡片 */
+#page-member .member-container {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 28px;
+    background: rgba(255, 255, 255, 0.92);
+}
+
+.member-page-head h2 {
+    margin: 0 0 8px;
+    font-size: 28px;
+    font-weight: 750;
+    color: var(--text-primary);
+}
+
+#page-member .page-section-desc {
+    margin: 0 0 18px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+#page-member .member-status-panel,
+#page-member .active-pay-links,
+#page-member .member-orders-content,
+#page-member .invitation-card {
+    border: 1px solid #e4e7ec;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: none;
+}
+
+#page-member .member-status-panel {
+    padding: 16px 18px;
+    margin-bottom: 16px;
+}
+
+#page-member .member-plans {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    margin: 0 0 16px;
+}
+
+#page-member .member-plan-card {
+    min-height: 0;
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid #dfe3ea;
+    background: #fff;
+    box-shadow: none;
+    gap: 16px;
+}
+
+#page-member .member-plan-card::before {
+    height: 3px;
+    background: #0a84ff;
+}
+
+#page-member .member-plan-advanced {
+    border-color: #dfe3ea;
+}
+
+#page-member .member-plan-advanced::before {
+    background: #22a06b;
+}
+
+.member-plan-kicker {
+    width: fit-content;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: #f2f6ff;
+    color: #0a66d8;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.member-plan-advanced .member-plan-kicker {
+    background: #edf8f2;
+    color: #168653;
+}
+
+.member-plan-title-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 14px;
+    align-items: start;
+}
+
+#page-member .member-plan-card h3 {
+    margin: 0;
+    font-size: 21px;
+    line-height: 1.25;
+    font-weight: 780;
+    color: var(--text-primary);
+}
+
+.member-plan-desc {
+    margin: 8px 0 0;
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.55;
+}
+
+#page-member .member-plan-price {
+    margin: 0;
+    min-width: 110px;
+    text-align: right;
+    color: var(--text-primary);
+    font-size: 22px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+#page-member .member-plan-price span {
+    display: block;
+    margin-top: 4px;
+    color: var(--text-tertiary);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.member-plan-list {
+    display: grid;
+    gap: 9px;
+    margin: 0;
+    padding: 14px 14px 14px 30px;
+    border-radius: 10px;
+    background: #f7f8fa;
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.member-plan-list li::marker {
+    color: #0a84ff;
+}
+
+.member-plan-advanced .member-plan-list li::marker {
+    color: #22a06b;
+}
+
+#page-member .member-plan-card .btn-primary {
+    margin-top: auto;
+    height: 44px;
+    border-radius: 10px;
+}
+
+#page-member .active-pay-links,
+#page-member .member-orders-content,
+#page-member .invitation-card {
+    margin-top: 14px;
+    padding: 16px 18px;
+}
+
+#page-member .invitation-card h3 {
+    margin: 0 0 12px;
+    font-size: 18px;
+}
+
+@media (max-width: 760px) {
+    #page-member .member-container {
+        padding: 20px;
+    }
+
+    #page-member .member-plans {
+        grid-template-columns: 1fr;
+    }
+
+    .member-plan-title-row {
+        grid-template-columns: 1fr;
+    }
+
+    #page-member .member-plan-price {
+        text-align: left;
+    }
+}
+
