@@ -26,8 +26,23 @@ VPN_AUTH_USERNAME = os.environ.get('VPN_AUTH_USERNAME')
 VPN_AUTH_PASSWORD = os.environ.get('VPN_AUTH_PASSWORD')
 VPN_AUTH_BODY = os.environ.get('VPN_AUTH_BODY')
 MAX_CAPTCHA_ATTEMPTS = 8
+VPN_COOKIE_PREFIX = 'VSG_'
 _VPN_LOCK = threading.Lock()
 _KEEPALIVE_STARTED = False
+
+
+class VPNUnavailableError(RuntimeError):
+    """Raised when VPN recovery cannot safely continue the request."""
+
+
+def _filter_shared_vpn_cookies(cookies):
+    if not isinstance(cookies, dict):
+        return {}
+    return {
+        str(name): value
+        for name, value in cookies.items()
+        if str(name).upper().startswith(VPN_COOKIE_PREFIX)
+    }
 
 
 class LoginFormParser(HTMLParser):
@@ -106,25 +121,15 @@ def _page_title(html):
 
 
 def _looks_logged_in(response):
-    text = response.text
-    title = _page_title(text)
-    still_login = 'name="loginForm"' in text or "name='loginForm'" in text
-    has_panel_signal = any(signal in text for signal in [
-        '个人管理',
-        '学生个人课表',
-        '网上选课',
-        '信息查询',
-        '教学评价',
-    ])
-    return (not still_login and '登录' not in title) or has_panel_signal
+    if is_vpn_failure_response(response) or _looks_like_urp_login_page(response):
+        return False
+    return _looks_like_urp_home_page(response)
 
 
 def _extract_shared_cookies(payload):
     if isinstance(payload, dict) and isinstance(payload.get('cookies'), dict):
-        return payload['cookies']
-    if isinstance(payload, dict):
-        return payload
-    return {}
+        return _filter_shared_vpn_cookies(payload['cookies'])
+    return _filter_shared_vpn_cookies(payload)
 
 
 def load_shared_vpn_cookies():
@@ -139,8 +144,14 @@ def load_shared_vpn_cookies():
 
 def save_shared_vpn_cookies(cookies):
     os.makedirs(os.path.dirname(VPN_COOKIE_FILE), exist_ok=True)
+    shared_cookies = _filter_shared_vpn_cookies(cookies)
     with open(VPN_COOKIE_FILE, 'w', encoding='utf-8') as f:
-        json.dump({'cookies': cookies, 'updated_at': time.time()}, f, ensure_ascii=False, indent=4)
+        json.dump(
+            {'cookies': shared_cookies, 'updated_at': time.time()},
+            f,
+            ensure_ascii=False,
+            indent=4,
+        )
 
 
 def clear_shared_vpn_cookies():
@@ -163,6 +174,50 @@ def _looks_like_vpn_auth_page(resp):
         or 'vsg_verifycode_conf' in lowered
         or 'vsg_login' in lowered
     )
+
+
+def _response_text(resp):
+    return getattr(resp, 'text', '') or ''
+
+
+def _looks_like_vpn_error_page(resp):
+    url = (getattr(resp, 'url', '') or '').lower()
+    text = _response_text(resp)
+    lowered = text.lower()
+    return (
+        '/vpn/user/common/error' in url
+        or 'pagename: "error"' in lowered
+        or "pagename: 'error'" in lowered
+        or 'var errmsg' in lowered
+        or '\u767b\u5f55\u4f1a\u8bdd\u8d85\u65f6' in text
+        or '\u7f51\u7ad9\u7ef4\u62a4' in text
+        or '\u7f51\u7ad9\u6b63\u5728\u7ef4\u62a4' in text
+    )
+
+
+def _looks_like_urp_login_page(resp):
+    text = _response_text(resp)
+    return bool(
+        re.search(r'name\s*=\s*["\']loginForm["\']', text, re.I)
+        and re.search(r'loginAction\.do', text, re.I)
+    )
+
+
+def _looks_like_urp_home_page(resp):
+    text = _response_text(resp)
+    has_frameset = 'menu/top.jsp' in text and 'menu/mainFrame.jsp' in text
+    has_panel_signal = any(signal in text for signal in [
+        '\u4e2a\u4eba\u7ba1\u7406',
+        '\u5b66\u751f\u4e2a\u4eba\u8bfe\u8868',
+        '\u7f51\u4e0a\u9009\u8bfe',
+        '\u4fe1\u606f\u67e5\u8be2',
+        '\u6559\u5b66\u8bc4\u4ef7',
+    ])
+    return has_frameset or has_panel_signal
+
+
+def is_vpn_failure_response(resp):
+    return _looks_like_vpn_auth_page(resp) or _looks_like_vpn_error_page(resp)
 
 
 def _html_hint(resp):
@@ -219,10 +274,17 @@ def _ocr_dependency_diagnostics():
     return '; '.join(results)
 def vpn_session_alive(session, url=VPN_KEEPALIVE_URL):
     try:
-        resp = session.get(url, headers={'Referer': VPN_PORTAL_PAGE}, verify=False, timeout=8)
-        return resp.status_code == 200 and not _looks_like_vpn_auth_page(resp)
+        resp = session.get(
+            url,
+            headers={'Referer': VPN_PORTAL_PAGE},
+            verify=False,
+            timeout=8,
+        )
     except Exception:
         return False
+    if resp.status_code != 200 or is_vpn_failure_response(resp):
+        return False
+    return _looks_like_urp_login_page(resp) or _looks_like_urp_home_page(resp)
 
 
 def _vpn_keepalive_loop():
