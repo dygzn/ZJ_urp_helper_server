@@ -88,6 +88,7 @@ function switchTab(tabName) {
         loadConfig();
     } else if (tabName === 'members') {
         loadAdminMembers();
+        loadConfig();
     } else if (tabName === 'withdrawals') {
         loadAdminWithdrawals();
         loadCommissionStats();
@@ -1467,45 +1468,89 @@ function renderOnlineUsers(users) {
 }
 
 // ==================== 会员管理 ====================
-async function loadAdminMembers() {
+async function loadAdminMembers(usernameArg = '') {
     const listDiv = document.getElementById('members-list');
-    listDiv.innerHTML = '<div class="loading">加载中</div>';
-    try {
-        const resp = await fetch('/api/admin/members', { headers: { 'Admin-Key': adminKey } });
-        const data = await resp.json();
-        if (!data.success) { listDiv.innerHTML = '<p style="color:var(--error);">加载失败</p>'; return; }
-        const members = data.data;
-        if (!members.length) { listDiv.innerHTML = '<p style="text-align:center;color:#888;">暂无会员</p>'; return; }
-        const typeMap = { basic: '初级会员', advanced: '高级会员' };
-        let html = '<div class="member-table-wrap"><table class="member-table"><thead><tr><th>学号</th><th>类型</th><th>到期时间</th><th>开通时间</th><th>状态</th><th>操作</th></tr></thead><tbody>';
-        const now = new Date();
-        for (const m of members) {
-            const expire = new Date(m.expire_time);
-            const valid = expire > now;
-            const statusHtml = valid
-                ? `<span class="member-status-valid">有效</span>`
-                : `<span class="member-status-expired">已过期</span>`;
-            html += `<tr>
-                <td><span class="member-username-link" onclick="fillGrantForm('${m.username}','${m.member_type}')">${m.username}</span></td>
-                <td>${typeMap[m.member_type] || m.member_type}</td>
-                <td>${m.expire_time ? m.expire_time.slice(0,10) : '-'}</td>
-                <td>${m.create_time ? m.create_time.slice(0,10) : '-'}</td>
-                <td>${statusHtml}</td>
-                <td>
-                    <button class="btn-sm btn-danger" onclick="revokeMember('${m.username}')">撤销</button>
-                </td>
-            </tr>`;
-        }
-        html += '</tbody></table></div>';
-        listDiv.innerHTML = html;
-    } catch (e) {
-        listDiv.innerHTML = '<p style="color:var(--error);">加载失败</p>';
+    const input = document.getElementById('grant-username');
+    const username = (usernameArg || (input ? input.value : '') || '').trim();
+
+    if (!username) {
+        listDiv.innerHTML = '<div class="empty-state">\u8f93\u5165\u5b66\u53f7\u540e\u67e5\u8be2\u6216\u8c03\u6574\u4f1a\u5458\u72b6\u6001</div>';
+        return;
     }
+
+    listDiv.innerHTML = '<div class="loading">\u67e5\u8be2\u4e2d...</div>';
+    try {
+        const resp = await fetch(`/api/admin/members?username=${encodeURIComponent(username)}`, { headers: { 'Admin-Key': adminKey } });
+        const data = await resp.json();
+        if (!data.success) {
+            listDiv.innerHTML = `<p style="color:var(--error);">${data.message || '\u67e5\u8be2\u5931\u8d25'}</p>`;
+            return;
+        }
+        renderAdminMemberDetail(data.data);
+    } catch (e) {
+        listDiv.innerHTML = '<p style="color:var(--error);">\u7f51\u7edc\u9519\u8bef\uff0c\u8bf7\u91cd\u8bd5</p>';
+    }
+}
+
+function queryAdminMember() {
+    loadAdminMembers();
+}
+
+function renderAdminMemberDetail(data) {
+    const listDiv = document.getElementById('members-list');
+    if (!data) {
+        listDiv.innerHTML = '<div class="empty-state">\u8f93\u5165\u5b66\u53f7\u540e\u67e5\u8be2\u6216\u8c03\u6574\u4f1a\u5458\u72b6\u6001</div>';
+        return;
+    }
+
+    const typeMap = { basic: '\u521d\u7ea7\u4f1a\u5458', advanced: '\u9ad8\u7ea7\u4f1a\u5458' };
+    const member = data.membership;
+    const now = new Date();
+    let statusHtml = '<span class="member-status-expired">\u975e\u4f1a\u5458</span>';
+    let memberRows = `
+        <div class="withdraw-history-item"><span>\u5b66\u53f7</span><strong>${escapeHtml(data.username)}</strong></div>
+        <div class="withdraw-history-item"><span>\u7528\u6237\u7ed1\u5b9a</span><strong>${data.user_exists ? '\u5df2\u7ed1\u5b9a' : '\u672a\u5728 users \u8868\u627e\u5230'}</strong></div>`;
+
+    if (member) {
+        const expire = new Date(member.expire_time);
+        const valid = expire > now;
+        statusHtml = valid
+            ? '<span class="member-status-valid">\u6709\u6548</span>'
+            : '<span class="member-status-expired">\u5df2\u8fc7\u671f</span>';
+        memberRows += `
+            <div class="withdraw-history-item"><span>\u4f1a\u5458\u7c7b\u578b</span><strong>${typeMap[member.member_type] || escapeHtml(member.member_type)}</strong></div>
+            <div class="withdraw-history-item"><span>\u5230\u671f\u65f6\u95f4</span><strong>${member.expire_time ? member.expire_time.slice(0, 19).replace('T', ' ') : '-'}</strong></div>
+            <div class="withdraw-history-item"><span>\u5f00\u901a\u65f6\u95f4</span><strong>${member.create_time ? member.create_time.slice(0, 19).replace('T', ' ') : '-'}</strong></div>`;
+        fillGrantForm(member.username, member.member_type);
+    } else {
+        memberRows += '<div class="withdraw-history-item"><span>\u4f1a\u5458\u72b6\u6001</span><strong>\u6682\u65e0\u4f1a\u5458\u8bb0\u5f55</strong></div>';
+    }
+
+    let ordersHtml = '<div class="commission-muted">\u6682\u65e0\u8fd1\u671f\u8ba2\u5355</div>';
+    if (data.recent_orders && data.recent_orders.length) {
+        ordersHtml = data.recent_orders.map(o => `
+            <div class="withdraw-history-item">
+                <span>${typeMap[o.member_type] || escapeHtml(o.member_type || '-')} \u00a5${o.amount || '0'}</span>
+                <strong>${escapeHtml(o.status || '-')}</strong>
+                <span class="commission-muted">${o.create_time ? o.create_time.slice(0, 10) : ''}</span>
+            </div>`).join('');
+    }
+
+    listDiv.innerHTML = `
+        <div class="member-table-wrap">
+            <div class="commission-mini-grid">
+                <span>\u5f53\u524d\u72b6\u6001</span>
+                <strong>${statusHtml}</strong>
+            </div>
+            <div class="withdraw-history">${memberRows}</div>
+            <div class="withdraw-history-title">\u8fd1\u671f\u8ba2\u5355</div>
+            <div class="withdraw-history">${ordersHtml}</div>
+        </div>`;
 }
 
 function fillGrantForm(username, memberType) {
     document.getElementById('grant-username').value = username;
-    document.getElementById('grant-type').value = memberType;
+    document.getElementById('grant-type').value = memberType || 'basic';
     document.getElementById('grant-days').value = 180;
     document.getElementById('grant-member-msg').textContent = '';
 }
@@ -1517,7 +1562,7 @@ async function handleGrantMember(event) {
     const days = parseInt(document.getElementById('grant-days').value);
     const msgDiv = document.getElementById('grant-member-msg');
     msgDiv.className = 'member-form-msg';
-    msgDiv.textContent = '处理中...';
+    msgDiv.textContent = '\u5904\u7406\u4e2d...';
     try {
         const resp = await fetch('/api/admin/members/grant', {
             method: 'POST',
@@ -1528,14 +1573,14 @@ async function handleGrantMember(event) {
         if (data.success) {
             msgDiv.className = 'member-form-msg member-form-msg-success';
             msgDiv.textContent = data.message;
-            loadAdminMembers();
+            loadAdminMembers(username);
         } else {
             msgDiv.className = 'member-form-msg member-form-msg-error';
-            msgDiv.textContent = data.message || '操作失败';
+            msgDiv.textContent = data.message || '\u64cd\u4f5c\u5931\u8d25';
         }
     } catch (e) {
         msgDiv.className = 'member-form-msg member-form-msg-error';
-        msgDiv.textContent = '网络错误，请重试';
+        msgDiv.textContent = '\u7f51\u7edc\u9519\u8bef\uff0c\u8bf7\u91cd\u8bd5';
     }
 }
 
@@ -1544,15 +1589,14 @@ async function handleRevokeMember() {
     const msgDiv = document.getElementById('grant-member-msg');
     if (!username) {
         msgDiv.className = 'member-form-msg member-form-msg-error';
-        msgDiv.textContent = '请先输入学号';
+        msgDiv.textContent = '\u8bf7\u5148\u8f93\u5165\u5b66\u53f7';
         return;
     }
     await revokeMember(username);
 }
 
 async function revokeMember(username) {
-    if (!confirm(`确定要撤销 ${username} 的会员资格吗？`)) return;
-    const listDiv = document.getElementById('members-list');
+    if (!confirm(`\u786e\u5b9a\u8981\u64a4\u9500 ${username} \u7684\u4f1a\u5458\u8d44\u683c\u5417\uff1f`)) return;
     try {
         const resp = await fetch('/api/admin/members/revoke', {
             method: 'POST',
@@ -1561,12 +1605,15 @@ async function revokeMember(username) {
         });
         const data = await resp.json();
         if (data.success) {
-            loadAdminMembers();
+            const msgDiv = document.getElementById('grant-member-msg');
+            msgDiv.className = 'member-form-msg member-form-msg-success';
+            msgDiv.textContent = data.message;
+            loadAdminMembers(username);
         } else {
-            alert(data.message || '撤销失败');
+            alert(data.message || '\u64a4\u9500\u5931\u8d25');
         }
     } catch (e) {
-        alert('网络错误，请重试');
+        alert('\u7f51\u7edc\u9519\u8bef\uff0c\u8bf7\u91cd\u8bd5');
     }
 }
 

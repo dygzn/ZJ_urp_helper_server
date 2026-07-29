@@ -57,6 +57,7 @@ def _replace_qmark_params(sql):
 
 def _normalize_mysql_sql(sql):
     sql = re.sub(r'INSERT\s+OR\s+REPLACE\s+INTO', 'REPLACE INTO', sql, flags=re.IGNORECASE)
+    sql = re.sub(r'INSERT\s+OR\s+IGNORE\s+INTO', 'INSERT IGNORE INTO', sql, flags=re.IGNORECASE)
     return _replace_qmark_params(sql)
 
 
@@ -460,7 +461,11 @@ def _create_indexes(conn):
         'CREATE INDEX idx_log_endpoint ON request_logs(endpoint)',
         'CREATE INDEX idx_inviter ON invitations(inviter_username)',
         'CREATE INDEX idx_invitee ON invitations(invitee_username)',
+        'CREATE INDEX idx_orders_username_status ON orders(username, status)',
+        'CREATE INDEX idx_orders_status_pay_time ON orders(status, pay_time)',
         'CREATE INDEX idx_earnings_username ON invitation_earnings(username)',
+        'CREATE UNIQUE INDEX idx_earnings_user_order ON invitation_earnings(username, order_no)',
+        'CREATE INDEX idx_earnings_order_no ON invitation_earnings(order_no)',
         'CREATE INDEX idx_withdrawals_username ON withdrawals(username)',
         'CREATE INDEX idx_withdrawals_status ON withdrawals(status)',
     ]

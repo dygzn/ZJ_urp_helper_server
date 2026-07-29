@@ -104,7 +104,8 @@ async function checkBindStatus() {
             currentUsername = data.username;
             document.getElementById('sidebar-username').textContent = currentUsername;
 
-            let lastPage = localStorage.getItem('current_page') || 'home';
+            const urlPage = new URLSearchParams(window.location.search).get('page');
+            let lastPage = urlPage || localStorage.getItem('current_page') || 'home';
             if (lastPage === 'tools') lastPage = 'home';
             switchPage(lastPage);
             loadAndShowAnnouncements();
@@ -174,10 +175,11 @@ async function handleLogin(event) {
 }
 
 // ==================== 换绑相关 ====================
-function showRebindDialog() {
-    const modal = document.getElementById('rebind-modal');
-    modal.classList.add('active');
-    document.getElementById('overlay').classList.add('active');
+async function showRebindDialog() {
+    if (!confirm('确定要解绑当前账号并重新绑定吗？解绑后需要重新输入新账号密码。')) {
+        return;
+    }
+    await unbindForRebind();
 }
 
 function closeRebindDialog() {
@@ -188,23 +190,12 @@ function closeRebindDialog() {
 
 async function handleRebind(event) {
     event.preventDefault();
+    await unbindForRebind();
+}
 
-    const newUsername = document.getElementById('new-username').value.trim();
-    const reason = document.getElementById('reason').value.trim();
+async function unbindForRebind() {
     const errorDiv = document.getElementById('rebind-error');
-    const submitBtn = document.querySelector('#rebind-form button[type="submit"]');
-
-    errorDiv.textContent = '';
-
-    if (!newUsername || !reason) {
-        errorDiv.textContent = '请填写新学号和换绑原因';
-        return;
-    }
-
-    if (submitBtn) {
-        submitBtn.disabled = true;
-        submitBtn.textContent = '提交中...';
-    }
+    if (errorDiv) errorDiv.textContent = '';
 
     try {
         const response = await fetch('/api/request_rebind', {
@@ -213,26 +204,26 @@ async function handleRebind(event) {
                 'Content-Type': 'application/json',
                 'X-Device-ID': getDeviceId()
             },
-            body: JSON.stringify({ new_username: newUsername, reason })
+            body: JSON.stringify({})
         });
-
         const data = await response.json();
 
-        if (data.success) {
-            alert(data.message || '换绑申请已提交，请等待管理员审批');
-            closeRebindDialog();
-            document.getElementById('rebind-form').reset();
-        } else {
-            errorDiv.textContent = data.message || '提交失败';
+        if (!data.success) {
+            if (errorDiv) errorDiv.textContent = data.message || '解绑失败';
+            else alert(data.message || '解绑失败');
+            return;
         }
+
+        currentUsername = null;
+        isGuestMode = false;
+        document.getElementById('sidebar-username').textContent = '未绑定';
+        closeRebindDialog();
+        showLoginModal();
+        alert(data.message || '当前设备已解绑，请重新绑定新账号');
     } catch (error) {
-        console.error('提交换绑申请失败:', error);
-        errorDiv.textContent = '网络错误，请重试';
-    } finally {
-        if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.textContent = '提交申请';
-        }
+        console.error('解绑失败:', error);
+        if (errorDiv) errorDiv.textContent = '网络错误，请重试';
+        else alert('网络错误，请重试');
     }
 }
 
@@ -1454,6 +1445,51 @@ async function gradesLoadFailed() {
     }
 }
 
+function escapeGradeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, ch => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    }[ch]));
+}
+
+function buildGpaDetailTable(details) {
+    if (!Array.isArray(details) || details.length === 0) {
+        return '';
+    }
+
+    const rows = details.filter(row => row && typeof row === 'object' && Object.keys(row).length > 0);
+    if (rows.length === 0) {
+        return '';
+    }
+
+    const preferredColumns = ['学年学期', '学分绩点', '学位绩点', '加权学分学位绩点', '学年', '学期', '平均学分绩点', '平均学位绩点', '总学分', '获得学分', '学分'];
+    const allColumns = Array.from(new Set(rows.flatMap(row => Object.keys(row))));
+    const columns = [
+        ...preferredColumns.filter(column => allColumns.includes(column)),
+        ...allColumns.filter(column => !preferredColumns.includes(column))
+    ];
+
+    let html = '<div class="gpa-detail-card">';
+    html += '<h3 class="gpa-title">学期绩点明细</h3>';
+    html += '<div class="grades-table-wrap"><table class="grades-table gpa-detail-table"><thead><tr>';
+    columns.forEach(column => {
+        html += `<th>${escapeGradeHtml(column)}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+    rows.forEach(row => {
+        html += '<tr>';
+        columns.forEach(column => {
+            html += `<td>${escapeGradeHtml(row[column])}</td>`;
+        });
+        html += '</tr>';
+    });
+    html += '</tbody></table></div></div>';
+    return html;
+}
+
 async function gradesLoadGpa() {
     await checkLoginStatus();
     gradesShowResult('学分绩点');
@@ -1464,17 +1500,26 @@ async function gradesLoadGpa() {
             document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
             return;
         }
-        const gpa = data.gpa;
+        const gpa = data.gpa || {};
         const creditGpa = gpa['学分绩点'];
         const degreeGpa = gpa['学位绩点'];
+        const weightedGpa = gpa['加权学分学位绩点'];
+        const semesterDetails = gpa['学期绩点明细'] || gpa.semester_details || [];
         let html = '<div class="gpa-info-card"><h3 class="gpa-title">绩点信息</h3><div class="gpa-items">';
         if (creditGpa !== null && creditGpa !== undefined) {
-            html += `<div class="gpa-item"><span class="gpa-label">学分绩点</span><span class="gpa-value">${creditGpa}</span></div>`;
+            html += `<div class="gpa-item"><span class="gpa-label">学分绩点</span><span class="gpa-value">${escapeGradeHtml(creditGpa)}</span></div>`;
         }
         if (degreeGpa !== null && degreeGpa !== undefined) {
-            html += `<div class="gpa-item"><span class="gpa-label">学位绩点</span><span class="gpa-value">${degreeGpa}</span></div>`;
+            html += `<div class="gpa-item"><span class="gpa-label">学位绩点</span><span class="gpa-value">${escapeGradeHtml(degreeGpa)}</span></div>`;
+        }
+        if (weightedGpa !== null && weightedGpa !== undefined) {
+            html += `<div class="gpa-item"><span class="gpa-label">加权学分学位绩点</span><span class="gpa-value">${escapeGradeHtml(weightedGpa)}</span></div>`;
+        }
+        if ((creditGpa === null || creditGpa === undefined) && (degreeGpa === null || degreeGpa === undefined) && (weightedGpa === null || weightedGpa === undefined)) {
+            html += '<p class="gpa-empty">暂未查询到总体绩点</p>';
         }
         html += '</div></div>';
+        html += buildGpaDetailTable(semesterDetails);
         document.getElementById('grades-content').innerHTML = html;
     } catch (e) {
         document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
@@ -1980,6 +2025,32 @@ function displaySurveysList(surveys) {
 
 // ==================== 反馈建议 ====================
 
+function escapeFeedbackHtml(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function formatFeedbackContent(value) {
+    return escapeFeedbackHtml(value).replace(/\n/g, '<br>');
+}
+
+function formatFeedbackTime(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return '';
+    }
+    return date.toLocaleString('zh-CN', {
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
 // 加载反馈页面
 async function loadFeedbackPage() {
     const contentDiv = document.getElementById('feedback-list-content');
@@ -1994,7 +2065,7 @@ async function loadFeedbackPage() {
         const data = await response.json();
 
         if (data.success) {
-            displayFeedbackList(data.my_feedbacks, data.public_feedbacks);
+            displayFeedbackList(data.my_feedbacks || [], data.public_feedbacks || []);
         } else {
             contentDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
         }
@@ -2006,11 +2077,13 @@ async function loadFeedbackPage() {
 
 // 提交新反馈
 async function submitNewFeedback() {
-    const content = document.getElementById('new-feedback-content').value.trim();
+    const contentInput = document.getElementById('new-feedback-content');
+    const content = contentInput.value.trim();
     const visibility = document.querySelector('input[name="feedback-visibility"]:checked').value;
 
     if (!content) {
-        alert('请输入反馈内容');
+        alert('先写一点反馈内容吧');
+        contentInput.focus();
         return;
     }
 
@@ -2026,7 +2099,7 @@ async function submitNewFeedback() {
         const data = await response.json();
 
         if (data.success) {
-            document.getElementById('new-feedback-content').value = '';
+            contentInput.value = '';
             loadFeedbackPage();
         } else {
             alert(data.message || '提交失败');
@@ -2044,6 +2117,7 @@ async function submitFeedbackReply(feedbackId) {
 
     if (!content) {
         alert('请输入回复内容');
+        textarea.focus();
         return;
     }
 
@@ -2072,7 +2146,7 @@ async function submitFeedbackReply(feedbackId) {
 // 切换回复框显示
 function toggleReplyBox(feedbackId) {
     const box = document.getElementById(`reply-box-${feedbackId}`);
-    box.style.display = box.style.display === 'none' ? 'block' : 'none';
+    box.style.display = box.style.display === 'none' ? 'flex' : 'none';
 }
 
 // 显示反馈列表
@@ -2081,27 +2155,25 @@ function displayFeedbackList(myFeedbacks, publicFeedbacks) {
     let html = '';
 
     if (myFeedbacks.length === 0 && publicFeedbacks.length === 0) {
-        html = `
+        contentDiv.innerHTML = `
             <div class="empty-state">
                 <div class="empty-state-icon">&#128172;</div>
-                <div class="empty-state-text">暂无反馈</div>
+                <div class="empty-state-text">还没有反馈</div>
+                <div class="feedback-empty-hint">写下第一个问题或建议，管理员看到后就能跟进。</div>
             </div>
         `;
-        contentDiv.innerHTML = html;
         return;
     }
 
-    // 我的反馈
     if (myFeedbacks.length > 0) {
-        html += '<div class="feedback-section-title">我的反馈</div>';
+        html += `<div class="feedback-section-title">我的反馈 <span class="feedback-soft-badge">${myFeedbacks.length} 条</span></div>`;
         myFeedbacks.forEach(fb => {
             html += buildFeedbackCard(fb);
         });
     }
 
-    // 公开反馈
     if (publicFeedbacks.length > 0) {
-        html += '<div class="feedback-section-title">公开反馈</div>';
+        html += `<div class="feedback-section-title">公开讨论 <span class="feedback-soft-badge">${publicFeedbacks.length} 条</span></div>`;
         publicFeedbacks.forEach(fb => {
             html += buildFeedbackCard(fb);
         });
@@ -2110,57 +2182,56 @@ function displayFeedbackList(myFeedbacks, publicFeedbacks) {
     contentDiv.innerHTML = html;
 }
 
-// 构建单条反馈卡片 HTML（论坛楼层模式）
+// 构建单条反馈卡片 HTML
 function buildFeedbackCard(fb) {
-    const createTime = new Date(fb.create_time).toLocaleString('zh-CN');
-    const visLabel = fb.visibility === 'public' ? '所有人可见' : '仅自己可见';
-    const visClass = fb.visibility === 'public' ? 'unread-badge' : 'read-badge';
+    const createTime = formatFeedbackTime(fb.create_time);
+    const visLabel = fb.visibility === 'public' ? '公开' : '仅自己可见';
+    const visClass = fb.visibility === 'public' ? 'feedback-visibility-badge is-public' : 'feedback-visibility-badge';
+    const authorName = fb.is_own ? '我' : escapeFeedbackHtml(fb.username || '同学');
 
     let html = `
         <div class="feedback-card">
             <div class="feedback-floor">
                 <div class="feedback-floor-header">
                     <span class="feedback-floor-num">1楼</span>
-                    <span class="feedback-username">${fb.is_own ? '我' : fb.username}</span>
-                    <span class="${visClass}" style="margin-left:auto;">${visLabel}</span>
+                    <span class="feedback-username">${authorName}</span>
+                    <span class="${visClass}">${visLabel}</span>
                 </div>
-                <div class="feedback-floor-content">${fb.content.replace(/\n/g, '<br>')}</div>
+                <div class="feedback-floor-content">${formatFeedbackContent(fb.content)}</div>
                 <div class="feedback-floor-time">${createTime}</div>
             </div>
     `;
 
-    // 回复楼层
     if (fb.replies && fb.replies.length > 0) {
         fb.replies.forEach((reply, index) => {
-            const replyTime = new Date(reply.create_time).toLocaleString('zh-CN');
+            const replyTime = formatFeedbackTime(reply.create_time);
             const isAdmin = reply.username === '管理员';
+            const replyName = isAdmin ? '管理员' : escapeFeedbackHtml(reply.username || '同学');
             html += `
                 <div class="feedback-floor ${isAdmin ? 'feedback-floor-admin' : ''}">
                     <div class="feedback-floor-header">
                         <span class="feedback-floor-num">${index + 2}楼</span>
-                        <span class="feedback-username${isAdmin ? ' admin-tag' : ''}">${reply.username}</span>
+                        <span class="feedback-username${isAdmin ? ' admin-tag' : ''}">${replyName}</span>
                     </div>
-                    <div class="feedback-floor-content">${reply.content.replace(/\n/g, '<br>')}</div>
+                    <div class="feedback-floor-content">${formatFeedbackContent(reply.content)}</div>
                     <div class="feedback-floor-time">${replyTime}</div>
                 </div>
             `;
         });
     }
 
-    // 回复按钮和输入框
     html += `
             <div class="feedback-reply-bar">
-                <button class="feedback-reply-btn" onclick="toggleReplyBox(${fb.id})">回复</button>
+                <button class="feedback-reply-btn" onclick="toggleReplyBox(${fb.id})">回复这条反馈</button>
             </div>
             <div id="reply-box-${fb.id}" class="feedback-reply-box" style="display:none;">
-                <textarea id="reply-input-${fb.id}" class="feedback-reply-textarea" rows="2" placeholder="输入回复内容..."></textarea>
+                <textarea id="reply-input-${fb.id}" class="feedback-reply-textarea" rows="2" placeholder="补充说明或参与讨论..."></textarea>
                 <button class="btn-primary btn-sm" onclick="submitFeedbackReply(${fb.id})">发送</button>
             </div>
         </div>
     `;
     return html;
 }
-
 // ==================== 会员功能 ====================
 
 let _currentPayMemberType = null;
@@ -2205,101 +2276,115 @@ async function loadMemberStatus() {
 async function loadInvitationEarnings() {
     const card = document.getElementById('invitation-card');
     const content = document.getElementById('invitation-earnings-content');
-    try {
-        const [inviterResp, earningsResp, withdrawalsResp, memberResp] = await Promise.all([
-            fetch('/api/invitation/my_inviter', { headers: { 'X-Device-ID': getDeviceId() } }),
-            fetch('/api/invitation/earnings', { headers: { 'X-Device-ID': getDeviceId() } }),
-            fetch('/api/invitation/withdrawals', { headers: { 'X-Device-ID': getDeviceId() } }),
-            fetch('/api/member/status', { headers: { 'X-Device-ID': getDeviceId() } })
-        ]);
-        const inviterData = await inviterResp.json();
-        const earningsData = await earningsResp.json();
-        const withdrawalsData = await withdrawalsResp.json();
-        const memberData = await memberResp.json();
+    if (!card || !content) return;
 
-        const isMember = memberData.success && memberData.data && memberData.data.is_member;
-        const memberType = isMember ? memberData.data.member_type : null;
-        const rateText = memberType === 'advanced' ? '20%' : (isMember ? '10%' : '0%');
+    card.style.display = '';
+    content.innerHTML = '<div class="loading">\u52a0\u8f7d\u4e2d...</div>';
 
-        let html = '';
-
-        // 显示我的邀请人
-        if (inviterData.success && inviterData.data && inviterData.data.inviter) {
-            html += `<div class="inviter-info"><span class="inviter-label">邀请人：</span><span>${inviterData.data.inviter}</span></div>`;
-        } else {
-            html += `<div class="inviter-set-form">
-                <input type="text" id="inviter-set-input" class="inviter-set-input" placeholder="填写邀请你的同学学号">
-                <button class="inviter-set-btn" onclick="handleSetInviter()">绑定</button>
-                <span id="inviter-set-error" class="inviter-set-error"></span>
-            </div>`;
+    const fetchJson = async (url) => {
+        try {
+            const resp = await fetch(url, { headers: { 'X-Device-ID': getDeviceId() } });
+            const data = await resp.json().catch(() => ({ success: false, message: '\u63a5\u53e3\u8fd4\u56de\u683c\u5f0f\u5f02\u5e38' }));
+            if (!resp.ok) {
+                return { success: false, message: data.message || `\u8bf7\u6c42\u5931\u8d25\uff1a${resp.status}` };
+            }
+            return data;
+        } catch (e) {
+            return { success: false, message: '\u7f51\u7edc\u8bf7\u6c42\u5931\u8d25' };
         }
+    };
 
-        // 收益数据（由 API 返回）
-        const inviteeTotal = (earningsData.success && earningsData.data) ? (parseFloat(earningsData.data.invitee_total) || 0) : 0;
-        const rate = (earningsData.success && earningsData.data) ? earningsData.data.rate : '10%';
-        const earned = (earningsData.success && earningsData.data) ? (parseFloat(earningsData.data.earned) || 0) : 0;
-        const withdrawn = (earningsData.success && earningsData.data) ? (parseFloat(earningsData.data.withdrawn) || 0) : 0;
-        const available = (earningsData.success && earningsData.data) ? (parseFloat(earningsData.data.available) || 0) : 0;
+    const [inviterData, earningsData, withdrawalsData, memberData] = await Promise.all([
+        fetchJson('/api/invitation/my_inviter'),
+        fetchJson('/api/invitation/earnings'),
+        fetchJson('/api/invitation/withdrawals'),
+        fetchJson('/api/member/status')
+    ]);
 
-        // 提现状态
-        let hasPending = false;
-        if (withdrawalsData.success && withdrawalsData.data) {
-            withdrawalsData.data.forEach(r => {
-                if (r.status === 'pending') hasPending = true;
-            });
-        }
-
-        // 提现按钮状态
-        let btnText, btnDisabled, btnOpacity;
-        if (!isMember) {
-            btnText = '开通会员后可提现';
-            btnDisabled = true;
-            btnOpacity = '0.5';
-        } else if (hasPending) {
-            btnText = '审核中';
-            btnDisabled = true;
-            btnOpacity = '0.5';
-        } else {
-            btnText = '提现';
-            btnDisabled = false;
-            btnOpacity = '1';
-        }
-
-        // 团队充值 + 收益显示
-        html += `<div class="earnings-summary">
-            <div class="earnings-row"><span>团队充值</span><span>¥${inviteeTotal.toFixed(2)}</span></div>
-            <div class="earnings-row"><span>分佣比例</span><span class="earnings-rate">${rate}</span></div>
-            <div class="earnings-row earnings-row-total"><span>累计收益</span><span class="earnings-amount">¥${earned.toFixed(2)}</span></div>
-        </div>`;
-        html += `<div class="earnings-total">
-            <span class="earnings-label">可提现</span><span class="earnings-amount">¥${available.toFixed(2)}</span>
-            <button class="btn-withdraw" onclick="showWithdrawDialog()" ${btnDisabled ? 'disabled' : ''} style="opacity:${btnOpacity}">${btnText}</button>
-        </div>`;
-        if (withdrawn > 0) {
-            html += `<div class="earnings-withdrawn"><span>已提现：¥${withdrawn.toFixed(2)}</span></div>`;
-        }
-
-        // 收益明细
-        if (earningsData.success && earningsData.data && earningsData.data.earnings && earningsData.data.earnings.length > 0) {
-            html += '<div class="earnings-list">';
-            earningsData.data.earnings.forEach(e => {
-                html += `<div class="earning-item"><span>${e.invitee_username} 开通会员</span><span class="earning-amount">+¥${parseFloat(e.amount).toFixed(2)}</span><span class="earning-time">${e.create_time ? e.create_time.slice(0, 10) : ''}</span></div>`;
-            });
-            html += '</div>';
-        }
-
-        // 邀请提示
-        if (!isMember) {
-            html += `<div class="invite-hint">开通会员后邀请新用户绑定，对方开会员你赚收益：<strong>初级会员10%</strong>，<strong>高级会员20%</strong></div>`;
-        } else {
-            html += `<div class="invite-hint">邀请新用户绑定账号，对方开通会员你即可获得 <strong>${rateText}</strong> 收益（会员专属）</div>`;
-        }
-
-        card.style.display = '';
-        content.innerHTML = html;
-    } catch (e) {
-        card.style.display = 'none';
+    if (!earningsData.success || !earningsData.data) {
+        content.innerHTML = `<div class="error-message">\u6536\u76ca\u52a0\u8f7d\u5931\u8d25\uff1a${earningsData.message || '\u672a\u77e5\u9519\u8bef'}</div>`;
+        return;
     }
+
+    const isMember = memberData.success && memberData.data && memberData.data.is_member;
+    const memberType = isMember ? memberData.data.member_type : null;
+    const rateText = memberType === 'advanced' ? '20%' : (isMember ? '10%' : '0%');
+
+    let html = '';
+
+    if (inviterData.success && inviterData.data && inviterData.data.inviter) {
+        html += `<div class="inviter-info"><span class="inviter-label">\u9080\u8bf7\u4eba\uff1a</span><span>${inviterData.data.inviter}</span></div>`;
+    } else {
+        html += `<div class="inviter-set-form">
+            <input type="text" id="inviter-set-input" class="inviter-set-input" placeholder="\u586b\u5199\u9080\u8bf7\u4f60\u7684\u540c\u5b66\u5b66\u53f7">
+            <button class="inviter-set-btn" onclick="handleSetInviter()">\u7ed1\u5b9a</button>
+            <span id="inviter-set-error" class="inviter-set-error">${inviterData.success ? '' : (inviterData.message || '')}</span>
+        </div>`;
+    }
+
+    const inviteeTotal = parseFloat(earningsData.data.invitee_total) || 0;
+    const rate = earningsData.data.rate || '10%';
+    const earned = parseFloat(earningsData.data.earned) || 0;
+    const withdrawn = parseFloat(earningsData.data.withdrawn) || 0;
+    const available = parseFloat(earningsData.data.available) || 0;
+
+    let hasPending = false;
+    if (withdrawalsData.success && withdrawalsData.data) {
+        withdrawalsData.data.forEach(r => {
+            if (r.status === 'pending') hasPending = true;
+        });
+    }
+
+    let btnText, btnDisabled, btnOpacity;
+    if (!isMember) {
+        btnText = '\u5f00\u901a\u4f1a\u5458\u540e\u53ef\u63d0\u73b0';
+        btnDisabled = true;
+        btnOpacity = '0.5';
+    } else if (hasPending) {
+        btnText = '\u5ba1\u6838\u4e2d';
+        btnDisabled = true;
+        btnOpacity = '0.5';
+    } else if (available <= 0) {
+        btnText = '\u6682\u65e0\u53ef\u63d0\u73b0';
+        btnDisabled = true;
+        btnOpacity = '0.5';
+    } else {
+        btnText = '\u63d0\u73b0';
+        btnDisabled = false;
+        btnOpacity = '1';
+    }
+
+    html += `<div class="earnings-summary">
+        <div class="earnings-row"><span>\u56e2\u961f\u5145\u503c</span><span>\u00a5${inviteeTotal.toFixed(2)}</span></div>
+        <div class="earnings-row"><span>\u5206\u4f63\u6bd4\u4f8b</span><span class="earnings-rate">${rate}</span></div>
+        <div class="earnings-row earnings-row-total"><span>\u7d2f\u8ba1\u6536\u76ca</span><span class="earnings-amount">\u00a5${earned.toFixed(2)}</span></div>
+    </div>`;
+    html += `<div class="earnings-total">
+        <span class="earnings-label">\u53ef\u63d0\u73b0</span><span class="earnings-amount">\u00a5${available.toFixed(2)}</span>
+        <button class="btn-withdraw" onclick="showWithdrawDialog()" ${btnDisabled ? 'disabled' : ''} style="opacity:${btnOpacity}">${btnText}</button>
+    </div>`;
+    if (withdrawn > 0) {
+        html += `<div class="earnings-withdrawn"><span>\u5df2\u5360\u7528\uff1a\u00a5${withdrawn.toFixed(2)}</span></div>`;
+    }
+    if (!withdrawalsData.success) {
+        html += `<div class="invite-hint">\u63d0\u73b0\u8bb0\u5f55\u52a0\u8f7d\u5931\u8d25\uff1a${withdrawalsData.message || '\u672a\u77e5\u9519\u8bef'}</div>`;
+    }
+
+    if (earningsData.data.earnings && earningsData.data.earnings.length > 0) {
+        html += '<div class="earnings-list">';
+        earningsData.data.earnings.forEach(e => {
+            html += `<div class="earning-item"><span>${e.invitee_username} \u5f00\u901a\u4f1a\u5458</span><span class="earning-amount">+\u00a5${(parseFloat(e.amount) || 0).toFixed(2)}</span><span class="earning-time">${e.create_time ? e.create_time.slice(0, 10) : ''}</span></div>`;
+        });
+        html += '</div>';
+    }
+
+    if (!isMember) {
+        html += `<div class="invite-hint">\u5f00\u901a\u4f1a\u5458\u540e\u53ef\u7533\u8bf7\u63d0\u73b0\uff1b\u6536\u76ca\u4f1a\u7ee7\u7eed\u7d2f\u8ba1\u663e\u793a\u3002</div>`;
+    } else {
+        html += `<div class="invite-hint">\u9080\u8bf7\u65b0\u7528\u6237\u7ed1\u5b9a\u8d26\u53f7\uff0c\u5bf9\u65b9\u5f00\u901a\u4f1a\u5458\u540e\u4f60\u53ef\u83b7\u5f97 <strong>${rateText}</strong> \u6536\u76ca\u3002</div>`;
+    }
+
+    content.innerHTML = html;
 }
 
 async function loadMemberOrders() {
@@ -2358,15 +2443,25 @@ async function loadMemberOrders() {
     }
 }
 
+function updatePayTypeUI() {
+    document.querySelectorAll('.pay-type-option').forEach(option => {
+        const input = option.querySelector('input[name="pay-type"]');
+        option.classList.toggle('pay-type-option-active', !!input && input.checked);
+    });
+}
+
 function showPayDialog(memberType) {
     _currentPayMemberType = memberType;
     const prices = { basic: '3', advanced: '5' };
-    const typeNames = { basic: '初级会员', advanced: '高级会员' };
-    document.getElementById('pay-modal-title').textContent = `开通${typeNames[memberType]}`;
-    document.getElementById('pay-modal-desc').textContent = `价格：¥${prices[memberType]}/半年，续费会自动叠加到原到期日后`;
+    const typeNames = { basic: '\u521d\u7ea7\u4f1a\u5458', advanced: '\u9ad8\u7ea7\u4f1a\u5458' };
+    const defaultPay = document.getElementById('pay-type-alipay');
+    if (defaultPay) defaultPay.checked = true;
+    updatePayTypeUI();
+    document.getElementById('pay-modal-title').textContent = `\u5f00\u901a${typeNames[memberType]}`;
+    document.getElementById('pay-modal-desc').textContent = `\u4ef7\u683c\uff1a\u00a5${prices[memberType]}/\u534a\u5e74\uff0c\u7eed\u8d39\u4f1a\u81ea\u52a8\u53e0\u52a0\u5230\u539f\u5230\u671f\u65e5\u540e`;
     document.getElementById('pay-error').textContent = '';
     document.getElementById('pay-confirm-btn').disabled = false;
-    document.getElementById('pay-confirm-btn').textContent = '确认支付';
+    document.getElementById('pay-confirm-btn').textContent = '\u786e\u8ba4\u652f\u4ed8';
     const modal = document.getElementById('pay-modal');
     const overlay = document.getElementById('overlay');
     modal.classList.add('active');
@@ -2386,7 +2481,7 @@ async function confirmPay() {
     const btn = document.getElementById('pay-confirm-btn');
     const errDiv = document.getElementById('pay-error');
     btn.disabled = true;
-    btn.textContent = '请求中...';
+    btn.textContent = '\u6b63\u5728\u521b\u5efa\u652f\u4ed8...';
     errDiv.textContent = '';
     try {
         const resp = await fetch('/api/member/create_order', {
@@ -2396,9 +2491,9 @@ async function confirmPay() {
         });
         const data = await resp.json();
         if (!data.success) {
-            errDiv.textContent = data.message || '创建订单失败';
+            errDiv.textContent = data.message || '\u521b\u5efa\u8ba2\u5355\u5931\u8d25';
             btn.disabled = false;
-            btn.textContent = '确认支付';
+            btn.textContent = '\u786e\u8ba4\u652f\u4ed8';
             return;
         }
         const payUrl = data.data.pay_url;
@@ -2406,14 +2501,14 @@ async function confirmPay() {
             closePayDialog();
             window.location.href = payUrl;
         } else {
-            errDiv.textContent = '获取支付链接失败，请重试';
+            errDiv.textContent = '\u83b7\u53d6\u652f\u4ed8\u94fe\u63a5\u5931\u8d25\uff0c\u8bf7\u91cd\u8bd5';
             btn.disabled = false;
-            btn.textContent = '确认支付';
+            btn.textContent = '\u786e\u8ba4\u652f\u4ed8';
         }
     } catch (e) {
-        errDiv.textContent = '网络错误，请重试';
+        errDiv.textContent = '\u7f51\u7edc\u9519\u8bef\uff0c\u8bf7\u91cd\u8bd5';
         btn.disabled = false;
-        btn.textContent = '确认支付';
+        btn.textContent = '\u786e\u8ba4\u652f\u4ed8';
     }
 }
 

@@ -40,7 +40,7 @@
         <div class="content-wrapper">
             <div id="page-home" class="page active">
                 <div class="urgent-card">
-                    <div class="urgent-header"><h2>接下来最紧急的事情</h2><button class="refresh-btn" type="button" onclick="refreshUrgentEvent()">刷新</button></div>
+                    <div class="urgent-header"><h2>接下来最紧急的事情</h2><button class="refresh-btn" type="button" onclick="refreshUrgentEvent()" aria-label="刷新紧急事项"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg><span>刷新</span></button></div>
                     <div id="urgent-content" class="urgent-content"><div class="loading">加载中...</div></div>
                 </div>
             </div>
@@ -129,7 +129,33 @@
 
             <div id="page-surveys" class="page"><div class="surveys-container"><h2>问卷调查</h2><p class="page-section-desc">参与管理员发布的问卷调查。</p><div id="surveys-list-content" class="surveys-list-content"><div class="loading">加载中...</div></div></div></div>
 
-            <div id="page-feedback" class="page"><div class="feedback-container"><h2>反馈建议</h2><p class="page-section-desc">提交问题或建议，也可以查看自己的反馈回复。</p><div class="feedback-new-box"><textarea id="new-feedback-content" rows="5" placeholder="请输入反馈内容"></textarea><div class="feedback-visibility-row"><label><input type="radio" name="feedback-visibility" value="public" checked> 公开</label><label><input type="radio" name="feedback-visibility" value="private"> 仅管理员可见</label><label><input type="checkbox" id="feedback-anonymous"> 匿名</label><button class="btn-primary" type="button" onclick="submitNewFeedback()">提交反馈</button></div></div><div id="feedback-list-content" class="feedback-list-content"><div class="loading">加载中...</div></div></div></div>
+            <div id="page-feedback" class="page">
+                <div class="feedback-container">
+                    <div class="feedback-hero">
+                        <div>
+                            <h2>反馈建议</h2>
+                            <p class="page-section-desc">遇到问题、想到点子，或者希望管理员跟进的事情，都可以写在这里。</p>
+                        </div>
+                        <div class="feedback-hero-note">通常会在查看后回复</div>
+                    </div>
+                    <div class="feedback-new-box">
+                        <div class="feedback-new-head">
+                            <div>
+                                <h3>告诉我们你的想法</h3>
+                                <p>描述越具体，处理起来越快。</p>
+                            </div>
+                            <span class="feedback-soft-badge">可公开讨论</span>
+                        </div>
+                        <textarea id="new-feedback-content" rows="5" placeholder="例如：课表刷新失败、成绩显示异常，或你希望新增的功能..."></textarea>
+                        <div class="feedback-visibility-row" role="radiogroup" aria-label="反馈可见范围">
+                            <label class="feedback-choice"><input type="radio" name="feedback-visibility" value="public" checked><span><strong>公开</strong><small>其他同学可查看并参与回复</small></span></label>
+                            <label class="feedback-choice"><input type="radio" name="feedback-visibility" value="self"><span><strong>仅自己可见</strong><small>适合账号、隐私或个人问题</small></span></label>
+                            <button class="btn-primary feedback-submit-btn" type="button" onclick="submitNewFeedback()">提交反馈</button>
+                        </div>
+                    </div>
+                    <div id="feedback-list-content" class="feedback-list-content"><div class="loading">加载中...</div></div>
+                </div>
+            </div>
 
             <div id="page-member" class="page">
                 <div class="member-container">
@@ -191,15 +217,43 @@
         </div>
     </div>
 
-    <div id="login-modal" class="modal"><div class="modal-content"><h2>绑定教务账号</h2><p class="modal-desc">首次使用需要绑定教务系统账号；没有账号时也可以先进入访客模式。</p><form id="login-form" onsubmit="handleLogin(event)"><div class="form-group"><label for="username">学号</label><input type="text" id="username" name="username" required placeholder="请输入学号"></div><div class="form-group"><label for="password">密码</label><input type="password" id="password" name="password" required placeholder="请输入密码"></div><div class="form-group"><label for="inviter">邀请人学号</label><input type="text" id="inviter" name="inviter" placeholder="选填，首次绑定后不可修改"></div><button type="submit" class="btn-primary btn-full">绑定账号</button><button type="button" id="btn-skip-bind" class="btn-secondary btn-full" onclick="skipBind()">暂不绑定，进入访客模式</button></form><div id="login-error" class="error-message"></div></div></div>
+    <div id="login-modal" class="modal">
+        <div class="modal-content login-card">
+            <button class="modal-close login-close" type="button" onclick="skipBind()" aria-label="关闭">x</button>
+            <div class="login-header">
+                <h2>绑定教务账号</h2>
+                <p class="modal-desc">绑定后即可查询课表、成绩、考试安排等教务信息。</p>
+            </div>
+            <form id="login-form" class="login-form" onsubmit="handleLogin(event)">
+                <div class="login-field-grid">
+                    <div class="form-group">
+                        <label for="username">学号</label>
+                        <input type="text" id="username" name="username" required autocomplete="username" placeholder="请输入学号">
+                    </div>
+                    <div class="form-group">
+                        <label for="password">教务密码</label>
+                        <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="请输入教务密码">
+                    </div>
+                    <div class="form-group form-group-wide">
+                        <label for="inviter">邀请人学号</label>
+                        <input type="text" id="inviter" name="inviter" placeholder="选填，首次绑定后不可修改">
+                    </div>
+                </div>
+                <div class="login-actions">
+                    <button type="submit" class="btn-primary btn-full">绑定账号</button>
+                </div>
+            </form>
+            <div id="login-error" class="error-message"></div>
+        </div>
+    </div>
 
-    <div id="rebind-modal" class="modal"><div class="modal-content"><button class="modal-close" type="button" onclick="closeRebindDialog()">x</button><h2>申请换绑账号</h2><p class="modal-desc">换绑需要管理员审核，通过后才会替换当前绑定账号。</p><form id="rebind-form" onsubmit="handleRebind(event)"><div class="form-group"><label for="new-username">新学号</label><input type="text" id="new-username" name="new_username" required placeholder="请输入新学号"></div><div class="form-group"><label for="reason">换绑原因</label><textarea id="reason" name="reason" required placeholder="请说明换绑原因"></textarea></div><button type="submit" class="btn-primary btn-full">提交申请</button></form><div id="rebind-error" class="error-message"></div></div></div>
+    <div id="rebind-modal" class="modal"><div class="modal-content"><button class="modal-close" type="button" onclick="closeRebindDialog()">x</button><h2>重新绑定账号</h2><p class="modal-desc">确认后会解绑当前设备账号，然后重新打开绑定窗口。</p><form id="rebind-form" onsubmit="handleRebind(event)"><button type="submit" class="btn-primary btn-full">确认解绑并重新绑定</button></form><div id="rebind-error" class="error-message"></div></div></div>
 
     <div id="announcement-popup" class="modal announcement-popup"><div class="modal-content announcement-modal-content"><button class="modal-close" type="button" onclick="closeAnnouncementPopup()">x</button><h2 id="announcement-popup-title">系统公告</h2><div id="announcement-popup-content" class="announcement-popup-content"></div><div class="announcement-popup-footer"><label class="never-show-label"><input type="checkbox" id="never-show-checkbox"> 不再显示此公告</label><button class="btn-primary" type="button" onclick="closeAnnouncementPopup()">关闭</button></div></div></div>
 
     <div id="withdraw-modal" class="modal"><div class="modal-content"><button class="modal-close" type="button" onclick="closeWithdrawDialog()">x</button><h2>申请提现</h2><div id="withdraw-available" class="withdraw-available"><div class="loading">加载中...</div></div><form id="withdraw-form" onsubmit="handleWithdraw(event)"><div class="form-group"><label for="withdraw-real-name">真实姓名</label><input type="text" id="withdraw-real-name" required placeholder="请输入真实姓名"></div><div class="form-group"><label for="withdraw-alipay">支付宝账号</label><input type="text" id="withdraw-alipay" required placeholder="请输入支付宝账号"></div><button type="submit" class="btn-primary btn-full">提交提现申请</button></form><div id="withdraw-error" class="error-message"></div><div id="withdraw-history" class="withdraw-history"></div></div></div>
 
-    <div id="pay-modal" class="modal"><div class="modal-content"><button class="modal-close" type="button" onclick="closePayDialog()">x</button><h2 id="pay-modal-title">开通会员</h2><p id="pay-modal-desc" class="modal-desc"></p><div class="pay-type-options"><label><input type="radio" name="pay-type" value="alipay" checked> 支付宝</label><label><input type="radio" name="pay-type" value="wechat"> 微信</label></div><button id="pay-confirm-btn" class="btn-primary btn-full" type="button" onclick="confirmPay()">确认支付</button><div id="pay-error" class="error-message"></div></div></div>
+    <div id="pay-modal" class="modal"><div class="modal-content pay-modal-card"><button class="modal-close" type="button" onclick="closePayDialog()" aria-label="&#20851;&#38381;">x</button><h2 id="pay-modal-title">&#24320;&#36890;&#20250;&#21592;</h2><p id="pay-modal-desc" class="modal-desc"></p><div class="pay-section-title">&#36873;&#25321;&#25903;&#20184;&#26041;&#24335;</div><div class="pay-type-options" role="radiogroup" aria-label="&#25903;&#20184;&#26041;&#24335;"><label class="pay-type-option pay-type-option-active" for="pay-type-alipay"><input type="radio" id="pay-type-alipay" name="pay-type" value="alipay" checked onchange="updatePayTypeUI()"><span class="pay-type-mark pay-type-alipay">&#25903;</span><span class="pay-type-copy"><strong>&#25903;&#20184;&#23453;</strong><small>&#25512;&#33616;&#20351;&#29992;&#25903;&#20184;&#23453;&#23436;&#25104;&#25903;&#20184;</small></span></label><label class="pay-type-option" for="pay-type-wechat"><input type="radio" id="pay-type-wechat" name="pay-type" value="wechat" onchange="updatePayTypeUI()"><span class="pay-type-mark pay-type-wechat">&#24494;</span><span class="pay-type-copy"><strong>&#24494;&#20449;&#25903;&#20184;</strong><small>&#36866;&#21512;&#22312;&#24494;&#20449;&#29615;&#22659;&#25110;&#25163;&#26426;&#19978;&#25903;&#20184;</small></span></label></div><button id="pay-confirm-btn" class="btn-primary btn-full pay-confirm-btn" type="button" onclick="confirmPay()">&#30830;&#35748;&#25903;&#20184;</button><div id="pay-error" class="error-message"></div></div></div>
 
     <div id="semester-picker-modal" class="modal"><div class="modal-content"><button class="modal-close" type="button" onclick="closeSemesterPicker()">x</button><h2>选择学期</h2><div id="semester-picker-list" class="semester-picker-list"></div></div></div>
 

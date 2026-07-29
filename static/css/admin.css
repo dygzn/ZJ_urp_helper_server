@@ -1861,3 +1861,875 @@ body {
 .config-inline-status-error {
     color: var(--error);
 }
+/* ==================== Admin UI Polish ==================== */
+body {
+    min-height: 100vh;
+    line-height: 1.5;
+    background:
+        linear-gradient(180deg, #f7f8fb 0%, #eef2f7 46%, #f7f8fb 100%);
+}
+
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background:
+        linear-gradient(90deg, rgba(0,122,255,0.05) 0, transparent 32%),
+        linear-gradient(180deg, rgba(52,199,89,0.05) 0, transparent 28%);
+    opacity: 0.9;
+}
+
+.admin-container,
+.admin-login,
+.admin-panel {
+    position: relative;
+    z-index: 1;
+}
+
+.admin-login {
+    padding: 24px;
+    background: transparent;
+}
+
+.login-box {
+    width: min(92vw, 420px);
+    padding: 40px 36px 34px;
+    border: 1px solid rgba(255,255,255,0.78);
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.14), 0 1px 0 rgba(255,255,255,0.75) inset;
+}
+
+.login-kicker {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 26px;
+    padding: 0 10px;
+    margin-bottom: 14px;
+    border-radius: 999px;
+    background: rgba(0,122,255,0.09);
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.login-box h1 {
+    font-size: 28px;
+    font-weight: 760;
+    letter-spacing: 0;
+}
+
+.login-desc {
+    max-width: 300px;
+    margin: 8px auto 26px;
+    line-height: 1.65;
+}
+
+#admin-key,
+.login-btn {
+    height: 46px;
+    border-radius: 12px;
+}
+
+#admin-key {
+    border-color: rgba(0,0,0,0.10);
+    background: rgba(255,255,255,0.92);
+}
+
+.login-btn {
+    font-weight: 700;
+    box-shadow: 0 10px 18px rgba(0,122,255,0.18);
+}
+
+.admin-panel {
+    padding: 18px 18px 64px;
+}
+
+.admin-header {
+    max-width: 1180px;
+    height: 66px;
+    padding: 0 22px 0 24px;
+    margin-bottom: 18px;
+    border-color: rgba(255,255,255,0.76);
+    background: rgba(255,255,255,0.78);
+    box-shadow: 0 18px 50px rgba(15, 23, 42, 0.09), 0 1px 0 rgba(255,255,255,0.80) inset;
+}
+
+.admin-title {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.admin-kicker {
+    color: var(--text-tertiary);
+    font-size: 11px;
+    font-weight: 750;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.admin-title h1,
+.admin-header h1 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 18px;
+    font-weight: 760;
+    letter-spacing: 0;
+}
+
+.admin-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 0 0 auto;
+}
+
+.admin-live-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 30px;
+    padding: 0 11px;
+    border-radius: 999px;
+    background: rgba(52,199,89,0.10);
+    color: #1f8f43;
+    font-size: 12px;
+    font-weight: 750;
+    white-space: nowrap;
+}
+
+.admin-live-pill::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--success);
+    box-shadow: 0 0 0 4px rgba(52,199,89,0.12);
+}
+
+.logout-btn {
+    min-height: 32px;
+    padding: 0 14px;
+    background: rgba(255,255,255,0.72);
+    border-color: rgba(0,0,0,0.08);
+    border-radius: 999px;
+}
+
+.admin-content {
+    max-width: 1180px;
+    padding: 0;
+}
+
+.tabs {
+    position: sticky;
+    top: 92px;
+    z-index: 80;
+    gap: 6px;
+    margin-bottom: 18px;
+    padding: 6px;
+    border: 1px solid rgba(255,255,255,0.75);
+    border-radius: 16px;
+    background: rgba(255,255,255,0.72);
+    box-shadow: 0 12px 34px rgba(15, 23, 42, 0.07), 0 1px 0 rgba(255,255,255,0.78) inset;
+    backdrop-filter: saturate(180%) blur(18px);
+    -webkit-backdrop-filter: saturate(180%) blur(18px);
+    scrollbar-width: thin;
+}
+
+.tab-btn {
+    flex: 0 0 auto;
+    min-width: 86px;
+    min-height: 40px;
+    padding: 0 16px;
+    border-radius: 12px;
+    color: #5f6673;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.tab-btn:hover {
+    background: rgba(0,122,255,0.07);
+    color: var(--accent);
+}
+
+.tab-btn.active {
+    background: #fff;
+    color: var(--accent);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.10), 0 0 0 1px rgba(0,122,255,0.08);
+}
+
+.tab-content.active {
+    min-height: 360px;
+    padding: 22px;
+    border: 1px solid rgba(255,255,255,0.78);
+    border-radius: 18px;
+    background: rgba(255,255,255,0.78);
+    box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08), 0 1px 0 rgba(255,255,255,0.82) inset;
+}
+
+.section-header {
+    min-height: 42px;
+    margin-bottom: 18px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+}
+
+.section-header h2 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 21px;
+    font-weight: 760;
+    letter-spacing: 0;
+}
+
+.section-header h2::before {
+    content: "";
+    width: 5px;
+    height: 20px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, var(--accent), var(--success));
+}
+
+.icon-btn,
+.btn-primary,
+.btn-secondary,
+.btn-success,
+.btn-danger,
+.edit-btn,
+.delete-btn,
+.switch-url-btn,
+.page-btn,
+.page-jump button {
+    border-radius: 10px;
+    font-weight: 700;
+}
+
+.icon-btn {
+    width: auto;
+    min-width: 40px;
+    padding: 0 13px;
+    background: rgba(0,122,255,0.08);
+    color: var(--accent);
+}
+
+.icon-btn:hover {
+    background: rgba(0,122,255,0.14);
+}
+
+.btn-primary,
+.page-btn,
+.page-jump button,
+.switch-url-btn,
+.edit-btn {
+    box-shadow: 0 8px 16px rgba(0,122,255,0.14);
+}
+
+.users-list,
+.pending-list,
+.announcements-list,
+.feedback-list,
+.surveys-list,
+.members-list,
+.withdrawals-list,
+.online-users-list,
+.commission-stats {
+    min-width: 0;
+}
+
+.users-list,
+.member-table-wrap,
+.monitor-table-wrap,
+.config-section,
+.ud-section,
+.request-card,
+.announcement-card,
+.commission-summary-card {
+    border: 1px solid rgba(0,0,0,0.07);
+    border-radius: 14px;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
+}
+
+.users-list,
+.member-table-wrap,
+.monitor-table-wrap {
+    overflow-x: auto;
+    background: var(--bg-card);
+}
+
+.users-table th,
+.member-table th,
+.monitor-table th {
+    background: #f7f8fb;
+    color: #697182;
+    font-weight: 760;
+    letter-spacing: 0.03em;
+}
+
+.users-table td,
+.member-table td,
+.monitor-table td {
+    vertical-align: middle;
+}
+
+.users-table tr:hover,
+.member-table tbody tr:hover,
+.monitor-table tr:hover td {
+    background: rgba(0,122,255,0.055);
+}
+
+.ud-cards {
+    gap: 14px;
+    margin-bottom: 16px;
+}
+
+.ud-card {
+    min-height: 104px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border: 1px solid rgba(0,0,0,0.07);
+    border-top-width: 4px;
+    border-radius: 14px;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
+}
+
+.ud-card-value {
+    font-size: 30px;
+    letter-spacing: 0;
+}
+
+.ud-section {
+    padding: 18px;
+}
+
+.ud-section-title {
+    color: var(--text-primary);
+    font-size: 14px;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.ud-toggle {
+    padding: 4px;
+    border-radius: 12px;
+}
+
+.ud-toggle button {
+    min-height: 30px;
+    border-radius: 9px;
+    font-weight: 700;
+}
+
+.request-card,
+.announcement-card {
+    border-left-width: 0;
+    position: relative;
+    overflow: hidden;
+}
+
+.request-card::before,
+.announcement-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 4px;
+    background: var(--warning);
+}
+
+.announcement-card::before {
+    background: var(--accent);
+}
+
+.announcement-header,
+.request-header {
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.announcement-content,
+.request-reason,
+.feedback-reply-original,
+.approve-details,
+.current-url-display,
+.url-option {
+    border: 1px solid rgba(0,0,0,0.06);
+    background: #f7f8fb;
+}
+
+.announcement-status,
+.admin-status-pill,
+.member-status-valid,
+.member-status-expired,
+.url-status {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 0 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 760;
+}
+
+.feedback-list .announcement-card {
+    border-left: none;
+}
+
+.feedback-list .announcement-content {
+    color: var(--text-primary);
+    line-height: 1.7;
+}
+
+.config-container {
+    gap: 16px;
+}
+
+.config-section {
+    padding: 20px;
+}
+
+.config-section h3 {
+    font-size: 17px;
+    font-weight: 760;
+}
+
+.config-section input,
+.config-section select,
+.config-section textarea,
+.form-grid input,
+.form-grid select,
+.form-group input,
+.form-group select,
+.form-group textarea {
+    min-height: 42px;
+    border-color: rgba(0,0,0,0.10);
+    border-radius: 11px;
+    background-color: #fff;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: minmax(160px, 1fr) minmax(140px, 180px) minmax(96px, 130px) auto;
+    gap: 10px;
+    align-items: center;
+}
+
+.monitor-summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 52px;
+    margin-bottom: 16px;
+    padding: 0 16px;
+    border: 1px solid rgba(0,0,0,0.07);
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
+    color: var(--text-secondary);
+    font-weight: 700;
+}
+
+.monitor-summary strong {
+    color: var(--accent);
+    font-size: 26px;
+    line-height: 1;
+}
+
+.modal-content {
+    border: 1px solid rgba(255,255,255,0.76);
+    box-shadow: 0 28px 80px rgba(15, 23, 42, 0.22), 0 1px 0 rgba(255,255,255,0.78) inset;
+}
+
+.modal-close {
+    border-radius: 10px;
+}
+
+.empty-state {
+    border: 1px dashed rgba(0,0,0,0.12);
+    border-radius: 14px;
+    background: rgba(255,255,255,0.62);
+}
+
+.loading {
+    border-radius: 14px;
+    background: rgba(255,255,255,0.58);
+}
+
+@media (max-width: 900px) {
+    .admin-panel {
+        padding: 12px 12px 48px;
+    }
+
+    .admin-header {
+        height: auto;
+        min-height: 60px;
+        top: 8px;
+        gap: 12px;
+        padding: 12px 14px;
+    }
+
+    .admin-title h1,
+    .admin-header h1 {
+        font-size: 16px;
+    }
+
+    .admin-live-pill {
+        display: none;
+    }
+
+    .tabs {
+        top: 82px;
+        margin-left: -2px;
+        margin-right: -2px;
+    }
+
+    .tab-content.active {
+        padding: 16px;
+        border-radius: 16px;
+    }
+
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .ud-cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 560px) {
+    .admin-login {
+        padding: 16px;
+    }
+
+    .login-box {
+        padding: 32px 22px 26px;
+    }
+
+    .admin-header-actions {
+        margin-left: auto;
+    }
+
+    .logout-btn {
+        padding: 0 11px;
+    }
+
+    .tabs {
+        border-radius: 14px;
+    }
+
+    .tab-btn {
+        min-width: 74px;
+        padding: 0 12px;
+        font-size: 13px;
+    }
+
+    .section-header {
+        align-items: stretch;
+    }
+
+    .section-header .button-group,
+    .section-header .icon-btn,
+    .section-header .btn-primary {
+        width: 100%;
+    }
+
+    .button-group {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .ud-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .monitor-summary {
+        width: 100%;
+        justify-content: space-between;
+    }
+}
+
+/* ==================== Admin Form Controls Polish ==================== */
+.admin-form,
+#database-form,
+.config-section form:not(.form-grid) {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.database-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.database-fields-stack {
+    padding: 14px;
+    border: 1px solid rgba(0,0,0,0.07);
+    border-radius: 14px;
+    background: rgba(247,248,251,0.84);
+}
+
+.database-field {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    min-width: 0;
+}
+
+.database-field label,
+.config-section form > label,
+.form-grid label,
+.form-group label {
+    margin: 0;
+    color: #3f4653;
+    font-size: 13px;
+    font-weight: 760;
+    letter-spacing: 0;
+}
+
+.config-section input:not([type="checkbox"]),
+.config-section select,
+.config-section textarea,
+.form-grid input:not([type="checkbox"]),
+.form-grid select,
+.form-group input:not([type="checkbox"]),
+.form-group select,
+.form-group textarea,
+#admin-key {
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 13px;
+    border: 1px solid rgba(15,23,42,0.11);
+    border-radius: 12px;
+    background: rgba(255,255,255,0.94);
+    color: var(--text-primary);
+    font-size: 14px;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.78) inset;
+    transition: border-color 0.18s var(--transition), box-shadow 0.18s var(--transition), background 0.18s var(--transition);
+}
+
+.config-section textarea,
+.form-group textarea {
+    min-height: 110px;
+    line-height: 1.65;
+}
+
+.config-section input:not([type="checkbox"]):hover,
+.config-section select:hover,
+.config-section textarea:hover,
+.form-grid input:not([type="checkbox"]):hover,
+.form-grid select:hover,
+.form-group input:not([type="checkbox"]):hover,
+.form-group select:hover,
+.form-group textarea:hover,
+#admin-key:hover {
+    border-color: rgba(0,122,255,0.24);
+    background: #fff;
+}
+
+.config-section input:not([type="checkbox"]):focus,
+.config-section select:focus,
+.config-section textarea:focus,
+.form-grid input:not([type="checkbox"]):focus,
+.form-grid select:focus,
+.form-group input:not([type="checkbox"]):focus,
+.form-group select:focus,
+.form-group textarea:focus,
+#admin-key:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(0,122,255,0.12), 0 1px 0 rgba(255,255,255,0.86) inset;
+}
+
+.config-section select,
+.form-grid select,
+.form-group select {
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 38px;
+    cursor: pointer;
+    background-image:
+        linear-gradient(45deg, transparent 50%, #7b8494 50%),
+        linear-gradient(135deg, #7b8494 50%, transparent 50%);
+    background-position:
+        calc(100% - 18px) 19px,
+        calc(100% - 12px) 19px;
+    background-size: 6px 6px, 6px 6px;
+    background-repeat: no-repeat;
+}
+
+.config-section input::placeholder,
+.form-grid input::placeholder,
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+    color: #a4acb8;
+}
+
+.form-grid {
+    align-items: stretch;
+}
+
+.form-grid input,
+.form-grid select,
+.form-grid button {
+    min-height: 44px;
+}
+
+.config-section label:has(input[type="checkbox"]),
+.form-group label:has(input[type="checkbox"]),
+#announcement-form > label,
+#survey-form > label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    padding: 10px 12px;
+    border: 1px solid rgba(0,0,0,0.07);
+    border-radius: 12px;
+    background: rgba(247,248,251,0.78);
+    color: var(--text-primary);
+    cursor: pointer;
+    user-select: none;
+}
+
+input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    position: relative;
+    flex: 0 0 auto;
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    border: 1.5px solid rgba(15,23,42,0.22);
+    border-radius: 7px;
+    background: #fff;
+    cursor: pointer;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.9) inset;
+    transition: background 0.18s var(--transition), border-color 0.18s var(--transition), box-shadow 0.18s var(--transition), transform 0.18s var(--transition);
+}
+
+input[type="checkbox"]:hover {
+    border-color: rgba(0,122,255,0.48);
+    box-shadow: 0 0 0 4px rgba(0,122,255,0.08);
+}
+
+input[type="checkbox"]:checked {
+    border-color: var(--accent);
+    background: var(--accent);
+}
+
+input[type="checkbox"]:checked::after {
+    content: "";
+    position: absolute;
+    left: 6px;
+    top: 2px;
+    width: 5px;
+    height: 10px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+input[type="checkbox"]:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(0,122,255,0.16);
+}
+
+.admin-check-row,
+.admin-toggle-row {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    min-height: 58px;
+    padding: 13px 15px !important;
+    border: 1px solid rgba(0,0,0,0.07) !important;
+    border-radius: 14px !important;
+    background: #f7f8fb !important;
+}
+
+.admin-check-row span,
+.admin-toggle-row span {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.admin-check-row strong,
+.admin-toggle-row strong {
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 760;
+}
+
+.admin-check-row small,
+.admin-toggle-row small {
+    color: var(--text-tertiary);
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.admin-check-row input[type="checkbox"],
+.admin-toggle-row input[type="checkbox"] {
+    width: 46px;
+    height: 26px;
+    border-radius: 999px;
+    border-color: rgba(15,23,42,0.16);
+    background: #d8dde6;
+}
+
+.admin-check-row input[type="checkbox"]::before,
+.admin-toggle-row input[type="checkbox"]::before {
+    content: "";
+    position: absolute;
+    left: 3px;
+    top: 3px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 2px 6px rgba(15,23,42,0.18);
+    transition: transform 0.2s var(--transition);
+}
+
+.admin-check-row input[type="checkbox"]:checked,
+.admin-toggle-row input[type="checkbox"]:checked {
+    background: var(--accent);
+}
+
+.admin-check-row input[type="checkbox"]:checked::before,
+.admin-toggle-row input[type="checkbox"]:checked::before {
+    transform: translateX(20px);
+}
+
+.admin-check-row input[type="checkbox"]:checked::after,
+.admin-toggle-row input[type="checkbox"]:checked::after {
+    content: none;
+}
+
+@media (max-width: 760px) {
+    .database-fields-stack {
+        padding: 12px;
+    }
+
+    .admin-check-row,
+    .admin-toggle-row {
+        align-items: flex-start;
+    }
+}
+
+/* Keep checkbox controls from inheriting text-input minimum heights. */
+input[type="checkbox"] {
+    min-height: 20px;
+}
+
+.admin-check-row input[type="checkbox"],
+.admin-toggle-row input[type="checkbox"] {
+    min-height: 26px;
+}

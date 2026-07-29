@@ -125,14 +125,39 @@ class URP_query:
             'past':    parse_table(tables[1]) if len(tables) > 1 else [],
         }
 
+    def _clean_cell_text(self, cell):
+        return cell.get_text(' ', strip=True).replace('\xa0', ' ').strip()
+
+    def _parse_gpa_detail_tables(self, soup):
+        """解析绩点页面中的学期绩点明细表。"""
+        for table in soup.find_all('table', class_='displayTag'):
+            rows = table.find_all('tr')
+            if len(rows) < 2:
+                continue
+
+            headers = [self._clean_cell_text(cell) for cell in rows[0].find_all(['th', 'td'])]
+            if headers[:4] != ['学年学期', '学分绩点', '学位绩点', '加权学分学位绩点']:
+                continue
+
+            details = []
+            for row in rows[1:]:
+                cols = [self._clean_cell_text(cell) for cell in row.find_all('td')]
+                if len(cols) < len(headers):
+                    continue
+                details.append({headers[index]: cols[index] for index in range(len(headers))})
+            return details
+        return []
+
     def score_gpa(self):
-        """查询学分绩点和学位绩点"""
+        """查询学分绩点、学位绩点和学期绩点明细"""
         response = self.x.get(f'{self.url}gradeLnAllAction.do', params={'oper': 'queryXfjd'}, verify=False)
-        soup = BeautifulSoup(response.text, 'html.parser')
+        soup = BeautifulSoup(response.content, 'html.parser', from_encoding='gb18030')
         inputs = soup.find_all('input', style="width: 60px;")
         return {
             '学分绩点': inputs[0].get('value') if len(inputs) > 0 else None,
             '学位绩点': inputs[1].get('value') if len(inputs) > 1 else None,
+            '加权学分学位绩点': inputs[2].get('value') if len(inputs) > 2 else None,
+            '学期绩点明细': self._parse_gpa_detail_tables(soup),
         }
 
     def get_exam_sessions(self):

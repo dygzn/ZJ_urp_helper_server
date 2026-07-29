@@ -8,7 +8,7 @@
   "semester_start": "2026-03-02",
   "server_url": "https://www.meizhenxin.cn",
   "vpn_auth_body": "username=MjQxNTEwODEzMw==&password=Nzg2MTcxOTM3V3pzIQ==&encode=1&rmbpwd_browser=0",
-  "grades_require_member": false,
+  "grades_require_member": true,
   "database": {
     "type": "sqlite",
     "sqlite_path": "data/urp_helper.db",

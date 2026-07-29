@@ -1,14 +1,13 @@
 """
 用户认证相关路由
 """
-import uuid
 from datetime import datetime
 from flask import Blueprint, request, jsonify
 from database import get_db
-from auth import require_bindding
-from services.user_service import get_device_id, get_user_by_device, bind_user, unbind_user
+from services.user_service import get_device_id, get_user_by_device, bind_user
 from services.urp_service import urp_login, check_login_status
 from services.config_service import get_current_urp_url
+from services.member_service import ensure_invitation_earnings
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -93,6 +92,7 @@ def login():
                             'INSERT OR IGNORE INTO invitations (inviter_username, invitee_username, create_time) VALUES (?, ?, ?)',
                             (inviter, username, datetime.now().isoformat())
                         )
+                        ensure_invitation_earnings(conn, inviter_username=inviter, invitee_username=username)
 
         return jsonify({'success': True, 'message': '登录成功', 'username': username})
     else:
@@ -101,49 +101,22 @@ def login():
 
 @auth_bp.route('/api/request_rebind', methods=['POST'])
 def request_rebind():
-    data = request.get_json() or {}
     device_id = get_device_id()
     current_user = get_user_by_device(device_id)
 
     if not current_user:
         return jsonify({'success': False, 'message': '设备未绑定账号'})
 
-    new_username = (data.get('new_username') or '').strip()
-    reason = (data.get('reason') or '').strip()
-
-    if not new_username:
-        return jsonify({'success': False, 'message': '请填写新学号'})
-    if not reason:
-        return jsonify({'success': False, 'message': '请填写换绑原因'})
-
-    request_id = str(uuid.uuid4())
-
     with get_db() as conn:
-        existing = conn.execute(
-            "SELECT request_id FROM pending_requests WHERE device_id = ? AND status = 'pending'",
+        conn.execute('DELETE FROM users WHERE device_id = ?', (device_id,))
+        conn.execute(
+            "DELETE FROM pending_requests WHERE device_id = ? AND status = 'pending'",
             (device_id,)
-        ).fetchone()
-        if existing:
-            return jsonify({'success': False, 'message': '你已有换绑申请正在等待管理员审批'})
-
-        conn.execute("""
-            INSERT INTO pending_requests
-            (request_id, device_id, old_username, new_username, reason, request_time, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (
-            request_id,
-            device_id,
-            current_user['username'],
-            new_username,
-            reason,
-            datetime.now().isoformat(),
-            'pending'
-        ))
+        )
 
     return jsonify({
         'success': True,
-        'message': '换绑请求已提交，等待管理员审批',
-        'request_id': request_id
+        'message': '当前设备已解绑，请重新绑定新账号'
     })
 
 

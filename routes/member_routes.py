@@ -1,13 +1,15 @@
 """
 会员系统路由
 """
+import os
+import traceback
 import uuid
 from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify
 from database import get_db
 from auth import require_bindding, require_member
-from services.member_service import _generate_md5, _get_server_url
-from constants import PAY_API_URL, MERCHANT_NUM, PAY_SECRET_KEY, MEMBER_PRICES, MEMBER_DURATION_DAYS
+from services.member_service import _generate_md5, _get_server_url, calculate_invitation_rate, ensure_invitation_earnings
+from constants import PAY_API_URL, MERCHANT_NUM, PAY_SECRET_KEY, MEMBER_PRICES, MEMBER_DURATION_DAYS, DATA_DIR
 
 member_bp = Blueprint('member', __name__)
 
@@ -137,6 +139,7 @@ def member_pay_notify():
             if not order:
                 return 'fail', 400
             if order['status'] == 'paid':
+                ensure_invitation_earnings(conn, order_no=order_no)
                 return 'success'
 
             paid_at = datetime.now()
@@ -174,30 +177,15 @@ def member_pay_notify():
                     (username, member_type, new_expire, datetime.now().isoformat())
                 )
 
-            # 邀请收益：初级10%，高级20%
-            inv = conn.execute(
-                'SELECT inviter_username FROM invitations WHERE invitee_username = ?', (username,)
-            ).fetchone()
-            if inv:
-                inviter = inv['inviter_username']
-                inviter_member = conn.execute(
-                    'SELECT member_type, expire_time FROM memberships WHERE username = ?', (inviter,)
-                ).fetchone()
-                rate = 0.1
-                if inviter_member:
-                    expire_dt = datetime.fromisoformat(inviter_member['expire_time'])
-                    if datetime.now() <= expire_dt and inviter_member['member_type'] == 'advanced':
-                        rate = 0.2
-                commission = float(order['amount']) * rate
-                rate_str = f'{int(rate * 100)}%'
-                conn.execute(
-                    'INSERT INTO invitation_earnings (username, order_no, invitee_username, amount, rate, create_time) VALUES (?, ?, ?, ?, ?, ?)',
-                    (inviter, order_no, username, str(round(commission, 2)), rate_str, datetime.now().isoformat())
-                    )
+            # Reconcile commission rows idempotently for this paid order.
+            ensure_invitation_earnings(conn, order_no=order_no)
+
 
         return 'success'
 
     except Exception:
+        with open(os.path.join(DATA_DIR, 'pay_notify_errors.log'), 'a', encoding='utf-8') as f:
+            f.write(f'[{datetime.now().isoformat()}] {traceback.format_exc()}\n')
         return 'fail', 500
 
 
@@ -247,6 +235,7 @@ def set_inviter(user):
             'INSERT INTO invitations (inviter_username, invitee_username, create_time) VALUES (?, ?, ?)',
             (inviter, username, datetime.now().isoformat())
         )
+        ensure_invitation_earnings(conn, inviter_username=inviter, invitee_username=username)
 
     return jsonify({'success': True, 'message': f'已绑定邀请人：{inviter}'})
 
@@ -256,9 +245,10 @@ def set_inviter(user):
 def invitation_earnings(user):
     username = user['username']
     with get_db() as conn:
+        ensure_invitation_earnings(conn, inviter_username=username)
         # 被邀请人充值总额
         total_spending = conn.execute('''
-            SELECT SUM(CAST(o.amount AS REAL)) as total
+            SELECT SUM(o.amount + 0) as total
             FROM orders o
             INNER JOIN invitations i ON o.username = i.invitee_username
             WHERE i.inviter_username = ? AND o.status = 'paid'
@@ -266,14 +256,7 @@ def invitation_earnings(user):
         invitee_total = total_spending['total'] or 0
 
         # 当前会员等级对应的分佣比例
-        member_row = conn.execute(
-            'SELECT member_type, expire_time FROM memberships WHERE username = ?', (username,)
-        ).fetchone()
-        rate = 0.1
-        if member_row:
-            expire_dt = datetime.fromisoformat(member_row['expire_time'])
-            if datetime.now() <= expire_dt and member_row['member_type'] == 'advanced':
-                rate = 0.2
+        rate = calculate_invitation_rate(conn, username)
 
         # 已产生的收益明细
         rows = conn.execute(
@@ -281,20 +264,20 @@ def invitation_earnings(user):
             (username,)
         ).fetchall()
         total_earned = conn.execute(
-            'SELECT SUM(CAST(amount AS REAL)) as total FROM invitation_earnings WHERE username = ?',
+            'SELECT SUM(amount + 0) as total FROM invitation_earnings WHERE username = ?',
             (username,)
         ).fetchone()
         earned = total_earned['total'] or 0
 
         # 已提现
         withdrawn_row = conn.execute(
-            "SELECT SUM(CAST(amount AS REAL)) as total FROM withdrawals WHERE username = ? AND status != 'rejected'",
+            "SELECT SUM(amount + 0) as total FROM withdrawals WHERE username = ? AND status != 'rejected'",
             (username,)
         ).fetchone()
         withdrawn = withdrawn_row['total'] or 0
 
         # 可提现 = 已产生收益 - 已提现
-        available = earned - withdrawn
+        available = max(earned - withdrawn, 0)
 
     earnings = [{
         'amount': r['amount'],
@@ -327,19 +310,20 @@ def invitation_withdraw(user):
 
     # 查询可提现金额
     with get_db() as conn:
+        ensure_invitation_earnings(conn, inviter_username=username)
         total_earned = conn.execute(
-            'SELECT SUM(CAST(amount AS REAL)) as total FROM invitation_earnings WHERE username = ?',
+            'SELECT SUM(amount + 0) as total FROM invitation_earnings WHERE username = ?',
             (username,)
         ).fetchone()
         total_earned = total_earned['total'] or 0
 
         withdrawn_row = conn.execute(
-            "SELECT SUM(CAST(amount AS REAL)) as total FROM withdrawals WHERE username = ? AND status != 'rejected'",
+            "SELECT SUM(amount + 0) as total FROM withdrawals WHERE username = ? AND status != 'rejected'",
             (username,)
         ).fetchone()
         total_withdrawn = withdrawn_row['total'] or 0
 
-    available = total_earned - total_withdrawn
+    available = max(total_earned - total_withdrawn, 0)
     if available <= 0:
         return jsonify({'success': False, 'message': '暂无可提现金额'})
 

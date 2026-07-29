@@ -4,10 +4,11 @@
 from collections import defaultdict
 from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify, render_template
-from database import get_db, test_database_config, migrate_sqlite_to_current_database
+from database import get_db, get_database_config, test_database_config, migrate_sqlite_to_current_database
 from auth import require_admin
 from services.config_service import get_config, save_config
 from services.user_service import unbind_user
+from services.member_service import ensure_invitation_earnings
 from constants import MEMBER_DURATION_DAYS
 
 admin_bp = Blueprint('admin_bp', __name__)
@@ -16,6 +17,87 @@ admin_bp = Blueprint('admin_bp', __name__)
 @admin_bp.route('/admin')
 def admin():
     return render_template('admin.html')
+
+
+
+@admin_bp.route('/api/admin/invitation_debug', methods=['GET'])
+@require_admin
+def admin_invitation_debug():
+    invitee = (request.args.get('invitee') or '').strip()
+    inviter = (request.args.get('inviter') or '').strip()
+    if not invitee and not inviter:
+        return jsonify({'success': False, 'message': '??? invitee ? inviter ??'})
+
+    try:
+        db_config = get_database_config()
+        with get_db() as conn:
+            created = ensure_invitation_earnings(
+                conn,
+                inviter_username=inviter or None,
+                invitee_username=invitee or None
+            )
+            invitation_params = []
+            invitation_filters = []
+            if invitee:
+                invitation_filters.append('invitee_username = ?')
+                invitation_params.append(invitee)
+            if inviter:
+                invitation_filters.append('inviter_username = ?')
+                invitation_params.append(inviter)
+            invitation_where = ' OR '.join(invitation_filters) or '1=1'
+            invitations = conn.execute(
+                f'SELECT inviter_username, invitee_username, create_time FROM invitations WHERE {invitation_where} ORDER BY create_time DESC',
+                tuple(invitation_params)
+            ).fetchall()
+
+            order_params = []
+            order_where = '1=0'
+            if invitee:
+                order_where = 'username = ?'
+                order_params.append(invitee)
+            orders = conn.execute(
+                f'SELECT order_no, username, member_type, amount, status, create_time, pay_time FROM orders WHERE {order_where} ORDER BY create_time DESC LIMIT 20',
+                tuple(order_params)
+            ).fetchall()
+
+            earning_params = []
+            earning_filters = []
+            if inviter:
+                earning_filters.append('username = ?')
+                earning_params.append(inviter)
+            if invitee:
+                earning_filters.append('invitee_username = ?')
+                earning_params.append(invitee)
+            earning_where = ' OR '.join(earning_filters) or '1=1'
+            earnings = conn.execute(
+                f'SELECT username, order_no, invitee_username, amount, rate, create_time FROM invitation_earnings WHERE {earning_where} ORDER BY create_time DESC',
+                tuple(earning_params)
+            ).fetchall()
+
+            matched_paid_orders = conn.execute('''
+                SELECT o.order_no, o.username AS invitee_username, o.amount, o.status,
+                       i.inviter_username
+                FROM orders o
+                LEFT JOIN invitations i ON o.username = i.invitee_username
+                WHERE (? = '' OR o.username = ?) AND (? = '' OR i.inviter_username = ?)
+                ORDER BY o.create_time DESC
+                LIMIT 20
+            ''', (invitee, invitee, inviter, inviter)).fetchall()
+
+        return jsonify({
+            'success': True,
+            'data': {
+                'database_type': db_config.get('type'),
+                'input': {'invitee': invitee, 'inviter': inviter},
+                'created_missing_earnings': created,
+                'invitations': [dict(r) for r in invitations],
+                'orders': [dict(r) for r in orders],
+                'matched_orders_with_inviter': [dict(r) for r in matched_paid_orders],
+                'earnings': [dict(r) for r in earnings],
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'????????: {str(e)}'})
 
 
 @admin_bp.route('/api/admin/pending_requests', methods=['GET'])
@@ -233,11 +315,32 @@ def admin_set_semester_start():
 @admin_bp.route('/api/admin/members', methods=['GET'])
 @require_admin
 def admin_members():
+    username = (request.args.get('username') or '').strip()
+    if not username:
+        return jsonify({'success': True, 'data': None, 'message': '???????????'})
+
     with get_db() as conn:
-        rows = conn.execute(
-            'SELECT username, member_type, expire_time, create_time FROM memberships ORDER BY create_time DESC'
+        user = conn.execute(
+            'SELECT username, bind_time FROM users WHERE username = ? LIMIT 1',
+            (username,)
+        ).fetchone()
+        member = conn.execute(
+            'SELECT username, member_type, expire_time, create_time FROM memberships WHERE username = ?',
+            (username,)
+        ).fetchone()
+        paid_orders = conn.execute(
+            "SELECT order_no, member_type, amount, status, create_time, pay_time FROM orders WHERE username = ? ORDER BY create_time DESC LIMIT 5",
+            (username,)
         ).fetchall()
-    return jsonify({'success': True, 'data': [dict(r) for r in rows]})
+
+    data = {
+        'username': username,
+        'user_exists': bool(user),
+        'bind_time': user['bind_time'] if user else None,
+        'membership': dict(member) if member else None,
+        'recent_orders': [dict(r) for r in paid_orders]
+    }
+    return jsonify({'success': True, 'data': data})
 
 
 @admin_bp.route('/api/admin/members/grant', methods=['POST'])
@@ -320,6 +423,7 @@ def monitor_online():
 def admin_withdrawals():
     try:
         with get_db() as conn:
+            ensure_invitation_earnings(conn)
             rows = conn.execute('SELECT * FROM withdrawals').fetchall()
             earnings_rows = conn.execute('SELECT username, amount FROM invitation_earnings').fetchall()
             withdrawal_amount_rows = conn.execute("SELECT username, amount, status FROM withdrawals WHERE status != 'rejected'").fetchall()
@@ -360,7 +464,7 @@ def admin_withdrawals():
                 'review_time': r['review_time'],
                 'earned': str(round(earned, 2)),
                 'withdrawn': str(round(withdrawn, 2)),
-                'available_after': str(round(earned - withdrawn, 2))
+                'available_after': str(round(max(earned - withdrawn, 0), 2))
             })
         return jsonify({'success': True, 'data': result})
     except Exception as e:
@@ -392,6 +496,7 @@ def admin_withdrawals_reject(withdrawal_id):
 def admin_commission_stats():
     try:
         with get_db() as conn:
+            ensure_invitation_earnings(conn)
             earnings = conn.execute('SELECT username, invitee_username, amount, create_time FROM invitation_earnings').fetchall()
             withdrawals = conn.execute('SELECT username, amount, status FROM withdrawals').fetchall()
             invitations = conn.execute('SELECT inviter_username, invitee_username FROM invitations').fetchall()
@@ -484,7 +589,7 @@ def admin_commission_stats():
             withdrawn = item['withdrawn']
             pending = item['pending_withdraw']
             invitee_paid = item['invitee_paid_amount']
-            available = earned - withdrawn
+            available = max(earned - withdrawn, 0)
             users.append({
                 'username': item['username'],
                 'earned': str(round(earned, 2)),
