@@ -115,5 +115,90 @@ class ResponseClassificationTests(unittest.TestCase):
         self.assertTrue(login_module._looks_logged_in(response))
 
 
+class VPNRecoveryTests(unittest.TestCase):
+    def test_recovery_reauthenticates_and_returns_fresh_vpn_cookies(self):
+        stale = make_response(
+            '<script>var errmsg="session expired";'
+            'sslvpn({pageName: "error"});</script>'
+        )
+        login_page = make_response(
+            '<form name="loginForm" '
+            'action="/7b68f983/loginAction.do"></form>'
+        )
+        session = SequenceSession([stale, login_page])
+        session.cookies.set('JSESSIONID', 'student-session')
+
+        with patch.object(
+            login_module,
+            'load_shared_vpn_cookies',
+            side_effect=[
+                {'VSG_SESSIONID': 'stale'},
+                {'VSG_SESSIONID': 'fresh'},
+            ],
+        ), patch.object(
+            login_module.URP_login,
+            '_vpn_password_auth',
+            return_value=(True, 'VPN auth success'),
+        ):
+            cookies = login_module.recover_vpn_session(
+                session,
+                'https://223.112.21.198:6443/7b68f983/',
+            )
+
+        self.assertEqual(cookies, {'VSG_SESSIONID': 'fresh'})
+        self.assertEqual(
+            session.cookies.get('JSESSIONID'),
+            'student-session',
+        )
+
+    def test_recovery_raises_clear_error_when_vpn_auth_fails(self):
+        stale = make_response(
+            '<script>var errmsg="session expired";'
+            'sslvpn({pageName: "error"});</script>'
+        )
+        session = SequenceSession([stale])
+
+        with patch.object(
+            login_module,
+            'load_shared_vpn_cookies',
+            return_value={'VSG_SESSIONID': 'stale'},
+        ), patch.object(
+            login_module.URP_login,
+            '_vpn_password_auth',
+            return_value=(False, 'VPN auth failed'),
+        ):
+            with self.assertRaisesRegex(
+                login_module.VPNUnavailableError,
+                '\u5df2\u81ea\u52a8\u91cd\u8fde\u4f46\u672a\u6210\u529f',
+            ):
+                login_module.recover_vpn_session(
+                    session,
+                    'https://223.112.21.198:6443/7b68f983/',
+                )
+
+    def test_recovery_reuses_session_refreshed_by_another_request(self):
+        login_page = make_response(
+            '<form name="loginForm" '
+            'action="/7b68f983/loginAction.do"></form>'
+        )
+        session = SequenceSession([login_page])
+
+        with patch.object(
+            login_module,
+            'load_shared_vpn_cookies',
+            return_value={'VSG_SESSIONID': 'fresh'},
+        ), patch.object(
+            login_module.URP_login,
+            '_vpn_password_auth',
+        ) as password_auth:
+            cookies = login_module.recover_vpn_session(
+                session,
+                'https://223.112.21.198:6443/7b68f983/',
+            )
+
+        self.assertEqual(cookies, {'VSG_SESSIONID': 'fresh'})
+        password_auth.assert_not_called()
+
+
 if __name__ == '__main__':
     unittest.main()

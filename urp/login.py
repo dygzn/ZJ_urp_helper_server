@@ -310,6 +310,48 @@ def start_vpn_keepalive():
     threading.Thread(target=_vpn_keepalive_loop, daemon=True).start()
 
 
+def _vpn_unavailable_message(detail=''):
+    message = (
+        'VPN \u901a\u9053\u6682\u4e0d\u53ef\u7528\uff0c'
+        '\u5df2\u81ea\u52a8\u91cd\u8fde\u4f46\u672a\u6210\u529f\uff0c'
+        '\u8bf7\u7a0d\u540e\u91cd\u8bd5'
+    )
+    return f'{message}\uff1b{detail}' if detail else message
+
+
+def recover_vpn_session(session, url=VPN_KEEPALIVE_URL):
+    with _VPN_LOCK:
+        current = load_shared_vpn_cookies()
+        if current:
+            session.cookies.update(current)
+            if vpn_session_alive(session, url):
+                return current
+
+        clear_shared_vpn_cookies()
+        helper = URP_login(url, '', '')
+        success, message = helper._vpn_password_auth()
+        if not success:
+            raise VPNUnavailableError(_vpn_unavailable_message(message))
+
+        fresh = load_shared_vpn_cookies()
+        if not fresh:
+            raise VPNUnavailableError(
+                _vpn_unavailable_message(
+                    'VPN \u8ba4\u8bc1\u672a\u8fd4\u56de\u6709\u6548\u4f1a\u8bdd'
+                )
+            )
+        session.cookies.update(fresh)
+        if not vpn_session_alive(session, url):
+            clear_shared_vpn_cookies()
+            raise VPNUnavailableError(
+                _vpn_unavailable_message(
+                    'VPN \u91cd\u8fde\u540e\u4ecd\u65e0\u6cd5'
+                    '\u8bbf\u95ee\u6559\u52a1\u7cfb\u7edf'
+                )
+            )
+        return fresh
+
+
 class URP_login:
     def __init__(self, url, account, password):
         self.url = url.rstrip('/')
@@ -381,28 +423,26 @@ class URP_login:
     def _ensure_vpn_session(self):
         if not self._requires_vpn_auth():
             return True, ''
-        with _VPN_LOCK:
-            if self._load_shared_vpn_cookies() and vpn_session_alive(self.x, self._url()):
-                save_shared_vpn_cookies(self.x.cookies.get_dict())
-                self._save_cookies()
-                start_vpn_keepalive()
-                return True, 'VPN already online'
-            clear_shared_vpn_cookies()
-            success, message = self._vpn_password_auth()
-            if success:
-                self._save_cookies()
-            return success, message
+        try:
+            recover_vpn_session(self.x, self._url())
+            self._save_cookies()
+            start_vpn_keepalive()
+            return True, 'VPN already online'
+        except VPNUnavailableError as exc:
+            return False, str(exc)
 
     def _get_login_page(self):
         headers = {'Referer': VPN_PORTAL_PAGE} if self._requires_vpn_auth() else {}
         resp = self.x.get(self._url(), headers=headers, timeout=20)
         resp.encoding = 'gbk'
         _save_debug_file('last_jiaowu_login.html', resp.text)
-        if _looks_like_vpn_auth_page(resp):
-            raise RuntimeError(f'VPN auth page returned when loading URP login page: {_html_hint(resp)}')
+        if is_vpn_failure_response(resp):
+            raise VPNUnavailableError(
+                _vpn_unavailable_message(_html_hint(resp))
+            )
         return resp.url, _parse_login_form(resp.text)
 
-    def _read_captcha(self, ocr):
+    def _read_captcha(self, ocr, allow_vpn_retry=True):
         resp = self.x.get(
             self._url('validateCodeAction.do'),
             params={'random': str(random.random())},
@@ -411,13 +451,10 @@ class URP_login:
         )
         if not _looks_like_image(resp):
             _save_debug_file('last_vpn_captcha_response.html', resp.text)
-            if self._requires_vpn_auth():
-                clear_shared_vpn_cookies()
-                success, message = self._vpn_password_auth()
-                if not success:
-                    raise RuntimeError(f'{message}; captcha response was not an image')
+            if self._requires_vpn_auth() and allow_vpn_retry:
+                recover_vpn_session(self.x, self._url())
                 self._save_cookies()
-                return self._read_captcha(ocr)
+                return self._read_captcha(ocr, allow_vpn_retry=False)
             raise RuntimeError(f'captcha response was not an image; status={resp.status_code}; {_html_hint(resp)}')
         _save_debug_file('last_jiaowu_captcha.gif', resp.content)
         return _normalize_captcha(ocr.classification(resp.content))
