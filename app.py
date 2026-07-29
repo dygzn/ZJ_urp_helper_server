@@ -6,7 +6,7 @@ from flask import Flask, render_template, request, jsonify
 from werkzeug.exceptions import HTTPException
 from database import init_db
 from services.logging_service import init_logging
-from services.config_service import get_admin_key
+from services.config_service import get_admin_key, get_current_urp_url
 from routes.auth_routes import auth_bp
 from routes.data_routes import data_bp
 from routes.admin_routes import admin_bp
@@ -16,6 +16,10 @@ from routes.sign_routes import sign_bp
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-change-this'
+
+@app.before_request
+def snapshot_request_urp_url():
+    get_current_urp_url()
 
 # 初始化数据库
 try:

@@ -1,6 +1,8 @@
 import unittest
+from unittest.mock import patch
 
 import app as app_module
+import services.config_service as config_service
 
 
 class AppErrorHandlingTests(unittest.TestCase):
@@ -51,6 +53,33 @@ class AppErrorHandlingTests(unittest.TestCase):
         response = self.get_without_exception('/')
 
         self.assertEqual(response.status_code, 200)
+
+    def test_request_url_is_snapshotted_before_view_dispatch(self):
+        current = {'url': 'http://url1.test/'}
+
+        def current_config():
+            return {
+                'urp_urls': [current['url']],
+                'current_url_index': 0,
+            }
+
+        with patch.object(
+            config_service,
+            'get_config',
+            side_effect=current_config,
+        ) as get_config:
+            with app_module.app.test_request_context('/favicon.ico'):
+                self.assertIsNone(app_module.app.preprocess_request())
+                current['url'] = 'http://url2.test/'
+                first = config_service.get_current_urp_url()
+
+            with app_module.app.test_request_context('/favicon.ico'):
+                self.assertIsNone(app_module.app.preprocess_request())
+                second = config_service.get_current_urp_url()
+
+        self.assertEqual(first, 'http://url1.test/')
+        self.assertEqual(second, 'http://url2.test/')
+        self.assertEqual(get_config.call_count, 2)
 
 
 if __name__ == '__main__':

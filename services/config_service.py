@@ -29,8 +29,13 @@ def urp_url_fingerprint(url):
 def is_valid_urp_url(url):
     if not isinstance(url, str):
         return False
-    parsed = urlparse(url.strip())
-    return parsed.scheme in {'http', 'https'} and bool(parsed.netloc)
+    try:
+        parsed = urlparse(url.strip())
+        hostname = parsed.hostname
+        _ = parsed.port
+    except ValueError:
+        return False
+    return parsed.scheme in {'http', 'https'} and bool(hostname)
 
 
 def load_json_file(filepath, default=None):

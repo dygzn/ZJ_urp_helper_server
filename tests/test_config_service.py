@@ -29,6 +29,10 @@ class UrlIdentityTests(unittest.TestCase):
         self.assertFalse(config_service.is_valid_urp_url(''))
         self.assertFalse(config_service.is_valid_urp_url('urp.test/a'))
         self.assertFalse(config_service.is_valid_urp_url('file:///tmp/config'))
+        self.assertFalse(config_service.is_valid_urp_url('http://@/'))
+        self.assertFalse(
+            config_service.is_valid_urp_url('http://urp.test:not-a-port/')
+        )
 
 
 class RequestUrlSnapshotTests(unittest.TestCase):
