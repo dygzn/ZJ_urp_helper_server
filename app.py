@@ -3,6 +3,7 @@ URP教务系统助手 - Flask后端入口
 """
 import os
 from flask import Flask, render_template, request, jsonify
+from werkzeug.exceptions import HTTPException
 from database import init_db
 from services.logging_service import init_logging
 from services.config_service import get_admin_key
@@ -35,9 +36,24 @@ app.register_blueprint(sign_bp)
 
 @app.errorhandler(Exception)
 def handle_api_exception(error):
+    if isinstance(error, HTTPException):
+        if request.path.startswith('/api/'):
+            return jsonify({
+                'success': False,
+                'message': error.description,
+            }), error.code or 500
+        return error
+
     if request.path.startswith('/api/'):
-        return jsonify({'success': False, 'message': f'服务器内部错误: {str(error)}'}), 500
+        return jsonify({
+            'success': False,
+            'message': f'服务器内部错误: {str(error)}',
+        }), 500
     raise error
+
+@app.route('/favicon.ico')
+def favicon():
+    return '', 204
 
 @app.route('/')
 def index():
