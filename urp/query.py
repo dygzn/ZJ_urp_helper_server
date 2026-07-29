@@ -6,7 +6,14 @@ import urllib3
 from collections import defaultdict
 from bs4 import BeautifulSoup
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-from urp.login import _is_vpn_url, load_shared_vpn_cookies, start_vpn_keepalive
+from urp.login import (
+    VPNUnavailableError,
+    _is_vpn_url,
+    is_vpn_failure_response,
+    load_shared_vpn_cookies,
+    recover_vpn_session,
+    start_vpn_keepalive,
+)
 
 # 共享请求头（评教相关）
 _EVAL_HEADERS_BASE = {
@@ -34,12 +41,28 @@ class URP_query:
                 self.x.cookies.update(shared_vpn_cookies)
             start_vpn_keepalive()
 
+    def _request(self, method, url, **kwargs):
+        response = self.x.request(method, url, **kwargs)
+        if not _is_vpn_url(self.url) or not is_vpn_failure_response(response):
+            return response
+
+        fresh = recover_vpn_session(self.x, self.url)
+        self.x.cookies.update(fresh)
+        retry = self.x.request(method, url, **kwargs)
+        if is_vpn_failure_response(retry):
+            raise VPNUnavailableError(
+                'VPN \u901a\u9053\u6682\u4e0d\u53ef\u7528\uff0c'
+                '\u5df2\u81ea\u52a8\u91cd\u8fde\u4f46\u672a\u6210\u529f\uff0c'
+                '\u8bf7\u7a0d\u540e\u91cd\u8bd5'
+            )
+        return retry
+
     # ==================== 成绩查询 ====================
 
     def _fetch_score_html(self):
         """获取成绩总览页面 HTML"""
         score_url = f"{self.url}gradeLnAllAction.do?type=ln&oper=qbinfo&"
-        return self.x.get(score_url, verify=False, timeout=10).text
+        return self._request('GET', score_url, verify=False, timeout=10).text
 
     def get_semesters(self):
         """获取所有学期列表（解析页面锚点）"""
@@ -84,7 +107,7 @@ class URP_query:
 
     def score_current_semester(self):
         """查询本学期成绩"""
-        response = self.x.get(f'{self.url}bxqcjcxAction.do', params={
+        response = self._request('GET', f'{self.url}bxqcjcxAction.do', params={
             'mytype': 'bxqcj', 'yzxh': self.account
         }, verify=False, timeout=10)
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -101,7 +124,7 @@ class URP_query:
 
     def score_failed(self):
         """查询不及格成绩，分为尚不及格和曾不及格"""
-        response = self.x.get(f'{self.url}gradeLnAllAction.do', params={
+        response = self._request('GET', f'{self.url}gradeLnAllAction.do', params={
             'type': 'ln', 'oper': 'bjg', 'yzxh': self.account
         }, verify=False)
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -150,7 +173,7 @@ class URP_query:
 
     def score_gpa(self):
         """查询学分绩点、学位绩点和学期绩点明细"""
-        response = self.x.get(f'{self.url}gradeLnAllAction.do', params={'oper': 'queryXfjd'}, verify=False)
+        response = self._request('GET', f'{self.url}gradeLnAllAction.do', params={'oper': 'queryXfjd'}, verify=False)
         soup = BeautifulSoup(response.content, 'html.parser', from_encoding='gb18030')
         inputs = soup.find_all('input', style="width: 60px;")
         return {
@@ -162,7 +185,7 @@ class URP_query:
 
     def get_exam_sessions(self):
         """获取考试成绩查询页面的所有学期及考试名称列表"""
-        response = self.x.get(f'{self.url}cjSearchAction.do', params={
+        response = self._request('GET', f'{self.url}cjSearchAction.do', params={
             'oper': 'getKscjList', 'yzxh': self.account
         }, verify=False)
         html = response.text
@@ -185,7 +208,7 @@ class URP_query:
 
     def score_resit(self, jxzxjh, ksbh):
         """查询指定考试的成绩"""
-        response = self.x.post(f'{self.url}cjSearchAction.do', params={'oper': 'tjcx'}, data={
+        response = self._request('POST', f'{self.url}cjSearchAction.do', params={'oper': 'tjcx'}, data={
             'jxzxjh': jxzxjh, 'ksbh': ksbh, 'yzxh': self.account
         }, verify=False)
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -210,7 +233,7 @@ class URP_query:
             'Origin': self.url,
             'Referer': listWj_url,
         }
-        response = self.x.get(listWj_url, params={'oper': 'listWj', 'yzxh': self.account},
+        response = self._request('GET', listWj_url, params={'oper': 'listWj', 'yzxh': self.account},
                               headers=headers, verify=False)
         pg_lists = response.text
 
@@ -266,7 +289,7 @@ class URP_query:
 
         for course in pg_list:
             wjbm, bpr, pgnr = course['wjbm'], course['bpr'], course['pgnr']
-            wjshow_r = self.x.post(url, data={'wjbm': wjbm, 'bpr': bpr, 'pgnr': pgnr, 'oper': 'wjShow'}, headers=headers_show, verify=False).text
+            wjshow_r = self._request('POST', url, data={'wjbm': wjbm, 'bpr': bpr, 'pgnr': pgnr, 'oper': 'wjShow'}, headers=headers_show, verify=False).text
             if '您没有可回答的问卷' in wjshow_r:
                 return False, '您没有可回答的问卷'
 
@@ -323,7 +346,7 @@ class URP_query:
                     elif inp_type not in ('radio', 'checkbox'):
                         evaluation_data[name] = inp.get('value', '')
 
-            r = self.x.post(wjpg_url, data=evaluation_data, headers=headers_submit, verify=False).text
+            r = self._request('POST', wjpg_url, data=evaluation_data, headers=headers_submit, verify=False).text
             if '评估成功' not in r:
                 return False, '评价失败'
         return True, '评价成功'
@@ -339,7 +362,7 @@ class URP_query:
             'Upgrade-Insecure-Requests': '1',
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0',
         }
-        response = self.x.get(f'{self.url}xkAction.do', headers=headers,
+        response = self._request('GET', f'{self.url}xkAction.do', headers=headers,
                                params={'actionType': '6', 'yzxh': self.account}, verify=False)
         soup = BeautifulSoup(response.text, 'html.parser')
 
@@ -442,7 +465,7 @@ class URP_query:
             'Upgrade-Insecure-Requests': '1',
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 Edg/144.0.0.0',
         }
-        response = self.x.get(f'{self.url}ksApCxAction.do',
+        response = self._request('GET', f'{self.url}ksApCxAction.do',
                                params={'oper': 'getKsapXx', 'yzxh': self.account},
                                headers=headers, verify=False)
         soup = BeautifulSoup(response.text, 'html.parser')

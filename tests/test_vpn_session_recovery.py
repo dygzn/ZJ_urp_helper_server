@@ -7,6 +7,7 @@ from unittest.mock import patch
 import requests
 
 import urp.login as login_module
+import urp.query as query_module
 
 
 def make_response(
@@ -198,6 +199,106 @@ class VPNRecoveryTests(unittest.TestCase):
 
         self.assertEqual(cookies, {'VSG_SESSIONID': 'fresh'})
         password_auth.assert_not_called()
+
+
+class QueryRetryTests(unittest.TestCase):
+    def make_query(self, url, responses):
+        query = object.__new__(query_module.URP_query)
+        query.url = url
+        query.account = 'student'
+        query.x = SequenceSession(responses)
+        query.x.cookies.set('JSESSIONID', 'student-session')
+        return query
+
+    def test_vpn_error_recovers_and_retries_original_request_once(self):
+        timeout = make_response(
+            '<script>var errmsg="session expired";'
+            'sslvpn({pageName: "error"});</script>'
+        )
+        grades = make_response(
+            '<table id="user"><tr><td>Calculus</td></tr></table>'
+        )
+        query = self.make_query(
+            'https://223.112.21.198:6443/7b68f983/',
+            [timeout, grades],
+        )
+
+        with patch.object(
+            query_module,
+            'recover_vpn_session',
+            create=True,
+            return_value={'VSG_SESSIONID': 'fresh'},
+        ):
+            response = query._request(
+                'GET',
+                query.url + 'gradeLnAllAction.do',
+                timeout=10,
+            )
+
+        self.assertIn('Calculus', response.text)
+        self.assertEqual(len(query.x.requests), 2)
+        self.assertEqual(
+            query.x.cookies.get('JSESSIONID'),
+            'student-session',
+        )
+        self.assertEqual(
+            query.x.cookies.get('VSG_SESSIONID'),
+            'fresh',
+        )
+
+    def test_second_vpn_error_raises_instead_of_becoming_empty_data(self):
+        first = make_response(
+            '<script>var errmsg="session expired";'
+            'sslvpn({pageName: "error"});</script>'
+        )
+        second = make_response(
+            '<html><title>\u7f51\u7ad9\u7ef4\u62a4</title>'
+            '<body>\u7f51\u7ad9\u6b63\u5728\u7ef4\u62a4\u4e2d</body></html>'
+        )
+        query = self.make_query(
+            'https://223.112.21.198:6443/7b68f983/',
+            [first, second],
+        )
+
+        with patch.object(
+            query_module,
+            'recover_vpn_session',
+            create=True,
+            return_value={'VSG_SESSIONID': 'fresh'},
+        ):
+            with self.assertRaisesRegex(
+                login_module.VPNUnavailableError,
+                '\u5df2\u81ea\u52a8\u91cd\u8fde\u4f46\u672a\u6210\u529f',
+            ):
+                query._request(
+                    'GET',
+                    query.url + 'gradeLnAllAction.do',
+                    timeout=10,
+                )
+
+        self.assertEqual(len(query.x.requests), 2)
+
+    def test_non_vpn_request_does_not_recover_or_retry(self):
+        response = make_response(
+            '<script>var errmsg="session expired";'
+            'sslvpn({pageName: "error"});</script>',
+            url='http://192.168.16.207:9001/',
+        )
+        query = self.make_query(
+            'http://192.168.16.207:9001/',
+            [response],
+        )
+
+        with patch.object(
+            query_module,
+            'recover_vpn_session',
+            create=True,
+        ) as recover:
+            returned = query._request('GET', query.url, timeout=10)
+
+        self.assertIs(returned, response)
+        self.assertEqual(len(query.x.requests), 1)
+        recover.assert_not_called()
 
 
 if __name__ == '__main__':
