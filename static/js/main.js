@@ -785,8 +785,17 @@ async function updateScheduleData() {
     }
 }
 
-async function loadSchedule(week = null, autoFetched = false) {
+function resetScheduleDisplay() {
     const scheduleDays = document.getElementById('schedule-days');
+    const scheduleGrid = document.querySelector('.schedule-grid');
+    const scheduleHeader = document.querySelector('.schedule-header');
+
+    scheduleDays.innerHTML = '';
+    scheduleGrid.classList.remove('has-evening');
+    setScheduleWeekendVisibility(false, scheduleGrid, scheduleHeader);
+}
+
+async function loadSchedule(week = null, autoFetched = false) {
     const messageDiv = document.getElementById('schedule-message');
 
     // 根据学期开始日期算出实际当前周
@@ -827,7 +836,7 @@ async function loadSchedule(week = null, autoFetched = false) {
             hideMessage();
             displaySchedule(weekData);
         } else {
-            scheduleDays.innerHTML = '';
+            resetScheduleDisplay();
             showMessage(`第${w}周没有课程`);
         }
     }
@@ -864,7 +873,7 @@ async function loadSchedule(week = null, autoFetched = false) {
                 renderFromCache(schedule, week);
             } else if (!autoFetched) {
                 // 没有缓存数据，自动从教务系统获取
-                scheduleDays.innerHTML = '';
+                resetScheduleDisplay();
                 showMessage('正在从教务系统获取课表...');
                 try {
                     const updateResp = await fetch('/api/update_schedule', {
@@ -882,16 +891,16 @@ async function loadSchedule(week = null, autoFetched = false) {
                     showMessage('获取课表失败，学校可能暂未开放查询', true);
                 }
             } else {
-                scheduleDays.innerHTML = '';
+                resetScheduleDisplay();
                 showMessage(data.data.message || '暂无课程数据');
             }
         } else {
-            scheduleDays.innerHTML = '';
+            resetScheduleDisplay();
             showMessage(data.message || '暂无课程数据');
         }
     } catch (error) {
         console.error('加载课程表失败:', error);
-        scheduleDays.innerHTML = '';
+        resetScheduleDisplay();
         showMessage('加载失败，请检查网络连接', true);
     }
 }
@@ -989,8 +998,11 @@ function displaySchedule(schedule) {
 
     scheduleDays.innerHTML = html;
     scheduleGrid.classList.toggle('has-evening', hasEvening);
-    scheduleGrid.classList.toggle('no-weekend', !hasWeekend);
-    document.querySelector('.schedule-header').classList.toggle('no-weekend', !hasWeekend);
+    setScheduleWeekendVisibility(
+        hasWeekend,
+        scheduleGrid,
+        document.querySelector('.schedule-header'),
+    );
     updateScheduleTimeline(userIsFreshman);
 }
 
