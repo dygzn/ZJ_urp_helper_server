@@ -1,6 +1,7 @@
 import json
 import tempfile
 import unittest
+from collections import UserDict
 from pathlib import Path
 from unittest.mock import patch
 
@@ -77,6 +78,24 @@ class UserCookieStoreTests(unittest.TestCase):
             payload,
             {'JSESSIONID': 'student-session', 'route': 'backend'},
         )
+
+    def test_userdict_cookies_are_saved_and_vpn_cookies_filtered(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(
+            session_store,
+            'USER_DATA_DIR',
+            Path(directory),
+        ):
+            path = session_store.save_user_cookies(
+                'student',
+                URL1,
+                UserDict({
+                    'JSESSIONID': 'student-session',
+                    'VSG_SESSIONID': 'vpn-session',
+                }),
+            )
+            payload = json.loads(path.read_text(encoding='utf-8'))
+
+        self.assertEqual(payload, {'JSESSIONID': 'student-session'})
 
     def test_legacy_cookie_is_candidate_only_when_scoped_file_missing(self):
         with tempfile.TemporaryDirectory() as directory, patch.object(

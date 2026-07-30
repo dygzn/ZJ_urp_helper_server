@@ -1,6 +1,7 @@
 import json
 import os
 import tempfile
+from collections.abc import Mapping
 from pathlib import Path
 
 from services.config_service import urp_url_fingerprint
@@ -11,7 +12,7 @@ VPN_COOKIE_PREFIX = 'VSG_'
 
 
 def _filter_user_cookies(cookies):
-    if not isinstance(cookies, dict):
+    if not isinstance(cookies, Mapping):
         return {}
     return {
         str(name): value
