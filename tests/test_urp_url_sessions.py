@@ -182,6 +182,7 @@ class CookieConsumerTests(unittest.TestCase):
 
     def test_valid_legacy_cookie_is_promoted_after_real_validation(self):
         response = Mock()
+        response.url = URL1
         response.text = 'student'
         with tempfile.TemporaryDirectory() as directory, patch.object(
             session_store,
@@ -207,8 +208,43 @@ class CookieConsumerTests(unittest.TestCase):
         self.assertEqual(promoted, {'JSESSIONID': 'legacy'})
         self.assertEqual(source, 'scoped')
 
+    def test_legacy_cookie_is_not_promoted_when_login_page_echoes_account(self):
+        response = Mock()
+        response.url = URL1
+        response.text = (
+            '<form name="loginForm" action="loginAction.do">'
+            'student'
+            '</form>'
+        )
+        self.assertTrue(login_module._looks_like_urp_login_page(response))
+
+        with tempfile.TemporaryDirectory() as directory, patch.object(
+            session_store,
+            'USER_DATA_DIR',
+            Path(directory),
+        ):
+            account_dir = Path(directory) / 'student'
+            account_dir.mkdir(parents=True)
+            (account_dir / 'cookie.json').write_text(
+                json.dumps({'JSESSIONID': 'expired-legacy'}),
+                encoding='utf-8',
+            )
+            login = login_module.URP_login(URL1, 'student', 'password')
+            login.x.get = Mock(return_value=response)
+
+            self.assertFalse(login.is_logined())
+            promoted, source = session_store.load_user_cookies(
+                'student',
+                URL1,
+                allow_legacy=False,
+            )
+
+        self.assertEqual(promoted, {})
+        self.assertEqual(source, 'missing')
+
     def test_invalid_cookie_validation_does_not_call_login_recursively(self):
         response = Mock()
+        response.url = URL1
         response.text = '<form name="loginForm"></form>'
         with tempfile.TemporaryDirectory() as directory, patch.object(
             session_store,

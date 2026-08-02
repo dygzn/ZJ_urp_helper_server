@@ -540,6 +540,11 @@ class URP_login:
         except Exception:
             return False
 
+        if (
+            is_vpn_failure_response(response)
+            or _looks_like_urp_login_page(response)
+        ):
+            return False
         if self.account not in response.text:
             return False
         if source == 'legacy':
