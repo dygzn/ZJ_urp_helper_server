@@ -272,9 +272,11 @@ def get_urgent_event(username):
     }
 
 
-def check_and_auto_update(username, password):
+def check_and_auto_update(username, password, url=None):
     """检查是否需要自动更新课表和考试表（每日首次访问）"""
     from datetime import date
+
+    target_url = normalize_urp_url(url or get_current_urp_url())
     today = date.today().isoformat()
 
     with get_db() as conn:
@@ -291,15 +293,19 @@ def check_and_auto_update(username, password):
         if last_update == today:
             return False, '今日已更新'
 
+        is_logged_in, _ = check_login_status(
+            username,
+            password,
+            {},
+            url=target_url,
+        )
+        if not is_logged_in:
+            return False, '自动更新失败：教务登录不可用'
+
         try:
-            from URP import URP_login, URP_query
-            url = get_current_urp_url()
+            from URP import URP_query
 
-            urp = URP_login(url, username, password)
-            if not urp.is_logined():
-                urp.login()
-
-            query = URP_query(url, username)
+            query = URP_query(target_url, username)
             query.schedule_cx()
             query.exam_cx()
 

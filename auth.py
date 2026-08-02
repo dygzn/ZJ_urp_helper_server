@@ -205,23 +205,9 @@ def require_member_login(level='basic'):
             username = user['username']
             password = user['password']
             urp_url = get_current_urp_url()
-            with get_db() as conn:
-                row = conn.execute(
-                    'SELECT member_type, expire_time FROM memberships WHERE username = ?',
-                    (username,)
-                ).fetchone()
-
-            if not row:
-                level_name = '初级会员' if level == 'basic' else '高级会员'
-                return jsonify({'success': False, 'message': f'此功能需要{level_name}，请前往会员购买页面开通', 'require_member': level})
-
-            member_type = row['member_type']
-            expire_time = datetime.fromisoformat(row['expire_time'])
-            if datetime.now() > expire_time:
-                return jsonify({'success': False, 'message': '您的会员已过期，请前往会员购买页面续费', 'require_member': level})
-
-            if level == 'advanced' and member_type != 'advanced':
-                return jsonify({'success': False, 'message': '此功能需要高级会员，请前往会员购买页面升级', 'require_member': level})
+            ok, error = _check_member_access(username, level)
+            if not ok:
+                return jsonify(error)
 
             is_logged_in, login_details = check_login_status(
                 username,

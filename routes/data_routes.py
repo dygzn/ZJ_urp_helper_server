@@ -6,13 +6,18 @@ import json
 import random
 import threading
 from flask import Blueprint, request, jsonify
-from auth import require_login, require_bindding, require_member, require_grade_login
+from auth import (
+    require_bindding,
+    require_grade_login,
+    require_login,
+    require_member_login,
+)
 from database import get_db
 from services.config_service import get_config
 from services.urp_service import (
     get_urgent_event, get_schedule, get_exams, get_grades,
     get_unevaluated_courses, do_evaluation, check_and_auto_update,
-    check_login_status, get_semesters, get_grades_by_semester,
+    get_semesters, get_grades_by_semester,
     get_failed_grades, get_gpa, get_current_semester_grades,
     get_latest_semester_grade_summary,
     get_exam_sessions, get_exam_scores
@@ -26,9 +31,10 @@ data_bp = Blueprint('data', __name__)
 @require_bindding
 def api_urgent_event(user):
     try:
+        current_url = get_current_urp_url()
         threading.Thread(
             target=check_and_auto_update,
-            args=(user['username'], user['password']),
+            args=(user['username'], user['password'], current_url),
             daemon=True
         ).start()
 
@@ -56,12 +62,6 @@ def api_update_schedule(user):
         from URP import URP_query
 
         username = user['username']
-        password = user['password']
-
-        is_logged_in, _ = check_login_status(username, password, {})
-        if not is_logged_in:
-            return jsonify({'success': False, 'message': '登录已过期，请重新登录'})
-
         current_url = get_current_urp_url()
         urp = URP_query(current_url, username)
         schedule_data = urp.schedule_cx()
@@ -88,12 +88,6 @@ def api_update_exams(user):
         from URP import URP_query
 
         username = user['username']
-        password = user['password']
-
-        is_logged_in, _ = check_login_status(username, password, {})
-        if not is_logged_in:
-            return jsonify({'success': False, 'message': '登录已过期，请重新登录'})
-
         current_url = get_current_urp_url()
         urp = URP_query(current_url, username)
         exams_data = urp.exam_cx()
@@ -282,7 +276,7 @@ def api_other_major_schedule(user):
 
 
 @data_bp.route('/api/unevaluated_courses', methods=['GET'])
-@require_member('basic')
+@require_member_login('basic')
 def api_unevaluated_courses(user):
     try:
         courses = get_unevaluated_courses(user['username'])
@@ -299,7 +293,7 @@ def api_unevaluated_courses(user):
 
 
 @data_bp.route('/api/evaluation', methods=['POST'])
-@require_member('basic')
+@require_member_login('basic')
 def api_evaluation(user):
     try:
         data = request.get_json()

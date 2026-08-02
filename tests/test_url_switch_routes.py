@@ -1,0 +1,189 @@
+import unittest
+from unittest.mock import Mock, patch
+
+from flask import Flask
+
+import auth
+import routes.admin_routes as admin_routes
+import routes.data_routes as data_routes
+import services.urp_service as urp_service
+
+
+URL1 = 'http://url1.test/urp/'
+
+
+class BackgroundUrlTests(unittest.TestCase):
+    def test_urgent_event_passes_request_url_to_background_update(self):
+        app = Flask(__name__)
+        fake_thread = Mock()
+        with app.test_request_context('/api/urgent_event'), patch.object(
+            data_routes, 'get_current_urp_url', return_value=URL1,
+        ), patch.object(
+            data_routes.threading, 'Thread', return_value=fake_thread,
+        ) as thread_class, patch.object(
+            data_routes, 'get_urgent_event',
+            return_value={'current': None, 'next': None},
+        ):
+            response = data_routes.api_urgent_event.__wrapped__(
+                user={'username': 'student', 'password': 'password'},
+            )
+
+        self.assertTrue(response.get_json()['success'])
+        self.assertEqual(
+            thread_class.call_args.kwargs['args'],
+            ('student', 'password', URL1),
+        )
+        fake_thread.start.assert_called_once_with()
+
+    def test_auto_update_uses_explicit_normalized_url_for_all_live_work(self):
+        connection = Mock()
+        connection.execute.return_value.fetchone.return_value = (None,)
+        database = Mock()
+        database.__enter__ = Mock(return_value=connection)
+        database.__exit__ = Mock(return_value=False)
+        query = Mock()
+
+        with patch.object(
+            urp_service, 'get_db', return_value=database,
+        ), patch.object(
+            urp_service, 'get_current_urp_url',
+            side_effect=AssertionError('explicit URL must be used'),
+        ), patch.object(
+            urp_service, 'check_login_status', return_value=(True, {}),
+        ) as login_check, patch(
+            'URP.URP_query', return_value=query,
+        ) as query_class:
+            result = urp_service.check_and_auto_update(
+                'student', 'password', url=' http://url1.test/urp ',
+            )
+
+        self.assertEqual(result, (True, '自动更新成功'))
+        login_check.assert_called_once_with(
+            'student', 'password', {}, url=URL1,
+        )
+        query_class.assert_called_once_with(URL1, 'student')
+        query.schedule_cx.assert_called_once_with()
+        query.exam_cx.assert_called_once_with()
+
+
+class LiveUpdateUrlTests(unittest.TestCase):
+    def _assert_live_route_uses_snapshot(self, route, query_method):
+        app = Flask(__name__)
+        query = Mock()
+        getattr(query, query_method).return_value = {'fresh': True}
+        with app.test_request_context('/api/live-update'), patch.object(
+            data_routes, 'get_current_urp_url', return_value=URL1,
+        ) as current_url, patch(
+            'URP.URP_query', return_value=query,
+        ) as query_class, patch.object(
+            data_routes, 'check_login_status',
+            side_effect=AssertionError('decorator already checked login'),
+            create=True,
+        ):
+            response = route.__wrapped__(
+                user={'username': 'student', 'password': 'password'},
+            )
+
+        self.assertTrue(response.get_json()['success'])
+        current_url.assert_called_once_with()
+        query_class.assert_called_once_with(URL1, 'student')
+        getattr(query, query_method).assert_called_once_with()
+
+    def test_schedule_update_uses_one_request_url_without_duplicate_login(self):
+        self._assert_live_route_uses_snapshot(
+            data_routes.api_update_schedule, 'schedule_cx',
+        )
+
+    def test_exam_update_uses_one_request_url_without_duplicate_login(self):
+        self._assert_live_route_uses_snapshot(
+            data_routes.api_update_exams, 'exam_cx',
+        )
+
+
+class EvaluationLoginTests(unittest.TestCase):
+    def setUp(self):
+        from app import app
+        self.client = app.test_client()
+
+    def _assert_login_failure_stops_query(self, method, path, query_name):
+        user = {'username': 'student', 'password': 'password'}
+        with patch.object(
+            auth, 'get_device_id', return_value='device',
+        ), patch.object(
+            auth, 'get_user_by_device', return_value=user,
+        ), patch.object(
+            auth, '_check_member_access', return_value=(True, None),
+        ) as member_check, patch.object(
+            auth, 'check_login_status', return_value=(False, {}),
+        ), patch.object(
+            data_routes, query_name,
+        ) as query:
+            response = getattr(self.client, method)(
+                path, json={'courses': [{'id': 'course-1'}]},
+            )
+
+        self.assertFalse(response.get_json()['success'])
+        self.assertIn('登录已失效', response.get_json()['message'])
+        member_check.assert_called_once_with('student', 'basic')
+        query.assert_not_called()
+
+    def test_unevaluated_courses_stops_before_query_when_login_fails(self):
+        self._assert_login_failure_stops_query(
+            'get', '/api/unevaluated_courses', 'get_unevaluated_courses',
+        )
+
+    def test_evaluation_stops_before_submit_when_login_fails(self):
+        self._assert_login_failure_stops_query(
+            'post', '/api/evaluation', 'do_evaluation',
+        )
+
+
+class AdminUrlValidationTests(unittest.TestCase):
+    def test_invalid_url_list_is_rejected_without_write(self):
+        app = Flask(__name__)
+        with app.test_request_context(
+            '/api/admin/config/url', method='POST',
+            json={'urls': ['http://valid.test/', 'not-a-url']},
+        ), patch.object(admin_routes, 'update_config') as update:
+            response = admin_routes.admin_switch_url.__wrapped__()
+
+        self.assertFalse(response.get_json()['success'])
+        update.assert_not_called()
+
+
+class LocalCacheRouteTests(unittest.TestCase):
+    def _assert_local_route_does_not_require_login(
+        self, path, query_name, response_value,
+    ):
+        from app import app
+
+        user = {'username': 'student', 'password': 'password'}
+        with patch.object(
+            auth, 'get_device_id', return_value='device',
+        ), patch.object(
+            auth, 'get_user_by_device', return_value=user,
+        ), patch.object(
+            auth, 'check_login_status',
+            side_effect=AssertionError('local reads are binding-only'),
+        ), patch.object(
+            data_routes, query_name, return_value=response_value,
+        ) as query:
+            response = app.test_client().get(path)
+
+        self.assertTrue(response.get_json()['success'])
+        query.assert_called_once()
+
+    def test_cached_schedule_read_remains_binding_only(self):
+        self._assert_local_route_does_not_require_login(
+            '/api/schedule?week=1', 'get_schedule',
+            {'week': 1, 'schedule': {}},
+        )
+
+    def test_cached_exam_read_remains_binding_only(self):
+        self._assert_local_route_does_not_require_login(
+            '/api/exams', 'get_exams', [],
+        )
+
+
+if __name__ == '__main__':
+    unittest.main()
