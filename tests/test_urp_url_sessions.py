@@ -8,6 +8,8 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import requests
+from flask import Flask
+import routes.auth_routes as auth_routes
 import services.config_service as config_service
 import services.urp_service as urp_service
 
@@ -278,6 +280,131 @@ class LoginStateTests(unittest.TestCase):
         urp_service._login_cache.clear()
         urp_service._login_locks.clear()
 
+    def test_four_status_requests_share_one_real_login(self):
+        login_count = 0
+        count_lock = threading.Lock()
+
+        class FakeLogin:
+            def __init__(self, url, account, password):
+                self.url = url
+                self.account = account
+                self.x = requests.Session()
+
+            def is_logined(self):
+                return False
+
+            def login(self):
+                nonlocal login_count
+                with count_lock:
+                    login_count += 1
+                time.sleep(0.05)
+                session_store.save_user_cookies(
+                    self.account,
+                    self.url,
+                    {'JSESSIONID': 'fresh'},
+                )
+                return True, '登录成功', {'JSESSIONID': 'fresh'}
+
+        app = Flask(__name__)
+        app.register_blueprint(auth_routes.auth_bp)
+        user = {
+            'username': 'student',
+            'password': 'password',
+        }
+        with tempfile.TemporaryDirectory() as directory, patch.object(
+            session_store,
+            'USER_DATA_DIR',
+            Path(directory),
+        ), patch.object(
+            auth_routes,
+            'get_user_by_device',
+            return_value=user,
+        ), patch.object(
+            auth_routes,
+            'get_current_urp_url',
+            return_value=URL1,
+        ), patch.object(
+            urp_service,
+            'URP_login',
+            FakeLogin,
+        ), patch(
+            'URP.URP_login',
+            FakeLogin,
+        ):
+            responses = []
+
+            def request_status():
+                response = app.test_client().get(
+                    '/api/check_login_status',
+                    headers={'X-Device-ID': 'device'},
+                )
+                responses.append(response.get_json())
+
+            threads = [
+                threading.Thread(target=request_status)
+                for _ in range(4)
+            ]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join(2)
+
+        self.assertEqual(len(responses), 4)
+        self.assertEqual(login_count, 1)
+        for payload in responses:
+            self.assertTrue(payload['success'])
+            self.assertTrue(payload['logged_in'])
+            self.assertEqual(payload['username'], 'student')
+            self.assertIn(
+                payload['message'],
+                {'登录状态正常', '重新登录成功'},
+            )
+
+    def test_status_route_reports_existing_valid_login_as_normal(self):
+        class ValidLogin:
+            def __init__(self, url, account, password):
+                self.x = requests.Session()
+                self.x.cookies.set('JSESSIONID', 'existing')
+
+            def is_logined(self):
+                return True
+
+            def login(self):
+                raise AssertionError('valid login must not relogin')
+
+        app = Flask(__name__)
+        app.register_blueprint(auth_routes.auth_bp)
+        user = {'username': 'student', 'password': 'password'}
+        with tempfile.TemporaryDirectory() as directory, patch.object(
+            session_store,
+            'USER_DATA_DIR',
+            Path(directory),
+        ), patch.object(
+            auth_routes,
+            'get_user_by_device',
+            return_value=user,
+        ), patch.object(
+            auth_routes,
+            'get_current_urp_url',
+            return_value=URL1,
+        ), patch.object(
+            urp_service,
+            'URP_login',
+            ValidLogin,
+        ), patch(
+            'URP.URP_login',
+            ValidLogin,
+        ):
+            payload = app.test_client().get(
+                '/api/check_login_status',
+                headers={'X-Device-ID': 'device'},
+            ).get_json()
+
+        self.assertEqual(payload['success'], True)
+        self.assertEqual(payload['logged_in'], True)
+        self.assertEqual(payload['username'], 'student')
+        self.assertEqual(payload['message'], '登录状态正常')
+
     def test_url1_cache_does_not_skip_url2_validation(self):
         with tempfile.TemporaryDirectory() as directory, patch.object(
             session_store,
@@ -441,6 +568,113 @@ class LoginStateTests(unittest.TestCase):
             details['message'],
             'VPN 通道暂不可用，请稍后重试',
         )
+
+    def test_failed_vpn_recovery_runs_once_per_login_instance(self):
+        expected_message = (
+            'VPN 通道暂不可用，'
+            '已自动重连但未成功，'
+            '请稍后重试；VPN auth failed'
+        )
+        with tempfile.TemporaryDirectory() as directory, patch.object(
+            session_store,
+            'USER_DATA_DIR',
+            Path(directory),
+        ), patch.object(
+            login_module,
+            'load_shared_vpn_cookies',
+            return_value={'VSG_SESSIONID': 'stale'},
+        ), patch.object(
+            login_module,
+            'vpn_session_alive',
+            return_value=False,
+        ), patch.object(
+            login_module,
+            'clear_shared_vpn_cookies',
+        ), patch.object(
+            login_module.URP_login,
+            '_vpn_password_auth',
+            return_value=(False, 'VPN auth failed'),
+        ) as password_auth:
+            session_store.save_user_cookies(
+                'student',
+                VPN_URL,
+                {'JSESSIONID': 'expired'},
+            )
+            first_success, first_details = (
+                urp_service.check_login_status(
+                    'student',
+                    'password',
+                    url=VPN_URL,
+                )
+            )
+
+            self.assertFalse(first_success)
+            self.assertEqual(
+                first_details['message'],
+                expected_message,
+            )
+            self.assertEqual(password_auth.call_count, 1)
+
+            session_store.save_user_cookies(
+                'student',
+                VPN_URL,
+                {'JSESSIONID': 'expired-again'},
+            )
+            second_success, second_details = (
+                urp_service.check_login_status(
+                    'student',
+                    'password',
+                    url=VPN_URL,
+                )
+            )
+
+        self.assertFalse(second_success)
+        self.assertEqual(
+            second_details['message'],
+            expected_message,
+        )
+        self.assertEqual(password_auth.call_count, 2)
+
+    def test_vpn_auth_exception_is_wrapped_once_with_detailed_message(self):
+        expected_message = (
+            'VPN 通道暂不可用，'
+            '已自动重连但未成功，'
+            '请稍后重试；timed out'
+        )
+        with tempfile.TemporaryDirectory() as directory, patch.object(
+            session_store,
+            'USER_DATA_DIR',
+            Path(directory),
+        ), patch.object(
+            login_module,
+            'load_shared_vpn_cookies',
+            return_value={'VSG_SESSIONID': 'stale'},
+        ), patch.object(
+            login_module,
+            'vpn_session_alive',
+            return_value=False,
+        ), patch.object(
+            login_module,
+            'clear_shared_vpn_cookies',
+        ), patch.object(
+            login_module.URP_login,
+            '_vpn_password_auth',
+            side_effect=TimeoutError('timed out'),
+        ) as password_auth:
+            session_store.save_user_cookies(
+                'student',
+                VPN_URL,
+                {'JSESSIONID': 'expired'},
+            )
+            success, details = urp_service.check_login_status(
+                'student',
+                'password',
+                url=VPN_URL,
+            )
+
+        self.assertFalse(success)
+        self.assertEqual(details['message'], expected_message)
+        self.assertEqual(password_auth.call_count, 1)
 
 
 if __name__ == '__main__':

@@ -336,7 +336,12 @@ def recover_vpn_session(session, url=VPN_KEEPALIVE_URL):
 
         clear_shared_vpn_cookies()
         helper = URP_login(url, '', '')
-        success, message = helper._vpn_password_auth()
+        try:
+            success, message = helper._vpn_password_auth()
+        except Exception as exc:
+            raise VPNUnavailableError(
+                _vpn_unavailable_message(str(exc))
+            ) from exc
         if not success:
             raise VPNUnavailableError(_vpn_unavailable_message(message))
 
@@ -364,6 +369,7 @@ class URP_login:
         self.url = normalize_urp_url(url).rstrip('/')
         self.account = account
         self.password = password
+        self._vpn_recovery_failure = None
         self.x = requests.session()
         self.x.verify = False
         self.x.headers.update({
@@ -431,12 +437,15 @@ class URP_login:
     def _ensure_vpn_session(self):
         if not self._requires_vpn_auth():
             return True, ''
+        if self._vpn_recovery_failure is not None:
+            return False, self._vpn_recovery_failure
         try:
             recover_vpn_session(self.x, self._url())
             start_vpn_keepalive()
             return True, 'VPN already online'
         except VPNUnavailableError as exc:
-            return False, str(exc)
+            self._vpn_recovery_failure = str(exc)
+            return False, self._vpn_recovery_failure
 
     def _get_login_page(self):
         headers = {'Referer': VPN_PORTAL_PAGE} if self._requires_vpn_auth() else {}

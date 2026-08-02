@@ -26,6 +26,12 @@ _login_locks_guard = threading.Lock()
 LOGIN_CACHE_TTL = 900
 
 
+class _LoginDetails(dict):
+    def __init__(self, cookies=None, relogged=False):
+        super().__init__(cookies or {})
+        self.relogged = relogged
+
+
 def _login_key(username, url):
     return username, urp_url_fingerprint(url)
 
@@ -87,7 +93,7 @@ def check_login_status(username, password, cookies=None, url=None):
         urp = URP_login(target_url, username, password)
         if urp.is_logined():
             _login_cache[key] = now
-            return True, urp.x.cookies.get_dict()
+            return True, _LoginDetails(urp.x.cookies.get_dict())
 
         invalidate_login_cache(username, target_url)
         delete_user_cookies(username, target_url)
@@ -100,7 +106,10 @@ def check_login_status(username, password, cookies=None, url=None):
             return False, {'message': message}
 
         _login_cache[key] = time.time()
-        return True, new_cookies or urp.x.cookies.get_dict()
+        return True, _LoginDetails(
+            new_cookies or urp.x.cookies.get_dict(),
+            relogged=True,
+        )
 
 
 def _get_freshman_year():

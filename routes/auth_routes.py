@@ -131,20 +131,36 @@ def api_check_login_status():
     username = user['username']
     password = user['password']
 
-    from URP import URP_login
     url = get_current_urp_url()
 
     try:
-        urp = URP_login(url, username, password)
-        is_logged_in = urp.is_logined()
+        is_logged_in, login_details = check_login_status(
+            username,
+            password,
+            {},
+            url=url,
+        )
+        if is_logged_in:
+            message = (
+                '重新登录成功'
+                if getattr(login_details, 'relogged', False)
+                else '登录状态正常'
+            )
+            return jsonify({
+                'success': True,
+                'logged_in': True,
+                'username': username,
+                'message': message,
+            })
 
-        if is_logged_in is True:
-            return jsonify({'success': True, 'logged_in': True, 'username': username, 'message': '登录状态正常'})
-        else:
-            success, message, _ = urp.login()
-            if success:
-                return jsonify({'success': True, 'logged_in': True, 'username': username, 'message': '重新登录成功'})
-            else:
-                return jsonify({'success': True, 'logged_in': False, 'username': username, 'message': message or '重新登录失败'})
+        message = None
+        if isinstance(login_details, dict):
+            message = login_details.get('message')
+        return jsonify({
+            'success': True,
+            'logged_in': False,
+            'username': username,
+            'message': message or '重新登录失败',
+        })
     except Exception as e:
         return jsonify({'success': False, 'logged_in': False, 'message': f'检查登录状态失败: {str(e)}'})
