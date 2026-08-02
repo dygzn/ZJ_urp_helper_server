@@ -5,6 +5,10 @@ import requests
 import urllib3
 from collections import defaultdict
 from bs4 import BeautifulSoup
+
+from services.config_service import normalize_urp_url
+from urp.session_store import load_user_cookies
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 from urp.login import (
     VPNUnavailableError,
@@ -30,11 +34,15 @@ _EVAL_HEADERS_BASE = {
 
 class URP_query:
     def __init__(self, url, account):
-        self.url = url
+        self.url = normalize_urp_url(url)
         self.account = account
         self.x = requests.session()
-        with open(f'user_data/{self.account}/cookie.json', 'r', encoding='utf-8') as f:
-            self.x.cookies.update(json.load(f))
+        user_cookies, _ = load_user_cookies(
+            self.account,
+            self.url,
+            allow_legacy=False,
+        )
+        self.x.cookies.update(user_cookies)
         if _is_vpn_url(self.url):
             shared_vpn_cookies = load_shared_vpn_cookies()
             if shared_vpn_cookies:

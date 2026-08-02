@@ -200,6 +200,29 @@ class VPNRecoveryTests(unittest.TestCase):
         self.assertEqual(cookies, {'VSG_SESSIONID': 'fresh'})
         password_auth.assert_not_called()
 
+    def test_ensure_vpn_session_reuses_global_login_without_password_auth(self):
+        login = login_module.URP_login(
+            'https://223.112.21.198:6443/7b68f983/',
+            'student',
+            'password',
+        )
+        with patch.object(
+            login_module,
+            'load_shared_vpn_cookies',
+            return_value={'VSG_SESSIONID': 'alive'},
+        ), patch.object(
+            login_module,
+            'vpn_session_alive',
+            return_value=True,
+        ), patch.object(
+            login_module.URP_login,
+            '_vpn_password_auth',
+        ) as password_auth:
+            success, _ = login._ensure_vpn_session()
+
+        self.assertTrue(success)
+        password_auth.assert_not_called()
+
 
 class QueryRetryTests(unittest.TestCase):
     def make_query(self, url, responses):

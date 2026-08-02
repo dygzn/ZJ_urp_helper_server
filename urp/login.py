@@ -11,6 +11,14 @@ from urllib.parse import urljoin, urlparse
 
 import requests
 import urllib3
+
+from services.config_service import normalize_urp_url
+from urp.session_store import (
+    VPN_COOKIE_PREFIX,
+    load_user_cookies,
+    save_user_cookies,
+)
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 VPN_HOST = '223.112.21.198'
@@ -26,7 +34,6 @@ VPN_AUTH_USERNAME = os.environ.get('VPN_AUTH_USERNAME')
 VPN_AUTH_PASSWORD = os.environ.get('VPN_AUTH_PASSWORD')
 VPN_AUTH_BODY = os.environ.get('VPN_AUTH_BODY')
 MAX_CAPTCHA_ATTEMPTS = 8
-VPN_COOKIE_PREFIX = 'VSG_'
 _VPN_LOCK = threading.Lock()
 _KEEPALIVE_STARTED = False
 
@@ -354,7 +361,7 @@ def recover_vpn_session(session, url=VPN_KEEPALIVE_URL):
 
 class URP_login:
     def __init__(self, url, account, password):
-        self.url = url.rstrip('/')
+        self.url = normalize_urp_url(url).rstrip('/')
         self.account = account
         self.password = password
         self.x = requests.session()
@@ -369,10 +376,11 @@ class URP_login:
         return f"{self.url}/{path.lstrip('/')}" if path else f'{self.url}/'
 
     def _save_cookies(self):
-        cookie_dir = f'user_data/{self.account}'
-        os.makedirs(cookie_dir, exist_ok=True)
-        with open(f'{cookie_dir}/cookie.json', 'w', encoding='utf-8') as f:
-            json.dump(self.x.cookies.get_dict(), f, ensure_ascii=False, indent=4)
+        return save_user_cookies(
+            self.account,
+            self.url,
+            self.x.cookies.get_dict(),
+        )
 
     def _requires_vpn_auth(self):
         return _is_vpn_url(self.url)
@@ -425,7 +433,6 @@ class URP_login:
             return True, ''
         try:
             recover_vpn_session(self.x, self._url())
-            self._save_cookies()
             start_vpn_keepalive()
             return True, 'VPN already online'
         except VPNUnavailableError as exc:
@@ -453,7 +460,6 @@ class URP_login:
             _save_debug_file('last_vpn_captcha_response.html', resp.text)
             if self._requires_vpn_auth() and allow_vpn_retry:
                 recover_vpn_session(self.x, self._url())
-                self._save_cookies()
                 return self._read_captcha(ocr, allow_vpn_retry=False)
             raise RuntimeError(f'captcha response was not an image; status={resp.status_code}; {_html_hint(resp)}')
         _save_debug_file('last_jiaowu_captcha.gif', resp.content)
@@ -515,29 +521,27 @@ class URP_login:
             return False, f'登录异常: {error}', None
 
     def is_logined(self):
-        check_url = self._url('menu/top.jsp')
-        cookie_file = f'user_data/{self.account}/cookie.json'
-        if not os.path.exists(cookie_file):
+        cookies, source = load_user_cookies(self.account, self.url)
+        if not cookies:
             return False
+        self.x.cookies.update(cookies)
+
+        if self._requires_vpn_auth():
+            success, _ = self._ensure_vpn_session()
+            if not success:
+                return False
+
         try:
-            with open(cookie_file, 'r', encoding='utf-8') as f:
-                urp_cookie = json.load(f)
-            self.x.cookies.update(urp_cookie)
-            if self._requires_vpn_auth():
-                shared_vpn_cookies = self._load_shared_vpn_cookies()
-                start_vpn_keepalive()
-                if not shared_vpn_cookies or not vpn_session_alive(self.x, self._url()):
-                    success, _, _ = self.login()
-                    return success
+            response = self.x.get(
+                self._url('menu/top.jsp'),
+                timeout=5,
+                verify=False,
+            )
         except Exception:
-            success, _, _ = self.login()
-            return success
-        try:
-            r = self.x.get(check_url, timeout=5, verify=False).text
-        except Exception:
-            success, _, _ = self.login()
-            return success
-        if self.account in r:
-            return True
-        success, _, _ = self.login()
-        return success
+            return False
+
+        if self.account not in response.text:
+            return False
+        if source == 'legacy':
+            self._save_cookies()
+        return True
