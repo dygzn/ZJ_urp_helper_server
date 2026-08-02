@@ -4,71 +4,103 @@ URP 教务系统交互服务
 import os
 import json
 import re
+import threading
 import time
 from datetime import datetime, timedelta
-from database import get_db
-from services.config_service import get_config, get_current_urp_url
 
-# 登录状态验证缓存：{username: timestamp}，15分钟内只验证一次
+from URP import URP_login
+from database import get_db
+from services.config_service import (
+    get_config,
+    get_current_urp_url,
+    normalize_urp_url,
+    urp_url_fingerprint,
+)
+from urp.login import _is_vpn_url
+from urp.session_store import delete_user_cookies, user_cookie_exists
+
+# Login cache: {(username, url_fingerprint): timestamp}
 _login_cache = {}
+_login_locks = {}
+_login_locks_guard = threading.Lock()
 LOGIN_CACHE_TTL = 900
 
 
-def urp_login(username, password):
+def _login_key(username, url):
+    return username, urp_url_fingerprint(url)
+
+
+def _get_login_lock(key):
+    with _login_locks_guard:
+        return _login_locks.setdefault(key, threading.Lock())
+
+
+def invalidate_login_cache(username, url=None):
+    if url is not None:
+        _login_cache.pop(_login_key(username, url), None)
+        return
+    for key in list(_login_cache):
+        if key[0] == username:
+            _login_cache.pop(key, None)
+
+
+def _has_fresh_login_cache(username, url, now):
+    timestamp = _login_cache.get(_login_key(username, url))
+    if _is_vpn_url(url):
+        return False
+    return (
+        timestamp is not None
+        and now - timestamp < LOGIN_CACHE_TTL
+        and user_cookie_exists(username, url)
+    )
+
+
+def urp_login(username, password, url=None):
     """
     登录URP教务系统
     返回: (success: bool, message: str, cookies: dict)
     """
-    from URP import URP_login
-    url = get_current_urp_url()
+    target_url = normalize_urp_url(url or get_current_urp_url())
     try:
-        urp = URP_login(url, username, password)
-        success, message, cookies = urp.login()
-        return success, message, cookies
-    except Exception as e:
-        return False, f"登录异常: {str(e)}", None
+        urp = URP_login(target_url, username, password)
+        return urp.login()
+    except Exception as exc:
+        return False, f'登录异常: {exc}', None
 
 
-def check_login_status(username, password, cookies):
+def check_login_status(username, password, cookies=None, url=None):
     """
     检查登录状态，如果未登录则重新登录
     返回: (is_logged_in: bool, cookies: dict)
     """
+    target_url = normalize_urp_url(url or get_current_urp_url())
+    key = _login_key(username, target_url)
     now = time.time()
-    url = get_current_urp_url()
+    if _has_fresh_login_cache(username, target_url, now):
+        return True, {}
 
-    from URP import URP_login
-    from urp.login import _is_vpn_url
-
-    if not _is_vpn_url(url) and username in _login_cache and now - _login_cache[username] < LOGIN_CACHE_TTL:
-        cookie_file = f'user_data/{username}/cookie.json'
-        if os.path.exists(cookie_file):
+    with _get_login_lock(key):
+        now = time.time()
+        if _has_fresh_login_cache(username, target_url, now):
             return True, {}
 
-    urp = URP_login(url, username, password)
+        urp = URP_login(target_url, username, password)
+        if urp.is_logined():
+            _login_cache[key] = now
+            return True, urp.x.cookies.get_dict()
 
-    is_logged_in = urp.is_logined()
-
-    if is_logged_in is True:
-        _login_cache[username] = now
-        current_cookies = urp.x.cookies.get_dict()
-        return True, current_cookies
-    else:
-        _login_cache.pop(username, None)
-        cookie_file = f'user_data/{username}/cookie.json'
-        if os.path.exists(cookie_file):
-            os.remove(cookie_file)
-
+        invalidate_login_cache(username, target_url)
+        delete_user_cookies(username, target_url)
         try:
-            success, _, new_cookies = urp.login()
-            if success:
-                _login_cache[username] = now
-                return True, new_cookies or urp.x.cookies.get_dict()
-            else:
-                return False, {}
-        except Exception as e:
-            print(f"重新登录失败: {str(e)}")
-            return False, {}
+            success, message, new_cookies = urp.login()
+        except Exception as exc:
+            print(f'重新登录失败: {exc}')
+            return False, {'message': f'登录异常: {exc}'}
+        if not success:
+            return False, {'message': message}
+
+        _login_cache[key] = time.time()
+        return True, new_cookies or urp.x.cookies.get_dict()
 
 
 def _get_freshman_year():

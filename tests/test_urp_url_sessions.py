@@ -1,11 +1,15 @@
 import json
 import tempfile
+import threading
+import time
 import unittest
 from collections import UserDict
 from pathlib import Path
 from unittest.mock import Mock, patch
 
 import requests
+import services.config_service as config_service
+import services.urp_service as urp_service
 
 import urp.login as login_module
 import urp.query as query_module
@@ -14,6 +18,7 @@ import urp.session_store as session_store
 
 URL1 = 'http://url1.test/urp/'
 URL2 = 'https://url2.test/vpn/urp/'
+VPN_URL = 'https://223.112.21.198:6443/7b68f983/'
 
 
 class UserCookieStoreTests(unittest.TestCase):
@@ -262,6 +267,180 @@ class CookieConsumerTests(unittest.TestCase):
 
             self.assertFalse(login.is_logined())
             login.login.assert_not_called()
+
+
+class LoginStateTests(unittest.TestCase):
+    def setUp(self):
+        urp_service._login_cache.clear()
+        urp_service._login_locks.clear()
+
+    def tearDown(self):
+        urp_service._login_cache.clear()
+        urp_service._login_locks.clear()
+
+    def test_url1_cache_does_not_skip_url2_validation(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(
+            session_store,
+            'USER_DATA_DIR',
+            Path(directory),
+        ), patch.object(urp_service, 'URP_login') as login_class:
+            session_store.save_user_cookies(
+                'student',
+                URL1,
+                {'JSESSIONID': 'url1'},
+            )
+            session_store.save_user_cookies(
+                'student',
+                URL2,
+                {'JSESSIONID': 'url2'},
+            )
+            first = login_class.return_value
+            first.is_logined.return_value = True
+            first.x.cookies.get_dict.return_value = {'JSESSIONID': 'url1'}
+
+            self.assertTrue(
+                urp_service.check_login_status(
+                    'student',
+                    'password',
+                    url=URL1,
+                )[0]
+            )
+            self.assertTrue(
+                urp_service.check_login_status(
+                    'student',
+                    'password',
+                    url=URL2,
+                )[0]
+            )
+
+        self.assertEqual(login_class.call_count, 2)
+
+    def test_concurrent_requests_perform_one_real_login(self):
+        login_count = 0
+        count_lock = threading.Lock()
+
+        class FakeLogin:
+            def __init__(self, url, account, password):
+                self.url = url
+                self.account = account
+                self.x = requests.Session()
+
+            def is_logined(self):
+                return session_store.user_cookie_exists(
+                    self.account,
+                    self.url,
+                )
+
+            def login(self):
+                nonlocal login_count
+                with count_lock:
+                    login_count += 1
+                time.sleep(0.05)
+                session_store.save_user_cookies(
+                    self.account,
+                    self.url,
+                    {'JSESSIONID': 'fresh'},
+                )
+                return True, '登录成功', {'JSESSIONID': 'fresh'}
+
+        with tempfile.TemporaryDirectory() as directory, patch.object(
+            session_store,
+            'USER_DATA_DIR',
+            Path(directory),
+        ), patch.object(urp_service, 'URP_login', FakeLogin):
+            results = []
+            threads = [
+                threading.Thread(
+                    target=lambda: results.append(
+                        urp_service.check_login_status(
+                            'student',
+                            'password',
+                            url=URL2,
+                        )[0]
+                    )
+                )
+                for _ in range(4)
+            ]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join(2)
+
+        self.assertEqual(results, [True, True, True, True])
+        self.assertEqual(login_count, 1)
+
+    def test_vpn_url_revalidates_instead_of_using_ttl_cache(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(
+            session_store,
+            'USER_DATA_DIR',
+            Path(directory),
+        ), patch.object(urp_service, 'URP_login') as login_class:
+            session_store.save_user_cookies(
+                'student',
+                VPN_URL,
+                {'JSESSIONID': 'vpn-user'},
+            )
+            login = login_class.return_value
+            login.is_logined.return_value = True
+            login.x.cookies.get_dict.return_value = {
+                'JSESSIONID': 'vpn-user',
+            }
+
+            for _ in range(2):
+                self.assertTrue(
+                    urp_service.check_login_status(
+                        'student',
+                        'password',
+                        url=VPN_URL,
+                    )[0]
+                )
+
+        self.assertEqual(login_class.call_count, 2)
+
+    def test_invalidate_one_url_keeps_other_url_cache(self):
+        first_key = (
+            'student',
+            config_service.urp_url_fingerprint(URL1),
+        )
+        second_key = (
+            'student',
+            config_service.urp_url_fingerprint(URL2),
+        )
+        urp_service._login_cache[first_key] = time.time()
+        urp_service._login_cache[second_key] = time.time()
+
+        urp_service.invalidate_login_cache('student', URL2)
+
+        self.assertIn(first_key, urp_service._login_cache)
+        self.assertNotIn(second_key, urp_service._login_cache)
+
+    def test_failed_login_preserves_vpn_unavailable_message(self):
+        class FailedLogin:
+            def __init__(self, url, account, password):
+                self.x = requests.Session()
+
+            def is_logined(self):
+                return False
+
+            def login(self):
+                return False, 'VPN 通道暂不可用，请稍后重试', None
+
+        with tempfile.TemporaryDirectory() as directory, patch.object(
+            session_store,
+            'USER_DATA_DIR',
+            Path(directory),
+        ), patch.object(urp_service, 'URP_login', FailedLogin):
+            success, details = urp_service.check_login_status(
+                'student',
+                'password',
+                url=URL2,
+            )
+
+        self.assertFalse(success)
+        self.assertEqual(
+            details['message'],
+            'VPN 通道暂不可用，请稍后重试',
+        )
 
 
 if __name__ == '__main__':
