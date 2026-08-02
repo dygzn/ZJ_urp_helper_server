@@ -298,7 +298,7 @@ def admin_switch_url():
 
     if 'url_index' in data:
         url_index = data['url_index']
-        if not isinstance(url_index, int):
+        if isinstance(url_index, bool) or not isinstance(url_index, int):
             return jsonify({'success': False, 'message': 'URL索引必须是整数'})
 
         class InvalidUrlSwitch(ValueError):

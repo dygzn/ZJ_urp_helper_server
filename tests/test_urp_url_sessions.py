@@ -405,6 +405,53 @@ class LoginStateTests(unittest.TestCase):
         self.assertEqual(payload['username'], 'student')
         self.assertEqual(payload['message'], '登录状态正常')
 
+    def test_invalid_legacy_cookie_does_not_contaminate_relogin(self):
+        login_page = Mock()
+        login_page.url = URL1
+        login_page.text = (
+            '<form name="loginForm" action="loginAction.do"></form>'
+        )
+
+        with tempfile.TemporaryDirectory() as directory, patch.object(
+            session_store,
+            'USER_DATA_DIR',
+            Path(directory),
+        ):
+            account_dir = Path(directory) / 'student'
+            account_dir.mkdir(parents=True)
+            (account_dir / 'cookie.json').write_text(
+                json.dumps({
+                    'JSESSIONID': 'expired-legacy',
+                    'STALE': 'must-not-survive',
+                }),
+                encoding='utf-8',
+            )
+            login = login_module.URP_login(URL1, 'student', 'password')
+            login.x.get = Mock(return_value=login_page)
+
+            def successful_relogin():
+                login.x.cookies.set('JSESSIONID', 'fresh')
+                login._save_cookies()
+                return True, '登录成功', {'JSESSIONID': 'fresh'}
+
+            login.login = Mock(side_effect=successful_relogin)
+            with patch.object(
+                urp_service, 'URP_login', return_value=login,
+            ):
+                success, details = urp_service.check_login_status(
+                    'student', 'password', url=URL1,
+                )
+
+            scoped, source = session_store.load_user_cookies(
+                'student', URL1, allow_legacy=False,
+            )
+
+        self.assertTrue(success)
+        self.assertTrue(details.relogged)
+        self.assertEqual(source, 'scoped')
+        self.assertEqual(scoped, {'JSESSIONID': 'fresh'})
+        self.assertNotIn('STALE', login.x.cookies.get_dict())
+
     def test_url1_cache_does_not_skip_url2_validation(self):
         with tempfile.TemporaryDirectory() as directory, patch.object(
             session_store,

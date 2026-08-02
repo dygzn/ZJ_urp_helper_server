@@ -4,6 +4,7 @@ import os
 import random
 import re
 import threading
+import tempfile
 import time
 from html.parser import HTMLParser
 from pathlib import Path
@@ -36,6 +37,8 @@ VPN_AUTH_BODY = os.environ.get('VPN_AUTH_BODY')
 MAX_CAPTCHA_ATTEMPTS = 8
 _VPN_LOCK = threading.Lock()
 _KEEPALIVE_STARTED = False
+_VPN_RECOVERY_GENERATION = 0
+_VPN_LAST_RECOVERY_FAILURE = None
 
 
 class VPNUnavailableError(RuntimeError):
@@ -150,15 +153,36 @@ def load_shared_vpn_cookies():
 
 
 def save_shared_vpn_cookies(cookies):
-    os.makedirs(os.path.dirname(VPN_COOKIE_FILE), exist_ok=True)
+    directory = os.path.dirname(VPN_COOKIE_FILE) or '.'
+    os.makedirs(directory, exist_ok=True)
     shared_cookies = _filter_shared_vpn_cookies(cookies)
-    with open(VPN_COOKIE_FILE, 'w', encoding='utf-8') as f:
-        json.dump(
-            {'cookies': shared_cookies, 'updated_at': time.time()},
-            f,
-            ensure_ascii=False,
-            indent=4,
-        )
+    descriptor, temporary_path = tempfile.mkstemp(
+        prefix=f'.{os.path.basename(VPN_COOKIE_FILE)}.',
+        suffix='.tmp',
+        dir=directory,
+        text=True,
+    )
+    try:
+        stream = os.fdopen(descriptor, 'w', encoding='utf-8')
+        descriptor = None
+        with stream:
+            json.dump(
+                {'cookies': shared_cookies, 'updated_at': time.time()},
+                stream,
+                ensure_ascii=False,
+                indent=4,
+            )
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary_path, VPN_COOKIE_FILE)
+    except Exception:
+        if descriptor is not None:
+            os.close(descriptor)
+        try:
+            os.remove(temporary_path)
+        except FileNotFoundError:
+            pass
+        raise
 
 
 def clear_shared_vpn_cookies():
@@ -294,12 +318,11 @@ def vpn_session_alive(session, url=VPN_KEEPALIVE_URL):
     return _looks_like_urp_login_page(resp) or _looks_like_urp_home_page(resp)
 
 
-def _vpn_keepalive_loop():
-    while True:
-        time.sleep(VPN_KEEPALIVE_INTERVAL)
+def _vpn_keepalive_once():
+    with _VPN_LOCK:
         cookies = load_shared_vpn_cookies()
         if not cookies:
-            continue
+            return
         session = requests.session()
         session.verify = False
         session.cookies.update(cookies)
@@ -307,6 +330,12 @@ def _vpn_keepalive_loop():
             save_shared_vpn_cookies(session.cookies.get_dict())
         else:
             clear_shared_vpn_cookies()
+
+
+def _vpn_keepalive_loop():
+    while True:
+        time.sleep(VPN_KEEPALIVE_INTERVAL)
+        _vpn_keepalive_once()
 
 
 def start_vpn_keepalive():
@@ -327,11 +356,21 @@ def _vpn_unavailable_message(detail=''):
 
 
 def recover_vpn_session(session, url=VPN_KEEPALIVE_URL):
+    global _VPN_RECOVERY_GENERATION, _VPN_LAST_RECOVERY_FAILURE
+    observed_generation = _VPN_RECOVERY_GENERATION
     with _VPN_LOCK:
+        if (
+            observed_generation != _VPN_RECOVERY_GENERATION
+            and _VPN_LAST_RECOVERY_FAILURE is not None
+        ):
+            raise VPNUnavailableError(_VPN_LAST_RECOVERY_FAILURE)
+
         current = load_shared_vpn_cookies()
         if current:
             session.cookies.update(current)
             if vpn_session_alive(session, url):
+                _VPN_LAST_RECOVERY_FAILURE = None
+                _VPN_RECOVERY_GENERATION += 1
                 return current
 
         clear_shared_vpn_cookies()
@@ -339,28 +378,42 @@ def recover_vpn_session(session, url=VPN_KEEPALIVE_URL):
         try:
             success, message = helper._vpn_password_auth()
         except Exception as exc:
-            raise VPNUnavailableError(
+            error = VPNUnavailableError(
                 _vpn_unavailable_message(str(exc))
-            ) from exc
+            )
+            _VPN_LAST_RECOVERY_FAILURE = str(error)
+            _VPN_RECOVERY_GENERATION += 1
+            raise error from exc
         if not success:
-            raise VPNUnavailableError(_vpn_unavailable_message(message))
+            error = VPNUnavailableError(_vpn_unavailable_message(message))
+            _VPN_LAST_RECOVERY_FAILURE = str(error)
+            _VPN_RECOVERY_GENERATION += 1
+            raise error
 
         fresh = load_shared_vpn_cookies()
         if not fresh:
-            raise VPNUnavailableError(
+            error = VPNUnavailableError(
                 _vpn_unavailable_message(
                     'VPN \u8ba4\u8bc1\u672a\u8fd4\u56de\u6709\u6548\u4f1a\u8bdd'
                 )
             )
+            _VPN_LAST_RECOVERY_FAILURE = str(error)
+            _VPN_RECOVERY_GENERATION += 1
+            raise error
         session.cookies.update(fresh)
         if not vpn_session_alive(session, url):
             clear_shared_vpn_cookies()
-            raise VPNUnavailableError(
+            error = VPNUnavailableError(
                 _vpn_unavailable_message(
                     'VPN \u91cd\u8fde\u540e\u4ecd\u65e0\u6cd5'
                     '\u8bbf\u95ee\u6559\u52a1\u7cfb\u7edf'
                 )
             )
+            _VPN_LAST_RECOVERY_FAILURE = str(error)
+            _VPN_RECOVERY_GENERATION += 1
+            raise error
+        _VPN_LAST_RECOVERY_FAILURE = None
+        _VPN_RECOVERY_GENERATION += 1
         return fresh
 
 

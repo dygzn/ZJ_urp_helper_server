@@ -17,7 +17,11 @@ from services.config_service import (
     urp_url_fingerprint,
 )
 from urp.login import _is_vpn_url
-from urp.session_store import delete_user_cookies, user_cookie_exists
+from urp.session_store import (
+    VPN_COOKIE_PREFIX,
+    delete_user_cookies,
+    user_cookie_exists,
+)
 
 # Login cache: {(username, url_fingerprint): timestamp}
 _login_cache = {}
@@ -61,6 +65,20 @@ def _has_fresh_login_cache(username, url, now):
     )
 
 
+def _clear_non_vpn_session_cookies(urp):
+    session = getattr(urp, 'x', None)
+    cookies = getattr(session, 'cookies', None)
+    if cookies is None:
+        return
+    for cookie in list(cookies):
+        if str(cookie.name).upper().startswith(VPN_COOKIE_PREFIX):
+            continue
+        try:
+            cookies.clear(cookie.domain, cookie.path, cookie.name)
+        except KeyError:
+            pass
+
+
 def urp_login(username, password, url=None):
     """
     登录URP教务系统
@@ -97,6 +115,7 @@ def check_login_status(username, password, cookies=None, url=None):
 
         invalidate_login_cache(username, target_url)
         delete_user_cookies(username, target_url)
+        _clear_non_vpn_session_cookies(urp)
         try:
             success, message, new_cookies = urp.login()
         except Exception as exc:

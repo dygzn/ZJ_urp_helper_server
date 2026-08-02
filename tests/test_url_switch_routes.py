@@ -197,6 +197,17 @@ class AdminUrlValidationTests(unittest.TestCase):
         self.assertFalse(response.get_json()['success'])
         self.assertEqual(writes, [])
 
+    def test_boolean_url_indices_are_rejected_without_write(self):
+        for boolean_index in (True, False):
+            with self.subTest(url_index=boolean_index):
+                response, writes = self._switch_index(
+                    boolean_index,
+                    ['http://url1.test/', 'http://url2.test/'],
+                )
+
+                self.assertFalse(response.get_json()['success'])
+                self.assertEqual(writes, [])
+
     def test_invalid_stored_target_url_is_rejected_without_write(self):
         response, writes = self._switch_index(
             1,
