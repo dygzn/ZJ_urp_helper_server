@@ -301,21 +301,21 @@ def admin_switch_url():
         if not isinstance(url_index, int):
             return jsonify({'success': False, 'message': 'URL索引必须是整数'})
 
-        error = {}
+        class InvalidUrlSwitch(ValueError):
+            pass
 
         def switch_index(config):
             urls = config.get('urp_urls', [])
             if not (0 <= url_index < len(urls)):
-                error['message'] = 'URL索引超出范围'
-                return
+                raise InvalidUrlSwitch('URL索引超出范围')
             if not is_valid_urp_url(urls[url_index]):
-                error['message'] = '目标URL无效'
-                return
+                raise InvalidUrlSwitch('目标URL无效')
             config['current_url_index'] = url_index
 
-        config = update_config(switch_index)
-        if error:
-            return jsonify({'success': False, 'message': error['message']})
+        try:
+            config = update_config(switch_index)
+        except InvalidUrlSwitch as exc:
+            return jsonify({'success': False, 'message': str(exc)})
         return jsonify({
             'success': True,
             'message': f"已切换到URL: {config['urp_urls'][url_index]}",

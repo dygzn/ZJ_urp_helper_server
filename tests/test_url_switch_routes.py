@@ -1,4 +1,7 @@
+import tempfile
+import time
 import unittest
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 from flask import Flask
@@ -6,7 +9,10 @@ from flask import Flask
 import auth
 import routes.admin_routes as admin_routes
 import routes.data_routes as data_routes
+import services.config_service as config_service
 import services.urp_service as urp_service
+import urp.login as login_module
+import urp.session_store as session_store
 
 
 URL1 = 'http://url1.test/urp/'
@@ -67,36 +73,47 @@ class BackgroundUrlTests(unittest.TestCase):
 
 
 class LiveUpdateUrlTests(unittest.TestCase):
-    def _assert_live_route_uses_snapshot(self, route, query_method):
-        app = Flask(__name__)
+    def setUp(self):
+        from app import app
+        self.client = app.test_client()
+
+    def _assert_live_route_uses_snapshot(self, path, query_method):
+        user = {'username': 'student', 'password': 'password'}
         query = Mock()
         getattr(query, query_method).return_value = {'fresh': True}
-        with app.test_request_context('/api/live-update'), patch.object(
-            data_routes, 'get_current_urp_url', return_value=URL1,
-        ) as current_url, patch(
+        with patch.object(
+            config_service,
+            'get_config',
+            return_value={
+                'urp_urls': [URL1],
+                'current_url_index': 0,
+            },
+        ), patch.object(
+            auth, 'get_device_id', return_value='device',
+        ), patch.object(
+            auth, 'get_user_by_device', return_value=user,
+        ), patch.object(
+            auth, 'check_login_status', return_value=(True, {}),
+        ) as login_check, patch(
             'URP.URP_query', return_value=query,
-        ) as query_class, patch.object(
-            data_routes, 'check_login_status',
-            side_effect=AssertionError('decorator already checked login'),
-            create=True,
-        ):
-            response = route.__wrapped__(
-                user={'username': 'student', 'password': 'password'},
-            )
+        ) as query_class:
+            response = self.client.post(path)
 
         self.assertTrue(response.get_json()['success'])
-        current_url.assert_called_once_with()
+        login_check.assert_called_once_with(
+            'student', 'password', {}, url=URL1,
+        )
         query_class.assert_called_once_with(URL1, 'student')
         getattr(query, query_method).assert_called_once_with()
 
-    def test_schedule_update_uses_one_request_url_without_duplicate_login(self):
+    def test_schedule_update_uses_one_request_url_and_one_login_check(self):
         self._assert_live_route_uses_snapshot(
-            data_routes.api_update_schedule, 'schedule_cx',
+            '/api/update_schedule', 'schedule_cx',
         )
 
-    def test_exam_update_uses_one_request_url_without_duplicate_login(self):
+    def test_exam_update_uses_one_request_url_and_one_login_check(self):
         self._assert_live_route_uses_snapshot(
-            data_routes.api_update_exams, 'exam_cx',
+            '/api/update_exams', 'exam_cx',
         )
 
 
@@ -139,6 +156,27 @@ class EvaluationLoginTests(unittest.TestCase):
 
 
 class AdminUrlValidationTests(unittest.TestCase):
+    def _switch_index(self, url_index, urls):
+        app = Flask(__name__)
+        writes = []
+
+        def update(mutator):
+            config = {
+                'urp_urls': list(urls),
+                'current_url_index': 0,
+            }
+            mutator(config)
+            writes.append(config.copy())
+            return config
+
+        with app.test_request_context(
+            '/api/admin/config/url', method='POST',
+            json={'url_index': url_index},
+        ), patch.object(admin_routes, 'update_config', side_effect=update):
+            response = admin_routes.admin_switch_url.__wrapped__()
+
+        return response, writes
+
     def test_invalid_url_list_is_rejected_without_write(self):
         app = Flask(__name__)
         with app.test_request_context(
@@ -149,6 +187,77 @@ class AdminUrlValidationTests(unittest.TestCase):
 
         self.assertFalse(response.get_json()['success'])
         update.assert_not_called()
+
+    def test_out_of_range_url_index_is_rejected_without_write(self):
+        response, writes = self._switch_index(
+            2,
+            ['http://url1.test/', 'http://url2.test/'],
+        )
+
+        self.assertFalse(response.get_json()['success'])
+        self.assertEqual(writes, [])
+
+    def test_invalid_stored_target_url_is_rejected_without_write(self):
+        response, writes = self._switch_index(
+            1,
+            ['http://url1.test/', 'not-a-url'],
+        )
+
+        self.assertFalse(response.get_json()['success'])
+        self.assertEqual(writes, [])
+
+
+class AdminUrlStatePreservationTests(unittest.TestCase):
+    def test_successful_switch_preserves_cookies_and_url_login_cache(self):
+        app = Flask(__name__)
+        url2 = 'http://url2.test/urp/'
+        with tempfile.TemporaryDirectory() as directory, patch.object(
+            session_store,
+            'USER_DATA_DIR',
+            Path(directory) / 'user_data',
+        ), patch.object(
+            login_module,
+            'VPN_COOKIE_FILE',
+            str(Path(directory) / 'data' / 'vpn_cookie.json'),
+        ):
+            user_cookie = session_store.save_user_cookies(
+                'student', URL1, {'JSESSIONID': 'student-session'},
+            )
+            login_module.save_shared_vpn_cookies(
+                {'VSG_SESSIONID': 'vpn-session'},
+            )
+            vpn_cookie = Path(login_module.VPN_COOKIE_FILE)
+            user_before = user_cookie.read_bytes()
+            vpn_before = vpn_cookie.read_bytes()
+            cache_key = (
+                'student',
+                config_service.urp_url_fingerprint(URL1),
+            )
+            urp_service._login_cache[cache_key] = time.time()
+
+            def update(mutator):
+                config = {
+                    'urp_urls': [URL1, url2],
+                    'current_url_index': 0,
+                }
+                mutator(config)
+                return config
+
+            try:
+                with app.test_request_context(
+                    '/api/admin/config/url', method='POST',
+                    json={'url_index': 1},
+                ), patch.object(
+                    admin_routes, 'update_config', side_effect=update,
+                ):
+                    response = admin_routes.admin_switch_url.__wrapped__()
+
+                self.assertTrue(response.get_json()['success'])
+                self.assertEqual(user_cookie.read_bytes(), user_before)
+                self.assertEqual(vpn_cookie.read_bytes(), vpn_before)
+                self.assertIn(cache_key, urp_service._login_cache)
+            finally:
+                urp_service._login_cache.pop(cache_key, None)
 
 
 class LocalCacheRouteTests(unittest.TestCase):
