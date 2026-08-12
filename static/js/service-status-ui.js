@@ -41,8 +41,58 @@
         };
     }
 
+    async function copyText(text, environment) {
+        const value = typeof text === 'string' ? text : '';
+        if (!value) return false;
+
+        const scope = environment && typeof environment === 'object' ? environment : {};
+        const navigatorObject = Object.prototype.hasOwnProperty.call(scope, 'navigator')
+            ? scope.navigator
+            : (typeof navigator !== 'undefined' ? navigator : null);
+        const documentObject = Object.prototype.hasOwnProperty.call(scope, 'document')
+            ? scope.document
+            : (typeof document !== 'undefined' ? document : null);
+
+        if (navigatorObject?.clipboard?.writeText) {
+            try {
+                await navigatorObject.clipboard.writeText(value);
+                return true;
+            } catch (error) {
+                // Clipboard API 失败时继续使用兼容复制方案。
+            }
+        }
+
+        if (!documentObject?.body
+            || typeof documentObject.createElement !== 'function'
+            || typeof documentObject.execCommand !== 'function') {
+            return false;
+        }
+
+        const textarea = documentObject.createElement('textarea');
+        textarea.value = value;
+        textarea.setAttribute('readonly', '');
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+
+        try {
+            documentObject.body.appendChild(textarea);
+            textarea.select();
+            textarea.setSelectionRange(0, value.length);
+            return documentObject.execCommand('copy') === true;
+        } catch (error) {
+            return false;
+        } finally {
+            try {
+                documentObject.body.removeChild(textarea);
+            } catch (error) {
+                // 元素没有成功挂载时无需继续清理。
+            }
+        }
+    }
+
     return {
         buildServiceStatusViewModel,
+        copyText,
         formatUpdatedAt,
     };
 }));
