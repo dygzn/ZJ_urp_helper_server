@@ -39,6 +39,7 @@
                     <button class="tab-btn" type="button" onclick="switchTab('monitor')" role="tab">监控</button>
                     <button class="tab-btn" type="button" onclick="switchTab('pending')" role="tab">审批</button>
                     <button class="tab-btn" type="button" onclick="switchTab('announcements')" role="tab">公告</button>
+                    <button class="tab-btn" type="button" onclick="switchTab('service-status')" data-admin-tab="service-status" role="tab">个人状态</button>
                     <button class="tab-btn" type="button" onclick="switchTab('feedback')" role="tab">反馈</button>
                     <button class="tab-btn" type="button" onclick="switchTab('surveys')" role="tab">问卷</button>
                     <button class="tab-btn" type="button" onclick="switchTab('members')" role="tab">会员</button>
@@ -65,6 +66,37 @@
                 <section id="tab-announcements" class="tab-content">
                     <div class="section-header"><h2>公告管理</h2><div class="button-group"><button class="icon-btn" type="button" onclick="loadAnnouncements()">刷新</button><button class="btn-primary" type="button" onclick="showCreateAnnouncementModal()">发布公告</button></div></div>
                     <div id="announcements-list" class="announcements-list"><div class="loading">加载中...</div></div>
+                </section>
+
+                <section id="tab-service-status" class="tab-content">
+                    <div class="section-header"><h2>个人状态</h2><button class="icon-btn" type="button" onclick="loadAdminServiceStatus()">刷新</button></div>
+                    <div class="config-section admin-service-status-panel">
+                        <div class="admin-service-status-heading">
+                            <div>
+                                <h3>接单状态</h3>
+                                <p class="config-desc">用户会在“找我做事”页面看到这里保存的内容。</p>
+                            </div>
+                            <span id="admin-service-status-updated" class="admin-service-status-updated">尚未更新</span>
+                        </div>
+                        <form id="admin-service-status-form" class="admin-form" onsubmit="saveAdminServiceStatus(event)">
+                            <div class="database-field">
+                                <label for="admin-service-status-text">当前状态</label>
+                                <input id="admin-service-status-text" type="text" maxlength="40" required placeholder="例如：空闲、上课、睡觉">
+                            </div>
+                            <div class="admin-service-status-presets" aria-label="快捷状态">
+                                <button type="button" class="admin-service-status-preset" data-service-status="空闲" onclick="selectServiceStatus('空闲')">空闲</button>
+                                <button type="button" class="admin-service-status-preset" data-service-status="上课" onclick="selectServiceStatus('上课')">上课</button>
+                                <button type="button" class="admin-service-status-preset" data-service-status="睡觉" onclick="selectServiceStatus('睡觉')">睡觉</button>
+                                <button type="button" class="admin-service-status-preset" data-service-status="忙碌" onclick="selectServiceStatus('忙碌')">忙碌</button>
+                            </div>
+                            <label class="admin-toggle-row" for="admin-accepting-orders">
+                                <span><strong>当前可以接单</strong><small>关闭后用户会看到“暂不接单”</small></span>
+                                <input type="checkbox" id="admin-accepting-orders">
+                            </label>
+                            <button class="btn-primary btn-full" type="submit">保存状态</button>
+                        </form>
+                        <div id="admin-service-status-message" class="hint-message"></div>
+                    </div>
                 </section>
 
                 <section id="tab-feedback" class="tab-content">
@@ -150,6 +182,7 @@
     <div id="feedback-reply-modal" class="modal"><div class="modal-content"><button class="modal-close" type="button" onclick="closeFeedbackReplyModal()" aria-label="关闭">&times;</button><h2>回复反馈</h2><div id="feedback-reply-original" class="feedback-reply-original"></div><form onsubmit="handleFeedbackReplySubmit(event)"><div class="form-group"><label for="feedback-reply-content">回复内容</label><textarea id="feedback-reply-content" rows="5" placeholder="请输入回复内容"></textarea></div><div class="button-group"><button type="submit" class="btn-primary">发送回复</button><button type="button" class="btn-secondary" onclick="closeFeedbackReplyModal()">取消</button></div></form></div></div>
 
     <div id="overlay" class="overlay"></div>
+    <script src="/static/js/service-status-ui.js"></script>
     <script src="/static/js/admin.js"></script>
 </body>
 </html>

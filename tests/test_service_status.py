@@ -143,6 +143,20 @@ class ServiceStatusTemplateTests(unittest.TestCase):
             soup.select_one('#page-service-status #service-status-content')
         )
 
+    def test_admin_renders_service_status_editor(self):
+        response = self.client.get('/admin')
+
+        self.assertEqual(response.status_code, 200)
+        soup = BeautifulSoup(response.get_data(as_text=True), 'html.parser')
+        navigation = soup.select_one('[data-admin-tab="service-status"]')
+        self.assertIsNotNone(navigation)
+        self.assertEqual(navigation.get_text(strip=True), '个人状态')
+        self.assertIsNotNone(soup.select_one('#tab-service-status'))
+        self.assertIsNotNone(
+            soup.select_one('#admin-service-status-text[maxlength="40"]')
+        )
+        self.assertIsNotNone(soup.select_one('#admin-accepting-orders'))
+
 
 if __name__ == '__main__':
     unittest.main()

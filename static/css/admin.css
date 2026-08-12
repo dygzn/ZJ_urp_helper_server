@@ -2733,3 +2733,76 @@ input[type="checkbox"] {
 .admin-toggle-row input[type="checkbox"] {
     min-height: 26px;
 }
+
+/* ==================== Personal service status ==================== */
+.admin-service-status-panel {
+    max-width: 720px;
+}
+
+.admin-service-status-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.admin-service-status-heading h3 {
+    margin-bottom: 5px;
+}
+
+.admin-service-status-heading .config-desc {
+    margin: 0;
+}
+
+.admin-service-status-updated {
+    flex: 0 0 auto;
+    padding: 7px 10px;
+    border-radius: 999px;
+    background: rgba(0, 122, 255, 0.08);
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.admin-service-status-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 9px;
+}
+
+.admin-service-status-preset {
+    min-height: 38px;
+    padding: 8px 15px;
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    border-radius: 999px;
+    background: #fff;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 700;
+    transition: all 0.18s var(--transition);
+}
+
+.admin-service-status-preset:hover,
+.admin-service-status-preset.active {
+    border-color: rgba(0, 122, 255, 0.3);
+    background: rgba(0, 122, 255, 0.09);
+    color: var(--accent);
+}
+
+@media (max-width: 560px) {
+    .admin-service-status-heading {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .admin-service-status-presets {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .admin-service-status-preset {
+        width: 100%;
+    }
+}
