@@ -77,6 +77,8 @@ function switchTab(tabName) {
         loadUsers();
     } else if (tabName === 'announcements') {
         loadAnnouncements();
+    } else if (tabName === 'service-status') {
+        loadAdminServiceStatus();
     } else if (tabName === 'surveys') {
         loadSurveys();
     } else if (tabName === 'feedback') {
@@ -97,6 +99,99 @@ function switchTab(tabName) {
     // 离开监控 Tab 时停止自动刷新
     if (tabName !== 'monitor') {
         stopMonitorRefresh();
+    }
+}
+
+// ==================== 个人状态 ====================
+function updateServiceStatusPresetSelection(statusText) {
+    document.querySelectorAll('.admin-service-status-preset').forEach(button => {
+        button.classList.toggle('active', button.dataset.serviceStatus === statusText);
+    });
+}
+
+function selectServiceStatus(statusText) {
+    const input = document.getElementById('admin-service-status-text');
+    input.value = statusText;
+    input.focus();
+    updateServiceStatusPresetSelection(statusText);
+}
+
+function showAdminServiceStatusUpdatedAt(updatedAt) {
+    const updated = document.getElementById('admin-service-status-updated');
+    updated.textContent = ServiceStatusUI.formatUpdatedAt(updatedAt);
+}
+
+async function loadAdminServiceStatus() {
+    const message = document.getElementById('admin-service-status-message');
+    message.className = 'hint-message';
+    message.textContent = '正在加载...';
+
+    try {
+        const response = await fetch('/api/admin/service-status', {
+            headers: {'Admin-Key': adminKey}
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+            throw new Error(result.message || '状态加载失败');
+        }
+
+        const data = result.data || {};
+        const input = document.getElementById('admin-service-status-text');
+        input.value = data.status_text || '';
+        document.getElementById('admin-accepting-orders').checked = data.accepting_orders === true;
+        updateServiceStatusPresetSelection(input.value);
+        showAdminServiceStatusUpdatedAt(data.updated_at);
+        message.textContent = '';
+    } catch (error) {
+        console.error('加载个人状态失败:', error);
+        message.className = 'hint-message config-inline-status-error';
+        message.textContent = error.message || '状态加载失败';
+    }
+}
+
+async function saveAdminServiceStatus(event) {
+    event.preventDefault();
+    const input = document.getElementById('admin-service-status-text');
+    const message = document.getElementById('admin-service-status-message');
+    const statusText = input.value.trim();
+    const acceptingOrders = document.getElementById('admin-accepting-orders').checked;
+
+    if (!statusText) {
+        message.className = 'hint-message config-inline-status-error';
+        message.textContent = '状态文字不能为空';
+        input.focus();
+        return;
+    }
+
+    message.className = 'hint-message';
+    message.textContent = '正在保存...';
+
+    try {
+        const response = await fetch('/api/admin/service-status', {
+            method: 'PUT',
+            headers: {
+                'Admin-Key': adminKey,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                status_text: statusText,
+                accepting_orders: acceptingOrders
+            })
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+            throw new Error(result.message || '状态保存失败');
+        }
+
+        input.value = result.data.status_text;
+        updateServiceStatusPresetSelection(result.data.status_text);
+        showAdminServiceStatusUpdatedAt(result.data.updated_at);
+        message.className = 'hint-message config-inline-status-success';
+        message.textContent = result.message || '状态已更新';
+    } catch (error) {
+        console.error('保存个人状态失败:', error);
+        message.className = 'hint-message config-inline-status-error';
+        message.textContent = error.message || '状态保存失败';
     }
 }
 

@@ -308,6 +308,14 @@ def _create_schema_sqlite(conn):
             pay_url TEXT
         )
     ''')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS admin_service_status (
+            id INTEGER PRIMARY KEY,
+            status_text TEXT NOT NULL,
+            accepting_orders INTEGER NOT NULL DEFAULT 0,
+            updated_at TEXT NOT NULL
+        )
+    ''')
 
 
 def _create_schema_mysql(conn):
@@ -444,6 +452,14 @@ def _create_schema_mysql(conn):
             pay_url TEXT
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ''')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS admin_service_status (
+            id INT PRIMARY KEY,
+            status_text VARCHAR(40) NOT NULL,
+            accepting_orders TINYINT NOT NULL DEFAULT 0,
+            updated_at VARCHAR(32) NOT NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ''')
 
 
 def _create_indexes(conn):
@@ -530,6 +546,7 @@ MIGRATION_TABLES = {
     'invitation_earnings': ['id', 'username', 'order_no', 'invitee_username', 'amount', 'rate', 'create_time'],
     'withdrawals': ['id', 'username', 'real_name', 'alipay_account', 'amount', 'status', 'create_time', 'review_time'],
     'orders': ['order_no', 'device_id', 'username', 'member_type', 'amount', 'pay_type', 'status', 'create_time', 'pay_time', 'notify_url', 'pay_url'],
+    'admin_service_status': ['id', 'status_text', 'accepting_orders', 'updated_at'],
 }
 
 
