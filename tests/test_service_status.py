@@ -148,14 +148,14 @@ class ServiceStatusTemplateTests(unittest.TestCase):
 
         qq_link = contacts.select_one('a[data-contact="qq"]')
         self.assertIsNotNone(qq_link)
-        self.assertEqual(qq_link.get_text(' ', strip=True), 'QQ 联系我 786171937')
+        self.assertEqual(qq_link.get_text(' ', strip=True), 'QQ 786171937')
         self.assertEqual(qq_link.get('href'), 'https://qm.qq.com/q/c9BOvFT6tc')
         self.assertEqual(qq_link.get('target'), '_blank')
         self.assertEqual(set(qq_link.get('rel', [])), {'noopener', 'noreferrer'})
 
         wechat_link = contacts.select_one('a[data-contact="wechat"]')
         self.assertIsNotNone(wechat_link)
-        self.assertEqual(wechat_link.get_text(' ', strip=True), '微信联系我 Dygzn123')
+        self.assertEqual(wechat_link.get_text(' ', strip=True), '微信 Dygzn123')
         self.assertEqual(
             wechat_link.get('href'),
             'https://u.wechat.com/MMwBClCfxTYX-Z1rWS3_esc?s=2',
