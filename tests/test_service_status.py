@@ -150,6 +150,7 @@ class ServiceStatusTemplateTests(unittest.TestCase):
         self.assertIsNotNone(qq_link)
         self.assertEqual(qq_link.get_text(' ', strip=True), 'QQ 786171937')
         self.assertEqual(qq_link.get('href'), 'https://qm.qq.com/q/c9BOvFT6tc')
+        self.assertEqual(qq_link.get('data-copy-text'), '786171937')
         self.assertEqual(qq_link.get('target'), '_blank')
         self.assertEqual(set(qq_link.get('rel', [])), {'noopener', 'noreferrer'})
 
@@ -160,6 +161,7 @@ class ServiceStatusTemplateTests(unittest.TestCase):
             wechat_link.get('href'),
             'https://u.wechat.com/MMwBClCfxTYX-Z1rWS3_esc?s=2',
         )
+        self.assertEqual(wechat_link.get('data-copy-text'), 'Dygzn123')
         self.assertEqual(wechat_link.get('target'), '_blank')
         self.assertEqual(set(wechat_link.get('rel', [])), {'noopener', 'noreferrer'})
 

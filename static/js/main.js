@@ -379,6 +379,28 @@ function loadPageData(pageName) {
 }
 
 // ==================== 找我做事 ====================
+document.addEventListener('click', async function(event) {
+    const element = event.target instanceof Element ? event.target : null;
+    const link = element?.closest('.service-contact-link[data-copy-text]');
+    if (!link) return;
+
+    const account = link.querySelector('strong');
+    const originalText = account?.textContent || '';
+    const copied = await ServiceStatusUI.copyText(link.dataset.copyText);
+
+    if (!copied) {
+        console.warn('联系账号复制失败');
+        return;
+    }
+
+    if (account) {
+        account.textContent = '已复制';
+        window.setTimeout(() => {
+            if (account.isConnected) account.textContent = originalText;
+        }, 1500);
+    }
+});
+
 async function loadServiceStatus() {
     const content = document.getElementById('service-status-content');
     if (!content) return;
