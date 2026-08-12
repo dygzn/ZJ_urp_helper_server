@@ -143,6 +143,26 @@ class ServiceStatusTemplateTests(unittest.TestCase):
             soup.select_one('#page-service-status #service-status-content')
         )
 
+        contacts = soup.select_one('#page-service-status .service-contact-links')
+        self.assertIsNotNone(contacts)
+
+        qq_link = contacts.select_one('a[data-contact="qq"]')
+        self.assertIsNotNone(qq_link)
+        self.assertEqual(qq_link.get_text(' ', strip=True), 'QQ 联系我 786171937')
+        self.assertEqual(qq_link.get('href'), 'https://qm.qq.com/q/c9BOvFT6tc')
+        self.assertEqual(qq_link.get('target'), '_blank')
+        self.assertEqual(set(qq_link.get('rel', [])), {'noopener', 'noreferrer'})
+
+        wechat_link = contacts.select_one('a[data-contact="wechat"]')
+        self.assertIsNotNone(wechat_link)
+        self.assertEqual(wechat_link.get_text(' ', strip=True), '微信联系我 Dygzn123')
+        self.assertEqual(
+            wechat_link.get('href'),
+            'https://u.wechat.com/MMwBClCfxTYX-Z1rWS3_esc?s=2',
+        )
+        self.assertEqual(wechat_link.get('target'), '_blank')
+        self.assertEqual(set(wechat_link.get('rel', [])), {'noopener', 'noreferrer'})
+
     def test_admin_renders_service_status_editor(self):
         response = self.client.get('/admin')
 
