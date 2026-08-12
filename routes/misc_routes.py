@@ -10,6 +10,78 @@ from services.user_service import get_device_id
 misc_bp = Blueprint('misc', __name__)
 
 
+DEFAULT_SERVICE_STATUS = {
+    'status_text': '暂未设置状态',
+    'accepting_orders': False,
+    'updated_at': None,
+}
+
+
+def _get_service_status():
+    with get_db() as conn:
+        row = conn.execute('''
+            SELECT status_text, accepting_orders, updated_at
+            FROM admin_service_status
+            WHERE id = 1
+        ''').fetchone()
+
+    if not row:
+        return dict(DEFAULT_SERVICE_STATUS)
+
+    return {
+        'status_text': row['status_text'],
+        'accepting_orders': bool(row['accepting_orders']),
+        'updated_at': row['updated_at'],
+    }
+
+
+@misc_bp.route('/api/service-status', methods=['GET'])
+def get_service_status():
+    return jsonify({'success': True, 'data': _get_service_status()})
+
+
+@misc_bp.route('/api/admin/service-status', methods=['GET'])
+@require_admin
+def admin_get_service_status():
+    return jsonify({'success': True, 'data': _get_service_status()})
+
+
+@misc_bp.route('/api/admin/service-status', methods=['PUT'])
+@require_admin
+def admin_update_service_status():
+    data = request.get_json(silent=True) or {}
+    status_text = data.get('status_text')
+    accepting_orders = data.get('accepting_orders')
+
+    if not isinstance(status_text, str) or not status_text.strip():
+        return jsonify({'success': False, 'message': '状态文字不能为空'}), 400
+
+    status_text = status_text.strip()
+    if len(status_text) > 40:
+        return jsonify({'success': False, 'message': '状态文字不能超过40个字符'}), 400
+
+    if not isinstance(accepting_orders, bool):
+        return jsonify({'success': False, 'message': '接单状态格式错误'}), 400
+
+    updated_at = datetime.now().isoformat(timespec='seconds')
+    with get_db() as conn:
+        conn.execute('''
+            INSERT OR REPLACE INTO admin_service_status
+            (id, status_text, accepting_orders, updated_at)
+            VALUES (1, ?, ?, ?)
+        ''', (status_text, 1 if accepting_orders else 0, updated_at))
+
+    return jsonify({
+        'success': True,
+        'message': '状态已更新',
+        'data': {
+            'status_text': status_text,
+            'accepting_orders': accepting_orders,
+            'updated_at': updated_at,
+        },
+    })
+
+
 
 # ==================== 公告 ====================
 
