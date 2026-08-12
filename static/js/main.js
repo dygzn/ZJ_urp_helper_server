@@ -303,6 +303,7 @@ function switchPage(pageName) {
         'evaluation': '教学评估',
         'announcements': '系统公告',
         'surveys': '问卷调查',
+        'service-status': '找我做事',
         'feedback': '反馈建议',
         'member': '会员购买',
     };
@@ -365,12 +366,62 @@ function loadPageData(pageName) {
         case 'surveys':
             loadSurveysList();
             break;
+        case 'service-status':
+            loadServiceStatus();
+            break;
         case 'feedback':
             loadFeedbackPage();
             break;
         case 'member':
             loadMemberPage();
             break;
+    }
+}
+
+// ==================== 找我做事 ====================
+async function loadServiceStatus() {
+    const content = document.getElementById('service-status-content');
+    if (!content) return;
+
+    content.innerHTML = '<div class="loading">加载中...</div>';
+
+    try {
+        const response = await fetch('/api/service-status');
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+            throw new Error(result.message || '状态加载失败');
+        }
+
+        const view = ServiceStatusUI.buildServiceStatusViewModel(result.data);
+        const statusText = document.createElement('div');
+        statusText.className = 'service-status-text';
+        statusText.textContent = view.statusText;
+
+        const availability = document.createElement('div');
+        availability.className = `service-availability ${view.acceptingOrders ? 'is-accepting' : 'is-unavailable'}`;
+        const availabilityDot = document.createElement('span');
+        availabilityDot.className = 'service-availability-dot';
+        const availabilityText = document.createElement('span');
+        availabilityText.textContent = view.availabilityText;
+        availability.append(availabilityDot, availabilityText);
+
+        const updated = document.createElement('div');
+        updated.className = 'service-status-updated';
+        updated.textContent = view.updatedText;
+
+        content.replaceChildren(statusText, availability, updated);
+    } catch (error) {
+        console.error('加载接单状态失败:', error);
+        content.innerHTML = '';
+        const message = document.createElement('p');
+        message.className = 'service-status-error';
+        message.textContent = '状态加载失败，请稍后重试';
+        const retry = document.createElement('button');
+        retry.className = 'btn-secondary';
+        retry.type = 'button';
+        retry.textContent = '重新加载';
+        retry.addEventListener('click', loadServiceStatus);
+        content.append(message, retry);
     }
 }
 

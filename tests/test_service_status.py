@@ -4,9 +4,11 @@ import tempfile
 import unittest
 from unittest import mock
 
+from bs4 import BeautifulSoup
 from flask import Flask
 
 import auth
+import app as app_module
 import database
 from routes import misc_routes
 
@@ -123,6 +125,23 @@ class ServiceStatusApiTests(unittest.TestCase):
         self.assertEqual(public_data['status_text'], '上课')
         self.assertTrue(public_data['accepting_orders'])
         self.assertIsNotNone(public_data['updated_at'])
+
+
+class ServiceStatusTemplateTests(unittest.TestCase):
+    def setUp(self):
+        self.client = app_module.app.test_client()
+
+    def test_home_renders_service_status_navigation_and_page(self):
+        response = self.client.get('/')
+
+        self.assertEqual(response.status_code, 200)
+        soup = BeautifulSoup(response.get_data(as_text=True), 'html.parser')
+        navigation = soup.select_one('[data-page="service-status"]')
+        self.assertIsNotNone(navigation)
+        self.assertEqual(navigation.get_text(strip=True), '找我做事')
+        self.assertIsNotNone(
+            soup.select_one('#page-service-status #service-status-content')
+        )
 
 
 if __name__ == '__main__':
