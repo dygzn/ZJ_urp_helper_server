@@ -106,7 +106,6 @@ urp/             # URP 底层模块（从 URP.py 拆分）
 - `user_data/{username}/cookie.json` — URP 登录 cookie
 - `user_data/{username}/schedule.json` — 缓存的课程表
 - `user_data/{username}/exams.json` — 缓存的考试安排
-- `data/admin_key.txt` — 管理员密钥（首次运行自动生成）
 - `data/config.json` — URP URL 列表、当前索引、主题
 
 ### 外部依赖

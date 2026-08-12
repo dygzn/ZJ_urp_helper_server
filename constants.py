@@ -5,7 +5,6 @@ import os
 
 DATA_DIR = 'data'
 DB_FILE = os.path.join(DATA_DIR, 'urp_helper.db')
-ADMIN_KEY_FILE = os.path.join(DATA_DIR, 'admin_key.txt')
 CONFIG_FILE = os.path.join(DATA_DIR, 'config.json')
 
 # 确保数据目录存在

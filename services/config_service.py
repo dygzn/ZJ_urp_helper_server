@@ -3,7 +3,7 @@
 """
 import json
 import os
-from constants import CONFIG_FILE, ADMIN_KEY_FILE
+from constants import CONFIG_FILE
 
 
 def load_json_file(filepath, default=None):

@@ -1,5 +1,8 @@
 /user_data/
 /data/urp_helper.db
+/data/admin_key.txt
+/data/last_*
+/data/*.log
 CLAUD.md
 .claude
 # Python缓存
