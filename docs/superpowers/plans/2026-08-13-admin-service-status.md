@@ -30,12 +30,14 @@
 - `templates/admin.html`：增加“个人状态”后台标签和表单。
 - `static/js/admin.js`：读取、选择快捷状态、保存和错误提示。
 - `static/css/admin.css`：后台快捷按钮和状态编辑区样式。
-- `test/test_service_status.py`：后端 API、数据表和前端接线契约测试。
+- `static/js/service-status-ui.js`：把状态数据转换成安全、可测试的展示模型。
+- `tests/test_service_status.py`：后端 API、数据表和服务端渲染页面测试。
+- `tests/test_service_status_ui.js`：用户状态展示模型的 Node 行为测试。
 
 ### Task 1: 状态数据表与后端 API
 
 **Files:**
-- Create: `test/test_service_status.py`
+- Create: `tests/test_service_status.py`
 - Modify: `database.py`
 - Modify: `routes/misc_routes.py`
 
@@ -67,7 +69,7 @@ def test_status_table_is_created(self):
 
 - [ ] **Step 2: 运行测试并确认因接口或表不存在而失败**
 
-Run: `python -m unittest test.test_service_status.ServiceStatusApiTests.test_default_public_status_is_not_accepting_orders test.test_service_status.ServiceStatusApiTests.test_status_table_is_created -v`
+Run: `python -m unittest tests.test_service_status.ServiceStatusApiTests.test_default_public_status_is_not_accepting_orders tests.test_service_status.ServiceStatusApiTests.test_status_table_is_created -v`
 
 Expected: FAIL，公开接口返回 404 或数据库中找不到 `admin_service_status`。
 
@@ -109,7 +111,7 @@ def get_service_status():
 
 - [ ] **Step 4: 运行默认读取和表结构测试并确认通过**
 
-Run: `python -m unittest test.test_service_status.ServiceStatusApiTests.test_default_public_status_is_not_accepting_orders test.test_service_status.ServiceStatusApiTests.test_status_table_is_created -v`
+Run: `python -m unittest tests.test_service_status.ServiceStatusApiTests.test_default_public_status_is_not_accepting_orders tests.test_service_status.ServiceStatusApiTests.test_status_table_is_created -v`
 
 Expected: PASS。
 
@@ -141,7 +143,7 @@ def test_admin_update_is_visible_to_public(self):
 
 - [ ] **Step 6: 运行测试并确认因管理员 API 不存在而失败**
 
-Run: `python -m unittest test.test_service_status.ServiceStatusApiTests.test_admin_status_requires_key test.test_service_status.ServiceStatusApiTests.test_update_rejects_invalid_payload test.test_service_status.ServiceStatusApiTests.test_admin_update_is_visible_to_public -v`
+Run: `python -m unittest tests.test_service_status.ServiceStatusApiTests.test_admin_status_requires_key tests.test_service_status.ServiceStatusApiTests.test_update_rejects_invalid_payload tests.test_service_status.ServiceStatusApiTests.test_admin_update_is_visible_to_public -v`
 
 Expected: FAIL，管理员接口返回 404 或无法更新。
 
@@ -182,44 +184,68 @@ def admin_update_service_status():
 
 - [ ] **Step 8: 运行后端测试并提交**
 
-Run: `python -m unittest test.test_service_status -v`
+Run: `python -m unittest tests.test_service_status -v`
 
 Expected: 全部 PASS。
 
 ```bash
-git add database.py routes/misc_routes.py test/test_service_status.py
+git add database.py routes/misc_routes.py tests/test_service_status.py
 git commit -m "feat: add admin service status API"
 ```
 
 ### Task 2: 用户侧“找我做事”页面
 
 **Files:**
-- Modify: `test/test_service_status.py`
+- Modify: `tests/test_service_status.py`
+- Create: `tests/test_service_status_ui.js`
+- Create: `static/js/service-status-ui.js`
 - Modify: `templates/index.html`
 - Modify: `static/js/main.js`
 - Modify: `static/css/style.css`
 
 **Interfaces:**
 - Consumes: `GET /api/service-status` 与 Task 1 的 `ServiceStatus`。
+- Produces: `buildServiceStatusViewModel(data)`，返回安全的展示字段。
 - Produces: `loadServiceStatus()`，在 `#service-status-content` 中安全渲染状态。
 
-- [ ] **Step 1: 写用户端接线失败测试**
+- [ ] **Step 1: 写用户端渲染与展示模型失败测试**
 
 ```python
-def test_user_page_wires_service_status_navigation(self):
-    html = (PROJECT_ROOT / 'templates/index.html').read_text(encoding='utf-8')
-    javascript = (PROJECT_ROOT / 'static/js/main.js').read_text(encoding='utf-8')
-    self.assertIn('data-page="service-status"', html)
-    self.assertIn('>找我做事</span>', html)
-    self.assertIn('id="page-service-status"', html)
-    self.assertIn("'service-status': '找我做事'", javascript)
-    self.assertIn("case 'service-status':", javascript)
-    self.assertIn("fetch('/api/service-status')", javascript)
+def test_home_renders_service_status_navigation_and_page(self):
+    response = self.full_app_client.get('/')
+    soup = BeautifulSoup(response.get_data(as_text=True), 'html.parser')
+    navigation = soup.select_one('[data-page="service-status"]')
+    self.assertEqual(navigation.get_text(strip=True), '找我做事')
+    self.assertIsNotNone(soup.select_one('#page-service-status #service-status-content'))
+```
+
+```javascript
+test('未设置状态形成不可接单展示模型', () => {
+    assert.deepEqual(buildServiceStatusViewModel({}), {
+        statusText: '暂未设置状态',
+        acceptingOrders: false,
+        availabilityText: '暂不接单',
+        updatedText: '尚未更新',
+    });
+});
+
+test('已设置状态保留文字并形成可接单展示模型', () => {
+    const view = buildServiceStatusViewModel({
+        status_text: '上课',
+        accepting_orders: true,
+        updated_at: '2026-08-13T12:00:00',
+    });
+    assert.equal(view.statusText, '上课');
+    assert.equal(view.availabilityText, '当前可接单');
+    assert.notEqual(view.updatedText, '尚未更新');
+});
 ```
 
 - [ ] **Step 2: 运行测试并确认因导航和页面未接入而失败**
 
-Run: `python -m unittest test.test_service_status.FrontendContractTests.test_user_page_wires_service_status_navigation -v`
+Run: `python -m unittest tests.test_service_status.ServiceStatusTemplateTests.test_home_renders_service_status_navigation_and_page -v`
+
+Run: `node --test tests/test_service_status_ui.js`
 
 Expected: FAIL，缺少 `service-status` 页面标记。
 
@@ -242,7 +268,7 @@ Expected: FAIL，缺少 `service-status` 页面标记。
 </div>
 ```
 
-给 `titles` 和 `loadPageData` 增加 `service-status` 分支，并实现 `loadServiceStatus()`。函数先写入加载提示，获取成功后用 `createElement`/`textContent` 构建状态，失败时提供调用 `loadServiceStatus()` 的重试按钮。
+新增 CommonJS/浏览器双环境可用的 `service-status-ui.js`，实现并导出 `buildServiceStatusViewModel(data)`。模板先加载该文件，再加载 `main.js`。给 `titles` 和 `loadPageData` 增加 `service-status` 分支，并实现 `loadServiceStatus()`；动态状态文字通过 `textContent` 写入，失败时显示调用 `loadServiceStatus()` 的重试按钮。
 
 - [ ] **Step 4: 添加用户状态卡片样式**
 
@@ -250,21 +276,23 @@ Expected: FAIL，缺少 `service-status` 页面标记。
 
 - [ ] **Step 5: 运行用户端契约和 JavaScript 语法检查并提交**
 
-Run: `python -m unittest test.test_service_status.FrontendContractTests.test_user_page_wires_service_status_navigation -v`
+Run: `python -m unittest tests.test_service_status.ServiceStatusTemplateTests.test_home_renders_service_status_navigation_and_page -v`
+
+Run: `node --test tests/test_service_status_ui.js`
 
 Run: `node --check static/js/main.js`
 
 Expected: 全部 PASS，Node 无输出且退出码为 0。
 
 ```bash
-git add templates/index.html static/js/main.js static/css/style.css test/test_service_status.py
+git add templates/index.html static/js/service-status-ui.js static/js/main.js static/css/style.css tests/test_service_status.py tests/test_service_status_ui.js
 git commit -m "feat: add service status user page"
 ```
 
 ### Task 3: 后台个人状态编辑页与整体验证
 
 **Files:**
-- Modify: `test/test_service_status.py`
+- Modify: `tests/test_service_status.py`
 - Modify: `templates/admin.html`
 - Modify: `static/js/admin.js`
 - Modify: `static/css/admin.css`
@@ -273,23 +301,24 @@ git commit -m "feat: add service status user page"
 - Consumes: `GET /api/admin/service-status` 和 `PUT /api/admin/service-status`。
 - Produces: `loadAdminServiceStatus()`、`selectServiceStatus(text)`、`saveAdminServiceStatus(event)`。
 
-- [ ] **Step 1: 写后台接线失败测试**
+- [ ] **Step 1: 写后台渲染失败测试**
 
 ```python
-def test_admin_page_wires_service_status_editor(self):
-    html = (PROJECT_ROOT / 'templates/admin.html').read_text(encoding='utf-8')
-    javascript = (PROJECT_ROOT / 'static/js/admin.js').read_text(encoding='utf-8')
-    self.assertIn("switchTab('service-status')", html)
-    self.assertIn('id="tab-service-status"', html)
-    self.assertIn('id="admin-service-status-text"', html)
-    self.assertIn('id="admin-accepting-orders"', html)
-    self.assertIn("tabName === 'service-status'", javascript)
-    self.assertIn("fetch('/api/admin/service-status'", javascript)
+def test_admin_renders_service_status_editor(self):
+    response = self.full_app_client.get('/admin')
+    soup = BeautifulSoup(response.get_data(as_text=True), 'html.parser')
+    self.assertEqual(
+        soup.select_one('[data-admin-tab="service-status"]').get_text(strip=True),
+        '个人状态',
+    )
+    self.assertIsNotNone(soup.select_one('#tab-service-status'))
+    self.assertIsNotNone(soup.select_one('#admin-service-status-text[maxlength="40"]'))
+    self.assertIsNotNone(soup.select_one('#admin-accepting-orders'))
 ```
 
 - [ ] **Step 2: 运行测试并确认因后台标签未接入而失败**
 
-Run: `python -m unittest test.test_service_status.FrontendContractTests.test_admin_page_wires_service_status_editor -v`
+Run: `python -m unittest tests.test_service_status.ServiceStatusTemplateTests.test_admin_renders_service_status_editor -v`
 
 Expected: FAIL，缺少后台状态表单。
 
@@ -307,7 +336,7 @@ Expected: FAIL，缺少后台状态表单。
 
 - [ ] **Step 6: 运行完整自动验证**
 
-Run: `python -m unittest discover -s test -p "test_*.py" -v`
+Run: `python -m unittest discover -s tests -p "test_*.py" -v`
 
 Run: `node --check static/js/main.js`
 
@@ -326,7 +355,7 @@ Run: `python app.py`
 - [ ] **Step 8: 提交后台和最终验证改动**
 
 ```bash
-git add templates/admin.html static/js/admin.js static/css/admin.css test/test_service_status.py
+git add templates/admin.html static/js/admin.js static/css/admin.css tests/test_service_status.py
 git commit -m "feat: manage service status in admin"
 ```
 
