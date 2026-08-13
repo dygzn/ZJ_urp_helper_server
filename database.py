@@ -215,15 +215,6 @@ def _create_schema_sqlite(conn):
         )
     ''')
     conn.execute('''
-        CREATE TABLE IF NOT EXISTS surveys (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            url TEXT NOT NULL,
-            create_time TEXT NOT NULL,
-            is_active INTEGER DEFAULT 1
-        )
-    ''')
-    conn.execute('''
         CREATE TABLE IF NOT EXISTS feedbacks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             device_id TEXT NOT NULL,
@@ -359,15 +350,6 @@ def _create_schema_mysql(conn):
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ''')
     conn.execute('''
-        CREATE TABLE IF NOT EXISTS surveys (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            title VARCHAR(255) NOT NULL,
-            url TEXT NOT NULL,
-            create_time VARCHAR(32) NOT NULL,
-            is_active TINYINT DEFAULT 1
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    ''')
-    conn.execute('''
         CREATE TABLE IF NOT EXISTS feedbacks (
             id INT AUTO_INCREMENT PRIMARY KEY,
             device_id VARCHAR(128) NOT NULL,
@@ -468,7 +450,6 @@ def _create_indexes(conn):
         'CREATE INDEX idx_device_id ON pending_requests(device_id)',
         'CREATE INDEX idx_announcement_active ON announcements(is_active)',
         'CREATE INDEX idx_user_read ON user_read_announcements(device_id)',
-        'CREATE INDEX idx_survey_active ON surveys(is_active)',
         'CREATE INDEX idx_feedback_device ON feedbacks(device_id)',
         'CREATE INDEX idx_feedback_visibility ON feedbacks(visibility)',
         'CREATE INDEX idx_feedback_reply_fid ON feedback_replies(feedback_id)',
@@ -512,6 +493,10 @@ def _run_migrations(conn, db_type):
         _exec_ignore(conn, sql)
 
 
+def _drop_removed_tables(conn):
+    conn.execute('DROP TABLE IF EXISTS surveys')
+
+
 def init_db(config_override=None):
     """初始化当前配置指向的数据库表结构。"""
     db_config = get_database_config(config_override)
@@ -521,6 +506,7 @@ def init_db(config_override=None):
         else:
             _create_schema_sqlite(conn)
         _run_migrations(conn, db_config['type'])
+        _drop_removed_tables(conn)
         _create_indexes(conn)
 
 
@@ -537,7 +523,6 @@ MIGRATION_TABLES = {
     'pending_requests': ['request_id', 'device_id', 'old_username', 'new_username', 'reason', 'request_time', 'status', 'notified'],
     'announcements': ['id', 'title', 'content', 'create_time', 'is_active'],
     'user_read_announcements': ['device_id', 'announcement_id', 'read_time', 'never_show'],
-    'surveys': ['id', 'title', 'url', 'create_time', 'is_active'],
     'feedbacks': ['id', 'device_id', 'username', 'content', 'visibility', 'create_time'],
     'feedback_replies': ['id', 'feedback_id', 'device_id', 'username', 'content', 'create_time'],
     'request_logs': ['id', 'device_id', 'username', 'endpoint', 'method', 'status_code', 'request_time'],

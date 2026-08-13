@@ -1,9 +1,14 @@
+import os
 import pathlib
+import sqlite3
+import tempfile
 import unittest
+from contextlib import closing
 
 from bs4 import BeautifulSoup
 
 import app as app_module
+import database
 
 
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -70,3 +75,46 @@ class SurveyApiRemovalTests(unittest.TestCase):
         source = (PROJECT_ROOT / 'services/logging_service.py').read_text(encoding='utf-8')
         self.assertNotIn("'/api/surveys'", source)
         self.assertNotIn("'/api/admin/surveys'", source)
+
+
+class SurveyDatabaseRemovalTests(unittest.TestCase):
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.sqlite_path = os.path.join(self.temp_dir.name, 'survey-removal.db')
+        self.config = {
+            'database': {'type': 'sqlite', 'sqlite_path': self.sqlite_path}
+        }
+
+    def tearDown(self):
+        self.temp_dir.cleanup()
+
+    def survey_table_exists(self):
+        with closing(sqlite3.connect(self.sqlite_path)) as conn, conn:
+            return conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'surveys'"
+            ).fetchone() is not None
+
+    def test_fresh_database_does_not_create_surveys_table(self):
+        database.init_db(self.config)
+        self.assertFalse(self.survey_table_exists())
+
+    def test_init_db_drops_legacy_surveys_table_and_rows(self):
+        with closing(sqlite3.connect(self.sqlite_path)) as conn, conn:
+            conn.execute(
+                'CREATE TABLE surveys ('
+                'id INTEGER PRIMARY KEY, title TEXT, url TEXT, '
+                'create_time TEXT, is_active INTEGER)'
+            )
+            conn.execute(
+                'INSERT INTO surveys VALUES (?, ?, ?, ?, ?)',
+                (1, '旧问卷', 'https://example.com', '2026-08-13', 1),
+            )
+        database.init_db(self.config)
+        self.assertFalse(self.survey_table_exists())
+
+    def test_schema_source_keeps_only_legacy_drop_statement(self):
+        source = (PROJECT_ROOT / 'database.py').read_text(encoding='utf-8')
+        self.assertNotIn('CREATE TABLE IF NOT EXISTS surveys', source)
+        self.assertNotIn('idx_survey_active', source)
+        self.assertNotIn("'surveys': ['id'", source)
+        self.assertIn('DROP TABLE IF EXISTS surveys', source)
