@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const {
     buildServiceStatusViewModel,
     copyText,
+    nextContactPopoverState,
 } = require('../static/js/service-status-ui.js');
 
 
@@ -95,4 +96,23 @@ test('没有可用复制能力时返回失败', async () => {
         await copyText('Dygzn123', { navigator: null, document: null }),
         false,
     );
+});
+
+
+test('联系按钮可打开并再次点击关闭气泡', () => {
+    assert.equal(nextContactPopoverState(false, 'toggle'), true);
+    assert.equal(nextContactPopoverState(true, 'toggle'), false);
+});
+
+
+test('点击外部、按 Escape 或选择联系方式都会关闭气泡', () => {
+    assert.equal(nextContactPopoverState(true, 'outside-click'), false);
+    assert.equal(nextContactPopoverState(true, 'escape'), false);
+    assert.equal(nextContactPopoverState(true, 'select'), false);
+});
+
+
+test('未知动作保持联系气泡原状态', () => {
+    assert.equal(nextContactPopoverState(true, 'unknown'), true);
+    assert.equal(nextContactPopoverState(false, 'unknown'), false);
 });

@@ -90,9 +90,18 @@
         }
     }
 
+    function nextContactPopoverState(isOpen, action) {
+        if (action === 'toggle') return !isOpen;
+        if (action === 'outside-click' || action === 'escape' || action === 'select') {
+            return false;
+        }
+        return isOpen === true;
+    }
+
     return {
         buildServiceStatusViewModel,
         copyText,
         formatUpdatedAt,
+        nextContactPopoverState,
     };
 }));
