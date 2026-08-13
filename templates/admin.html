@@ -41,7 +41,6 @@
                     <button class="tab-btn" type="button" onclick="switchTab('announcements')" role="tab">公告</button>
                     <button class="tab-btn" type="button" onclick="switchTab('service-status')" data-admin-tab="service-status" role="tab">个人状态</button>
                     <button class="tab-btn" type="button" onclick="switchTab('feedback')" role="tab">反馈</button>
-                    <button class="tab-btn" type="button" onclick="switchTab('surveys')" role="tab">问卷</button>
                     <button class="tab-btn" type="button" onclick="switchTab('members')" role="tab">会员</button>
                     <button class="tab-btn" type="button" onclick="switchTab('withdrawals')" role="tab">提现</button>
                     <button class="tab-btn" type="button" onclick="switchTab('config')" role="tab">配置</button>
@@ -102,11 +101,6 @@
                 <section id="tab-feedback" class="tab-content">
                     <div class="section-header"><h2>用户反馈</h2><button class="icon-btn" type="button" onclick="loadAdminFeedbacks()">刷新</button></div>
                     <div id="feedback-list" class="feedback-list"><div class="loading">加载中...</div></div>
-                </section>
-
-                <section id="tab-surveys" class="tab-content">
-                    <div class="section-header"><h2>问卷管理</h2><div class="button-group"><button class="icon-btn" type="button" onclick="loadSurveys()">刷新</button><button class="btn-primary" type="button" onclick="showCreateSurveyModal()">发布问卷</button></div></div>
-                    <div id="surveys-list" class="surveys-list"><div class="loading">加载中...</div></div>
                 </section>
 
                 <section id="tab-members" class="tab-content">
@@ -176,8 +170,6 @@
     <div id="approve-modal" class="modal"><div class="modal-content"><button class="modal-close" type="button" onclick="closeApproveModal()" aria-label="关闭">&times;</button><h2>审批换绑请求</h2><div id="approve-details" class="approve-details"></div><p class="modal-desc">批准后将解绑该设备的旧账号，用户需要重新登录并绑定新账号。</p><div class="button-group"><button type="button" class="btn-success" onclick="handleApprove()">批准</button><button type="button" class="btn-danger" onclick="handleReject()">拒绝</button></div></div></div>
 
     <div id="announcement-modal" class="modal"><div class="modal-content"><button class="modal-close" type="button" onclick="closeAnnouncementModal()" aria-label="关闭">&times;</button><h2 id="announcement-modal-title">发布新公告</h2><form id="announcement-form" onsubmit="handleAnnouncementSubmit(event)"><div class="form-group"><label for="announcement-title">公告标题</label><input type="text" id="announcement-title" required placeholder="请输入公告标题"></div><div class="form-group"><label for="announcement-content">公告内容</label><textarea id="announcement-content" rows="8" required placeholder="请输入公告内容"></textarea></div><label><input type="checkbox" id="announcement-active" checked> 启用此公告</label><div class="button-group"><button type="submit" class="btn-primary">保存</button><button type="button" class="btn-secondary" onclick="closeAnnouncementModal()">取消</button></div></form></div></div>
-
-    <div id="survey-modal" class="modal"><div class="modal-content"><button class="modal-close" type="button" onclick="closeSurveyModal()" aria-label="关闭">&times;</button><h2 id="survey-modal-title">发布新问卷</h2><form id="survey-form" onsubmit="handleSurveySubmit(event)"><div class="form-group"><label for="survey-title">问卷标题</label><input type="text" id="survey-title" required placeholder="请输入问卷标题"></div><div class="form-group"><label for="survey-url">问卷链接</label><input type="url" id="survey-url" required placeholder="https://v.wjx.cn/vm/xxxxx.aspx"></div><label><input type="checkbox" id="survey-active" checked> 启用此问卷</label><div class="button-group"><button type="submit" class="btn-primary">保存</button><button type="button" class="btn-secondary" onclick="closeSurveyModal()">取消</button></div></form></div></div>
 
     <div id="feedback-reply-modal" class="modal"><div class="modal-content"><button class="modal-close" type="button" onclick="closeFeedbackReplyModal()" aria-label="关闭">&times;</button><h2>回复反馈</h2><div id="feedback-reply-original" class="feedback-reply-original"></div><form onsubmit="handleFeedbackReplySubmit(event)"><div class="form-group"><label for="feedback-reply-content">回复内容</label><textarea id="feedback-reply-content" rows="5" placeholder="请输入回复内容"></textarea></div><div class="button-group"><button type="submit" class="btn-primary">发送回复</button><button type="button" class="btn-secondary" onclick="closeFeedbackReplyModal()">取消</button></div></form></div></div>
 
