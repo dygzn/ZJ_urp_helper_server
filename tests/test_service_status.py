@@ -162,7 +162,7 @@ class ServiceStatusTemplateTests(unittest.TestCase):
         self.assertEqual(wechat_link.get_text(' ', strip=True), '微信 Dygzn123')
         self.assertEqual(
             wechat_link.get('href'),
-            'weixin://dl/business/?t=Dygzn123',
+            'weixin://contacts/profile/Dygzn123',
         )
         self.assertEqual(wechat_link.get('data-copy-text'), 'Dygzn123')
         self.assertEqual(wechat_link.get('target'), '_blank')
