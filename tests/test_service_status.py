@@ -149,7 +149,10 @@ class ServiceStatusTemplateTests(unittest.TestCase):
         qq_link = contacts.select_one('a[data-contact="qq"]')
         self.assertIsNotNone(qq_link)
         self.assertEqual(qq_link.get_text(' ', strip=True), 'QQ 786171937')
-        self.assertEqual(qq_link.get('href'), 'https://qm.qq.com/q/c9BOvFT6tc')
+        self.assertEqual(
+            qq_link.get('href'),
+            'tencent://AddContact/?fromId=45&fromSubId=1&subcmd=all&uin=786171937',
+        )
         self.assertEqual(qq_link.get('data-copy-text'), '786171937')
         self.assertEqual(qq_link.get('target'), '_blank')
         self.assertEqual(set(qq_link.get('rel', [])), {'noopener', 'noreferrer'})
@@ -159,7 +162,7 @@ class ServiceStatusTemplateTests(unittest.TestCase):
         self.assertEqual(wechat_link.get_text(' ', strip=True), '微信 Dygzn123')
         self.assertEqual(
             wechat_link.get('href'),
-            'https://u.wechat.com/MMwBClCfxTYX-Z1rWS3_esc?s=2',
+            'weixin://dl/business/?t=Dygzn123',
         )
         self.assertEqual(wechat_link.get('data-copy-text'), 'Dygzn123')
         self.assertEqual(wechat_link.get('target'), '_blank')
