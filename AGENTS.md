@@ -44,7 +44,7 @@ routes/          # Flask Blueprint 路由层
   admin_routes.py   # 管理员后台接口
   member_routes.py  # 会员购买与状态
   sign_routes.py    # 对分易签到代理（Blueprint 名仍为 paper）
-  misc_routes.py    # 公告、反馈、调查等
+  misc_routes.py    # 公告、反馈、主题等
 
 services/        # 业务逻辑层
   urp_service.py    # URP 登录状态管理、数据查询封装（含15分钟登录缓存 _login_cache）
@@ -93,7 +93,6 @@ urp/             # URP 底层模块（从 URP.py 拆分）
 - **users**: `device_id` (PK), `username`, `password`, `bind_time`, `last_auto_update`
 - **pending_requests**: 换绑请求，含 `notified` 字段
 - **announcements** + **user_read_announcements**: 公告与已读状态
-- **surveys**: 问卷调查
 - **feedbacks** + **feedback_replies**: 用户反馈与管理员回复
 - **request_logs**: 所有请求日志（`logging_service` 通过 Flask after_request 钩子写入）
 - **memberships**: `username` (PK), `member_type` (`basic`/`advanced`), `expire_time`
