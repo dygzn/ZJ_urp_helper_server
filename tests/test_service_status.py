@@ -143,30 +143,47 @@ class ServiceStatusTemplateTests(unittest.TestCase):
             soup.select_one('#page-service-status #service-status-content')
         )
 
-        contacts = soup.select_one('#page-service-status .service-contact-links')
-        self.assertIsNotNone(contacts)
-
-        qq_link = contacts.select_one('a[data-contact="qq"]')
-        self.assertIsNotNone(qq_link)
-        self.assertEqual(qq_link.get_text(' ', strip=True), 'QQ 786171937')
+        page = soup.select_one('#page-service-status')
+        hero_title = page.select_one('.service-hero-title')
+        self.assertIsNotNone(hero_title)
         self.assertEqual(
-            qq_link.get('href'),
-            'tencent://AddContact/?fromId=45&fromSubId=1&subcmd=all&uin=786171937',
+            hero_title.get_text(' ', strip=True),
+            '计算机课程遇到卡点？ 我来陪你解决。',
         )
-        self.assertEqual(qq_link.get('data-copy-text'), '786171937')
-        self.assertEqual(qq_link.get('target'), '_blank')
-        self.assertEqual(set(qq_link.get('rel', [])), {'noopener', 'noreferrer'})
+        self.assertEqual(len(page.select('.service-offer-card')), 4)
+        self.assertEqual(
+            [
+                card.select_one('h3').get_text(strip=True)
+                for card in page.select('.service-offer-card')
+            ],
+            ['Python 编程', 'Linux 实验', '云计算项目', 'Excel 数据分析'],
+        )
+        self.assertEqual(len(page.select('.service-process-step')), 3)
 
-        wechat_link = contacts.select_one('a[data-contact="wechat"]')
+        triggers = page.select('#service-contact-trigger')
+        self.assertEqual(len(triggers), 1)
+        self.assertEqual(triggers[0].get_text(' ', strip=True), '联系我 →')
+        self.assertEqual(triggers[0].get('aria-expanded'), 'false')
+        self.assertEqual(
+            triggers[0].get('aria-controls'),
+            'service-contact-popover',
+        )
+
+        popover = page.select_one('#service-contact-popover[hidden]')
+        self.assertIsNotNone(popover)
+        qq_button = popover.select_one('button[data-contact="qq"]')
+        self.assertIsNotNone(qq_button)
+        self.assertEqual(qq_button.get('data-copy-text'), '786171937')
+        self.assertFalse(qq_button.has_attr('href'))
+
+        wechat_link = popover.select_one('a[data-contact="wechat"]')
         self.assertIsNotNone(wechat_link)
-        self.assertEqual(wechat_link.get_text(' ', strip=True), '微信 Dygzn123')
         self.assertEqual(
             wechat_link.get('href'),
             'weixin://contacts/profile/Dygzn123',
         )
         self.assertEqual(wechat_link.get('data-copy-text'), 'Dygzn123')
-        self.assertEqual(wechat_link.get('target'), '_blank')
-        self.assertEqual(set(wechat_link.get('rel', [])), {'noopener', 'noreferrer'})
+        self.assertEqual(page.select('.service-contact-links'), [])
 
     def test_admin_renders_service_status_editor(self):
         response = self.client.get('/admin')

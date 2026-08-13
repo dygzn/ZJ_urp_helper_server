@@ -132,24 +132,70 @@
 
             <div id="page-service-status" class="page">
                 <div class="service-status-container">
-                    <div class="service-status-head">
-                        <span class="service-status-kicker">SERVICE STATUS</span>
-                        <h2>找我做事</h2>
-                        <p class="page-section-desc">查看我现在是否方便接单。</p>
+                    <div class="service-hero-grid">
+                        <section class="service-intro-card">
+                            <span class="service-status-kicker">校园技术搭子</span>
+                            <h2 class="service-hero-title">计算机课程遇到卡点？<br>我来陪你解决。</h2>
+                            <p class="service-hero-description">面向本校同学的编程辅导、项目指导与问题排查。把课程名称、具体要求和截止时间发来，我会先帮你免费评估，报价可以沟通。</p>
+                            <div class="service-contact-control">
+                                <button id="service-contact-trigger" class="service-contact-trigger" type="button" aria-expanded="false" aria-controls="service-contact-popover">联系我 <span aria-hidden="true">→</span></button>
+                                <div id="service-contact-popover" class="service-contact-popover" hidden>
+                                    <a class="service-contact-option" data-contact="wechat" data-copy-text="Dygzn123" href="weixin://contacts/profile/Dygzn123" target="_blank" rel="noopener noreferrer">
+                                        <span class="service-contact-icon is-wechat" aria-hidden="true">微</span>
+                                        <span><strong>微信联系</strong><small data-copy-feedback>复制微信号并尝试打开微信</small></span>
+                                    </a>
+                                    <button class="service-contact-option" data-contact="qq" data-copy-text="786171937" type="button">
+                                        <span class="service-contact-icon is-qq" aria-hidden="true">Q</span>
+                                        <span><strong>复制QQ号</strong><small data-copy-feedback>786171937</small></span>
+                                    </button>
+                                </div>
+                            </div>
+                        </section>
+                        <aside id="service-status-content" class="service-status-card">
+                            <div class="loading">加载中...</div>
+                        </aside>
                     </div>
-                    <div id="service-status-content" class="service-status-card">
-                        <div class="loading">加载中...</div>
+
+                    <h2 class="service-section-title">这些问题都可以来问</h2>
+                    <div class="service-offer-grid">
+                        <article class="service-offer-card">
+                            <span class="service-offer-icon" aria-hidden="true">Py</span>
+                            <h3>Python 编程</h3>
+                            <p>基础编程、数据处理、报错定位与代码讲解</p>
+                        </article>
+                        <article class="service-offer-card">
+                            <span class="service-offer-icon" aria-hidden="true">Lx</span>
+                            <h3>Linux 实验</h3>
+                            <p>环境配置、命令使用、实验排错与思路辅导</p>
+                        </article>
+                        <article class="service-offer-card">
+                            <span class="service-offer-icon" aria-hidden="true">☁</span>
+                            <h3>云计算项目</h3>
+                            <p>需求拆解、部署流程、项目结构与问题排查</p>
+                        </article>
+                        <article class="service-offer-card">
+                            <span class="service-offer-icon" aria-hidden="true">X</span>
+                            <h3>Excel 数据分析</h3>
+                            <p>数据清洗、公式分析、图表展示与结果说明</p>
+                        </article>
                     </div>
-                    <div class="service-contact-links" aria-label="联系方式">
-                        <a class="service-contact-link" data-contact="qq" data-copy-text="786171937" href="tencent://AddContact/?fromId=45&amp;fromSubId=1&amp;subcmd=all&amp;uin=786171937" target="_blank" rel="noopener noreferrer">
-                            <span>QQ </span>
-                            <strong>786171937</strong>
-                        </a>
-                        <a class="service-contact-link" data-contact="wechat" data-copy-text="Dygzn123" href="weixin://contacts/profile/Dygzn123" target="_blank" rel="noopener noreferrer">
-                            <span>微信</span>
-                            <strong>Dygzn123</strong>
-                        </a>
+
+                    <h2 class="service-section-title">合作很简单</h2>
+                    <div class="service-process-grid">
+                        <article class="service-process-step">
+                            <span aria-hidden="true">1</span>
+                            <div><h3>把要求发来</h3><p>附上课程、任务说明、截止时间和当前进度</p></div>
+                        </article>
+                        <article class="service-process-step">
+                            <span aria-hidden="true">2</span>
+                            <div><h3>免费评估</h3><p>确认能否协助、处理方式、预计时间和报价</p></div>
+                        </article>
+                        <article class="service-process-step">
+                            <span aria-hidden="true">3</span>
+                            <div><h3>开始解决</h3><p>按约定进行辅导、调试与成果讲解</p></div>
+                        </article>
                     </div>
+                    <p class="service-pricing-note">不知道能不能做也没关系，先把要求发来问一下。页面不会公开价格，以实际任务评估为准。</p>
                 </div>
             </div>
 
