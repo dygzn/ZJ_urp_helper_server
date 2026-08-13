@@ -1,5 +1,5 @@
 """
-公告、问卷、反馈、主题路由
+公告、反馈、主题路由
 """
 from datetime import datetime
 from flask import Blueprint, request, jsonify
@@ -210,83 +210,6 @@ def mark_announcement_read(announcement_id):
         ''', (device_id, announcement_id, datetime.now().isoformat(), 1 if never_show else 0))
 
     return jsonify({'success': True, 'message': '已标记为已读'})
-
-
-# ==================== 问卷 ====================
-
-@misc_bp.route('/api/admin/surveys', methods=['GET'])
-@require_admin
-def admin_get_surveys():
-    with get_db() as conn:
-        rows = conn.execute('''
-            SELECT id, title, url, create_time, is_active FROM surveys ORDER BY create_time DESC
-        ''').fetchall()
-        surveys = [{'id': r['id'], 'title': r['title'], 'url': r['url'],
-                    'create_time': r['create_time'], 'is_active': bool(r['is_active'])} for r in rows]
-
-    return jsonify({'success': True, 'surveys': surveys})
-
-
-@misc_bp.route('/api/admin/surveys', methods=['POST'])
-@require_admin
-def admin_create_survey():
-    data = request.get_json()
-    title = data.get('title', '').strip()
-    url = data.get('url', '').strip()
-
-    if not title or not url:
-        return jsonify({'success': False, 'message': '标题和链接不能为空'})
-
-    with get_db() as conn:
-        cursor = conn.execute('''
-            INSERT INTO surveys (title, url, create_time, is_active) VALUES (?, ?, ?, 1)
-        ''', (title, url, datetime.now().isoformat()))
-        survey_id = cursor.lastrowid
-
-    return jsonify({'success': True, 'message': '问卷发布成功', 'survey_id': survey_id})
-
-
-@misc_bp.route('/api/admin/surveys/<int:survey_id>', methods=['PUT'])
-@require_admin
-def admin_update_survey(survey_id):
-    data = request.get_json()
-    title = data.get('title', '').strip()
-    url = data.get('url', '').strip()
-    is_active = data.get('is_active', True)
-
-    if not title or not url:
-        return jsonify({'success': False, 'message': '标题和链接不能为空'})
-
-    with get_db() as conn:
-        cursor = conn.execute('''
-            UPDATE surveys SET title = ?, url = ?, is_active = ? WHERE id = ?
-        ''', (title, url, 1 if is_active else 0, survey_id))
-        if cursor.rowcount == 0:
-            return jsonify({'success': False, 'message': '问卷不存在'})
-
-    return jsonify({'success': True, 'message': '问卷更新成功'})
-
-
-@misc_bp.route('/api/admin/surveys/<int:survey_id>', methods=['DELETE'])
-@require_admin
-def admin_delete_survey(survey_id):
-    with get_db() as conn:
-        cursor = conn.execute('DELETE FROM surveys WHERE id = ?', (survey_id,))
-        if cursor.rowcount == 0:
-            return jsonify({'success': False, 'message': '问卷不存在'})
-
-    return jsonify({'success': True, 'message': '问卷删除成功'})
-
-
-@misc_bp.route('/api/surveys', methods=['GET'])
-def get_surveys():
-    with get_db() as conn:
-        rows = conn.execute('''
-            SELECT id, title, url, create_time FROM surveys WHERE is_active = 1 ORDER BY create_time DESC
-        ''').fetchall()
-        surveys = [{'id': r['id'], 'title': r['title'], 'url': r['url'], 'create_time': r['create_time']} for r in rows]
-
-    return jsonify({'success': True, 'surveys': surveys})
 
 
 # ==================== 反馈 ====================

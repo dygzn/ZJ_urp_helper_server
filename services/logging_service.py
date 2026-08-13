@@ -60,14 +60,12 @@ def init_logging(app):
             '/api/unevaluated_courses': '待评教课程',
             '/api/evaluation': '教务评价',
             '/api/announcements': '公告',
-            '/api/surveys': '问卷列表',
             '/api/feedback': '反馈建议',
             '/api/admin/pending_requests': '管理-待审批',
             '/api/admin/approve_rebind': '管理-审批换绑',
             '/api/admin/users': '管理-用户列表',
             '/api/admin/config': '管理-配置',
             '/api/admin/announcements': '管理-公告',
-            '/api/admin/surveys': '管理-问卷',
             '/api/admin/feedback': '管理-反馈',
         }
 
