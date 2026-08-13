@@ -379,26 +379,69 @@ function loadPageData(pageName) {
 }
 
 // ==================== 找我做事 ====================
+function setServiceContactPopoverOpen(isOpen) {
+    const trigger = document.getElementById('service-contact-trigger');
+    const popover = document.getElementById('service-contact-popover');
+    if (!trigger || !popover) return;
+
+    trigger.setAttribute('aria-expanded', String(isOpen));
+    popover.hidden = !isOpen;
+}
+
 document.addEventListener('click', async function(event) {
     const element = event.target instanceof Element ? event.target : null;
-    const link = element?.closest('.service-contact-link[data-copy-text]');
-    if (!link) return;
-
-    const account = link.querySelector('strong');
-    const originalText = account?.textContent || '';
-    const copied = await ServiceStatusUI.copyText(link.dataset.copyText);
-
-    if (!copied) {
-        console.warn('联系账号复制失败');
+    const trigger = element?.closest('#service-contact-trigger');
+    if (trigger) {
+        const isOpen = trigger.getAttribute('aria-expanded') === 'true';
+        setServiceContactPopoverOpen(
+            ServiceStatusUI.nextContactPopoverState(isOpen, 'toggle'),
+        );
         return;
     }
 
-    if (account) {
-        account.textContent = '已复制';
-        window.setTimeout(() => {
-            if (account.isConnected) account.textContent = originalText;
-        }, 1500);
+    const option = element?.closest('.service-contact-option[data-copy-text]');
+    if (option) {
+        const feedback = option.querySelector('[data-copy-feedback]');
+        const originalText = feedback?.textContent || '';
+        setServiceContactPopoverOpen(
+            ServiceStatusUI.nextContactPopoverState(true, 'select'),
+        );
+        const copied = await ServiceStatusUI.copyText(option.dataset.copyText);
+
+        if (!copied) {
+            console.warn('联系账号复制失败');
+            return;
+        }
+
+        if (feedback) {
+            feedback.textContent = '已复制';
+            window.setTimeout(() => {
+                if (feedback.isConnected) feedback.textContent = originalText;
+            }, 1500);
+        }
+        return;
     }
+
+    const control = document.querySelector('.service-contact-control');
+    const popover = document.getElementById('service-contact-popover');
+    if (control && popover && !popover.hidden && !control.contains(element)) {
+        setServiceContactPopoverOpen(
+            ServiceStatusUI.nextContactPopoverState(true, 'outside-click'),
+        );
+    }
+});
+
+document.addEventListener('keydown', function(event) {
+    if (event.key !== 'Escape') return;
+
+    const trigger = document.getElementById('service-contact-trigger');
+    const popover = document.getElementById('service-contact-popover');
+    if (!trigger || !popover || popover.hidden) return;
+
+    setServiceContactPopoverOpen(
+        ServiceStatusUI.nextContactPopoverState(true, 'escape'),
+    );
+    trigger.focus();
 });
 
 async function loadServiceStatus() {
