@@ -45,6 +45,57 @@ class SurveyUiRemovalTests(unittest.TestCase):
         ):
             self.assertNotIn(removed_text, admin_js)
 
+    def test_admin_checkbox_labels_keep_a_complete_shared_css_rule(self):
+        css = (PROJECT_ROOT / 'static/css/admin.css').read_text(encoding='utf-8')
+        rules = []
+        rule_start = 0
+        block_start = None
+        depth = 0
+        quote = None
+        escaped = False
+
+        for index, char in enumerate(css):
+            if quote:
+                if escaped:
+                    escaped = False
+                elif char == '\\':
+                    escaped = True
+                elif char == quote:
+                    quote = None
+                continue
+            if char in ('"', "'"):
+                quote = char
+            elif char == '{':
+                if depth == 0:
+                    header = css[rule_start:index].strip()
+                    block_start = index + 1
+                depth += 1
+            elif char == '}':
+                depth -= 1
+                self.assertGreaterEqual(depth, 0, 'admin.css has an unmatched closing brace')
+                if depth == 0:
+                    rules.append((header, css[block_start:index]))
+                    rule_start = index + 1
+
+        self.assertEqual(depth, 0, 'admin.css has an unclosed rule block')
+
+        expected_selectors = {
+            '.config-section label:has(input[type="checkbox"])',
+            '.form-group label:has(input[type="checkbox"])',
+            '#announcement-form > label',
+        }
+        matching_bodies = []
+        for header, body in rules:
+            selectors = {selector.strip() for selector in header.split(',')}
+            self.assertNotIn('', selectors, f'dangling selector comma in: {header!r}')
+            if expected_selectors.issubset(selectors):
+                matching_bodies.append(body)
+
+        self.assertEqual(len(matching_bodies), 1)
+        declarations = ''.join(matching_bodies[0].split())
+        self.assertIn('display:flex;', declarations)
+        self.assertIn('align-items:center;', declarations)
+
 
 class SurveyApiRemovalTests(unittest.TestCase):
     def setUp(self):

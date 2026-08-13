@@ -284,12 +284,17 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function switchPage(pageName) {
+    let targetPage = document.getElementById(`page-${pageName}`);
+    if (!targetPage) {
+        pageName = 'home';
+        targetPage = document.getElementById('page-home');
+    }
+
     // 隐藏所有页面
     const pages = document.querySelectorAll('.page');
     pages.forEach(page => page.classList.remove('active'));
 
     // 显示目标页面
-    const targetPage = document.getElementById(`page-${pageName}`);
     if (targetPage) {
         targetPage.classList.add('active');
     }

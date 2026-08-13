@@ -2581,7 +2581,7 @@ body::before {
 
 .config-section label:has(input[type="checkbox"]),
 .form-group label:has(input[type="checkbox"]),
-#announcement-form > label,
+#announcement-form > label {
     display: flex;
     align-items: center;
     gap: 10px;
