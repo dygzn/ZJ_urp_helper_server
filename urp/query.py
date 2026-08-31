@@ -3,8 +3,9 @@ import os
 import re
 import requests
 import urllib3
-from collections import defaultdict
 from bs4 import BeautifulSoup
+from urllib.parse import urlsplit
+from urp.schedule_legacy import schedule_cx_legacy
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 from urp.login import (
     VPNUnavailableError,
@@ -354,79 +355,193 @@ class URP_query:
     # ==================== 课表查询 ====================
 
     def schedule_cx(self):
+        """使用原课表接口获取当前学期课表并写入缓存。"""
+        return schedule_cx_legacy(self)
+
+    def historical_schedule_cx(self, semester='2026-2027-1-1'):
+        """查询历年学期课表并返回页面网格中的全部课程。"""
+        base_url = self.url.rstrip('/')
+        schedule_url = f'{base_url}/lnkbcxAction.do'
+        parsed_url = urlsplit(base_url)
+        semester = (semester or '').strip() or '2026-2027-1-1'
         headers = {
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
             'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
+            'Cache-Control': 'max-age=0',
             'Connection': 'keep-alive',
-            'Referer': f'{self.url}menu/menu.jsp',
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Origin': f'{parsed_url.scheme}://{parsed_url.netloc}',
+            'Referer': schedule_url,
+            'Sec-Fetch-Dest': 'frame',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'same-origin',
+            'Sec-Fetch-User': '?1',
             'Upgrade-Insecure-Requests': '1',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36 Edg/152.0.0.0',
+            'sec-ch-ua': '"Chromium";v="152", "Not?A_Brand";v="24", "Microsoft Edge";v="152"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"Windows"',
         }
-        response = self._request('GET', f'{self.url}xkAction.do', headers=headers,
-                               params={'actionType': '6', 'yzxh': self.account}, verify=False)
+        response = self._request(
+            'POST',
+            schedule_url,
+            headers=headers,
+            data={'zxjxjhh': semester},
+            verify=False,
+        )
         soup = BeautifulSoup(response.text, 'html.parser')
 
-        course_table = next(
-            (t for t in soup.find_all('table') if t.find('th', class_='sortable')),
-            None
-        )
-        if not course_table:
-            raise Exception("未找到课表数据，学校可能暂未开放课表查询")
+        semesters = []
+        for option in soup.select('select[name="zxjxjhh"] option'):
+            value = option.get('value', '').strip()
+            label = option.get_text(' ', strip=True)
+            if value:
+                semesters.append({'value': value, 'label': label})
 
-        schedule_by_week = defaultdict(list)
-        current_course_info = {}
+        grid_table = self._find_historical_grid(soup)
+        if not grid_table:
+            raise Exception("未找到历年课表网格，学校可能暂未开放课表查询")
 
-        for row in course_table.find_all('tr', class_='odd'):
-            tds = row.find_all('td')
-            if not tds:
+        return {
+            'semester': semester,
+            'semesters': semesters,
+            'courses': self._parse_historical_grid(grid_table),
+        }
+
+    @staticmethod
+    def _find_historical_grid(soup):
+        """定位 ``#dayin`` 中的星期网格，避免误选课程明细表。"""
+        dayin = soup.find(id='dayin')
+        tables = []
+        if dayin:
+            tables.extend(dayin.find_all('table', class_='displayTag'))
+        # 部分学校页面可能没有保留 dayin 容器，保留兼容性回退；
+        # 有 dayin 时不扫描容器外的表格，避免同页课程明细表被误选。
+        if not tables and not dayin:
+            tables = soup.find_all('table', class_='displayTag')
+
+        for table in tables:
+            thead = table.find('thead')
+            if not thead:
+                continue
+            day_headers = thead.find_all('td', class_='sortable')
+            if len(day_headers) == 9 and not thead.find('th', class_='sortable'):
+                return table
+        return None
+
+    @classmethod
+    def _parse_historical_grid(cls, grid_table):
+        period_pattern = re.compile(r'第+\s*([一二三四五六七八九十\d]{1,3})\s*节+')
+        courses = []
+
+        for row in grid_table.find_all('tr'):
+            cells = row.find_all(['td', 'th'], recursive=False)
+            if not cells:
                 continue
 
-            if any(td.get('rowspan') for td in tds):
-                rowspan_tds = [td for td in tds if td.get('rowspan')]
-                if len(rowspan_tds) >= 5:
-                    current_course_info['课程号'] = rowspan_tds[1].get_text(strip=True)
-                    current_course_info['课程名'] = rowspan_tds[2].get_text(strip=True)
-                    current_course_info['学分'] = rowspan_tds[4].get_text(strip=True)
-                if len(rowspan_tds) >= 8:
-                    current_course_info['教师'] = rowspan_tds[7].get_text(strip=True).rstrip('* ')
+            period_index = None
+            period = None
+            for index, cell in enumerate(cells):
+                match = period_pattern.search(cell.get_text(' ', strip=True))
+                if match:
+                    period_index = index
+                    period = cls._parse_historical_period(match.group(1))
+                    break
+            if period_index is None or period is None:
+                continue
 
-            if len(tds) >= 7 and current_course_info.get('课程名'):
-                week_str, day_str, period_str, duration_str = (
-                    tds[-7].get_text(strip=True), tds[-6].get_text(strip=True),
-                    tds[-5].get_text(strip=True), tds[-4].get_text(strip=True)
-                )
-                campus_str, building_str, room_str = (
-                    tds[-3].get_text(strip=True), tds[-2].get_text(strip=True),
-                    tds[-1].get_text(strip=True)
-                )
+            day_cells = cells[period_index + 1:period_index + 8]
+            if len(day_cells) != 7:
+                continue
 
-                if week_str:
-                    weeks = self._parse_weeks(week_str)
-                    location = f"{campus_str}{building_str}{room_str}"
-                    period_num = self._parse_period(period_str)
-                    for week in weeks:
-                        schedule_by_week[week].append({
-                            '课程号': current_course_info.get('课程号', ''),
-                            '课程名': current_course_info['课程名'],
-                            '学分': current_course_info.get('学分', ''),
-                            '教师': current_course_info.get('教师', ''),
-                            '星期': day_str,
-                            '节次': period_num,
-                            '节数': duration_str,
-                            '校区': campus_str,
-                            '教学楼': building_str,
-                            '教室': room_str,
-                            '位置': location
+            for day, cell in enumerate(day_cells, start=1):
+                for text in cls._historical_cell_parts(cell):
+                    course = cls._parse_historical_course_text(text)
+                    if course:
+                        course.update({
+                            '星期': str(day),
+                            '节次': str(period),
                         })
+                        courses.append(course)
 
-        schedule_data = {str(k): v for k, v in schedule_by_week.items()}
+        courses.sort(key=lambda course: (
+            int(course['星期']),
+            int(course['节次']),
+            course['课程名'],
+            course.get('位置', ''),
+        ))
+        merged = []
+        for course in courses:
+            if merged:
+                previous = merged[-1]
+                previous_end = int(previous['节次']) + int(previous['节数'])
+                if (
+                    previous['星期'] == course['星期']
+                    and previous['课程名'] == course['课程名']
+                    and previous.get('课序', '') == course.get('课序', '')
+                    and previous.get('位置', '') == course.get('位置', '')
+                    and previous_end == int(course['节次'])
+                ):
+                    previous['节数'] = str(int(previous['节数']) + int(course['节数']))
+                    continue
+            merged.append(course)
+        return merged
 
-        user_dir = os.path.join('user_data', self.account)
-        os.makedirs(user_dir, exist_ok=True)
-        with open(os.path.join(user_dir, 'schedule.json'), 'w', encoding='utf-8') as f:
-            json.dump(schedule_data, f, ensure_ascii=False, indent=2)
+    @staticmethod
+    def _parse_historical_period(token):
+        if token.isdigit():
+            return int(token)
+        number_map = {
+            '一': 1, '二': 2, '三': 3, '四': 4, '五': 5,
+            '六': 6, '七': 7, '八': 8, '九': 9, '十': 10,
+        }
+        if token in number_map:
+            return number_map[token]
+        if len(token) == 2 and token[0] == '十' and token[1] in number_map:
+            return 10 + number_map[token[1]]
+        return None
 
-        return schedule_data
+    @staticmethod
+    def _historical_cell_parts(cell):
+        text = cell.get_text('\n', strip=True)
+        parts = []
+        for part in re.split(r'[\r\n]+', text):
+            normalized = re.sub(r'\s+', ' ', part.replace('\xa0', ' ')).strip()
+            if normalized:
+                parts.append(normalized)
+        return parts
+
+    @staticmethod
+    def _parse_historical_course_text(text):
+        match = re.match(r'^(.*?)(?:_(\d+))?\s*\(([^()]*)\)\s*$', text)
+        if match:
+            course_name = match.group(1).strip()
+            class_no = match.group(2) or ''
+            location = match.group(3).strip()
+        else:
+            course_name = text.strip()
+            class_no = ''
+            location = ''
+        if not course_name:
+            return None
+
+        campus = ''
+        campus_match = re.search(r'(.+?校区)', location)
+        if campus_match:
+            campus = campus_match.group(1)
+
+        return {
+            '课程号': '',
+            '课程名': course_name,
+            '学分': '',
+            '教师': '',
+            '节数': '1',
+            '校区': campus,
+            '教学楼': '',
+            '教室': '',
+            '位置': location,
+            '课序': class_no,
+        }
 
     @staticmethod
     def _parse_weeks(week_str):

@@ -858,6 +858,78 @@ async function loadOtherMajorSchedule() {
     }
 }
 
+let historicalScheduleRequestId = 0;
+
+async function showHistoricalSchedule() {
+    const modal = document.getElementById('historical-schedule-modal');
+    const overlay = document.getElementById('overlay');
+    if (!modal || !overlay) return;
+
+    modal.classList.add('active');
+    overlay.classList.add('active');
+    await loadHistoricalSchedule();
+}
+
+function closeHistoricalSchedule() {
+    const modal = document.getElementById('historical-schedule-modal');
+    if (modal) modal.classList.remove('active');
+    document.getElementById('overlay').classList.remove('active');
+}
+
+async function loadHistoricalSchedule(semester = '') {
+    const body = document.getElementById('historical-schedule-body');
+    const select = document.getElementById('historical-semester-select');
+    if (!body || !select) return;
+
+    const requestId = ++historicalScheduleRequestId;
+    body.innerHTML = '<div class="loading">加载中...</div>';
+    select.disabled = true;
+
+    const url = semester
+        ? `/api/historical_schedule?semester=${encodeURIComponent(semester)}`
+        : '/api/historical_schedule';
+
+    try {
+        const response = await fetch(url, {
+            headers: { 'X-Device-ID': getDeviceId() }
+        });
+        const data = await response.json();
+        if (requestId !== historicalScheduleRequestId) return;
+
+        if (!data.success || !data.data) {
+            body.innerHTML = `<p class="historical-schedule-empty">${escapeGradeHtml(data.message || '历年课表加载失败')}</p>`;
+            return;
+        }
+
+        const semesters = Array.isArray(data.data.semesters) ? data.data.semesters : [];
+        select.innerHTML = semesters.length
+            ? semesters.map(option => `<option value="${escapeGradeHtml(option.value)}">${escapeGradeHtml(option.label || option.value)}</option>`).join('')
+            : '<option value="">暂无可选学期</option>';
+        select.disabled = semesters.length === 0;
+        if (data.data.semester && semesters.some(option => option.value === data.data.semester)) {
+            select.value = data.data.semester;
+        }
+
+        renderHistoricalSchedule(data.data.courses || []);
+    } catch (error) {
+        if (requestId !== historicalScheduleRequestId) return;
+        console.error('加载历年课表失败:', error);
+        body.innerHTML = '<p class="historical-schedule-empty">加载失败，请检查网络连接</p>';
+    }
+}
+
+function renderHistoricalSchedule(courses) {
+    const body = document.getElementById('historical-schedule-body');
+    if (!body) return;
+
+    if (!Array.isArray(courses) || courses.length === 0) {
+        body.innerHTML = '<p class="historical-schedule-empty">该学期暂无课程</p>';
+        return;
+    }
+
+    body.innerHTML = buildHistoricalScheduleGridHtml(courses);
+}
+
 function backToMySchedule() {
     otherMajorScheduleData = null;
     document.getElementById('schedule-message').style.display = 'none';

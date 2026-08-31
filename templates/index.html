@@ -48,7 +48,7 @@
             <div id="page-schedule" class="page">
                 <div class="schedule-container">
                     <h2>课程表</h2>
-                    <p class="page-section-desc">查看当前周课程，也可以手动刷新或重新从教务系统更新课程表。</p>
+                    <p class="page-section-desc">可以尝试下滑点击历年课表查询选择本学期课表进行查询。</p>
                     <div id="schedule-message" class="schedule-message" style="display:none;"></div>
                     <div id="schedule-content" class="schedule-content">
                         <div class="schedule-header"><div class="schedule-header-time"></div><div class="schedule-header-day">周一</div><div class="schedule-header-day">周二</div><div class="schedule-header-day">周三</div><div class="schedule-header-day">周四</div><div class="schedule-header-day">周五</div><div class="schedule-header-day schedule-header-weekend">周六</div><div class="schedule-header-day schedule-header-weekend">周日</div></div>
@@ -73,6 +73,7 @@
                         <button class="btn-secondary" type="button" onclick="changeWeek(1)">下一周</button>
                         <button class="btn-primary" type="button" onclick="loadSchedule()">刷新显示</button>
                         <button class="btn-primary" type="button" onclick="updateScheduleData()">更新课程表</button>
+                        <button class="btn-secondary" type="button" onclick="showHistoricalSchedule()">历年课表查询</button>
                     </div>
                 </div>
             </div>
@@ -329,6 +330,8 @@
     <div id="course-detail-modal" class="modal"><div class="modal-content"><button class="modal-close" type="button" onclick="closeCourseDetail()">x</button><h2 id="course-detail-name">课程详情</h2><div id="course-detail-body" class="course-detail-body"></div></div></div>
 
     <div id="other-major-modal" class="modal"><div class="modal-content"><button class="modal-close" type="button" onclick="closeOtherMajorModal()">x</button><h2>其它专业课程</h2><div id="other-major-modal-body" class="other-major-modal-body"></div></div></div>
+
+    <div id="historical-schedule-modal" class="modal"><div class="modal-content historical-schedule-modal-content"><button class="modal-close" type="button" onclick="closeHistoricalSchedule()">x</button><h2>历年课表查询</h2><p class="modal-desc">选择学期后展示该学期全部课程</p><label class="historical-schedule-select-wrap" for="historical-semester-select"><span>学年学期</span><select id="historical-semester-select" onchange="loadHistoricalSchedule(this.value)"></select></label><div id="historical-schedule-body" class="historical-schedule-body"><div class="loading">加载中...</div></div></div></div>
 
     <div id="overlay" class="overlay" onclick="closeSidebar()"></div>
 

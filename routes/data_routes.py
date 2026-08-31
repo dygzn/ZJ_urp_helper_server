@@ -71,6 +71,22 @@ def api_update_schedule(user):
         return jsonify({'success': False, 'message': f'更新失败: {str(e)}'})
 
 
+@data_bp.route('/api/historical_schedule', methods=['GET'])
+@require_login
+def api_historical_schedule(user):
+    """查询指定历史学期的完整课表网格，不覆盖当前课表缓存。"""
+    try:
+        from URP import URP_query
+
+        semester = request.args.get('semester', '').strip()
+        current_url = get_current_urp_url()
+        urp = URP_query(current_url, user['username'])
+        historical_data = urp.historical_schedule_cx(semester)
+        return jsonify({'success': True, 'data': historical_data})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'历年课表查询失败: {str(e)}'})
+
+
 @data_bp.route('/api/exams', methods=['GET'])
 @require_bindding
 def api_exams(user):

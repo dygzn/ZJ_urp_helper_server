@@ -152,6 +152,17 @@
                             <div id="database-config-status" class="hint-message"></div>
                         </div>
                         <div class="config-section">
+                            <h3>本学期第一周</h3>
+                            <p class="config-desc">选择本学期第一周的星期一，用于计算当前周次和课程日期。</p>
+                            <form id="semester-form" class="admin-form" onsubmit="handleUpdateSemester(event)">
+                                <div class="database-field">
+                                    <label for="semester-start">第一周星期一</label>
+                                    <input type="date" id="semester-start" name="semester_start" required>
+                                </div>
+                                <button type="submit" class="btn-primary btn-full">保存第一周日期</button>
+                            </form>
+                        </div>
+                        <div class="config-section">
                             <h3>教务系统 URL</h3>
                             <div id="current-url" class="current-url-display"><div class="loading">加载中...</div></div>
                             <div id="url-options" class="url-options"><div class="loading">加载中...</div></div>

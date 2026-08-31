@@ -54,6 +54,7 @@ def init_logging(app):
             '/api/urgent_event': '紧急事件',
             '/api/schedule': '课表查询',
             '/api/update_schedule': '更新课表',
+            '/api/historical_schedule': '历年课表查询',
             '/api/exams': '考试安排',
             '/api/update_exams': '更新考试',
             '/api/grades': '成绩查询',

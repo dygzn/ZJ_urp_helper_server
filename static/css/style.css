@@ -1325,6 +1325,158 @@ body {
     margin-top: 20px;
 }
 
+/* ==================== 历年课表弹窗 ==================== */
+.modal-content.historical-schedule-modal-content {
+    display: flex;
+    flex-direction: column;
+    width: 96vw;
+    max-width: 1400px;
+    height: 94dvh;
+    max-height: 94dvh;
+    padding: clamp(10px, 1.5vw, 20px);
+    overflow: hidden;
+}
+
+.historical-schedule-modal-content .modal-desc {
+    margin-bottom: 0;
+    line-height: 1.25;
+}
+
+.historical-schedule-select-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 0 0 auto;
+    gap: 8px;
+    margin: 6px 0 8px;
+    color: var(--text-secondary);
+    font-size: clamp(10px, 1vw, 13px);
+}
+
+.historical-schedule-select-wrap select {
+    flex: 1;
+    min-width: 0;
+    padding: 5px 9px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: clamp(10px, 1vw, 14px);
+}
+
+.historical-schedule-body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    max-height: none;
+    overflow: hidden;
+}
+
+.historical-schedule-summary {
+    flex: 0 0 auto;
+    margin-bottom: 4px;
+    color: var(--text-secondary);
+    font-size: clamp(9px, 1vw, 13px);
+    line-height: 1.2;
+}
+
+.historical-schedule-grid-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.historical-schedule-grid {
+    display: grid;
+    grid-template-columns: clamp(28px, 4vw, 52px) repeat(7, minmax(0, 1fr));
+    grid-template-rows: clamp(26px, 4vh, 38px) repeat(var(--historical-period-count), minmax(0, 1fr));
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    min-height: 0;
+    border-top: 1px solid var(--border);
+    border-left: 1px solid var(--border);
+    background: var(--card-bg);
+}
+
+.historical-schedule-grid-corner,
+.historical-schedule-day-header,
+.historical-schedule-period,
+.historical-schedule-slot {
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+}
+
+.historical-schedule-grid-corner,
+.historical-schedule-day-header,
+.historical-schedule-period {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    min-width: 0;
+    overflow: hidden;
+    font-size: clamp(7px, 1vw, 12px);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.historical-schedule-grid-corner {
+    grid-column: 1;
+    grid-row: 1;
+}
+
+.historical-schedule-slot {
+    background: color-mix(in srgb, var(--card-bg) 94%, var(--accent) 6%);
+}
+
+.historical-schedule-course-block {
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    min-height: 0;
+    padding: clamp(2px, 0.5vw, 7px);
+    margin: 2px;
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--accent) 13%, var(--card-bg));
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    color: var(--text-primary);
+}
+
+.historical-schedule-course-block strong {
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: clamp(7px, 1vw, 12px);
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+.historical-schedule-course-block span,
+.historical-schedule-course-block small {
+    display: block;
+    overflow: hidden;
+    color: var(--text-secondary);
+    font-size: clamp(6px, 0.8vw, 10px);
+    line-height: 1.15;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.historical-schedule-empty {
+    padding: 24px 0;
+    margin: 0;
+    color: var(--text-tertiary);
+    text-align: center;
+}
+
 /* ==================== 教务评价 ==================== */
 .evaluation-container {
     padding: 24px;
