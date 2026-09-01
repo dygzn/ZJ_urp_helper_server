@@ -256,7 +256,7 @@ class UserLookupTests(unittest.TestCase):
         self.assertEqual(user['password'], 'new-password')
 
 
-class ApiKeyRevocationOnRebindTests(unittest.TestCase):
+class ApiKeyStudentOwnershipTests(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.database_config = {
@@ -284,7 +284,7 @@ class ApiKeyRevocationOnRebindTests(unittest.TestCase):
         self.user_db_patcher.stop()
         self.temp_dir.cleanup()
 
-    def test_binding_a_new_username_revokes_the_device_old_key(self):
+    def test_binding_a_new_username_keeps_the_old_username_key(self):
         with database.get_db(self.database_config) as conn:
             conn.execute(
                 'INSERT INTO users '
@@ -295,9 +295,12 @@ class ApiKeyRevocationOnRebindTests(unittest.TestCase):
 
         user_service.bind_user('device-1', 'new-user', 'new-password')
 
-        self.assertIsNone(shortcut_service.resolve_api_key(issued['key']))
+        self.assertEqual(
+            shortcut_service.resolve_api_key(issued['key']),
+            'old-user',
+        )
 
-    def test_unbinding_a_device_revokes_its_key(self):
+    def test_unbinding_a_device_keeps_the_username_key(self):
         with database.get_db(self.database_config) as conn:
             conn.execute(
                 'INSERT INTO users '
@@ -307,9 +310,12 @@ class ApiKeyRevocationOnRebindTests(unittest.TestCase):
         issued = shortcut_service.issue_api_key('old-user')
 
         self.assertTrue(user_service.unbind_user('device-1'))
-        self.assertIsNone(shortcut_service.resolve_api_key(issued['key']))
+        self.assertEqual(
+            shortcut_service.resolve_api_key(issued['key']),
+            'old-user',
+        )
 
-    def test_request_rebind_route_revokes_the_old_key(self):
+    def test_request_rebind_route_keeps_the_old_username_key(self):
         app = Flask(__name__)
         app.config['TESTING'] = True
         app.register_blueprint(auth_routes.auth_bp)
@@ -339,7 +345,10 @@ class ApiKeyRevocationOnRebindTests(unittest.TestCase):
             response = client.post('/api/request_rebind')
 
         self.assertTrue(response.get_json()['success'])
-        self.assertIsNone(shortcut_service.resolve_api_key(issued['key']))
+        self.assertEqual(
+            shortcut_service.resolve_api_key(issued['key']),
+            'old-user',
+        )
 
 
 class ShortcutDataNormalizationTests(unittest.TestCase):
