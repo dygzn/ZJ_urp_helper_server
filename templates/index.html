@@ -236,6 +236,28 @@
                         <div class="loading">加载中...</div>
                     </div>
 
+                    <section id="shortcut-api-card" class="shortcut-api-card" aria-labelledby="shortcut-api-title">
+                        <div class="shortcut-api-card-head">
+                            <div>
+                                <span class="member-plan-kicker">快捷指令</span>
+                                <h3 id="shortcut-api-title">教务查询 API</h3>
+                                <p>给 Apple 快捷指令使用，支持最新历年课表和一键查本学期成绩。</p>
+                            </div>
+                            <span class="shortcut-api-badge">初级会员以上</span>
+                        </div>
+                        <div id="shortcut-api-status" class="shortcut-api-status">
+                            <div class="loading">加载中...</div>
+                            <button class="btn-primary" type="button" onclick="generateShortcutApiKey()" hidden>生成快捷指令密钥</button>
+                        </div>
+                        <div id="shortcut-api-key" class="shortcut-api-key" hidden>
+                            <button id="shortcut-api-copy" class="btn-primary" type="button" onclick="copyShortcutApiKey()" hidden>复制密钥</button>
+                        </div>
+                        <div class="shortcut-api-help">
+                            <div><span>接口地址</span><code id="shortcut-api-endpoint"></code></div>
+                            <p>请求体使用 <code>{"key":"你的密钥","action":"grades","params":{}}</code>。密钥只显示一次，请立即复制保存。</p>
+                        </div>
+                    </section>
+
                     <div class="member-plans" aria-label="会员套餐">
                         <div class="member-plan-card">
                             <div class="member-plan-kicker">功能会员</div>

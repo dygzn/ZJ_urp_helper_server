@@ -38,7 +38,7 @@
 - Produces `services.shortcut_service.resolve_api_key(raw_key) -> str | None`，成功返回学号，失败返回 `None`。
 - Produces `services.shortcut_service.hash_api_key(raw_key) -> str`，返回 SHA-256 十六进制字符串。
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 在 `tests/test_shortcut_api.py` 中先写以下最小测试和测试数据库夹具；夹具必须使用临时 SQLite，不能触碰 `data/urp_helper.db`：
 
@@ -132,13 +132,13 @@ if __name__ == '__main__':
 
 实现时 `issue_api_key` 的返回值必须包含 `key_hash` 以便测试和后续路由验证；该字段只在后端内部返回，不得放入 HTTP 响应。若希望公开返回值与内部对象分离，则在路由层显式挑选 `key`、`key_prefix`、`create_time`。
 
-- [ ] **Step 2: Run the focused tests to verify they fail**
+- [x] **Step 2: Run the focused tests to verify they fail**
 
 Run: `python -m unittest tests.test_shortcut_api -v`
 
 Expected: FAIL because `services.shortcut_service` and/or `api_keys` do not exist yet. If the test file has an import error unrelated to the missing feature, fix only the test setup until the failure is caused by the missing service/schema.
 
-- [ ] **Step 3: Add the database schema and minimal key service**
+- [x] **Step 3: Add the database schema and minimal key service**
 
 在 `database.py` 中：
 
@@ -204,13 +204,13 @@ def issue_api_key(username, now=None):
 
 `get_api_key_status` 只读取 `key_prefix` 和 `create_time`；`resolve_api_key` 只用哈希查询 `username`，对空值和非字符串直接返回 `None`。不要把密钥明文写入数据库、日志或状态响应。
 
-- [ ] **Step 4: Run the focused tests to verify they pass**
+- [x] **Step 4: Run the focused tests to verify they pass**
 
 Run: `python -m unittest tests.test_shortcut_api.ShortcutApiKeyServiceTests -v`
 
 Expected: PASS for table creation, hashing, rotation, status脱敏 and unknown-user behavior.
 
-- [ ] **Step 5: Run the existing database-related tests**
+- [x] **Step 5: Run the existing database-related tests**
 
 Run: `python -m unittest discover -s tests -p 'test_*.py' -v`
 
@@ -230,7 +230,7 @@ Expected: all currently runnable existing tests remain PASS; no production excep
 - Produces `POST /api/member/api-key` with `@require_member('basic')`.
 - Both management endpoints return `{'success': bool, 'data': ...}` using the existing website response convention.
 
-- [ ] **Step 1: Write the failing route and user lookup tests**
+- [x] **Step 1: Write the failing route and user lookup tests**
 
 Append the following cases to `tests/test_shortcut_api.py`. The route tests must register `shortcut_bp` on a fresh Flask app and patch module-level database/auth dependencies so they never use the production database:
 
@@ -378,13 +378,13 @@ class UserLookupTests(unittest.TestCase):
 
 `UserLookupTests` uses a temporary database and two rows with the same username to assert the newest `bind_time` is returned. The route tests should first fail because the blueprint and functions do not exist.
 
-- [ ] **Step 2: Run the focused route tests to verify they fail**
+- [x] **Step 2: Run the focused route tests to verify they fail**
 
 Run: `python -m unittest tests.test_shortcut_api.ShortcutApiKeyRouteTests -v`
 
 Expected: FAIL with missing `shortcut_routes`/route behavior, not with a production-database access error.
 
-- [ ] **Step 3: Implement user lookup and the management blueprint**
+- [x] **Step 3: Implement user lookup and the management blueprint**
 
 In `services/user_service.py`, add:
 
@@ -433,7 +433,7 @@ def create_member_api_key(user):
 
 Register `shortcut_bp` in `app.py` after the existing member/data blueprints. Do not change the existing decorators or their response shapes. For a denied POST, let `require_member('basic')` produce the existing JSON response.
 
-- [ ] **Step 4: Run route and existing tests to verify they pass**
+- [x] **Step 4: Run route and existing tests to verify they pass**
 
 Run: `python -m unittest tests.test_shortcut_api.ShortcutApiKeyRouteTests -v`
 
@@ -443,7 +443,7 @@ Run: `python -m unittest discover -s tests -p 'test_*.py' -v`
 
 Expected: all existing tests and the new route tests PASS.
 
-- [ ] **Step 5: Commit the independently testable backend management slice**
+- [x] **Step 5: Commit the independently testable backend management slice**
 
 Run:
 
@@ -466,7 +466,7 @@ git commit -m "feat: add member shortcut API key management"
 - Produces `services.shortcut_service.normalize_grade_summary(student_id, result) -> dict`.
 - Produces `services.shortcut_service.query_shortcut_data(student_id, action, params) -> dict` and supports exactly `historical_schedule` and `grades`.
 
-- [ ] **Step 1: Write the failing tests for latest-semester selection and field mapping**
+- [x] **Step 1: Write the failing tests for latest-semester selection and field mapping**
 
 Add a test for the `URP_query` method that proves an omitted semester uses the latest option rather than a hardcoded value:
 
@@ -571,13 +571,13 @@ class ShortcutDataNormalizationTests(unittest.TestCase):
 
 Also add a dispatch test that patches `URP.URP_query` and `get_latest_semester_grade_summary` and confirms `query_shortcut_data` rejects `exams` with exactly `ValueError('invalid_action')`, which the route converts to `invalid_action`.
 
-- [ ] **Step 2: Run the focused tests to verify they fail**
+- [x] **Step 2: Run the focused tests to verify they fail**
 
 Run: `python -m unittest tests.test_historical_schedule_latest tests.test_shortcut_api.ShortcutDataNormalizationTests -v`
 
 Expected: FAIL because the latest-selection helper, normalization functions, and `query_shortcut_data` do not exist; existing explicit-semester tests must remain runnable.
 
-- [ ] **Step 3: Refactor historical schedule querying to select the latest option**
+- [x] **Step 3: Refactor historical schedule querying to select the latest option**
 
 In `urp/query.py`, keep the current explicit request/parser behavior in a private `_fetch_historical_schedule(semester)` helper. Implement:
 
@@ -599,7 +599,7 @@ def historical_schedule_cx(self, semester=None):
 
 Add `_select_latest_historical_semester(semesters)` as a static method. Parse the first two four-digit years from each option value or label; use the later year as the primary key and recognize `-1-`/`上` as term 1 and `-2-`/`下` as term 2. Ignore malformed options and return the complete option dictionary with the largest `(end_year, term, original_index)` key. This preserves original server order as a deterministic tie breaker and avoids a hardcoded academic year.
 
-- [ ] **Step 4: Implement the two public data adapters**
+- [x] **Step 4: Implement the two public data adapters**
 
 In `services/shortcut_service.py`:
 
@@ -609,13 +609,13 @@ In `services/shortcut_service.py`:
 
 Use exact service-level exceptions or result values that the route can distinguish: unsupported action raises `ValueError('invalid_action')`; invalid `params` raises `ValueError('invalid_params')`; upstream exceptions are allowed to bubble to the route as `query_failed`.
 
-- [ ] **Step 5: Run the focused and regression tests to verify they pass**
+- [x] **Step 5: Run the focused and regression tests to verify they pass**
 
 Run: `python -m unittest tests.test_historical_schedule_latest tests.test_schedule_request tests.test_shortcut_api -v`
 
 Expected: PASS, including the existing explicit historical schedule fixture and the new latest/default and normalization tests.
 
-- [ ] **Step 6: Commit the query and adapter slice**
+- [x] **Step 6: Commit the query and adapter slice**
 
 Run:
 
@@ -638,7 +638,7 @@ git commit -m "feat: adapt shortcut schedule and grade queries"
 - Returns `{'success': True, 'action': action, 'message': '查询成功', 'data': normalized_data}` on success.
 - Returns HTTP 200 JSON `{'success': False, 'action': action or None, 'error_code': ..., 'message': ..., 'data': None}` for all expected business failures.
 
-- [ ] **Step 1: Write failing public-query route tests**
+- [x] **Step 1: Write failing public-query route tests**
 
 Add the following tests to `tests/test_shortcut_api.py`. Patch `routes.shortcut_routes` imports directly so the tests exercise request parsing, key resolution, membership and login gates, and action dispatch without making network calls:
 
@@ -769,13 +769,13 @@ class ShortcutPublicQueryRouteTests(unittest.TestCase):
         self.assertIsNone(response.get_json()['data'])
 ```
 
-- [ ] **Step 2: Run the public-route tests to verify they fail**
+- [x] **Step 2: Run the public-route tests to verify they fail**
 
 Run: `python -m unittest tests.test_shortcut_api.ShortcutPublicQueryRouteTests -v`
 
 Expected: FAIL because `/api/shortcut/query` and its error envelope do not exist.
 
-- [ ] **Step 3: Implement request validation and the public authentication flow**
+- [x] **Step 3: Implement request validation and the public authentication flow**
 
 In `routes/shortcut_routes.py`, add a private response helper and route logic:
 
@@ -845,7 +845,7 @@ def shortcut_query():
 
 Do not put `X-Device-ID` in this route. It must derive the student only from the API key. Keep all expected business failures at HTTP 200; Flask's method-level 405 remains outside this route contract.
 
-- [ ] **Step 4: Add request logging names without logging secrets**
+- [x] **Step 4: Add request logging names without logging secrets**
 
 In `services/logging_service.py`, add these entries to `endpoint_names`:
 
@@ -856,7 +856,7 @@ In `services/logging_service.py`, add these entries to `endpoint_names`:
 
 Leave the existing logger unchanged otherwise; it must continue logging only device ID, username, path label, method, status and timestamp, never `request.get_json()`.
 
-- [ ] **Step 5: Run all focused and regression tests**
+- [x] **Step 5: Run all focused and regression tests**
 
 Run: `python -m unittest tests.test_shortcut_api -v`
 
@@ -866,7 +866,7 @@ Run: `python -m unittest discover -s tests -p 'test_*.py' -v`
 
 Expected: all existing Python tests PASS.
 
-- [ ] **Step 6: Commit the public API slice**
+- [x] **Step 6: Commit the public API slice**
 
 Run:
 
@@ -888,7 +888,7 @@ git commit -m "feat: add shortcut public query API"
 - Produces JavaScript functions `loadShortcutApiKey()`, `renderShortcutApiKeyStatus(data)`, `generateShortcutApiKey()`, and `copyShortcutApiKey()`.
 - `loadMemberPage()` invokes `loadShortcutApiKey()` alongside existing member page loaders.
 
-- [ ] **Step 1: Write the failing UI tests**
+- [x] **Step 1: Write the failing UI tests**
 
 Create `tests/test_shortcut_api_ui.py` in the existing BeautifulSoup/unittest style:
 
@@ -921,13 +921,13 @@ if __name__ == '__main__':
     unittest.main()
 ```
 
-- [ ] **Step 2: Run the UI tests to verify they fail**
+- [x] **Step 2: Run the UI tests to verify they fail**
 
 Run: `python -m unittest tests.test_shortcut_api_ui -v`
 
 Expected: FAIL because the member page and script do not contain the new controls/functions.
 
-- [ ] **Step 3: Add the member-page card markup**
+- [x] **Step 3: Add the member-page card markup**
 
 In `templates/index.html`, place the card after `#member-status-card` and before the member plan cards:
 
@@ -954,7 +954,7 @@ In `templates/index.html`, place the card after `#member-status-card` and before
 
 Use existing CSS variables and escape-safe static text. Do not place an actual secret in the template.
 
-- [ ] **Step 4: Add JavaScript state loading, one-time display and clipboard behavior**
+- [x] **Step 4: Add JavaScript state loading, one-time display and clipboard behavior**
 
 In `static/js/main.js`, add module-level state:
 
@@ -991,7 +991,7 @@ await Promise.all([
 ]);
 ```
 
-- [ ] **Step 5: Add focused CSS and run UI tests**
+- [x] **Step 5: Add focused CSS and run UI tests**
 
 Add only the styles needed for the new card: border/card background, header alignment, badge, monospace secret display, endpoint wrapping, and mobile single-column layout. Reuse `--card-bg`, `--divider`, `--text-secondary`, `--text-primary`, `--card-radius` and existing `.btn-primary`/`.btn-secondary`; do not alter existing member plan styles.
 
@@ -999,7 +999,7 @@ Run: `python -m unittest tests.test_shortcut_api_ui -v`
 
 Expected: PASS.
 
-- [ ] **Step 6: Run the complete test suite and inspect the rendered HTML**
+- [x] **Step 6: Run the complete test suite and inspect the rendered HTML**
 
 Run:
 
@@ -1017,7 +1017,7 @@ Use the existing browser/manual flow or start the app with `python app.py`, open
 4. Refreshing the page never reconstructs the full secret.
 5. Regeneration asks for confirmation and the previous key no longer works.
 
-- [ ] **Step 7: Commit the UI slice**
+- [x] **Step 7: Commit the UI slice**
 
 Run:
 
@@ -1036,7 +1036,7 @@ git commit -m "feat: add shortcut API controls to member page"
 **Interfaces:**
 - No new runtime interface; this task verifies the interfaces produced by Tasks 1–5.
 
-- [ ] **Step 1: Run Python and JavaScript test commands**
+- [x] **Step 1: Run Python and JavaScript test commands**
 
 Run:
 
@@ -1049,7 +1049,7 @@ The new UI is covered by `tests/test_shortcut_api_ui.py`; do not invoke pytest.
 
 Expected: every runnable test passes without warnings or tracebacks.
 
-- [ ] **Step 2: Verify the public JSON contract with Flask’s test client**
+- [x] **Step 2: Verify the public JSON contract with Flask’s test client**
 
 Use a temporary SQLite database and patched URP results to verify these exact shapes:
 
@@ -1080,7 +1080,7 @@ and:
 }
 ```
 
-- [ ] **Step 3: Inspect the diff and repository status**
+- [x] **Step 3: Inspect the diff and repository status**
 
 Run:
 
@@ -1092,7 +1092,7 @@ git log -8 --oneline
 
 Expected: no whitespace errors; only intended source, test, and documentation files are changed; no database file, cookie file, secret, or runtime log is staged.
 
-- [ ] **Step 4: Verify no secret leakage in source and tests**
+- [x] **Step 4: Verify no secret leakage in source and tests**
 
 Run:
 
@@ -1102,6 +1102,6 @@ rg -n "request\.get_json\(|console\.log\(.*shortcut|localStorage.*shortcut|sessi
 
 Expected: no new code logs or persists the plaintext shortcut key, password, or Cookie. References in tests to `key_hash` are allowed only for database assertions and must not appear in HTTP response assertions.
 
-- [ ] **Step 5: Prepare delivery summary**
+- [x] **Step 5: Prepare delivery summary**
 
 Report the implemented endpoints, the two action names and their defaults, the one-time key display rule, test commands and results, and the exact commit IDs. Include a clickable link to the API design and plan files. Do not claim live URP success unless a real configured URP account was available for an end-to-end test.
