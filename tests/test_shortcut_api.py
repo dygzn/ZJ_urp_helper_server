@@ -507,7 +507,13 @@ class ShortcutPublicQueryRouteTests(unittest.TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.get_json()['error_code'], 'invalid_key')
+        self.assertEqual(response.get_json(), {
+            'success': False,
+            'action': 'grades',
+            'error_code': 'invalid_key',
+            'message': '密钥无效或已失效',
+            'data': None,
+        })
         self.login_mock.assert_not_called()
 
     def test_expired_member_is_rejected_before_login(self):
@@ -565,6 +571,34 @@ class ShortcutPublicQueryRouteTests(unittest.TestCase):
             'data': expected,
         })
         query.assert_called_once_with('2415108133', 'grades', {})
+
+    def test_historical_schedule_returns_normalized_data(self):
+        expected = {
+            'student_id': '2415108133',
+            'semester': '2025-2026-2-1',
+            'semester_name': '2025-2026学年春(两学期)',
+            'course_count': 0,
+            'courses': [],
+        }
+        with mock.patch.object(
+            shortcut_routes, 'query_shortcut_data', return_value=expected
+        ) as query:
+            response = self.client.post(
+                '/api/shortcut/query',
+                json={
+                    'key': 'urp_valid',
+                    'action': 'historical_schedule',
+                    'params': {},
+                },
+            )
+
+        self.assertEqual(response.get_json(), {
+            'success': True,
+            'action': 'historical_schedule',
+            'message': '查询成功',
+            'data': expected,
+        })
+        query.assert_called_once_with('2415108133', 'historical_schedule', {})
 
     def test_query_failure_has_stable_error_code(self):
         with mock.patch.object(
