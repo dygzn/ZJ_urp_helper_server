@@ -167,7 +167,12 @@ async function handleLogin(event) {
             currentUsername = data.username;
             document.getElementById('sidebar-username').textContent = currentUsername;
             hideLoginModal();
-            loadUrgentEvent();
+            const currentPage = localStorage.getItem('current_page') || 'home';
+            if (currentPage === 'shortcut-api') {
+                switchPage('shortcut-api');
+            } else {
+                loadUrgentEvent();
+            }
         } else {
             errorDiv.textContent = data.message || '登录失败';
         }
@@ -312,6 +317,7 @@ function switchPage(pageName) {
         'announcements': '系统公告',
         'service-status': '找我做事',
         'feedback': '反馈建议',
+        'shortcut-api': '快捷指令 API',
         'member': '会员购买',
     };
     document.getElementById('page-title').textContent = titles[pageName] || '首页';
@@ -334,6 +340,22 @@ function switchPage(pageName) {
 }
 
 function loadPageData(pageName) {
+    if (isGuestMode && pageName === 'shortcut-api') {
+        const memberStatus = document.getElementById('shortcut-api-member-status');
+        const status = document.getElementById('shortcut-api-status');
+        if (memberStatus) {
+            memberStatus.innerHTML = `
+                <div class="member-status-none">
+                    <span>快捷指令 API 需要先绑定教务账号。</span>
+                    <button class="btn-primary" type="button" onclick="showLoginModal()">立即绑定</button>
+                </div>`;
+        }
+        if (status) {
+            status.innerHTML = '<p class="shortcut-api-muted">绑定账号后才能生成学号密钥</p>';
+        }
+        return;
+    }
+
     const needsBind = ['schedule', 'exams', 'grades', 'evaluation'];
     if (isGuestMode && needsBind.includes(pageName)) {
         const pages = {
@@ -375,6 +397,9 @@ function loadPageData(pageName) {
             break;
         case 'feedback':
             loadFeedbackPage();
+            break;
+        case 'shortcut-api':
+            loadShortcutApiPage();
             break;
         case 'member':
             loadMemberPage();
@@ -2385,7 +2410,7 @@ function buildFeedbackCard(fb) {
 
 let _currentPayMemberType = null;
 
-async function loadMemberPage() {
+async function loadShortcutApiPage() {
     shortcutApiPlainKey = '';
     shortcutApiHasKey = false;
     const keyContainer = document.getElementById('shortcut-api-key');
@@ -2394,16 +2419,20 @@ async function loadMemberPage() {
         keyContainer.innerHTML = '';
     }
 
+    await loadMemberStatus('shortcut-api-member-status');
+    await loadShortcutApiKey();
+}
+
+async function loadMemberPage() {
     await loadMemberStatus();
     await Promise.all([
         loadMemberOrders(),
         loadInvitationEarnings(),
-        loadShortcutApiKey(),
     ]);
 }
 
-async function loadMemberStatus() {
-    const card = document.getElementById('member-status-card');
+async function loadMemberStatus(targetId = 'member-status-card') {
+    const card = document.getElementById(targetId);
     currentMemberStatus = null;
     if (!card) return;
     try {

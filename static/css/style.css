@@ -4229,8 +4229,53 @@ body {
     }
 }
 
+/* 快捷指令 API 独立页面 */
+#page-shortcut-api .shortcut-api-page-container {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 28px;
+    background: rgba(255, 255, 255, 0.92);
+}
+
+.shortcut-api-page-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 18px;
+}
+
+.shortcut-api-page-head h2 {
+    margin: 10px 0 8px;
+    font-size: 28px;
+    font-weight: 750;
+    color: var(--text-primary);
+}
+
+#page-shortcut-api .page-section-desc {
+    margin: 0;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+#page-shortcut-api .member-status-panel {
+    margin-bottom: 16px;
+    padding: 16px 18px;
+    border: 1px solid #e4e7ec;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: none;
+}
+
+#page-shortcut-api .shortcut-api-member-status .member-status-none {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+}
+
 /* 快捷指令 API */
-#page-member .shortcut-api-card {
+#page-shortcut-api .shortcut-api-card {
     margin-bottom: 16px;
     padding: 20px;
     border: 1px solid var(--divider);
@@ -4245,7 +4290,7 @@ body {
     gap: 18px;
 }
 
-#page-member .shortcut-api-card h3 {
+#page-shortcut-api .shortcut-api-card h3 {
     margin: 10px 0 6px;
     color: var(--text-primary);
     font-size: 20px;
@@ -4381,6 +4426,20 @@ body {
 }
 
 @media (max-width: 760px) {
+    #page-shortcut-api .shortcut-api-page-container {
+        padding: 20px;
+    }
+
+    .shortcut-api-page-head {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    #page-shortcut-api .shortcut-api-member-status .member-status-none {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
     .shortcut-api-card-head,
     .shortcut-api-empty,
     .shortcut-api-active,
