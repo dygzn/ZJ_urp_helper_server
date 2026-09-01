@@ -11,6 +11,7 @@ from routes.auth_routes import auth_bp
 from routes.data_routes import data_bp
 from routes.admin_routes import admin_bp
 from routes.member_routes import member_bp
+from routes.shortcut_routes import shortcut_bp
 from routes.misc_routes import misc_bp
 from routes.sign_routes import sign_bp
 
@@ -31,6 +32,7 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(data_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(member_bp)
+app.register_blueprint(shortcut_bp)
 app.register_blueprint(misc_bp)
 app.register_blueprint(sign_bp)
 

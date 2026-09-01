@@ -35,6 +35,24 @@ def get_user_by_device(device_id):
         return None
 
 
+def get_user_by_username(username):
+    """根据学号获取最新的绑定记录。"""
+    with get_db() as conn:
+        row = conn.execute(
+            'SELECT * FROM users WHERE username = ? '
+            'ORDER BY bind_time DESC LIMIT 1',
+            (username,)
+        ).fetchone()
+        if row:
+            return {
+                'device_id': row['device_id'],
+                'username': row['username'],
+                'password': row['password'],
+                'bind_time': row['bind_time']
+            }
+        return None
+
+
 def bind_user(device_id, username, password):
     """绑定用户到设备"""
     with get_db() as conn:
