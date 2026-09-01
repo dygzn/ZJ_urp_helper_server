@@ -4,7 +4,7 @@ URP教务系统助手 - Flask后端入口
 import os
 from flask import Flask, render_template, request, jsonify
 from werkzeug.exceptions import HTTPException
-from database import init_db
+from database import ensure_api_keys_table, init_db
 from services.logging_service import init_logging
 from services.config_service import get_admin_key
 from routes.auth_routes import auth_bp
@@ -18,11 +18,21 @@ from routes.sign_routes import sign_bp
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-change-this'
 
+def initialize_database():
+    """初始化完整数据库，并为快捷指令 API 保留独立兜底。"""
+    try:
+        init_db()
+    except Exception as e:
+        print(f"数据库初始化失败，请进入管理员后台检查数据库配置: {e}")
+    finally:
+        try:
+            ensure_api_keys_table()
+        except Exception as e:
+            print(f"快捷指令 API 密钥表初始化失败: {e}")
+
+
 # 初始化数据库
-try:
-    init_db()
-except Exception as e:
-    print(f"数据库初始化失败，请进入管理员后台检查数据库配置: {e}")
+initialize_database()
 
 # 注册日志钩子
 init_logging(app)

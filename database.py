@@ -174,6 +174,28 @@ def _exec_ignore(conn, sql):
         pass
 
 
+def _create_api_keys_table(conn, db_type):
+    if db_type == 'mysql':
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS api_keys (
+                username VARCHAR(64) PRIMARY KEY,
+                key_hash VARCHAR(64) NOT NULL,
+                key_prefix VARCHAR(24) NOT NULL,
+                create_time VARCHAR(32) NOT NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ''')
+        return
+
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS api_keys (
+            username TEXT PRIMARY KEY,
+            key_hash TEXT NOT NULL,
+            key_prefix TEXT NOT NULL,
+            create_time TEXT NOT NULL
+        )
+    ''')
+
+
 def _create_schema_sqlite(conn):
     conn.execute('''
         CREATE TABLE IF NOT EXISTS users (
@@ -250,14 +272,6 @@ def _create_schema_sqlite(conn):
             username TEXT PRIMARY KEY,
             member_type TEXT NOT NULL,
             expire_time TEXT NOT NULL,
-            create_time TEXT NOT NULL
-        )
-    ''')
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS api_keys (
-            username TEXT PRIMARY KEY,
-            key_hash TEXT NOT NULL,
-            key_prefix TEXT NOT NULL,
             create_time TEXT NOT NULL
         )
     ''')
@@ -397,14 +411,6 @@ def _create_schema_mysql(conn):
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ''')
     conn.execute('''
-        CREATE TABLE IF NOT EXISTS api_keys (
-            username VARCHAR(64) PRIMARY KEY,
-            key_hash VARCHAR(64) NOT NULL,
-            key_prefix VARCHAR(24) NOT NULL,
-            create_time VARCHAR(32) NOT NULL
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    ''')
-    conn.execute('''
         CREATE TABLE IF NOT EXISTS invitations (
             id INT AUTO_INCREMENT PRIMARY KEY,
             inviter_username VARCHAR(64) NOT NULL,
@@ -514,10 +520,20 @@ def _drop_removed_tables(conn):
     conn.execute('DROP TABLE IF EXISTS surveys')
 
 
+def ensure_api_keys_table(config_override=None):
+    """单独、幂等地初始化快捷指令 API 密钥表及其唯一索引。"""
+    db_config = get_database_config(config_override)
+    with get_db(config_override) as conn:
+        _create_api_keys_table(conn, db_config['type'])
+        _exec_ignore(conn, 'CREATE UNIQUE INDEX idx_api_keys_hash ON api_keys(key_hash)')
+
+
 def init_db(config_override=None):
     """初始化当前配置指向的数据库表结构。"""
     db_config = get_database_config(config_override)
     with get_db(config_override) as conn:
+        # 先创建快捷指令密钥表，避免其它历史表初始化失败时遗漏新表。
+        _create_api_keys_table(conn, db_config['type'])
         if db_config['type'] == 'mysql':
             _create_schema_mysql(conn)
         else:
