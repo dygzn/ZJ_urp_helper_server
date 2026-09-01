@@ -55,6 +55,8 @@ def init_logging(app):
             '/api/schedule': '课表查询',
             '/api/update_schedule': '更新课表',
             '/api/historical_schedule': '历年课表查询',
+            '/api/member/api-key': '快捷指令密钥',
+            '/api/shortcut/query': '快捷指令查询',
             '/api/exams': '考试安排',
             '/api/update_exams': '更新考试',
             '/api/grades': '成绩查询',

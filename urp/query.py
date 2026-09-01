@@ -358,12 +358,29 @@ class URP_query:
         """使用原课表接口获取当前学期课表并写入缓存。"""
         return schedule_cx_legacy(self)
 
-    def historical_schedule_cx(self, semester='2026-2027-1-1'):
-        """查询历年学期课表并返回页面网格中的全部课程。"""
+    def historical_schedule_cx(self, semester=None):
+        """查询历年学期课表；未指定学期时自动选择页面中的最新学期。"""
+        requested = (semester or '').strip()
+        if requested:
+            return self._fetch_historical_schedule(requested)
+
+        initial = self._fetch_historical_schedule('')
+        latest = self._select_latest_historical_semester(
+            initial.get('semesters', [])
+        )
+        if not latest:
+            return initial
+        if initial.get('semester') == latest['value']:
+            initial['semester'] = latest['value']
+            return initial
+        return self._fetch_historical_schedule(latest['value'])
+
+    def _fetch_historical_schedule(self, semester):
+        """请求并解析一个指定学期的历年课表页面。"""
         base_url = self.url.rstrip('/')
         schedule_url = f'{base_url}/lnkbcxAction.do'
         parsed_url = urlsplit(base_url)
-        semester = (semester or '').strip() or '2026-2027-1-1'
+        semester = (semester or '').strip()
         headers = {
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
             'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
@@ -407,6 +424,49 @@ class URP_query:
             'semesters': semesters,
             'courses': self._parse_historical_grid(grid_table),
         }
+
+    @staticmethod
+    def _select_latest_historical_semester(semesters):
+        """从 URP 学期选项中选择学年和学期最晚的一项。"""
+        candidates = []
+        for index, option in enumerate(semesters or []):
+            if not isinstance(option, dict):
+                continue
+
+            value = str(option.get('value') or '').strip()
+            label = str(option.get('label') or '').strip()
+            if not value:
+                continue
+
+            years = re.findall(
+                r'(?<!\d)(?:19|20)\d{2}(?!\d)', value
+            )
+            if len(years) < 2:
+                years = re.findall(
+                    r'(?<!\d)(?:19|20)\d{2}(?!\d)', label
+                )
+            if len(years) < 2:
+                continue
+
+            term = None
+            term_match = re.search(r'-(1|2)(?:-|$)', value)
+            if term_match:
+                term = int(term_match.group(1))
+            elif '下' in label or '春' in label:
+                term = 2
+            elif '上' in label or '秋' in label:
+                term = 1
+            if term is None:
+                continue
+
+            normalized = dict(option)
+            normalized['value'] = value
+            normalized['label'] = label
+            candidates.append((int(years[1]), term, index, normalized))
+
+        if not candidates:
+            return None
+        return max(candidates, key=lambda item: item[:3])[-1]
 
     @staticmethod
     def _find_historical_grid(soup):
