@@ -41,6 +41,7 @@ class ShortcutApiTemplateTests(unittest.TestCase):
 
         self.assertIn("case 'shortcut-api':", script)
         self.assertIn("loadMemberStatus('shortcut-api-member-status')", script)
+        self.assertIn('isGuestMode = false;', script)
 
         member_loader = re.search(
             r'async function loadMemberPage\(\) \{(?P<body>.*?)\n\}',

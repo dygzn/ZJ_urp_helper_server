@@ -165,6 +165,7 @@ async function handleLogin(event) {
 
         if (data.success) {
             currentUsername = data.username;
+            isGuestMode = false;
             document.getElementById('sidebar-username').textContent = currentUsername;
             hideLoginModal();
             const currentPage = localStorage.getItem('current_page') || 'home';
