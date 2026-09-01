@@ -1,6 +1,9 @@
 // ==================== 全局变量 ====================
 let currentWeek = parseInt(localStorage.getItem('current_week')) || 1;
 let currentUsername = null;
+let currentMemberStatus = null;
+let shortcutApiPlainKey = '';
+let shortcutApiHasKey = false;
 let isCheckingLoginStatus = false;
 let cachedSchedule = null;
 let semesterStart = null;   // 学期第1周星期一的日期
@@ -2383,11 +2386,26 @@ function buildFeedbackCard(fb) {
 let _currentPayMemberType = null;
 
 async function loadMemberPage() {
-    await Promise.all([loadMemberStatus(), loadMemberOrders(), loadInvitationEarnings()]);
+    shortcutApiPlainKey = '';
+    shortcutApiHasKey = false;
+    const keyContainer = document.getElementById('shortcut-api-key');
+    if (keyContainer) {
+        keyContainer.hidden = true;
+        keyContainer.innerHTML = '';
+    }
+
+    await loadMemberStatus();
+    await Promise.all([
+        loadMemberOrders(),
+        loadInvitationEarnings(),
+        loadShortcutApiKey(),
+    ]);
 }
 
 async function loadMemberStatus() {
     const card = document.getElementById('member-status-card');
+    currentMemberStatus = null;
+    if (!card) return;
     try {
         const resp = await fetch('/api/member/status', {
             headers: { 'X-Device-ID': getDeviceId() }
@@ -2398,6 +2416,7 @@ async function loadMemberStatus() {
             return;
         }
         const d = data.data;
+        currentMemberStatus = d || null;
         if (!d.is_member) {
             if (d.expire_time && d.is_expired) {
                 const typeMap = { basic: '初级会员', advanced: '高级会员' };
@@ -2415,7 +2434,149 @@ async function loadMemberStatus() {
                 </div>`;
         }
     } catch (e) {
+        currentMemberStatus = null;
         card.innerHTML = `<p style="color:var(--error);">加载失败，请稍后重试</p>`;
+    }
+}
+
+function renderShortcutApiKeyStatus(data) {
+    const status = document.getElementById('shortcut-api-status');
+    if (!status) return;
+
+    if (!currentMemberStatus) {
+        shortcutApiHasKey = false;
+        status.innerHTML = '<p class="shortcut-api-muted">会员状态加载失败，请刷新页面</p>';
+        return;
+    }
+
+    if (currentMemberStatus.is_member !== true) {
+        shortcutApiHasKey = false;
+        status.innerHTML = '<p class="shortcut-api-muted">此功能需要初级会员以上</p>';
+        return;
+    }
+
+    shortcutApiHasKey = Boolean(data && data.has_key === true);
+    if (!shortcutApiHasKey) {
+        status.innerHTML = `
+            <div class="shortcut-api-empty">
+                <p>暂未生成快捷指令密钥</p>
+                <button class="btn-primary" type="button" onclick="generateShortcutApiKey()">生成快捷指令密钥</button>
+            </div>`;
+        return;
+    }
+
+    const prefix = data.key_prefix || 'urp_';
+    const createTime = data.create_time || '';
+    status.innerHTML = `
+        <div class="shortcut-api-active">
+            <div>
+                <span class="shortcut-api-label">当前密钥</span>
+                <code>${escapeGradeHtml(prefix)}...</code>
+                <small>${escapeGradeHtml(createTime)}</small>
+            </div>
+            <button class="btn-secondary" type="button" onclick="generateShortcutApiKey()">重新生成</button>
+        </div>`;
+}
+
+async function loadShortcutApiKey() {
+    const status = document.getElementById('shortcut-api-status');
+    const endpoint = document.getElementById('shortcut-api-endpoint');
+    if (endpoint) {
+        endpoint.textContent = `${window.location.origin}/api/shortcut/query`;
+    }
+    if (!status) return;
+
+    if (!currentMemberStatus) {
+        renderShortcutApiKeyStatus(null);
+        return;
+    }
+    if (currentMemberStatus.is_member !== true) {
+        renderShortcutApiKeyStatus(null);
+        return;
+    }
+
+    status.innerHTML = '<div class="loading">加载中...</div>';
+    try {
+        const resp = await fetch('/api/member/api-key', {
+            headers: { 'X-Device-ID': getDeviceId() }
+        });
+        const data = await resp.json();
+        if (!data.success) {
+            throw new Error(data.message || '密钥状态加载失败');
+        }
+        renderShortcutApiKeyStatus(data.data || {});
+    } catch (e) {
+        status.innerHTML = `<p class="shortcut-api-error">${escapeGradeHtml(e.message || '密钥状态加载失败')}</p>`;
+    }
+}
+
+async function generateShortcutApiKey() {
+    const status = document.getElementById('shortcut-api-status');
+    if (!currentMemberStatus || currentMemberStatus.is_member !== true) {
+        renderShortcutApiKeyStatus(null);
+        return;
+    }
+    if (shortcutApiHasKey && !confirm('重新生成后，旧密钥会立即失效，确定继续吗？')) {
+        return;
+    }
+
+    if (status) status.innerHTML = '<div class="loading">正在生成...</div>';
+    try {
+        const resp = await fetch('/api/member/api-key', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Device-ID': getDeviceId(),
+            },
+            body: JSON.stringify({}),
+        });
+        const data = await resp.json();
+        const issued = data && data.success ? data.data : null;
+        if (!issued || typeof issued.key !== 'string' || !issued.key) {
+            throw new Error((data && data.message) || '密钥生成失败');
+        }
+
+        shortcutApiPlainKey = issued.key;
+        shortcutApiHasKey = true;
+        const keyContainer = document.getElementById('shortcut-api-key');
+        if (keyContainer) {
+            keyContainer.hidden = false;
+            keyContainer.innerHTML = `
+                <div class="shortcut-api-secret-head">
+                    <span>请立即复制并保存完整密钥</span>
+                    <span>刷新页面后不会再次显示</span>
+                </div>
+                <div class="shortcut-api-secret-row">
+                    <code>${escapeGradeHtml(shortcutApiPlainKey)}</code>
+                    <button id="shortcut-api-copy" class="btn-primary" type="button" onclick="copyShortcutApiKey()">复制密钥</button>
+                </div>`;
+        }
+        await loadShortcutApiKey();
+    } catch (e) {
+        if (status) {
+            status.innerHTML = `<p class="shortcut-api-error">${escapeGradeHtml(e.message || '密钥生成失败，请稍后重试')}</p>`;
+        }
+    }
+}
+
+async function copyShortcutApiKey() {
+    const button = document.getElementById('shortcut-api-copy');
+    const originalText = '复制密钥';
+    if (!shortcutApiPlainKey || !navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+        if (button) button.textContent = '复制失败，请手动复制';
+        return;
+    }
+
+    try {
+        await navigator.clipboard.writeText(shortcutApiPlainKey);
+        if (button) {
+            button.textContent = '已复制';
+            window.setTimeout(() => {
+                if (button.isConnected) button.textContent = originalText;
+            }, 1500);
+        }
+    } catch (e) {
+        if (button) button.textContent = '复制失败，请手动复制';
     }
 }
 

@@ -110,6 +110,10 @@ def request_rebind():
     with get_db() as conn:
         conn.execute('DELETE FROM users WHERE device_id = ?', (device_id,))
         conn.execute(
+            'DELETE FROM api_keys WHERE username = ?',
+            (current_user['username'],)
+        )
+        conn.execute(
             "DELETE FROM pending_requests WHERE device_id = ? AND status = 'pending'",
             (device_id,)
         )

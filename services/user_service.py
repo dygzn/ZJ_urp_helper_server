@@ -56,6 +56,15 @@ def get_user_by_username(username):
 def bind_user(device_id, username, password):
     """绑定用户到设备"""
     with get_db() as conn:
+        previous = conn.execute(
+            'SELECT username FROM users WHERE device_id = ?',
+            (device_id,)
+        ).fetchone()
+        if previous and previous['username'] != username:
+            conn.execute(
+                'DELETE FROM api_keys WHERE username = ?',
+                (previous['username'],)
+            )
         conn.execute('''
             INSERT OR REPLACE INTO users (device_id, username, password, bind_time)
             VALUES (?, ?, ?, ?)
@@ -65,8 +74,17 @@ def bind_user(device_id, username, password):
 def unbind_user(device_id):
     """解绑用户"""
     with get_db() as conn:
+        previous = conn.execute(
+            'SELECT username FROM users WHERE device_id = ?',
+            (device_id,)
+        ).fetchone()
         cursor = conn.execute(
             'DELETE FROM users WHERE device_id = ?',
             (device_id,)
         )
+        if previous:
+            conn.execute(
+                'DELETE FROM api_keys WHERE username = ?',
+                (previous['username'],)
+            )
         return cursor.rowcount > 0

@@ -4229,6 +4229,177 @@ body {
     }
 }
 
+/* 快捷指令 API */
+#page-member .shortcut-api-card {
+    margin-bottom: 16px;
+    padding: 20px;
+    border: 1px solid var(--divider);
+    border-radius: var(--card-radius);
+    background: var(--card-bg);
+}
+
+.shortcut-api-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+}
+
+#page-member .shortcut-api-card h3 {
+    margin: 10px 0 6px;
+    color: var(--text-primary);
+    font-size: 20px;
+}
+
+.shortcut-api-card-head p {
+    margin: 0;
+    color: var(--text-secondary);
+    line-height: 1.55;
+}
+
+.shortcut-api-badge {
+    flex: 0 0 auto;
+    padding: 5px 9px;
+    border-radius: 999px;
+    background: #edf8f2;
+    color: #168653;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.shortcut-api-status {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--divider);
+}
+
+.shortcut-api-muted,
+.shortcut-api-error {
+    margin: 0;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.shortcut-api-error {
+    color: var(--error);
+}
+
+.shortcut-api-empty,
+.shortcut-api-active {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+.shortcut-api-empty p,
+.shortcut-api-active p {
+    margin: 0;
+    color: var(--text-primary);
+}
+
+.shortcut-api-active > div {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.shortcut-api-label {
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.shortcut-api-active code,
+.shortcut-api-secret-row code {
+    max-width: 100%;
+    padding: 4px 7px;
+    border-radius: 6px;
+    background: #f5f6f8;
+    color: var(--text-primary);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    overflow-wrap: anywhere;
+}
+
+.shortcut-api-active small {
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.shortcut-api-key {
+    margin-top: 14px;
+    padding: 12px;
+    border: 1px solid #f0c36d;
+    border-radius: 10px;
+    background: #fffaf0;
+}
+
+.shortcut-api-secret-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 9px;
+    color: #8a5b00;
+    font-size: 12px;
+}
+
+.shortcut-api-secret-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.shortcut-api-secret-row code {
+    flex: 1 1 auto;
+    min-width: 0;
+    background: #fff;
+    border: 1px solid #f1dfb7;
+}
+
+.shortcut-api-help {
+    margin-top: 16px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.shortcut-api-help > div {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.shortcut-api-help code {
+    overflow-wrap: anywhere;
+    color: var(--text-primary);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.shortcut-api-help p {
+    margin: 8px 0 0;
+}
+
+@media (max-width: 760px) {
+    .shortcut-api-card-head,
+    .shortcut-api-empty,
+    .shortcut-api-active,
+    .shortcut-api-secret-row,
+    .shortcut-api-help > div {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .shortcut-api-badge {
+        align-self: flex-start;
+    }
+
+    .shortcut-api-secret-row .btn-primary,
+    .shortcut-api-active .btn-secondary {
+        width: 100%;
+    }
+}
+
 /* 绑定账号弹窗 */
 #login-modal .login-card {
     width: min(92vw, 500px);

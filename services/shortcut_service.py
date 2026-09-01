@@ -91,6 +91,18 @@ def resolve_api_key(raw_key):
     return row['username'] if row else None
 
 
+def revoke_api_key(username):
+    """撤销学号当前密钥，返回是否存在并删除了记录。"""
+    if not isinstance(username, str) or not username.strip():
+        return False
+    with get_db() as conn:
+        cursor = conn.execute(
+            'DELETE FROM api_keys WHERE username = ?',
+            (username.strip(),),
+        )
+        return cursor.rowcount > 0
+
+
 def _as_text(value):
     return '' if value is None else str(value)
 

@@ -4,8 +4,14 @@ import unittest
 from datetime import datetime
 from unittest import mock
 
+from flask import Flask
+
 import database
+import auth
 import services.shortcut_service as shortcut_service
+import services.user_service as user_service
+from routes import auth_routes, shortcut_routes
+from urp.query import URP_query
 
 
 class ShortcutApiKeyServiceTests(unittest.TestCase):
@@ -94,19 +100,6 @@ class ShortcutApiKeyServiceTests(unittest.TestCase):
             shortcut_service.get_api_key_status('not-found'),
             {'has_key': False, 'key_prefix': None, 'create_time': None},
         )
-
-
-if __name__ == '__main__':
-    unittest.main()
-
-
-from flask import Flask
-
-import auth
-import services.user_service as user_service
-from routes import shortcut_routes
-from urp.query import URP_query
-
 
 class ShortcutApiKeyRouteTests(unittest.TestCase):
     def setUp(self):
@@ -261,6 +254,92 @@ class UserLookupTests(unittest.TestCase):
 
         self.assertEqual(user['device_id'], 'device-new')
         self.assertEqual(user['password'], 'new-password')
+
+
+class ApiKeyRevocationOnRebindTests(unittest.TestCase):
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.database_config = {
+            'database': {
+                'type': 'sqlite',
+                'sqlite_path': os.path.join(self.temp_dir.name, 'rebind.db'),
+            }
+        }
+        database.init_db(self.database_config)
+        self.user_db_patcher = mock.patch.object(
+            user_service,
+            'get_db',
+            side_effect=lambda: database.get_db(self.database_config),
+        )
+        self.shortcut_db_patcher = mock.patch.object(
+            shortcut_service,
+            'get_db',
+            side_effect=lambda: database.get_db(self.database_config),
+        )
+        self.user_db_patcher.start()
+        self.shortcut_db_patcher.start()
+
+    def tearDown(self):
+        self.shortcut_db_patcher.stop()
+        self.user_db_patcher.stop()
+        self.temp_dir.cleanup()
+
+    def test_binding_a_new_username_revokes_the_device_old_key(self):
+        with database.get_db(self.database_config) as conn:
+            conn.execute(
+                'INSERT INTO users '
+                '(device_id, username, password, bind_time) VALUES (?, ?, ?, ?)',
+                ('device-1', 'old-user', 'old-password', '2026-09-01T12:00:00'),
+            )
+        issued = shortcut_service.issue_api_key('old-user')
+
+        user_service.bind_user('device-1', 'new-user', 'new-password')
+
+        self.assertIsNone(shortcut_service.resolve_api_key(issued['key']))
+
+    def test_unbinding_a_device_revokes_its_key(self):
+        with database.get_db(self.database_config) as conn:
+            conn.execute(
+                'INSERT INTO users '
+                '(device_id, username, password, bind_time) VALUES (?, ?, ?, ?)',
+                ('device-1', 'old-user', 'old-password', '2026-09-01T12:00:00'),
+            )
+        issued = shortcut_service.issue_api_key('old-user')
+
+        self.assertTrue(user_service.unbind_user('device-1'))
+        self.assertIsNone(shortcut_service.resolve_api_key(issued['key']))
+
+    def test_request_rebind_route_revokes_the_old_key(self):
+        app = Flask(__name__)
+        app.config['TESTING'] = True
+        app.register_blueprint(auth_routes.auth_bp)
+        client = app.test_client()
+
+        with database.get_db(self.database_config) as conn:
+            conn.execute(
+                'INSERT INTO users '
+                '(device_id, username, password, bind_time) VALUES (?, ?, ?, ?)',
+                ('device-1', 'old-user', 'old-password', '2026-09-01T12:00:00'),
+            )
+        issued = shortcut_service.issue_api_key('old-user')
+
+        with (
+            mock.patch.object(auth_routes, 'get_device_id', return_value='device-1'),
+            mock.patch.object(
+                auth_routes,
+                'get_user_by_device',
+                return_value={'username': 'old-user'},
+            ),
+            mock.patch.object(
+                auth_routes,
+                'get_db',
+                side_effect=lambda: database.get_db(self.database_config),
+            ),
+        ):
+            response = client.post('/api/request_rebind')
+
+        self.assertTrue(response.get_json()['success'])
+        self.assertIsNone(shortcut_service.resolve_api_key(issued['key']))
 
 
 class ShortcutDataNormalizationTests(unittest.TestCase):
@@ -501,3 +580,7 @@ class ShortcutPublicQueryRouteTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get_json()['error_code'], 'query_failed')
         self.assertIsNone(response.get_json()['data'])
+
+
+if __name__ == '__main__':
+    unittest.main()
