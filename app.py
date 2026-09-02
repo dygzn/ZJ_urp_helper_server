@@ -2,7 +2,8 @@
 URP教务系统助手 - Flask后端入口
 """
 import os
-from flask import Flask, render_template, request, jsonify
+from urllib.parse import urlencode
+from flask import Flask, render_template, request, jsonify, redirect, url_for
 from werkzeug.exceptions import HTTPException
 from database import ensure_api_keys_table, init_db
 from services.logging_service import init_logging
@@ -17,6 +18,7 @@ from routes.sign_routes import sign_bp
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-change-this'
+INDEX_QUERY_ALLOWLIST = ('page', 'invite')
 
 def initialize_database():
     """初始化完整数据库，并为快捷指令 API 保留独立兜底。"""
@@ -69,6 +71,18 @@ def favicon():
 
 @app.route('/')
 def index():
+    if any(key not in INDEX_QUERY_ALLOWLIST for key in request.args):
+        clean_params = [
+            (key, request.args.get(key))
+            for key in INDEX_QUERY_ALLOWLIST
+            if request.args.get(key)
+        ]
+        target = url_for('index')
+        if clean_params:
+            target = f'{target}?{urlencode(clean_params)}'
+        response = redirect(target, code=302)
+        response.headers['Cache-Control'] = 'no-store'
+        return response
     return render_template('index.html')
 
 

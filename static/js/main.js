@@ -1,9 +1,11 @@
 const pendingInvitationTokenKey = 'pending_invitation_token';
+const ownInvitationTokenKey = 'own_invitation_token';
 
 function capturePendingInvitationToken() {
     try {
         const token = (new URLSearchParams(window.location.search).get('invite') || '').trim();
-        if (token && token.length <= 128) {
+        const ownToken = (sessionStorage.getItem(ownInvitationTokenKey) || '').trim();
+        if (token && token.length <= 128 && token !== ownToken) {
             sessionStorage.setItem(pendingInvitationTokenKey, token);
         }
     } catch (error) {
@@ -25,6 +27,79 @@ function clearPendingInvitationToken() {
         sessionStorage.removeItem(pendingInvitationTokenKey);
     } catch (error) {
         // 存储不可用时无需阻断登录结果。
+    }
+}
+
+function sanitizeIndexUrl() {
+    try {
+        const currentUrl = new URL(window.location.href);
+        const cleanParams = new URLSearchParams();
+        ['page', 'invite'].forEach(key => {
+            const value = currentUrl.searchParams.get(key);
+            if (value) cleanParams.set(key, value);
+        });
+
+        const cleanSearch = cleanParams.toString();
+        const cleanUrl = `${currentUrl.pathname || '/'}${cleanSearch ? `?${cleanSearch}` : ''}${currentUrl.hash || ''}`;
+        const currentPath = `${currentUrl.pathname || '/'}${currentUrl.search}${currentUrl.hash || ''}`;
+        if (cleanUrl !== currentPath && window.history && typeof window.history.replaceState === 'function') {
+            window.history.replaceState(window.history.state || null, '', cleanUrl);
+        }
+    } catch (error) {
+        // 地址栏清理失败时不影响正常使用。
+    }
+}
+
+function setOwnInvitationTokenInUrl(token) {
+    const normalizedToken = String(token || '').trim();
+    if (!normalizedToken || normalizedToken.length > 128) return false;
+
+    try {
+        const currentUrl = new URL(window.location.href);
+        const cleanParams = new URLSearchParams();
+        const page = currentUrl.searchParams.get('page');
+        if (page) cleanParams.set('page', page);
+        cleanParams.set('invite', normalizedToken);
+
+        const query = cleanParams.toString();
+        const cleanUrl = `${currentUrl.pathname || '/'}${query ? `?${query}` : ''}${currentUrl.hash || ''}`;
+        if (window.history && typeof window.history.replaceState === 'function') {
+            window.history.replaceState(window.history.state || null, '', cleanUrl);
+            return true;
+        }
+    } catch (error) {
+        // 地址栏同步失败时不影响正常使用。
+    }
+    return false;
+}
+
+async function ensureOwnInvitationTokenInUrl() {
+    try {
+        const response = await fetch('/api/invitation/link', {
+            method: 'POST',
+            headers: { 'X-Device-ID': getDeviceId() },
+        });
+        const data = await response.json().catch(() => ({ success: false }));
+        if (!response.ok || !data.success || !data.data || !data.data.invite_url) {
+            return false;
+        }
+
+        const inviteUrl = new URL(data.data.invite_url, window.location.origin);
+        const token = inviteUrl.searchParams.get('invite');
+        const updated = setOwnInvitationTokenInUrl(token);
+        if (!updated) return false;
+
+        try {
+            sessionStorage.setItem(ownInvitationTokenKey, token);
+            if (getPendingInvitationToken() === token) {
+                clearPendingInvitationToken();
+            }
+        } catch (error) {
+            // 存储不可用时不影响地址栏同步。
+        }
+        return true;
+    } catch (error) {
+        return false;
     }
 }
 
@@ -76,6 +151,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 先暂存邀请链接 token，等待首次绑定时随登录请求发送
     capturePendingInvitationToken();
+
+    // 清除支付平台等第三方追加的未知参数
+    sanitizeIndexUrl();
 
     // 检查用户绑定状态
     checkBindStatus();
@@ -139,6 +217,7 @@ async function checkBindStatus() {
         if (data.success && data.bound) {
             currentUsername = data.username;
             document.getElementById('sidebar-username').textContent = currentUsername;
+            ensureOwnInvitationTokenInUrl();
 
             const urlPage = new URLSearchParams(window.location.search).get('page');
             let lastPage = urlPage || localStorage.getItem('current_page') || 'home';
@@ -199,6 +278,7 @@ async function handleLogin(event) {
             currentUsername = data.username;
             isGuestMode = false;
             clearPendingInvitationToken();
+            ensureOwnInvitationTokenInUrl();
             document.getElementById('sidebar-username').textContent = currentUsername;
             hideLoginModal();
             const currentPage = localStorage.getItem('current_page') || 'home';
