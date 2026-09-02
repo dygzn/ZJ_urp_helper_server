@@ -1,13 +1,11 @@
 """
 用户认证相关路由
 """
-from datetime import datetime
 from flask import Blueprint, request, jsonify
 from database import get_db
 from services.user_service import get_device_id, get_user_by_device, bind_user
 from services.urp_service import urp_login, check_login_status
 from services.config_service import get_current_urp_url
-from services.member_service import ensure_invitation_earnings
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -62,10 +60,10 @@ def rebind_notified():
 
 @auth_bp.route('/api/login', methods=['POST'])
 def login():
-    data = request.get_json()
+    data = request.get_json() or {}
     username = data.get('username')
     password = data.get('password')
-    inviter = (data.get('inviter') or '').strip()
+    invitation_token = data.get('invitation_token')
 
     if not username or not password:
         return jsonify({'success': False, 'message': '用户名和密码不能为空'})
@@ -75,24 +73,7 @@ def login():
     if success:
         device_id = get_device_id()
 
-        bind_user(device_id, username, password)
-
-        # 设置邀请人（仅当该用户尚未被邀请过）
-        if inviter and inviter != username:
-            with get_db() as conn:
-                already_invited = conn.execute(
-                    'SELECT id FROM invitations WHERE invitee_username = ?', (username,)
-                ).fetchone()
-                if not already_invited:
-                    inviter_exists = conn.execute(
-                        'SELECT username FROM users WHERE username = ?', (inviter,)
-                    ).fetchone()
-                    if inviter_exists:
-                        conn.execute(
-                            'INSERT OR IGNORE INTO invitations (inviter_username, invitee_username, create_time) VALUES (?, ?, ?)',
-                            (inviter, username, datetime.now().isoformat())
-                        )
-                        ensure_invitation_earnings(conn, inviter_username=inviter, invitee_username=username)
+        bind_user(device_id, username, password, invitation_token)
 
         return jsonify({'success': True, 'message': '登录成功', 'username': username})
     else:

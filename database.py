@@ -276,6 +276,13 @@ def _create_schema_sqlite(conn):
         )
     ''')
     conn.execute('''
+        CREATE TABLE IF NOT EXISTS invitation_links (
+            username TEXT PRIMARY KEY,
+            token TEXT NOT NULL UNIQUE,
+            create_time TEXT NOT NULL
+        )
+    ''')
+    conn.execute('''
         CREATE TABLE IF NOT EXISTS invitations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             inviter_username TEXT NOT NULL,
@@ -411,6 +418,13 @@ def _create_schema_mysql(conn):
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ''')
     conn.execute('''
+        CREATE TABLE IF NOT EXISTS invitation_links (
+            username VARCHAR(64) PRIMARY KEY,
+            token VARCHAR(128) NOT NULL UNIQUE,
+            create_time VARCHAR(32) NOT NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ''')
+    conn.execute('''
         CREATE TABLE IF NOT EXISTS invitations (
             id INT AUTO_INCREMENT PRIMARY KEY,
             inviter_username VARCHAR(64) NOT NULL,
@@ -480,6 +494,7 @@ def _create_indexes(conn):
         'CREATE INDEX idx_log_endpoint ON request_logs(endpoint)',
         'CREATE INDEX idx_inviter ON invitations(inviter_username)',
         'CREATE INDEX idx_invitee ON invitations(invitee_username)',
+        'CREATE UNIQUE INDEX idx_invitation_links_token ON invitation_links(token)',
         'CREATE INDEX idx_orders_username_status ON orders(username, status)',
         'CREATE INDEX idx_orders_status_pay_time ON orders(status, pay_time)',
         'CREATE UNIQUE INDEX idx_api_keys_hash ON api_keys(key_hash)',
@@ -560,6 +575,7 @@ MIGRATION_TABLES = {
     'feedback_replies': ['id', 'feedback_id', 'device_id', 'username', 'content', 'create_time'],
     'request_logs': ['id', 'device_id', 'username', 'endpoint', 'method', 'status_code', 'request_time'],
     'memberships': ['username', 'member_type', 'expire_time', 'create_time'],
+    'invitation_links': ['username', 'token', 'create_time'],
     'api_keys': ['username', 'key_hash', 'key_prefix', 'create_time'],
     'invitations': ['id', 'inviter_username', 'invitee_username', 'create_time'],
     'invitation_earnings': ['id', 'username', 'order_no', 'invitee_username', 'amount', 'rate', 'create_time'],

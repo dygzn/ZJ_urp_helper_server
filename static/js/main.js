@@ -1,3 +1,33 @@
+const pendingInvitationTokenKey = 'pending_invitation_token';
+
+function capturePendingInvitationToken() {
+    try {
+        const token = (new URLSearchParams(window.location.search).get('invite') || '').trim();
+        if (token && token.length <= 128) {
+            sessionStorage.setItem(pendingInvitationTokenKey, token);
+        }
+    } catch (error) {
+        // 隐私模式或禁用存储时不影响普通登录。
+    }
+}
+
+function getPendingInvitationToken() {
+    try {
+        const token = (sessionStorage.getItem(pendingInvitationTokenKey) || '').trim();
+        return token.length > 0 && token.length <= 128 ? token : '';
+    } catch (error) {
+        return '';
+    }
+}
+
+function clearPendingInvitationToken() {
+    try {
+        sessionStorage.removeItem(pendingInvitationTokenKey);
+    } catch (error) {
+        // 存储不可用时无需阻断登录结果。
+    }
+}
+
 // ==================== 全局变量 ====================
 let currentWeek = parseInt(localStorage.getItem('current_week')) || 1;
 let currentUsername = null;
@@ -43,6 +73,9 @@ function getDeviceId() {
 document.addEventListener('DOMContentLoaded', function() {
     // 确保设备ID已生成
     getDeviceId();
+
+    // 先暂存邀请链接 token，等待首次绑定时随登录请求发送
+    capturePendingInvitationToken();
 
     // 检查用户绑定状态
     checkBindStatus();
@@ -145,8 +178,7 @@ async function handleLogin(event) {
 
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
-    const inviterInput = document.getElementById('inviter');
-    const inviter = inviterInput ? inviterInput.value.trim() : '';
+    const invitationToken = getPendingInvitationToken();
     const errorDiv = document.getElementById('login-error');
 
     errorDiv.textContent = '';
@@ -158,7 +190,7 @@ async function handleLogin(event) {
                 'Content-Type': 'application/json',
                 'X-Device-ID': getDeviceId()
             },
-            body: JSON.stringify({ username, password, inviter })
+            body: JSON.stringify({ username, password, invitation_token: invitationToken })
         });
 
         const data = await response.json();
@@ -166,6 +198,7 @@ async function handleLogin(event) {
         if (data.success) {
             currentUsername = data.username;
             isGuestMode = false;
+            clearPendingInvitationToken();
             document.getElementById('sidebar-username').textContent = currentUsername;
             hideLoginModal();
             const currentPage = localStorage.getItem('current_page') || 'home';
@@ -2610,12 +2643,79 @@ async function copyShortcutApiKey() {
     }
 }
 
+function renderInvitationLink(data, errorMessage = '') {
+    const container = document.getElementById('invitation-link-content');
+    if (!container) return;
+
+    if (!data || data.has_link !== true || !data.invite_url) {
+        const message = errorMessage
+            ? `<span class="invitation-link-error">${escapeGradeHtml(errorMessage)}</span>`
+            : '<span>生成固定邀请链接，分享给新用户即可自动绑定邀请关系。</span>';
+        container.innerHTML = `
+            <div class="invitation-link-empty">
+                ${message}
+                <button class="btn-secondary" type="button" onclick="generateInvitationLink()">生成邀请链接</button>
+            </div>`;
+        return;
+    }
+
+    const safeUrl = escapeGradeHtml(data.invite_url);
+    container.innerHTML = `
+        <div class="invitation-link-label">我的固定邀请链接</div>
+        <div class="invitation-link-row">
+            <input id="invitation-link-input" class="invitation-link-input" type="text" readonly value="${safeUrl}">
+            <button id="invitation-link-copy" class="btn-secondary" type="button" onclick="copyInvitationLink()">复制链接</button>
+        </div>`;
+}
+
+async function generateInvitationLink() {
+    const container = document.getElementById('invitation-link-content');
+    if (container) container.innerHTML = '<div class="loading">正在生成...</div>';
+
+    try {
+        const response = await fetch('/api/invitation/link', {
+            method: 'POST',
+            headers: { 'X-Device-ID': getDeviceId() },
+        });
+        const data = await response.json().catch(() => ({ success: false }));
+        if (!response.ok || !data.success || !data.data) {
+            throw new Error(data.message || '生成邀请链接失败');
+        }
+        renderInvitationLink(data.data);
+    } catch (error) {
+        renderInvitationLink(null, error.message || '生成失败，请重试');
+    }
+}
+
+async function copyInvitationLink() {
+    const input = document.getElementById('invitation-link-input');
+    const button = document.getElementById('invitation-link-copy');
+    if (!input || !navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+        if (button) button.textContent = '复制失败，请手动复制';
+        return;
+    }
+
+    try {
+        await navigator.clipboard.writeText(input.value);
+        if (button) {
+            button.textContent = '已复制';
+            window.setTimeout(() => {
+                if (button.isConnected) button.textContent = '复制链接';
+            }, 1500);
+        }
+    } catch (error) {
+        if (button) button.textContent = '复制失败，请手动复制';
+    }
+}
+
 async function loadInvitationEarnings() {
     const card = document.getElementById('invitation-card');
+    const linkContent = document.getElementById('invitation-link-content');
     const content = document.getElementById('invitation-earnings-content');
     if (!card || !content) return;
 
     card.style.display = '';
+    if (linkContent) linkContent.innerHTML = '<div class="loading">加载中...</div>';
     content.innerHTML = '<div class="loading">\u52a0\u8f7d\u4e2d...</div>';
 
     const fetchJson = async (url) => {
@@ -2631,32 +2731,33 @@ async function loadInvitationEarnings() {
         }
     };
 
-    const [inviterData, earningsData, withdrawalsData, memberData] = await Promise.all([
+    const [inviterData, linkData, earningsData, withdrawalsData, memberData] = await Promise.all([
         fetchJson('/api/invitation/my_inviter'),
+        fetchJson('/api/invitation/link'),
         fetchJson('/api/invitation/earnings'),
         fetchJson('/api/invitation/withdrawals'),
         fetchJson('/api/member/status')
     ]);
+
+    if (linkData.success && linkData.data) {
+        renderInvitationLink(linkData.data);
+    } else {
+        renderInvitationLink(null, linkData.message || '邀请链接加载失败，请重试');
+    }
 
     if (!earningsData.success || !earningsData.data) {
         content.innerHTML = `<div class="error-message">\u6536\u76ca\u52a0\u8f7d\u5931\u8d25\uff1a${earningsData.message || '\u672a\u77e5\u9519\u8bef'}</div>`;
         return;
     }
 
-    const isMember = memberData.success && memberData.data && memberData.data.is_member;
+    const isMember = memberData.success && memberData.data && memberData.data.is_member === true;
     const memberType = isMember ? memberData.data.member_type : null;
-    const rateText = memberType === 'advanced' ? '20%' : (isMember ? '10%' : '0%');
+    const rateText = memberType === 'advanced' ? '20%' : '10%';
 
     let html = '';
 
     if (inviterData.success && inviterData.data && inviterData.data.inviter) {
-        html += `<div class="inviter-info"><span class="inviter-label">\u9080\u8bf7\u4eba\uff1a</span><span>${inviterData.data.inviter}</span></div>`;
-    } else {
-        html += `<div class="inviter-set-form">
-            <input type="text" id="inviter-set-input" class="inviter-set-input" placeholder="\u586b\u5199\u9080\u8bf7\u4f60\u7684\u540c\u5b66\u5b66\u53f7">
-            <button class="inviter-set-btn" onclick="handleSetInviter()">\u7ed1\u5b9a</button>
-            <span id="inviter-set-error" class="inviter-set-error">${inviterData.success ? '' : (inviterData.message || '')}</span>
-        </div>`;
+        html += `<div class="inviter-info"><span class="inviter-label">\u9080\u8bf7\u4eba\uff1a</span><span>${escapeGradeHtml(inviterData.data.inviter)}</span></div>`;
     }
 
     const inviteeTotal = parseFloat(earningsData.data.invitee_total) || 0;
@@ -2673,11 +2774,7 @@ async function loadInvitationEarnings() {
     }
 
     let btnText, btnDisabled, btnOpacity;
-    if (!isMember) {
-        btnText = '\u5f00\u901a\u4f1a\u5458\u540e\u53ef\u63d0\u73b0';
-        btnDisabled = true;
-        btnOpacity = '0.5';
-    } else if (hasPending) {
+    if (hasPending) {
         btnText = '\u5ba1\u6838\u4e2d';
         btnDisabled = true;
         btnOpacity = '0.5';
@@ -2715,11 +2812,7 @@ async function loadInvitationEarnings() {
         html += '</div>';
     }
 
-    if (!isMember) {
-        html += `<div class="invite-hint">\u5f00\u901a\u4f1a\u5458\u540e\u53ef\u7533\u8bf7\u63d0\u73b0\uff1b\u6536\u76ca\u4f1a\u7ee7\u7eed\u7d2f\u8ba1\u663e\u793a\u3002</div>`;
-    } else {
-        html += `<div class="invite-hint">\u9080\u8bf7\u65b0\u7528\u6237\u7ed1\u5b9a\u8d26\u53f7\uff0c\u5bf9\u65b9\u5f00\u901a\u4f1a\u5458\u540e\u4f60\u53ef\u83b7\u5f97 <strong>${rateText}</strong> \u6536\u76ca\u3002</div>`;
-    }
+    html += `<div class="invite-hint">\u6240\u6709\u5df2\u7ed1\u5b9a\u7528\u6237\u5747\u53ef\u83b7\u5f97 10% \u8d77\u7684\u9080\u8bf7\u6536\u76ca\u5e76\u7533\u8bf7\u63d0\u73b0\uff1b\u5f53\u524d\u6bd4\u4f8b\u4e3a <strong>${rateText}</strong>\u3002</div>`;
 
     content.innerHTML = html;
 }
@@ -2849,33 +2942,6 @@ async function confirmPay() {
     }
 }
 
-
-// ==================== 设置邀请人 ====================
-async function handleSetInviter() {
-    const input = document.getElementById('inviter-set-input');
-    const errEl = document.getElementById('inviter-set-error');
-    const inviter = (input.value || '').trim();
-    if (!inviter) {
-        errEl.textContent = '请填写学号';
-        return;
-    }
-    errEl.textContent = '';
-    try {
-        const resp = await fetch('/api/invitation/set', {
-            method: 'POST',
-            headers: { 'X-Device-ID': getDeviceId(), 'Content-Type': 'application/json' },
-            body: JSON.stringify({ inviter })
-        });
-        const data = await resp.json();
-        if (data.success) {
-            loadInvitationEarnings();
-        } else {
-            errEl.textContent = data.message || '设置失败';
-        }
-    } catch (e) {
-        errEl.textContent = '网络错误，请重试';
-    }
-}
 
 // ==================== 提现功能 ====================
 let _withdrawAvailable = 0;

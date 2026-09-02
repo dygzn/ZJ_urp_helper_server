@@ -53,13 +53,23 @@ def get_user_by_username(username):
         return None
 
 
-def bind_user(device_id, username, password):
-    """绑定用户到设备；设备变更不影响学号名下的 API 密钥。"""
+def bind_user(device_id, username, password, invitation_token=None):
+    """绑定用户到设备，并在首次绑定时原子化处理邀请归因。"""
     with get_db() as conn:
         conn.execute('''
             INSERT OR REPLACE INTO users (device_id, username, password, bind_time)
             VALUES (?, ?, ?, ?)
         ''', (device_id, username, password, datetime.now().isoformat()))
+        invitation_bound = False
+        if invitation_token:
+            from services.invitation_service import bind_invitation_by_token
+            invitation_bound = bind_invitation_by_token(
+                conn, username, invitation_token
+            )
+            if invitation_bound:
+                from services.member_service import ensure_invitation_earnings
+                ensure_invitation_earnings(conn, invitee_username=username)
+        return invitation_bound
 
 
 def unbind_user(device_id):
