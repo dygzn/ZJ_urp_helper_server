@@ -43,12 +43,43 @@ class HeaderAdPreviewTests(unittest.TestCase):
         self.assertIn('aria-label="广告位"', header_html)
         self.assertRegex(
             header_html,
-            r'<a[^>]+class="header-ad-main"[^>]+href="/ad-detail"',
+            r'<a[^>]+class="header-ad-main"[^>]+href="/ad-detail\?source=header"',
         )
-        self.assertIn("学生优惠购机活动，奖励最高140元！", header_html)
-        self.assertIn("点此查看详情", header_html)
-        self.assertNotIn("学生优惠购机奖励", header_html)
-        self.assertNotIn("手机/平板 30-40 元 · 电脑 50-100 元", header_html)
+        self.assertIn("3分钟了解", header_html)
+        self.assertIn("购机每台奖励30–100元", header_html)
+        self.assertIn("无需垫资，先确认规则再参与", header_html)
+        self.assertIn("马上看看", header_html)
+        self.assertIn('class="header-ad-cta"', header_html)
+
+    def test_mobile_ad_promotes_short_highlight_copy(self):
+        header = re.search(
+            r'<header class="header">(?P<body>.*?)</header>',
+            self.html,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(header)
+        header_html = header.group("body")
+
+        self.assertIn(
+            '<strong class="header-ad-copy-wide">3分钟了解｜购机每台奖励30–100元</strong>',
+            header_html,
+        )
+        self.assertIn(
+            '<strong class="header-ad-copy-compact">3分钟了解 · 最高100元/台</strong>',
+            header_html,
+        )
+        self.assertRegex(
+            self.css,
+            r'\.header-ad-copy-compact\s*\{[^}]*display:\s*none',
+        )
+        self.assertRegex(
+            self.css,
+            r'@media[\s\S]*?\.header-ad-copy-wide\s*\{[^}]*display:\s*none',
+        )
+        self.assertRegex(
+            self.css,
+            r'@media[\s\S]*?\.header-ad-copy-compact\s*\{[^}]*display:\s*block',
+        )
 
     def test_ad_slot_is_a_normal_flow_middle_column(self):
         header_css = re.search(
@@ -74,6 +105,9 @@ class HeaderAdPreviewTests(unittest.TestCase):
         self.assertIn("headerAdNeverShowKey", self.js)
         self.assertIn("sessionStorage", self.js)
         self.assertIn("localStorage", self.js)
+        self.assertIn("trackHeaderAdEvent('impression')", self.js)
+        self.assertIn("trackHeaderAdEvent('dismiss')", self.js)
+        self.assertIn("keepalive: true", self.js)
 
     def test_detail_page_describes_student_discount_rewards(self):
         self.assertTrue(self.detail_html, f"详情页不存在: {DETAIL_PAGE}")
@@ -116,6 +150,39 @@ class HeaderAdPreviewTests(unittest.TestCase):
         self.assertIn("商家发单时同步提供对应购机款", hero_html)
         self.assertIn("未确认购买款到账前不要下单", self.detail_html)
 
+    def test_detail_page_places_a_low_effort_copy_action_above_the_fold(self):
+        hero = re.search(
+            r'<section[^>]+class="ad-detail-hero"(?P<body>.*?)</section>',
+            self.detail_html,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(hero)
+        hero_html = hero.group("body")
+
+        self.assertIn("咨询登记约3分钟", hero_html)
+        self.assertIn("先花3分钟确认规则，合适再参与", hero_html)
+        self.assertIn("添加微信仅用于了解规则，不代表必须参与", hero_html)
+        self.assertRegex(
+            hero_html,
+            r'<button[^>]+class="[^"]*ad-detail-hero-copy[^"]*"[^>]+data-copy-value="xttlqw_0329"',
+        )
+        self.assertIn("复制微信，立即咨询", hero_html)
+        self.assertIn('class="ad-detail-quick-steps"', hero_html)
+        self.assertIn("约10秒", hero_html)
+        self.assertIn("约1分钟", hero_html)
+        self.assertIn("约3分钟", hero_html)
+
+        self.assertIn('class="ad-detail-sticky-cta"', self.detail_html)
+        self.assertIn('data-ad-copy-root', self.detail_html)
+        self.assertRegex(
+            self.css,
+            r'@media\s*\(max-width:\s*768px\)[\s\S]*?\.ad-detail-sticky-cta',
+        )
+        self.assertRegex(
+            self.css,
+            r'\.ad-detail-sticky-cta\[hidden\]\s*\{[^}]*display:\s*none',
+        )
+
     def test_detail_page_highlights_wechat_and_source_remark(self):
         hero = re.search(
             r'<section[^>]+class="ad-detail-hero"(?P<body>.*?)</section>',
@@ -133,7 +200,7 @@ class HeaderAdPreviewTests(unittest.TestCase):
 
         self.assertIsNotNone(hero)
         self.assertIsNotNone(contact)
-        self.assertIn("请滑到页面最下方查看联系方式", hero.group("body"))
+        self.assertNotIn("请滑到页面最下方查看联系方式", hero.group("body"))
         self.assertNotIn('id="ad-detail-contact"', hero.group("body"))
         self.assertLess(notice_index, contact_index)
         self.assertLess(contact_index, footer_index)
@@ -145,7 +212,7 @@ class HeaderAdPreviewTests(unittest.TestCase):
         self.assertIn('data-copy-value="meizhenxin"', contact_html)
         self.assertIn("来自本网站", contact_html)
         self.assertIn("以商家当期规则为准", contact_html)
-        self.assertIn('aria-live="polite"', contact_html)
+        self.assertIn('aria-live="polite"', self.detail_html)
         self.assertIn('/static/js/service-status-ui.js', self.detail_html)
         self.assertIn('/static/js/ad-detail.js', self.detail_html)
         self.assertIn("ServiceStatusUI", self.detail_js)

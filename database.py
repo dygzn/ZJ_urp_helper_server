@@ -268,6 +268,18 @@ def _create_schema_sqlite(conn):
         )
     ''')
     conn.execute('''
+        CREATE TABLE IF NOT EXISTS ad_click_stats (
+            ad_key TEXT NOT NULL,
+            click_date TEXT NOT NULL,
+            impression_count INTEGER NOT NULL DEFAULT 0,
+            click_count INTEGER NOT NULL DEFAULT 0,
+            copy_count INTEGER NOT NULL DEFAULT 0,
+            dismiss_count INTEGER NOT NULL DEFAULT 0,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY (ad_key, click_date)
+        )
+    ''')
+    conn.execute('''
         CREATE TABLE IF NOT EXISTS memberships (
             username TEXT PRIMARY KEY,
             member_type TEXT NOT NULL,
@@ -432,6 +444,18 @@ def _create_schema_mysql(conn):
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ''')
     conn.execute('''
+        CREATE TABLE IF NOT EXISTS ad_click_stats (
+            ad_key VARCHAR(64) NOT NULL,
+            click_date VARCHAR(10) NOT NULL,
+            impression_count INT NOT NULL DEFAULT 0,
+            click_count INT NOT NULL DEFAULT 0,
+            copy_count INT NOT NULL DEFAULT 0,
+            dismiss_count INT NOT NULL DEFAULT 0,
+            updated_at VARCHAR(32) NOT NULL,
+            PRIMARY KEY (ad_key, click_date)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ''')
+    conn.execute('''
         CREATE TABLE IF NOT EXISTS memberships (
             username VARCHAR(64) PRIMARY KEY,
             member_type VARCHAR(32) NOT NULL,
@@ -536,6 +560,7 @@ def _create_indexes(conn):
         'CREATE INDEX idx_log_time ON request_logs(request_time)',
         'CREATE INDEX idx_log_device ON request_logs(device_id)',
         'CREATE INDEX idx_log_endpoint ON request_logs(endpoint)',
+        'CREATE INDEX idx_ad_click_stats_date ON ad_click_stats(click_date)',
         'CREATE INDEX idx_inviter ON invitations(inviter_username)',
         'CREATE INDEX idx_invitee ON invitations(invitee_username)',
         'CREATE UNIQUE INDEX idx_invitation_links_token ON invitation_links(token)',
@@ -563,6 +588,9 @@ def _run_migrations(conn, db_type):
             "ALTER TABLE feedback_replies ADD COLUMN username VARCHAR(64) NOT NULL DEFAULT '管理员'",
             'ALTER TABLE orders ADD COLUMN notify_url TEXT',
             'ALTER TABLE orders ADD COLUMN pay_url TEXT',
+            'ALTER TABLE ad_click_stats ADD COLUMN impression_count INT NOT NULL DEFAULT 0',
+            'ALTER TABLE ad_click_stats ADD COLUMN copy_count INT NOT NULL DEFAULT 0',
+            'ALTER TABLE ad_click_stats ADD COLUMN dismiss_count INT NOT NULL DEFAULT 0',
         ]
     else:
         migrations = [
@@ -572,9 +600,18 @@ def _run_migrations(conn, db_type):
             "ALTER TABLE feedback_replies ADD COLUMN username TEXT NOT NULL DEFAULT '管理员'",
             'ALTER TABLE orders ADD COLUMN notify_url TEXT',
             'ALTER TABLE orders ADD COLUMN pay_url TEXT',
+            'ALTER TABLE ad_click_stats ADD COLUMN impression_count INTEGER NOT NULL DEFAULT 0',
+            'ALTER TABLE ad_click_stats ADD COLUMN copy_count INTEGER NOT NULL DEFAULT 0',
+            'ALTER TABLE ad_click_stats ADD COLUMN dismiss_count INTEGER NOT NULL DEFAULT 0',
         ]
     for sql in migrations:
         _exec_ignore(conn, sql)
+    # 旧版只记录进入次数。用历史点击数作为最低展示分母，避免迁移后出现超过 100% 的点击率。
+    _exec_ignore(
+        conn,
+        'UPDATE ad_click_stats SET impression_count = click_count '
+        'WHERE impression_count < click_count',
+    )
 
 
 def _drop_removed_tables(conn):
@@ -620,6 +657,7 @@ MIGRATION_TABLES = {
     'feedbacks': ['id', 'device_id', 'username', 'content', 'visibility', 'create_time'],
     'feedback_replies': ['id', 'feedback_id', 'device_id', 'username', 'content', 'create_time'],
     'request_logs': ['id', 'device_id', 'username', 'endpoint', 'method', 'status_code', 'request_time'],
+    'ad_click_stats': ['ad_key', 'click_date', 'impression_count', 'click_count', 'copy_count', 'dismiss_count', 'updated_at'],
     'memberships': ['username', 'member_type', 'expire_time', 'create_time'],
     'invitation_links': ['username', 'token', 'create_time'],
     'api_keys': ['username', 'key_hash', 'key_prefix', 'create_time'],

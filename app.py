@@ -8,6 +8,7 @@ from werkzeug.exceptions import HTTPException
 from database import ensure_api_keys_table, init_db
 from services.logging_service import init_logging
 from services.config_service import get_admin_key
+from services.ad_service import EVENT_COLUMNS, record_ad_event
 from routes.auth_routes import auth_bp
 from routes.data_routes import data_bp
 from routes.admin_routes import admin_bp
@@ -71,7 +72,28 @@ def favicon():
 
 @app.route('/ad-detail')
 def ad_detail():
-    return render_template('ad_detail.html')
+    response = render_template('ad_detail.html')
+    if request.args.get('source') == 'header':
+        try:
+            record_ad_event('click')
+        except Exception:
+            # 统计属于附加能力，数据库异常时不能影响广告详情页正常打开。
+            app.logger.exception('广告点击统计写入失败')
+    return response
+
+
+@app.route('/api/ad/event', methods=['POST'])
+def ad_event():
+    data = request.get_json(silent=True) or {}
+    event_type = data.get('event')
+    if event_type not in EVENT_COLUMNS:
+        return jsonify({'success': False, 'message': '无效的广告事件'}), 400
+    try:
+        record_ad_event(event_type)
+    except Exception:
+        # 前端统计请求不应影响广告本身的展示和操作。
+        app.logger.exception('广告漏斗统计写入失败')
+    return '', 204
 
 @app.route('/')
 def index():

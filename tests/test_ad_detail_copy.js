@@ -3,14 +3,16 @@ const assert = require('node:assert/strict');
 
 const {
     copyAdDetailValue,
+    cleanAdDetailSource,
     initializeAdDetailCopy,
+    initializeStickyContactAction,
 } = require('../static/js/ad-detail.js');
 
 
-function createButton(value, labelText) {
+function createButton(value, labelText, successMessage = '') {
     const label = { textContent: labelText };
     return {
-        dataset: { copyValue: value },
+        dataset: { copyValue: value, copySuccess: successMessage },
         attributes: {},
         querySelector(selector) {
             return selector === '[data-copy-label]' ? label : null;
@@ -26,9 +28,14 @@ function createButton(value, labelText) {
 
 
 test('复制商家微信成功后更新按钮状态和反馈', async () => {
-    const button = createButton('xttlqw_0329', '点击复制微信号');
+    const button = createButton(
+        'xttlqw_0329',
+        '复制微信，立即咨询',
+        '微信号已复制，请打开微信搜索添加',
+    );
     const feedback = { textContent: '' };
     const copiedValues = [];
+    const trackedEvents = [];
 
     const copied = await copyAdDetailValue(
         button,
@@ -37,13 +44,15 @@ test('复制商家微信成功后更新按钮状态和反馈', async () => {
             copiedValues.push(value);
             return true;
         },
+        eventName => trackedEvents.push(eventName),
     );
 
     assert.equal(copied, true);
     assert.deepEqual(copiedValues, ['xttlqw_0329']);
+    assert.deepEqual(trackedEvents, ['copy']);
     assert.equal(button.attributes['data-copy-state'], 'copied');
     assert.equal(button.label.textContent, '已复制');
-    assert.equal(feedback.textContent, '已复制 xttlqw_0329');
+    assert.equal(feedback.textContent, '微信号已复制，请打开微信搜索添加');
 });
 
 
@@ -92,17 +101,74 @@ test('详情页初始化为两个复制按钮绑定点击事件', async () => {
         },
     };
     const copiedValues = [];
+    const trackedEvents = [];
 
     assert.equal(
         initializeAdDetailCopy(documentObject, async value => {
             copiedValues.push(value);
             return true;
-        }),
+        }, eventName => trackedEvents.push(eventName)),
         true,
     );
     assert.equal(handlers.length, 2);
 
     await handlers[1]();
     assert.deepEqual(copiedValues, ['meizhenxin']);
+    assert.deepEqual(trackedEvents, ['copy']);
     assert.equal(feedback.textContent, '已复制 meizhenxin');
+});
+
+
+test('首屏复制按钮离开视口后才显示手机固定入口', () => {
+    const heroButton = {};
+    const stickyButton = { hidden: false };
+    let observedTarget = null;
+    let observerCallback = null;
+    const documentObject = {
+        querySelector(selector) {
+            if (selector === '.ad-detail-hero-copy') return heroButton;
+            if (selector === '.ad-detail-sticky-cta') return stickyButton;
+            return null;
+        },
+    };
+    const observerFactory = callback => {
+        observerCallback = callback;
+        return {
+            observe(target) {
+                observedTarget = target;
+            },
+        };
+    };
+
+    assert.equal(
+        initializeStickyContactAction(documentObject, observerFactory),
+        true,
+    );
+    assert.equal(stickyButton.hidden, true);
+    assert.equal(observedTarget, heroButton);
+
+    observerCallback([{ target: heroButton, isIntersecting: false }]);
+    assert.equal(stickyButton.hidden, false);
+
+    observerCallback([{ target: heroButton, isIntersecting: true }]);
+    assert.equal(stickyButton.hidden, true);
+});
+
+
+test('首次进入详情页后移除来源参数避免刷新重复计数', () => {
+    let replacedUrl = '';
+    const windowObject = {
+        location: {
+            href: 'https://example.test/ad-detail?source=header&campaign=student#rules',
+        },
+        history: {
+            state: { from: 'header' },
+            replaceState(_state, _title, url) {
+                replacedUrl = url;
+            },
+        },
+    };
+
+    assert.equal(cleanAdDetailSource(windowObject), true);
+    assert.equal(replacedUrl, '/ad-detail?campaign=student#rules');
 });

@@ -2222,6 +2222,70 @@ body::before {
     font-weight: 700;
 }
 
+/* ==================== 广告统计 ==================== */
+.ad-stats-cards {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.ad-stats-section {
+    max-width: 860px;
+}
+
+.ad-stats-hint {
+    color: var(--text-tertiary);
+    font-size: 12px;
+}
+
+.ad-stats-daily {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ad-stats-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    min-height: 42px;
+    padding: 0 12px;
+    border-radius: 10px;
+    background: #f7f8fb;
+}
+
+.ad-stats-row-date {
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.ad-stats-row-count {
+    color: var(--accent);
+    font-size: 14px;
+}
+
+.ad-stats-row-metrics {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.ad-stats-row-metrics strong {
+    color: var(--accent);
+}
+
+@media (max-width: 820px) {
+    .ad-stats-cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .ad-stats-row-metrics {
+        gap: 8px;
+        font-size: 12px;
+    }
+}
+
 .request-card,
 .announcement-card {
     border-left-width: 0;

@@ -75,6 +75,8 @@ function switchTab(tabName) {
         loadPendingRequests();
     } else if (tabName === 'users') {
         loadUsers();
+    } else if (tabName === 'ad-stats') {
+        loadAdStats();
     } else if (tabName === 'announcements') {
         loadAnnouncements();
     } else if (tabName === 'service-status') {
@@ -448,6 +450,58 @@ async function loadUsers() {
         container.innerHTML = `<p style="text-align:center;color:var(--error);">${e.message || '加载失败'}</p>`;
     }
 }
+
+async function loadAdStats() {
+    const container = document.getElementById('ad-stats');
+    if (!container) return;
+    container.innerHTML = '<div class="loading">加载中</div>';
+    try {
+        const response = await fetch('/api/admin/ad_stats', {
+            headers: { 'Admin-Key': adminKey }
+        });
+        const data = await response.json();
+        if (!data.success) {
+            container.innerHTML = `<p style="color:var(--error);text-align:center;">${escapeHtml(data.message || '加载失败')}</p>`;
+            return;
+        }
+        renderAdStats(data.data || {});
+    } catch (error) {
+        container.innerHTML = `<p style="color:var(--error);text-align:center;">${escapeHtml(error.message || '加载失败')}</p>`;
+    }
+}
+
+function renderAdStats(stats) {
+    const container = document.getElementById('ad-stats');
+    if (!container) return;
+
+    const impressions = Number(stats.total_impressions) || 0;
+    const clicks = Number(stats.total_clicks) || 0;
+    const copies = Number(stats.total_copies) || 0;
+    const dismissals = Number(stats.total_dismissals) || 0;
+    const clickRate = Number(stats.click_through_rate) || 0;
+    const detailRate = Number(stats.detail_conversion_rate) || 0;
+    const overallRate = Number(stats.overall_conversion_rate) || 0;
+    const daily = Array.isArray(stats.daily) ? stats.daily : [];
+    const rows = daily.slice().reverse().map(item => {
+        const date = escapeHtml(String(item.date || '-'));
+        const dayImpressions = Number(item.impressions) || 0;
+        const dayClicks = Number(item.clicks) || 0;
+        const dayCopies = Number(item.copies) || 0;
+        return `<div class="ad-stats-row"><span class="ad-stats-row-date">${date}</span><span class="ad-stats-row-metrics"><span>展示 ${dayImpressions}</span><span>点击 ${dayClicks}</span><strong>复制 ${dayCopies}</strong></span></div>`;
+    }).join('');
+
+    container.innerHTML = `<div class="ud-cards ad-stats-cards">
+        <div class="ud-card"><div class="ud-card-value">${impressions}</div><div class="ud-card-label">广告展示</div></div>
+        <div class="ud-card ud-card-blue"><div class="ud-card-value">${clicks}</div><div class="ud-card-label">详情点击 · 横幅点击率 ${clickRate}%</div></div>
+        <div class="ud-card ud-card-green"><div class="ud-card-value">${copies}</div><div class="ud-card-label">微信复制 · 详情转化率 ${detailRate}%</div></div>
+        <div class="ud-card"><div class="ud-card-value">${overallRate}%</div><div class="ud-card-label">完整转化率</div></div>
+    </div>
+    <div class="ud-section ad-stats-section">
+        <div class="ud-section-header"><span class="ud-section-title">最近 14 天</span><span class="ad-stats-hint">关闭 ${dismissals} 次 · 按天汇总，不记录用户身份</span></div>
+        <div class="ad-stats-daily">${rows || '<div class="empty-state"><div class="empty-state-text">暂无广告记录</div></div>'}</div>
+    </div>`;
+}
+
 function renderUserDashboard() {
     const { total, classes, daily } = userStatsData;
     const container = document.getElementById('users-list');

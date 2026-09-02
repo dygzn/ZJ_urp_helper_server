@@ -36,6 +36,7 @@
             <div class="admin-content">
                 <nav class="tabs" role="tablist">
                     <button class="tab-btn active" type="button" onclick="switchTab('users')" role="tab">用户</button>
+                    <button class="tab-btn" type="button" onclick="switchTab('ad-stats')" role="tab">广告统计</button>
                     <button class="tab-btn" type="button" onclick="switchTab('monitor')" role="tab">监控</button>
                     <button class="tab-btn" type="button" onclick="switchTab('pending')" role="tab">审批</button>
                     <button class="tab-btn" type="button" onclick="switchTab('announcements')" role="tab">公告</button>
@@ -49,6 +50,11 @@
                 <section id="tab-users" class="tab-content active">
                     <div class="section-header"><h2>用户统计</h2><button class="icon-btn" type="button" onclick="loadUsers()">刷新</button></div>
                     <div id="users-list" class="users-list"><div class="loading">加载中...</div></div>
+                </section>
+
+                <section id="tab-ad-stats" class="tab-content">
+                    <div class="section-header"><h2>广告统计</h2><button class="icon-btn" type="button" onclick="loadAdStats()">刷新</button></div>
+                    <div id="ad-stats" class="ad-stats"><div class="loading">加载中...</div></div>
                 </section>
 
                 <section id="tab-monitor" class="tab-content">

@@ -9,6 +9,7 @@ from auth import require_admin
 from services.config_service import get_config, save_config
 from services.user_service import unbind_user
 from services.member_service import ensure_invitation_earnings, _money, _money_string
+from services.ad_service import get_ad_click_stats
 from constants import MEMBER_DURATION_DAYS
 
 admin_bp = Blueprint('admin_bp', __name__)
@@ -211,6 +212,15 @@ def admin_users():
         return jsonify({'success': True, 'total': total, 'classes': class_list, 'daily': daily})
     except Exception as e:
         return jsonify({'success': False, 'message': f'用户统计加载失败: {str(e)}'})
+
+
+@admin_bp.route('/api/admin/ad_stats', methods=['GET'])
+@require_admin
+def admin_ad_stats():
+    try:
+        return jsonify({'success': True, 'data': get_ad_click_stats()})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'广告统计加载失败: {str(e)}'})
 
 @admin_bp.route('/api/admin/config', methods=['GET'])
 @require_admin

@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body class="ad-detail-body">
-    <main class="ad-detail-page">
+    <main class="ad-detail-page" data-ad-copy-root>
         <nav class="ad-detail-nav" aria-label="广告详情导航">
             <a class="ad-detail-back" href="/">← 返回 URP 教务助手</a>
             <span class="ad-detail-sponsor">广告主活动说明</span>
@@ -15,17 +15,32 @@
 
         <div class="ad-detail-shell">
             <section class="ad-detail-hero">
-                <p class="ad-detail-kicker">学生优惠 · 设备购机活动</p>
+                <p class="ad-detail-kicker">学生优惠 · 3分钟了解活动</p>
                 <div class="ad-detail-no-advance" role="note" aria-label="无需垫资提示">
-                    <span class="ad-detail-no-advance-mark" aria-hidden="true">✓</span>
-                    <strong>全程无需任何垫资</strong>
-                    <span>商家发单时同步提供对应购机款</span>
+                    <span class="ad-detail-no-advance-mark" aria-hidden="true">快</span>
+                    <strong>咨询登记约3分钟</strong>
+                    <span>商家发单时同步提供对应购机款，全程无需任何垫资</span>
                 </div>
-                <h1>按商家订单完成购机，收货后结算奖励</h1>
-                <p class="ad-detail-lead">先添加商家微信。商家有订单时，会连同指定商品对应的购买款和订单要求一并发给你；你按要求填写收货地址，在京东、淘宝或抖音等指定平台完成购买，收到货后按约定结算奖励。未确认购买款到账前不要下单。</p>
-                <div class="ad-detail-contact-hint" role="note" aria-label="联系方式提示">
-                    <span class="ad-detail-contact-hint-icon" aria-hidden="true">↓</span>
-                    <div><strong>想要参与？</strong><span>请滑到页面最下方查看联系方式</span></div>
+                <h1>先花3分钟确认规则，合适再参与</h1>
+                <p class="ad-detail-lead">复制商家微信即可开始咨询。确认订单后，商家会提供对应购机款；你在京东、淘宝或抖音等指定平台完成购买，收到货后按约定结算每台 30–100 元奖励。未确认购买款到账前不要下单。</p>
+                <div class="ad-detail-trust-row" aria-label="活动特点">
+                    <span>无需垫资</span>
+                    <span>正规平台下单</span>
+                    <span>收货后结算</span>
+                </div>
+                <div class="ad-detail-hero-actions">
+                    <button class="ad-detail-primary ad-detail-hero-copy" type="button" data-copy-value="xttlqw_0329" data-copy-success="微信号已复制，请打开微信搜索添加" aria-label="复制商家微信 xttlqw_0329，立即咨询">
+                        <span data-copy-label>复制微信，立即咨询</span>
+                        <small>约3分钟了解清楚</small>
+                    </button>
+                    <a class="ad-detail-secondary" href="#ad-detail-process">先看参与流程</a>
+                </div>
+                <p class="ad-detail-low-commitment">添加微信仅用于了解规则，不代表必须参与。</p>
+                <p class="ad-detail-copy-feedback" data-copy-feedback aria-live="polite">点击按钮即可复制商家微信号</p>
+                <div class="ad-detail-quick-steps" aria-label="快速咨询步骤">
+                    <div><strong>约10秒</strong><span>复制微信号</span></div>
+                    <div><strong>约1分钟</strong><span>添加并填写备注</span></div>
+                    <div><strong>约3分钟</strong><span>确认奖励与规则</span></div>
                 </div>
                 <div class="ad-detail-summary" aria-label="活动设备类型">
                     <div><strong>30-40 元</strong><span>每台手机/平板</span></div>
@@ -58,7 +73,7 @@
                 </div>
             </section>
 
-            <section class="ad-detail-section" aria-labelledby="ad-detail-process-title">
+            <section class="ad-detail-section" id="ad-detail-process" aria-labelledby="ad-detail-process-title">
                 <div class="ad-detail-section-heading">
                     <span class="ad-detail-section-number">02</span>
                     <div>
@@ -87,7 +102,7 @@
                 </div>
             </section>
 
-            <section class="ad-detail-contact" id="ad-detail-contact" data-ad-copy-root aria-labelledby="ad-detail-contact-title">
+            <section class="ad-detail-contact" id="ad-detail-contact" aria-labelledby="ad-detail-contact-title">
                 <div class="ad-detail-contact-header">
                     <div>
                         <p class="ad-detail-contact-eyebrow">首要联系入口</p>
@@ -96,7 +111,7 @@
                     <span class="ad-detail-contact-badge">来源识别</span>
                 </div>
                 <div class="ad-detail-copy-grid">
-                    <button class="ad-detail-copy-button ad-detail-copy-button-primary" type="button" data-copy-value="xttlqw_0329" aria-label="复制商家微信 xttlqw_0329">
+                    <button class="ad-detail-copy-button ad-detail-copy-button-primary" type="button" data-copy-value="xttlqw_0329" data-copy-success="微信号已复制，请打开微信搜索添加" aria-label="复制商家微信 xttlqw_0329">
                         <span class="ad-detail-copy-kind">商家微信</span>
                         <strong class="ad-detail-copy-value">xttlqw_0329</strong>
                         <span class="ad-detail-copy-label" data-copy-label>点击复制微信号</span>
@@ -108,7 +123,7 @@
                     </button>
                 </div>
                 <p class="ad-detail-contact-note">添加时建议备注 <strong>meizhenxin</strong>，用于识别来自本网站的用户，方便商家按来源结算；是否增加提成，以商家当期规则为准。</p>
-                <p class="ad-detail-copy-feedback" data-copy-feedback aria-live="polite">点击上方卡片即可复制对应内容</p>
+                <p class="ad-detail-copy-feedback" aria-live="polite">点击上方卡片即可复制对应内容</p>
             </section>
 
             <footer class="ad-detail-footer">
@@ -116,6 +131,9 @@
                 <span>如需参与，请通过广告主提供的正规联系方式咨询。</span>
             </footer>
         </div>
+        <button class="ad-detail-sticky-cta" type="button" data-copy-value="xttlqw_0329" data-copy-success="微信号已复制，请打开微信搜索添加" aria-label="复制商家微信 xttlqw_0329，约3分钟了解活动" hidden>
+            <span data-copy-label>复制微信 · 约3分钟了解</span>
+        </button>
     </main>
     <script src="/static/js/service-status-ui.js"></script>
     <script src="/static/js/ad-detail.js"></script>

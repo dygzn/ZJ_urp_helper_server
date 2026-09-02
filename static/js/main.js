@@ -114,9 +114,19 @@ let cachedSchedule = null;
 let semesterStart = null;   // 学期第1周星期一的日期
 let isGuestMode = false;    // 访客模式（未绑定账号）
 
-// ==================== 标题栏广告位（测试示例） ====================
+// ==================== 标题栏广告位 ====================
 const headerAdNeverShowKey = 'urp_header_ad_never_show';
 const headerAdDismissedKey = 'urp_header_ad_dismissed';
+let headerAdImpressionTracked = false;
+
+function trackHeaderAdEvent(eventName) {
+    fetch('/api/ad/event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event: eventName }),
+        keepalive: true,
+    }).catch(() => {});
+}
 
 function headerAdStorageHas(storage, key) {
     try {
@@ -142,6 +152,11 @@ function renderHeaderAd() {
     restoreButton.hidden = !dismissed;
     detail.hidden = true;
     optionsButton.setAttribute('aria-expanded', 'false');
+
+    if (!neverShow && !dismissed && !headerAdImpressionTracked) {
+        headerAdImpressionTracked = true;
+        trackHeaderAdEvent('impression');
+    }
 }
 
 function handleHeaderAdAction(action) {
@@ -157,6 +172,7 @@ function handleHeaderAdAction(action) {
     }
 
     if (action === 'dismiss') {
+        trackHeaderAdEvent('dismiss');
         try {
             sessionStorage.setItem(headerAdDismissedKey, '1');
         } catch (error) {
@@ -167,6 +183,7 @@ function handleHeaderAdAction(action) {
     }
 
     if (action === 'never-show') {
+        trackHeaderAdEvent('dismiss');
         try {
             localStorage.setItem(headerAdNeverShowKey, '1');
             sessionStorage.removeItem(headerAdDismissedKey);
