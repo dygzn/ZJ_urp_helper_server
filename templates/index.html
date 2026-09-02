@@ -35,6 +35,24 @@
         <header class="header">
             <button class="menu-btn" type="button" onclick="openSidebar()"><span></span><span></span><span></span></button>
             <h1 id="page-title">首页</h1>
+            <div id="header-ad-slot" class="header-ad-slot" aria-label="广告位" hidden>
+                <div id="header-ad-card" class="header-ad-card">
+                    <a class="header-ad-main" href="/ad-detail" aria-label="推广 学生优惠购机活动，奖励最高140元，点此查看详情">
+                        <span class="header-ad-tag">推广</span>
+                        <span class="header-ad-copy"><strong>学生优惠购机活动，奖励最高140元！</strong><small>点此查看详情</small></span>
+                    </a>
+                    <button class="header-ad-options" type="button" data-ad-action="options" aria-expanded="false" aria-controls="header-ad-detail" aria-label="广告选项">⋯</button>
+                    <button class="header-ad-close" type="button" data-ad-action="dismiss" aria-label="暂时关闭广告">×</button>
+                </div>
+                <div id="header-ad-detail" class="header-ad-detail" hidden>
+                    <p><strong>学生优惠活动</strong> · 点击主广告查看完整说明。</p>
+                    <div class="header-ad-detail-actions">
+                        <button class="header-ad-detail-btn" type="button" data-ad-action="never-show">本设备永不显示</button>
+                        <button class="header-ad-detail-btn" type="button" data-ad-action="dismiss">暂时关闭</button>
+                    </div>
+                </div>
+                <button id="header-ad-restore" class="header-ad-restore" type="button" data-ad-action="restore" hidden>广告已隐藏 · 恢复展示</button>
+            </div>
             <div id="login-status-indicator" class="login-status-indicator"><span class="status-dot status-checking"></span><span class="status-text">检查中</span></div>
         </header>
 

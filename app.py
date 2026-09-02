@@ -69,6 +69,10 @@ def handle_api_exception(error):
 def favicon():
     return '', 204
 
+@app.route('/ad-detail')
+def ad_detail():
+    return render_template('ad_detail.html')
+
 @app.route('/')
 def index():
     if any(key not in INDEX_QUERY_ALLOWLIST for key in request.args):

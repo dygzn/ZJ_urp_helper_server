@@ -114,6 +114,93 @@ let cachedSchedule = null;
 let semesterStart = null;   // 学期第1周星期一的日期
 let isGuestMode = false;    // 访客模式（未绑定账号）
 
+// ==================== 标题栏广告位（测试示例） ====================
+const headerAdNeverShowKey = 'urp_header_ad_never_show';
+const headerAdDismissedKey = 'urp_header_ad_dismissed';
+
+function headerAdStorageHas(storage, key) {
+    try {
+        return storage.getItem(key) === '1';
+    } catch (error) {
+        return false;
+    }
+}
+
+function renderHeaderAd() {
+    const slot = document.getElementById('header-ad-slot');
+    const card = document.getElementById('header-ad-card');
+    const detail = document.getElementById('header-ad-detail');
+    const optionsButton = document.querySelector('.header-ad-options');
+    const restoreButton = document.getElementById('header-ad-restore');
+    if (!slot || !card || !detail || !optionsButton || !restoreButton) return;
+
+    const neverShow = headerAdStorageHas(localStorage, headerAdNeverShowKey);
+    const dismissed = !neverShow && headerAdStorageHas(sessionStorage, headerAdDismissedKey);
+
+    slot.hidden = neverShow;
+    card.hidden = dismissed;
+    restoreButton.hidden = !dismissed;
+    detail.hidden = true;
+    optionsButton.setAttribute('aria-expanded', 'false');
+}
+
+function handleHeaderAdAction(action) {
+    const detail = document.getElementById('header-ad-detail');
+    const optionsButton = document.querySelector('.header-ad-options');
+    if (!detail || !optionsButton) return;
+
+    if (action === 'options' || action === 'detail') {
+        const isExpanded = !detail.hidden;
+        detail.hidden = isExpanded;
+        optionsButton.setAttribute('aria-expanded', String(!isExpanded));
+        return;
+    }
+
+    if (action === 'dismiss') {
+        try {
+            sessionStorage.setItem(headerAdDismissedKey, '1');
+        } catch (error) {
+            // 存储不可用时仍允许当前页面关闭广告。
+        }
+        renderHeaderAd();
+        return;
+    }
+
+    if (action === 'never-show') {
+        try {
+            localStorage.setItem(headerAdNeverShowKey, '1');
+            sessionStorage.removeItem(headerAdDismissedKey);
+        } catch (error) {
+            // 存储不可用时不阻断网站其他功能。
+        }
+        renderHeaderAd();
+        return;
+    }
+
+    if (action === 'restore') {
+        try {
+            sessionStorage.removeItem(headerAdDismissedKey);
+        } catch (error) {
+            // 存储不可用时无需阻断恢复按钮。
+        }
+        renderHeaderAd();
+    }
+}
+
+function initializeHeaderAd() {
+    const slot = document.getElementById('header-ad-slot');
+    if (!slot) return;
+
+    slot.addEventListener('click', function(event) {
+        const target = event.target instanceof Element
+            ? event.target.closest('[data-ad-action]')
+            : null;
+        if (!target) return;
+        handleHeaderAdAction(target.dataset.adAction);
+    });
+    renderHeaderAd();
+}
+
 // ==================== 防止双击放大 ====================
 let lastTouchEnd = 0;
 document.addEventListener('touchend', function(event) {
@@ -148,6 +235,9 @@ function getDeviceId() {
 document.addEventListener('DOMContentLoaded', function() {
     // 确保设备ID已生成
     getDeviceId();
+
+    // 初始化标题栏广告位，不影响登录状态检查
+    initializeHeaderAd();
 
     // 先暂存邀请链接 token，等待首次绑定时随登录请求发送
     capturePendingInvitationToken();
