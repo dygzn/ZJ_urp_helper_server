@@ -7,8 +7,9 @@ import uuid
 from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify
 from database import get_db
-from auth import require_bindding, require_member
+from auth import require_bindding
 from services.member_service import _generate_md5, _get_server_url, calculate_invitation_rate, ensure_invitation_earnings
+from services.invitation_service import build_invitation_url, get_invitation_link, get_or_create_invitation_link
 from constants import PAY_API_URL, MERCHANT_NUM, PAY_SECRET_KEY, MEMBER_PRICES, MEMBER_DURATION_DAYS, DATA_DIR
 
 member_bp = Blueprint('member', __name__)
@@ -208,36 +209,42 @@ def my_inviter(user):
     return jsonify({'success': True, 'data': {'inviter': None}})
 
 
-@member_bp.route('/api/invitation/set', methods=['POST'])
+@member_bp.route('/api/invitation/link', methods=['GET'])
 @require_bindding
-def set_inviter(user):
+def invitation_link(user):
     username = user['username']
-    inviter = (request.get_json() or {}).get('inviter', '').strip()
-    if not inviter:
-        return jsonify({'success': False, 'message': '请填写邀请人学号'})
-    if inviter == username:
-        return jsonify({'success': False, 'message': '不能邀请自己'})
-
     with get_db() as conn:
-        already = conn.execute(
-            'SELECT id FROM invitations WHERE invitee_username = ?', (username,)
-        ).fetchone()
-        if already:
-            return jsonify({'success': False, 'message': '你已绑定过邀请人，无法修改'})
+        row = get_invitation_link(conn, username)
+    if not row:
+        return jsonify({
+            'success': True,
+            'data': {'has_link': False, 'invite_url': None},
+        })
+    return jsonify({
+        'success': True,
+        'data': {
+            'has_link': True,
+            'invite_url': build_invitation_url(_get_server_url(), row['token']),
+            'created': False,
+        },
+    })
 
-        inviter_exists = conn.execute(
-            'SELECT username FROM users WHERE username = ?', (inviter,)
-        ).fetchone()
-        if not inviter_exists:
-            return jsonify({'success': False, 'message': '邀请人学号不存在'})
 
-        conn.execute(
-            'INSERT INTO invitations (inviter_username, invitee_username, create_time) VALUES (?, ?, ?)',
-            (inviter, username, datetime.now().isoformat())
+@member_bp.route('/api/invitation/link', methods=['POST'])
+@require_bindding
+def create_invitation_link(user):
+    with get_db() as conn:
+        invite_url, created = get_or_create_invitation_link(
+            conn, user['username'], _get_server_url()
         )
-        ensure_invitation_earnings(conn, inviter_username=inviter, invitee_username=username)
-
-    return jsonify({'success': True, 'message': f'已绑定邀请人：{inviter}'})
+    return jsonify({
+        'success': True,
+        'data': {
+            'has_link': True,
+            'invite_url': invite_url,
+            'created': created,
+        },
+    })
 
 
 @member_bp.route('/api/invitation/earnings', methods=['GET'])
@@ -298,7 +305,7 @@ def invitation_earnings(user):
 
 
 @member_bp.route('/api/invitation/withdraw', methods=['POST'])
-@require_member('basic')
+@require_bindding
 def invitation_withdraw(user):
     username = user['username']
     data = request.get_json() or {}
