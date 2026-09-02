@@ -40,6 +40,15 @@ class InvitationLinksUiTests(unittest.TestCase):
         self.assertIn('.invitation-link', self.css)
         self.assertNotIn('.inviter-set-form', self.css)
 
+    def test_referral_copy_uses_tiered_first_payment_rewards(self):
+        self.assertIn('每成功邀请1位新付费用户，获得最高1.2元奖励。', self.script)
+        self.assertIn('当前每人奖励', self.script)
+        self.assertIn('有效邀请', self.script)
+        self.assertIn('每位被邀请用户首次完成付费时计为一次有效邀请，同一用户仅计一次', self.script)
+        self.assertIn('历史奖励不补差价', self.script)
+        self.assertNotIn('10% 起的邀请收益', self.script)
+        self.assertNotIn("rateText = memberType === 'advanced'", self.script)
+
 
 if __name__ == '__main__':
     unittest.main()

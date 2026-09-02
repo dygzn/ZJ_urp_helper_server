@@ -1647,7 +1647,7 @@ async function loadCommissionStats() {
             const pending = parseFloat(u.pending_withdraw) || 0;
             html += `<tr class="${available > 0 ? 'commission-row-active' : ''}">
                 <td><span class="commission-user">${u.username}</span></td>
-                <td>${u.invitee_count || 0} 人 / ${u.commission_count || 0} 笔</td>
+                <td>${u.invitee_count || 0} 人 / ${u.commission_count || 0} 笔${u.milestone_count ? ` / ${u.milestone_count} 个任务奖励` : ''}</td>
                 <td>¥${u.invitee_paid_amount}</td>
                 <td>¥${u.earned}</td>
                 <td>

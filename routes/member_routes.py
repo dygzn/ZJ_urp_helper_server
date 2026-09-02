@@ -8,11 +8,34 @@ from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify
 from database import get_db
 from auth import require_bindding
-from services.member_service import _generate_md5, _get_server_url, calculate_invitation_rate, ensure_invitation_earnings
+from services.member_service import (
+    _generate_md5,
+    _get_server_url,
+    _money,
+    _money_string,
+    ensure_invitation_earnings,
+    get_invitation_earning_total,
+    get_referral_milestone_status,
+    get_referral_progress,
+)
 from services.invitation_service import build_invitation_url, get_invitation_link, get_or_create_invitation_link
 from constants import PAY_API_URL, MERCHANT_NUM, PAY_SECRET_KEY, MEMBER_PRICES, MEMBER_DURATION_DAYS, DATA_DIR
 
 member_bp = Blueprint('member', __name__)
+
+
+def _lock_withdrawal_state(conn, username):
+    """串行化同一用户的提现余额检查；兼容 SQLite 和 MySQL。"""
+    if hasattr(conn, 'conn'):
+        # MySQL 连接关闭 autocommit 后，FOR UPDATE 会锁定绑定用户行，
+        # 直到本次提现事务提交或回滚。
+        conn.execute(
+            'SELECT device_id FROM users WHERE username = ? FOR UPDATE',
+            (username,),
+        ).fetchall()
+    else:
+        # SQLite 没有 FOR UPDATE；立即取得写锁，避免两个请求同时通过余额检查。
+        conn.execute('BEGIN IMMEDIATE')
 
 
 @member_bp.route('/api/member/status', methods=['GET'])
@@ -253,6 +276,8 @@ def invitation_earnings(user):
     username = user['username']
     with get_db() as conn:
         ensure_invitation_earnings(conn, inviter_username=username)
+        progress = get_referral_progress(conn, username)
+        milestones = get_referral_milestone_status(conn, username)
         # 被邀请人充值总额
         total_spending = conn.execute('''
             SELECT SUM(o.amount + 0) as total
@@ -260,46 +285,58 @@ def invitation_earnings(user):
             INNER JOIN invitations i ON o.username = i.invitee_username
             WHERE i.inviter_username = ? AND o.status = 'paid'
         ''', (username,)).fetchone()
-        invitee_total = total_spending['total'] or 0
-
-        # 当前会员等级对应的分佣比例
-        rate = calculate_invitation_rate(conn, username)
+        invitee_total = _money(total_spending['total'] if total_spending else 0)
 
         # 已产生的收益明细
         rows = conn.execute(
             'SELECT amount, invitee_username, create_time FROM invitation_earnings WHERE username = ? ORDER BY create_time DESC',
             (username,)
         ).fetchall()
-        total_earned = conn.execute(
-            'SELECT SUM(amount + 0) as total FROM invitation_earnings WHERE username = ?',
+        milestone_rows = conn.execute(
+            'SELECT milestone_id, amount, create_time FROM invitation_milestone_rewards WHERE username = ? ORDER BY create_time DESC',
             (username,)
-        ).fetchone()
-        earned = total_earned['total'] or 0
+        ).fetchall()
+        earned = get_invitation_earning_total(conn, username)
 
         # 已提现
         withdrawn_row = conn.execute(
             "SELECT SUM(amount + 0) as total FROM withdrawals WHERE username = ? AND status != 'rejected'",
             (username,)
         ).fetchone()
-        withdrawn = withdrawn_row['total'] or 0
+        withdrawn = _money(withdrawn_row['total'] if withdrawn_row else 0)
 
         # 可提现 = 已产生收益 - 已提现
-        available = max(earned - withdrawn, 0)
+        available = max(earned - withdrawn, _money('0'))
 
     earnings = [{
         'amount': r['amount'],
         'invitee_username': r['invitee_username'],
         'create_time': r['create_time']
     } for r in rows]
+    milestone_earnings = [{
+        'milestone_id': r['milestone_id'],
+        'amount': r['amount'],
+        'create_time': r['create_time'],
+    } for r in milestone_rows]
     return jsonify({
         'success': True,
         'data': {
-            'invitee_total': str(invitee_total),
-            'rate': f'{int(rate * 100)}%',
-            'earned': str(earned),
-            'withdrawn': str(withdrawn),
-            'available': str(available),
-            'earnings': earnings
+            'invitee_total': _money_string(invitee_total),
+            # rate 是旧版字段名，明确标记为阶梯奖励，避免旧客户端继续按百分比误算。
+            'rate': '阶梯奖励',
+            'commission_mode': 'tiered',
+            'reward_per_invitee': progress['current_reward'],
+            'effective_invite_count': progress['effective_invite_count'],
+            'current_reward': progress['current_reward'],
+            'next_level_count': progress['next_level_count'],
+            'next_reward': progress['next_reward'],
+            'levels': progress['levels'],
+            'milestones': milestones,
+            'earned': _money_string(earned),
+            'withdrawn': _money_string(withdrawn),
+            'available': _money_string(available),
+            'earnings': earnings,
+            'milestone_earnings': milestone_earnings,
         }
     })
 
@@ -315,38 +352,32 @@ def invitation_withdraw(user):
     if not real_name or not alipay_account:
         return jsonify({'success': False, 'message': '请填写姓名和支付宝账号'})
 
-    # 查询可提现金额
+    # 余额检查、待审核检查和写入必须在同一个受保护事务中完成。
     with get_db() as conn:
+        _lock_withdrawal_state(conn, username)
         ensure_invitation_earnings(conn, inviter_username=username)
-        total_earned = conn.execute(
-            'SELECT SUM(amount + 0) as total FROM invitation_earnings WHERE username = ?',
-            (username,)
-        ).fetchone()
-        total_earned = total_earned['total'] or 0
+        total_earned = get_invitation_earning_total(conn, username)
 
         withdrawn_row = conn.execute(
             "SELECT SUM(amount + 0) as total FROM withdrawals WHERE username = ? AND status != 'rejected'",
             (username,)
         ).fetchone()
-        total_withdrawn = withdrawn_row['total'] or 0
+        total_withdrawn = _money(withdrawn_row['total'] if withdrawn_row else 0)
 
-    available = max(total_earned - total_withdrawn, 0)
-    if available <= 0:
-        return jsonify({'success': False, 'message': '暂无可提现金额'})
+        available = max(total_earned - total_withdrawn, _money('0'))
+        if available <= 0:
+            return jsonify({'success': False, 'message': '暂无可提现金额'})
 
-    # 检查是否有待审核的提现
-    with get_db() as conn:
         pending = conn.execute(
             "SELECT id FROM withdrawals WHERE username = ? AND status = 'pending'",
             (username,)
         ).fetchone()
-    if pending:
-        return jsonify({'success': False, 'message': '你有一笔提现正在审核中，请等待审核完成'})
+        if pending:
+            return jsonify({'success': False, 'message': '你有一笔提现正在审核中，请等待审核完成'})
 
-    with get_db() as conn:
         conn.execute(
             'INSERT INTO withdrawals (username, real_name, alipay_account, amount, status, create_time) VALUES (?, ?, ?, ?, ?, ?)',
-            (username, real_name, alipay_account, str(round(available, 2)), 'pending', datetime.now().isoformat())
+            (username, real_name, alipay_account, format(available.normalize(), 'f'), 'pending', datetime.now().isoformat())
         )
 
     return jsonify({'success': True, 'message': f'提现申请已提交，金额 ¥{available:.2f}，请等待管理员审核'})

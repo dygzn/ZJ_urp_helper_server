@@ -3199,6 +3199,13 @@ body {
     color: var(--text-tertiary);
 }
 
+.invitation-promo {
+    margin: 10px 0 4px;
+    color: var(--accent);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
 .invitation-link-content {
     padding: 10px 0 12px;
     border-bottom: 1px solid var(--divider);
@@ -3268,6 +3275,53 @@ body {
 .earnings-rate {
     color: var(--accent);
     font-weight: 600;
+}
+
+.referral-section-title {
+    margin: 12px 0 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.referral-levels,
+.referral-milestones {
+    padding: 0 2px;
+}
+
+.referral-level-row,
+.referral-milestone-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 5px 10px;
+    background: var(--bg-secondary);
+    border-radius: 7px;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.referral-level-row + .referral-level-row,
+.referral-milestone-row + .referral-milestone-row {
+    margin-top: 4px;
+}
+
+.referral-level-row span:last-child,
+.referral-milestone-row > span:last-child {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.referral-milestone-row > div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.referral-milestone-row > div span {
+    color: var(--text-tertiary);
+    font-size: 11px;
 }
 
 .earnings-total {

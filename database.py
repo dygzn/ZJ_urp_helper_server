@@ -302,6 +302,28 @@ def _create_schema_sqlite(conn):
         )
     ''')
     conn.execute('''
+        CREATE TABLE IF NOT EXISTS invitation_reward_claims (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+            invitee_username TEXT NOT NULL,
+            order_no TEXT NOT NULL,
+            amount TEXT NOT NULL,
+            rate TEXT NOT NULL,
+            create_time TEXT NOT NULL,
+            UNIQUE (username, invitee_username)
+        )
+    ''')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS invitation_milestone_rewards (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+            milestone_id TEXT NOT NULL,
+            amount TEXT NOT NULL,
+            create_time TEXT NOT NULL,
+            UNIQUE (username, milestone_id)
+        )
+    ''')
+    conn.execute('''
         CREATE TABLE IF NOT EXISTS withdrawals (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT NOT NULL,
@@ -444,6 +466,28 @@ def _create_schema_mysql(conn):
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ''')
     conn.execute('''
+        CREATE TABLE IF NOT EXISTS invitation_reward_claims (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            username VARCHAR(64) NOT NULL,
+            invitee_username VARCHAR(64) NOT NULL,
+            order_no VARCHAR(64) NOT NULL,
+            amount VARCHAR(32) NOT NULL,
+            rate VARCHAR(16) NOT NULL,
+            create_time VARCHAR(32) NOT NULL,
+            UNIQUE KEY uq_invitation_reward_claim (username, invitee_username)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ''')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS invitation_milestone_rewards (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            username VARCHAR(64) NOT NULL,
+            milestone_id VARCHAR(128) NOT NULL,
+            amount VARCHAR(32) NOT NULL,
+            create_time VARCHAR(32) NOT NULL,
+            UNIQUE KEY uq_invitation_milestone (username, milestone_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ''')
+    conn.execute('''
         CREATE TABLE IF NOT EXISTS withdrawals (
             id INT AUTO_INCREMENT PRIMARY KEY,
             username VARCHAR(64) NOT NULL,
@@ -501,6 +545,8 @@ def _create_indexes(conn):
         'CREATE INDEX idx_earnings_username ON invitation_earnings(username)',
         'CREATE UNIQUE INDEX idx_earnings_user_order ON invitation_earnings(username, order_no)',
         'CREATE INDEX idx_earnings_order_no ON invitation_earnings(order_no)',
+        'CREATE INDEX idx_reward_claims_username ON invitation_reward_claims(username)',
+        'CREATE INDEX idx_milestone_rewards_username ON invitation_milestone_rewards(username)',
         'CREATE INDEX idx_withdrawals_username ON withdrawals(username)',
         'CREATE INDEX idx_withdrawals_status ON withdrawals(status)',
     ]
@@ -579,6 +625,8 @@ MIGRATION_TABLES = {
     'api_keys': ['username', 'key_hash', 'key_prefix', 'create_time'],
     'invitations': ['id', 'inviter_username', 'invitee_username', 'create_time'],
     'invitation_earnings': ['id', 'username', 'order_no', 'invitee_username', 'amount', 'rate', 'create_time'],
+    'invitation_reward_claims': ['id', 'username', 'invitee_username', 'order_no', 'amount', 'rate', 'create_time'],
+    'invitation_milestone_rewards': ['id', 'username', 'milestone_id', 'amount', 'create_time'],
     'withdrawals': ['id', 'username', 'real_name', 'alipay_account', 'amount', 'status', 'create_time', 'review_time'],
     'orders': ['order_no', 'device_id', 'username', 'member_type', 'amount', 'pay_type', 'status', 'create_time', 'pay_time', 'notify_url', 'pay_url'],
     'admin_service_status': ['id', 'status_text', 'accepting_orders', 'updated_at'],

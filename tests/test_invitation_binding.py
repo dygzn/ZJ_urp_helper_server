@@ -109,7 +109,7 @@ class InvitationBindingTests(unittest.TestCase):
                 'SELECT username, amount, rate FROM invitation_earnings'
             ).fetchone()
         self.assertEqual(dict(earning), {
-            'username': 'inviter', 'amount': '0.3', 'rate': '10%',
+            'username': 'inviter', 'amount': '0.80', 'rate': '0.80元',
         })
 
 

@@ -8,10 +8,24 @@ from database import get_db, get_database_config, test_database_config, migrate_
 from auth import require_admin
 from services.config_service import get_config, save_config
 from services.user_service import unbind_user
-from services.member_service import ensure_invitation_earnings
+from services.member_service import ensure_invitation_earnings, _money, _money_string
 from constants import MEMBER_DURATION_DAYS
 
 admin_bp = Blueprint('admin_bp', __name__)
+
+
+def _new_commission_stat(username):
+    return {
+        'username': username,
+        'earned': _money('0'),
+        'withdrawn': _money('0'),
+        'pending_withdraw': _money('0'),
+        'invitee_paid_amount': _money('0'),
+        'invitees': set(),
+        'commission_count': 0,
+        'milestone_count': 0,
+        'last_earning_time': None,
+    }
 
 
 @admin_bp.route('/admin')
@@ -426,20 +440,17 @@ def admin_withdrawals():
             ensure_invitation_earnings(conn)
             rows = conn.execute('SELECT * FROM withdrawals').fetchall()
             earnings_rows = conn.execute('SELECT username, amount FROM invitation_earnings').fetchall()
+            milestone_rows = conn.execute('SELECT username, amount FROM invitation_milestone_rewards').fetchall()
             withdrawal_amount_rows = conn.execute("SELECT username, amount, status FROM withdrawals WHERE status != 'rejected'").fetchall()
 
-        earned_map = defaultdict(float)
-        withdrawn_map = defaultdict(float)
+        earned_map = defaultdict(lambda: _money('0'))
+        withdrawn_map = defaultdict(lambda: _money('0'))
         for r in earnings_rows:
-            try:
-                earned_map[r['username']] += float(r['amount'] or 0)
-            except (TypeError, ValueError):
-                pass
+            earned_map[r['username']] += _money(r['amount'])
+        for r in milestone_rows:
+            earned_map[r['username']] += _money(r['amount'])
         for r in withdrawal_amount_rows:
-            try:
-                withdrawn_map[r['username']] += float(r['amount'] or 0)
-            except (TypeError, ValueError):
-                pass
+            withdrawn_map[r['username']] += _money(r['amount'])
 
         sorted_rows = sorted(
             rows,
@@ -451,8 +462,8 @@ def admin_withdrawals():
 
         result = []
         for r in pending + others:
-            earned = earned_map.get(r['username'], 0)
-            withdrawn = withdrawn_map.get(r['username'], 0)
+            earned = earned_map.get(r['username'], _money('0'))
+            withdrawn = withdrawn_map.get(r['username'], _money('0'))
             result.append({
                 'id': r['id'],
                 'username': r['username'],
@@ -462,9 +473,9 @@ def admin_withdrawals():
                 'status': r['status'],
                 'create_time': r['create_time'],
                 'review_time': r['review_time'],
-                'earned': str(round(earned, 2)),
-                'withdrawn': str(round(withdrawn, 2)),
-                'available_after': str(round(max(earned - withdrawn, 0), 2))
+                'earned': _money_string(earned),
+                'withdrawn': _money_string(withdrawn),
+                'available_after': _money_string(max(earned - withdrawn, _money('0')))
             })
         return jsonify({'success': True, 'data': result})
     except Exception as e:
@@ -498,6 +509,7 @@ def admin_commission_stats():
         with get_db() as conn:
             ensure_invitation_earnings(conn)
             earnings = conn.execute('SELECT username, invitee_username, amount, create_time FROM invitation_earnings').fetchall()
+            milestone_earnings = conn.execute('SELECT username, amount, create_time FROM invitation_milestone_rewards').fetchall()
             withdrawals = conn.execute('SELECT username, amount, status FROM withdrawals').fetchall()
             invitations = conn.execute('SELECT inviter_username, invitee_username FROM invitations').fetchall()
             paid_orders = conn.execute("SELECT username, amount FROM orders WHERE status = 'paid'").fetchall()
@@ -505,100 +517,67 @@ def admin_commission_stats():
         stats = {}
         for e in earnings:
             username = e['username']
-            item = stats.setdefault(username, {
-                'username': username,
-                'earned': 0.0,
-                'withdrawn': 0.0,
-                'pending_withdraw': 0.0,
-                'invitee_paid_amount': 0.0,
-                'invitees': set(),
-                'commission_count': 0,
-                'last_earning_time': None,
-            })
-            try:
-                item['earned'] += float(e['amount'] or 0)
-            except (TypeError, ValueError):
-                pass
+            item = stats.setdefault(username, _new_commission_stat(username))
+            item['earned'] += _money(e['amount'])
             if e['invitee_username']:
                 item['invitees'].add(e['invitee_username'])
             item['commission_count'] += 1
             if e['create_time'] and (not item['last_earning_time'] or e['create_time'] > item['last_earning_time']):
                 item['last_earning_time'] = e['create_time']
 
+        for e in milestone_earnings:
+            username = e['username']
+            item = stats.setdefault(username, _new_commission_stat(username))
+            item['earned'] += _money(e['amount'])
+            item['milestone_count'] = item.get('milestone_count', 0) + 1
+            if e['create_time'] and (not item['last_earning_time'] or e['create_time'] > item['last_earning_time']):
+                item['last_earning_time'] = e['create_time']
+
         for inv in invitations:
-            stats.setdefault(inv['inviter_username'], {
-                'username': inv['inviter_username'],
-                'earned': 0.0,
-                'withdrawn': 0.0,
-                'pending_withdraw': 0.0,
-                'invitee_paid_amount': 0.0,
-                'invitees': set(),
-                'commission_count': 0,
-                'last_earning_time': None,
-            })['invitees'].add(inv['invitee_username'])
+            stats.setdefault(
+                inv['inviter_username'],
+                _new_commission_stat(inv['inviter_username']),
+            )['invitees'].add(inv['invitee_username'])
 
         invitee_to_inviter = {inv['invitee_username']: inv['inviter_username'] for inv in invitations}
         for order in paid_orders:
             inviter = invitee_to_inviter.get(order['username'])
             if not inviter:
                 continue
-            item = stats.setdefault(inviter, {
-                'username': inviter,
-                'earned': 0.0,
-                'withdrawn': 0.0,
-                'pending_withdraw': 0.0,
-                'invitee_paid_amount': 0.0,
-                'invitees': set(),
-                'commission_count': 0,
-                'last_earning_time': None,
-            })
-            try:
-                item['invitee_paid_amount'] += float(order['amount'] or 0)
-            except (TypeError, ValueError):
-                pass
+            item = stats.setdefault(inviter, _new_commission_stat(inviter))
+            item['invitee_paid_amount'] += _money(order['amount'])
 
         for w in withdrawals:
             username = w['username']
-            item = stats.setdefault(username, {
-                'username': username,
-                'earned': 0.0,
-                'withdrawn': 0.0,
-                'pending_withdraw': 0.0,
-                'invitee_paid_amount': 0.0,
-                'invitees': set(),
-                'commission_count': 0,
-                'last_earning_time': None,
-            })
-            try:
-                amount = float(w['amount'] or 0)
-            except (TypeError, ValueError):
-                amount = 0.0
+            item = stats.setdefault(username, _new_commission_stat(username))
+            amount = _money(w['amount'])
             if w['status'] != 'rejected':
                 item['withdrawn'] += amount
             if w['status'] == 'pending':
                 item['pending_withdraw'] += amount
 
         users = []
-        total_earned = 0
-        total_withdrawn = 0
-        total_available = 0
-        total_pending = 0
-        total_invitee_paid = 0
+        total_earned = _money('0')
+        total_withdrawn = _money('0')
+        total_available = _money('0')
+        total_pending = _money('0')
+        total_invitee_paid = _money('0')
         for item in stats.values():
             earned = item['earned']
             withdrawn = item['withdrawn']
             pending = item['pending_withdraw']
             invitee_paid = item['invitee_paid_amount']
-            available = max(earned - withdrawn, 0)
+            available = max(earned - withdrawn, _money('0'))
             users.append({
                 'username': item['username'],
-                'earned': str(round(earned, 2)),
-                'withdrawn': str(round(withdrawn, 2)),
-                'available': str(round(available, 2)),
-                'pending_withdraw': str(round(pending, 2)),
-                'invitee_paid_amount': str(round(invitee_paid, 2)),
+                'earned': _money_string(earned),
+                'withdrawn': _money_string(withdrawn),
+                'available': _money_string(available),
+                'pending_withdraw': _money_string(pending),
+                'invitee_paid_amount': _money_string(invitee_paid),
                 'invitee_count': len(item['invitees']),
                 'commission_count': item['commission_count'],
+                'milestone_count': item.get('milestone_count', 0),
                 'last_earning_time': item['last_earning_time']
             })
             total_earned += earned
@@ -615,13 +594,13 @@ def admin_commission_stats():
                 'users': users,
                 'summary': {
                     'user_count': len(users),
-                    'total_earned': str(round(total_earned, 2)),
-                    'total_withdrawn': str(round(total_withdrawn, 2)),
-                    'total_available': str(round(total_available, 2)),
-                    'total_pending': str(round(total_pending, 2)),
-                    'total_invitee_paid': str(round(total_invitee_paid, 2))
+                    'total_earned': _money_string(total_earned),
+                    'total_withdrawn': _money_string(total_withdrawn),
+                    'total_available': _money_string(total_available),
+                    'total_pending': _money_string(total_pending),
+                    'total_invitee_paid': _money_string(total_invitee_paid)
                 },
-                'total_available': str(round(total_available, 2))
+                'total_available': _money_string(total_available)
             }
         })
     except Exception as e:

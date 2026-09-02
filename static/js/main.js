@@ -2796,27 +2796,26 @@ async function loadInvitationEarnings() {
 
     card.style.display = '';
     if (linkContent) linkContent.innerHTML = '<div class="loading">加载中...</div>';
-    content.innerHTML = '<div class="loading">\u52a0\u8f7d\u4e2d...</div>';
+    content.innerHTML = '<div class="loading">加载中...</div>';
 
     const fetchJson = async (url) => {
         try {
             const resp = await fetch(url, { headers: { 'X-Device-ID': getDeviceId() } });
-            const data = await resp.json().catch(() => ({ success: false, message: '\u63a5\u53e3\u8fd4\u56de\u683c\u5f0f\u5f02\u5e38' }));
+            const data = await resp.json().catch(() => ({ success: false, message: '接口返回格式异常' }));
             if (!resp.ok) {
-                return { success: false, message: data.message || `\u8bf7\u6c42\u5931\u8d25\uff1a${resp.status}` };
+                return { success: false, message: data.message || `请求失败：${resp.status}` };
             }
             return data;
         } catch (e) {
-            return { success: false, message: '\u7f51\u7edc\u8bf7\u6c42\u5931\u8d25' };
+            return { success: false, message: '网络请求失败' };
         }
     };
 
-    const [inviterData, linkData, earningsData, withdrawalsData, memberData] = await Promise.all([
+    const [inviterData, linkData, earningsData, withdrawalsData] = await Promise.all([
         fetchJson('/api/invitation/my_inviter'),
         fetchJson('/api/invitation/link'),
         fetchJson('/api/invitation/earnings'),
-        fetchJson('/api/invitation/withdrawals'),
-        fetchJson('/api/member/status')
+        fetchJson('/api/invitation/withdrawals')
     ]);
 
     if (linkData.success && linkData.data) {
@@ -2826,25 +2825,23 @@ async function loadInvitationEarnings() {
     }
 
     if (!earningsData.success || !earningsData.data) {
-        content.innerHTML = `<div class="error-message">\u6536\u76ca\u52a0\u8f7d\u5931\u8d25\uff1a${earningsData.message || '\u672a\u77e5\u9519\u8bef'}</div>`;
+        content.innerHTML = `<div class="error-message">收益加载失败：${earningsData.message || '未知错误'}</div>`;
         return;
     }
 
-    const isMember = memberData.success && memberData.data && memberData.data.is_member === true;
-    const memberType = isMember ? memberData.data.member_type : null;
-    const rateText = memberType === 'advanced' ? '20%' : '10%';
+    const data = earningsData.data;
+    const inviteeTotal = parseFloat(data.invitee_total) || 0;
+    const effectiveInviteCount = Number(data.effective_invite_count || 0);
+    const currentReward = data.current_reward || '0.80';
+    const earned = parseFloat(data.earned) || 0;
+    const withdrawn = parseFloat(data.withdrawn) || 0;
+    const available = parseFloat(data.available) || 0;
 
-    let html = '';
+    let html = `<div class="invitation-promo"><strong>每成功邀请1位新付费用户，获得最高1.2元奖励。</strong></div>`;
 
     if (inviterData.success && inviterData.data && inviterData.data.inviter) {
-        html += `<div class="inviter-info"><span class="inviter-label">\u9080\u8bf7\u4eba\uff1a</span><span>${escapeGradeHtml(inviterData.data.inviter)}</span></div>`;
+        html += `<div class="inviter-info"><span class="inviter-label">邀请人：</span><span>${escapeGradeHtml(inviterData.data.inviter)}</span></div>`;
     }
-
-    const inviteeTotal = parseFloat(earningsData.data.invitee_total) || 0;
-    const rate = earningsData.data.rate || '10%';
-    const earned = parseFloat(earningsData.data.earned) || 0;
-    const withdrawn = parseFloat(earningsData.data.withdrawn) || 0;
-    const available = parseFloat(earningsData.data.available) || 0;
 
     let hasPending = false;
     if (withdrawalsData.success && withdrawalsData.data) {
@@ -2855,44 +2852,87 @@ async function loadInvitationEarnings() {
 
     let btnText, btnDisabled, btnOpacity;
     if (hasPending) {
-        btnText = '\u5ba1\u6838\u4e2d';
+        btnText = '审核中';
         btnDisabled = true;
         btnOpacity = '0.5';
     } else if (available <= 0) {
-        btnText = '\u6682\u65e0\u53ef\u63d0\u73b0';
+        btnText = '暂无可提现';
         btnDisabled = true;
         btnOpacity = '0.5';
     } else {
-        btnText = '\u63d0\u73b0';
+        btnText = '提现';
         btnDisabled = false;
         btnOpacity = '1';
     }
 
     html += `<div class="earnings-summary">
-        <div class="earnings-row"><span>\u56e2\u961f\u5145\u503c</span><span>\u00a5${inviteeTotal.toFixed(2)}</span></div>
-        <div class="earnings-row"><span>\u5206\u4f63\u6bd4\u4f8b</span><span class="earnings-rate">${rate}</span></div>
-        <div class="earnings-row earnings-row-total"><span>\u7d2f\u8ba1\u6536\u76ca</span><span class="earnings-amount">\u00a5${earned.toFixed(2)}</span></div>
+        <div class="earnings-row"><span>有效邀请</span><span>${effectiveInviteCount} 人</span></div>
+        <div class="earnings-row"><span>当前每人奖励</span><span class="earnings-rate">¥${escapeGradeHtml(currentReward)}</span></div>
+        <div class="earnings-row"><span>团队充值</span><span>¥${inviteeTotal.toFixed(2)}</span></div>
+        <div class="earnings-row earnings-row-total"><span>累计收益</span><span class="earnings-amount">¥${earned.toFixed(2)}</span></div>
     </div>`;
-    html += `<div class="earnings-total">
-        <span class="earnings-label">\u53ef\u63d0\u73b0</span><span class="earnings-amount">\u00a5${available.toFixed(2)}</span>
-        <button class="btn-withdraw" onclick="showWithdrawDialog()" ${btnDisabled ? 'disabled' : ''} style="opacity:${btnOpacity}">${btnText}</button>
-    </div>`;
-    if (withdrawn > 0) {
-        html += `<div class="earnings-withdrawn"><span>\u5df2\u5360\u7528\uff1a\u00a5${withdrawn.toFixed(2)}</span></div>`;
-    }
-    if (!withdrawalsData.success) {
-        html += `<div class="invite-hint">\u63d0\u73b0\u8bb0\u5f55\u52a0\u8f7d\u5931\u8d25\uff1a${withdrawalsData.message || '\u672a\u77e5\u9519\u8bef'}</div>`;
+
+    if (data.next_level_count !== null && data.next_level_count !== undefined) {
+        const remaining = Math.max(Number(data.next_level_count) - effectiveInviteCount, 0);
+        html += `<div class="invite-hint">再邀请 ${remaining} 位新付费用户，后续每人奖励提升至 ¥${escapeGradeHtml(data.next_reward || '0.00')}。</div>`;
+    } else {
+        html += '<div class="invite-hint">已达到当前最高奖励档位，继续邀请仍可获得当前奖励。</div>';
     }
 
-    if (earningsData.data.earnings && earningsData.data.earnings.length > 0) {
-        html += '<div class="earnings-list">';
-        earningsData.data.earnings.forEach(e => {
-            html += `<div class="earning-item"><span>${e.invitee_username} \u5f00\u901a\u4f1a\u5458</span><span class="earning-amount">+\u00a5${(parseFloat(e.amount) || 0).toFixed(2)}</span><span class="earning-time">${e.create_time ? e.create_time.slice(0, 10) : ''}</span></div>`;
+    if (Array.isArray(data.levels) && data.levels.length > 0) {
+        html += '<div class="referral-levels"><div class="referral-section-title">奖励阶梯</div>';
+        data.levels.forEach((level, index) => {
+            const nextLevel = data.levels[index + 1];
+            const range = nextLevel
+                ? `${Number(level.min_count)}～${Number(nextLevel.min_count) - 1}人`
+                : `${Number(level.min_count)}人以上`;
+            html += `<div class="referral-level-row"><span>${range}</span><span>¥${escapeGradeHtml(level.reward)} / 人</span></div>`;
         });
         html += '</div>';
     }
 
-    html += `<div class="invite-hint">\u6240\u6709\u5df2\u7ed1\u5b9a\u7528\u6237\u5747\u53ef\u83b7\u5f97 10% \u8d77\u7684\u9080\u8bf7\u6536\u76ca\u5e76\u7533\u8bf7\u63d0\u73b0\uff1b\u5f53\u524d\u6bd4\u4f8b\u4e3a <strong>${rateText}</strong>\u3002</div>`;
+    if (Array.isArray(data.milestones) && data.milestones.length > 0) {
+        html += '<div class="referral-milestones"><div class="referral-section-title">限时任务</div>';
+        data.milestones.forEach(milestone => {
+            const label = escapeGradeHtml(milestone.label || milestone.id || '邀请任务');
+            let status;
+            if (milestone.completed) {
+                status = milestone.rewarded ? '已完成，奖励已发放' : '已完成，奖励待发放';
+            } else if (milestone.is_active) {
+                status = `已完成 ${Number(milestone.count || 0)}/${Number(milestone.target_count || 0)}，还差 ${Number(milestone.remaining || 0)} 人`;
+            } else {
+                status = `目标 ${Number(milestone.target_count || 0)} 人，奖励 ¥${escapeGradeHtml(milestone.bonus || '0.00')}`;
+            }
+            html += `<div class="referral-milestone-row"><div><strong>${label}</strong><span>${status}</span></div><span>额外 ¥${escapeGradeHtml(milestone.bonus || '0.00')}</span></div>`;
+        });
+        html += '</div>';
+    }
+
+    html += `<div class="earnings-total">
+        <span class="earnings-label">可提现</span><span class="earnings-amount">¥${available.toFixed(2)}</span>
+        <button class="btn-withdraw" onclick="showWithdrawDialog()" ${btnDisabled ? 'disabled' : ''} style="opacity:${btnOpacity}">${btnText}</button>
+    </div>`;
+    if (withdrawn > 0) {
+        html += `<div class="earnings-withdrawn"><span>已占用：¥${withdrawn.toFixed(2)}</span></div>`;
+    }
+    if (!withdrawalsData.success) {
+        html += `<div class="invite-hint">提现记录加载失败：${withdrawalsData.message || '未知错误'}</div>`;
+    }
+
+    if ((data.earnings && data.earnings.length > 0) || (data.milestone_earnings && data.milestone_earnings.length > 0)) {
+        html += '<div class="earnings-list">';
+        (data.earnings || []).forEach(e => {
+            html += `<div class="earning-item"><span>${escapeGradeHtml(e.invitee_username)} 首次付费</span><span class="earning-amount">+¥${(parseFloat(e.amount) || 0).toFixed(2)}</span><span class="earning-time">${e.create_time ? e.create_time.slice(0, 10) : ''}</span></div>`;
+        });
+        if (data.milestone_earnings && data.milestone_earnings.length > 0) {
+            data.milestone_earnings.forEach(e => {
+                html += `<div class="earning-item"><span>限时任务奖励</span><span class="earning-amount">+¥${(parseFloat(e.amount) || 0).toFixed(2)}</span><span class="earning-time">${e.create_time ? e.create_time.slice(0, 10) : ''}</span></div>`;
+            });
+        }
+        html += '</div>';
+    }
+
+    html += '<div class="invite-hint">规则说明：每位被邀请用户首次完成付费时计为一次有效邀请，同一用户仅计一次；达到新档位后，后续邀请按新奖励计算，历史奖励不补差价。</div>';
 
     content.innerHTML = html;
 }
@@ -3045,7 +3085,8 @@ async function showWithdrawDialog() {
         const historyData = await historyResp.json();
 
         const inviteeTotal = (earningsData.success && earningsData.data) ? (parseFloat(earningsData.data.invitee_total) || 0) : 0;
-        const rate = (earningsData.success && earningsData.data) ? earningsData.data.rate : '10%';
+        const effectiveInviteCount = (earningsData.success && earningsData.data) ? (Number(earningsData.data.effective_invite_count) || 0) : 0;
+        const currentReward = (earningsData.success && earningsData.data) ? (earningsData.data.current_reward || '0.80') : '0.80';
         const earned = (earningsData.success && earningsData.data) ? (parseFloat(earningsData.data.earned) || 0) : 0;
         const available = (earningsData.success && earningsData.data) ? (parseFloat(earningsData.data.available) || 0) : 0;
 
@@ -3055,7 +3096,10 @@ async function showWithdrawDialog() {
                 <span>团队充值</span><span>¥${inviteeTotal.toFixed(2)}</span>
             </div>
             <div class="withdraw-amount-row">
-                <span>分佣比例</span><span>${rate}</span>
+                <span>有效邀请</span><span>${effectiveInviteCount} 人</span>
+            </div>
+            <div class="withdraw-amount-row">
+                <span>当前每人奖励</span><span>¥${currentReward}</span>
             </div>
             <div class="withdraw-amount-row">
                 <span>累计收益</span><span>¥${earned.toFixed(2)}</span>

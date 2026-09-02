@@ -70,10 +70,50 @@ class InvitationSchemaTests(unittest.TestCase):
         self.assertIn('token VARCHAR(128) NOT NULL UNIQUE', table_sql)
         self.assertIn('ENGINE=InnoDB DEFAULT CHARSET=utf8mb4', table_sql)
 
+    def test_mysql_schema_declares_invitation_milestone_rewards(self):
+        connection = RecordingConnection()
+
+        database._create_schema_mysql(connection)
+
+        table_sql = next(
+            sql for sql in connection.statements
+            if 'CREATE TABLE IF NOT EXISTS invitation_milestone_rewards' in sql
+        )
+        self.assertIn('username VARCHAR(64) NOT NULL', table_sql)
+        self.assertIn('milestone_id VARCHAR(128) NOT NULL', table_sql)
+        self.assertIn('UNIQUE KEY uq_invitation_milestone (username, milestone_id)', table_sql)
+        self.assertIn('ENGINE=InnoDB DEFAULT CHARSET=utf8mb4', table_sql)
+
+    def test_mysql_schema_declares_invitation_reward_claims(self):
+        connection = RecordingConnection()
+
+        database._create_schema_mysql(connection)
+
+        table_sql = next(
+            sql for sql in connection.statements
+            if 'CREATE TABLE IF NOT EXISTS invitation_reward_claims' in sql
+        )
+        self.assertIn('username VARCHAR(64) NOT NULL', table_sql)
+        self.assertIn('invitee_username VARCHAR(64) NOT NULL', table_sql)
+        self.assertIn('UNIQUE KEY uq_invitation_reward_claim (username, invitee_username)', table_sql)
+        self.assertIn('ENGINE=InnoDB DEFAULT CHARSET=utf8mb4', table_sql)
+
     def test_migration_table_list_contains_invitation_links(self):
         self.assertEqual(
             database.MIGRATION_TABLES['invitation_links'],
             ['username', 'token', 'create_time'],
+        )
+
+    def test_migration_table_list_contains_invitation_milestone_rewards(self):
+        self.assertEqual(
+            database.MIGRATION_TABLES['invitation_milestone_rewards'],
+            ['id', 'username', 'milestone_id', 'amount', 'create_time'],
+        )
+
+    def test_migration_table_list_contains_invitation_reward_claims(self):
+        self.assertEqual(
+            database.MIGRATION_TABLES['invitation_reward_claims'],
+            ['id', 'username', 'invitee_username', 'order_no', 'amount', 'rate', 'create_time'],
         )
 
 
