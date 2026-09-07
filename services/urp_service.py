@@ -4,6 +4,7 @@ URP 教务系统交互服务
 import os
 import json
 import re
+import threading
 import time
 from datetime import datetime, timedelta
 from database import get_db
@@ -12,6 +13,9 @@ from services.config_service import get_config, get_current_urp_url
 # 登录状态验证缓存：{username: timestamp}，15分钟内只验证一次
 _login_cache = {}
 LOGIN_CACHE_TTL = 900
+_auto_update_state_lock = threading.Lock()
+_auto_update_running = set()
+_auto_update_context = threading.local()
 
 
 def urp_login(username, password):
@@ -240,8 +244,61 @@ def get_urgent_event(username):
     }
 
 
+def is_auto_update_running(username):
+    """返回指定用户是否已有自动更新任务在执行。"""
+    with _auto_update_state_lock:
+        return username in _auto_update_running
+
+
+def _try_start_auto_update(username):
+    with _auto_update_state_lock:
+        if username in _auto_update_running:
+            return False
+        _auto_update_running.add(username)
+        return True
+
+
+def _finish_auto_update(username):
+    with _auto_update_state_lock:
+        _auto_update_running.discard(username)
+
+
+def start_auto_update(username, password):
+    """异步启动每日更新；同一用户已有任务时直接跳过。"""
+    if not _try_start_auto_update(username):
+        return False
+
+    def worker():
+        _auto_update_context.slot_acquired = True
+        try:
+            check_and_auto_update(username, password)
+        finally:
+            _auto_update_context.slot_acquired = False
+            _finish_auto_update(username)
+
+    try:
+        threading.Thread(target=worker, daemon=True).start()
+    except Exception:
+        _finish_auto_update(username)
+        raise
+    return True
+
+
 def check_and_auto_update(username, password):
-    """检查是否需要自动更新课表和考试表（每日首次访问）"""
+    """检查是否需要自动更新课表和考试表（每日首次访问）。"""
+    slot_acquired = getattr(_auto_update_context, 'slot_acquired', False)
+    if not slot_acquired and not _try_start_auto_update(username):
+        return False, '更新进行中'
+
+    try:
+        return _perform_auto_update(username, password)
+    finally:
+        if not slot_acquired:
+            _finish_auto_update(username)
+
+
+def _perform_auto_update(username, password):
+    """执行一次自动更新；网络请求期间不持有数据库连接。"""
     from datetime import date
     today = date.today().isoformat()
 
@@ -259,28 +316,28 @@ def check_and_auto_update(username, password):
         if last_update == today:
             return False, '今日已更新'
 
-        try:
-            from URP import URP_login, URP_query
-            url = get_current_urp_url()
+    try:
+        from URP import URP_login, URP_query
+        url = get_current_urp_url()
 
-            urp = URP_login(url, username, password)
-            if not urp.is_logined():
-                urp.login()
+        urp = URP_login(url, username, password)
+        if not urp.is_logined():
+            urp.login()
 
-            query = URP_query(url, username)
-            query.schedule_cx()
-            query.exam_cx()
+        query = URP_query(url, username)
+        query.schedule_cx()
+        query.exam_cx()
 
+        with get_db() as conn:
             conn.execute(
                 'UPDATE users SET last_auto_update = ? WHERE username = ?',
                 (today, username)
             )
-            conn.commit()
 
-            return True, '自动更新成功'
+        return True, '自动更新成功'
 
-        except Exception as e:
-            return False, f'自动更新失败: {str(e)}'
+    except Exception as e:
+        return False, f'自动更新失败: {str(e)}'
 
 
 def get_schedule(username, week=None):

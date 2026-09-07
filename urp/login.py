@@ -26,6 +26,12 @@ VPN_AUTH_USERNAME = os.environ.get('VPN_AUTH_USERNAME')
 VPN_AUTH_PASSWORD = os.environ.get('VPN_AUTH_PASSWORD')
 VPN_AUTH_BODY = os.environ.get('VPN_AUTH_BODY')
 MAX_CAPTCHA_ATTEMPTS = 8
+SAVE_DEBUG_FILES = os.environ.get('URP_SAVE_DEBUG_FILES', '').lower() in {
+    '1', 'true', 'yes', 'on'
+}
+DEBUG_FILE_THROTTLE_SECONDS = 60
+_debug_file_times = {}
+_debug_file_lock = threading.Lock()
 VPN_COOKIE_PREFIX = 'VSG_'
 _VPN_LOCK = threading.Lock()
 _KEEPALIVE_STARTED = False
@@ -235,6 +241,16 @@ def _html_hint(resp):
 
 
 def _save_debug_file(filename, content):
+    if not SAVE_DEBUG_FILES:
+        return False
+
+    now = time.monotonic()
+    with _debug_file_lock:
+        last_write = _debug_file_times.get(filename)
+        if last_write is not None and now - last_write < DEBUG_FILE_THROTTLE_SECONDS:
+            return False
+        _debug_file_times[filename] = now
+
     try:
         os.makedirs('data', exist_ok=True)
         path = os.path.join('data', filename)
@@ -242,8 +258,9 @@ def _save_debug_file(filename, content):
             Path(path).write_bytes(content)
         else:
             Path(path).write_text(content or '', encoding='utf-8')
+        return True
     except Exception:
-        pass
+        return False
 
 
 def _looks_like_image(resp):

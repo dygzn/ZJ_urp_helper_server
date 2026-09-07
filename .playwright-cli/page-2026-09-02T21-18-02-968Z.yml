@@ -1,0 +1,69 @@
+- generic [ref=f10e2]:
+  - banner [ref=f10e3]:
+    - generic [ref=f10e4]:
+      - generic [ref=f10e5]: Admin Console
+      - heading "URP教务助手管理后台" [level=1] [ref=f10e6]
+    - button "退出" [ref=f10e8] [cursor=pointer]
+  - generic [ref=f10e9]:
+    - tablist [ref=f10e10]:
+      - tab "用户" [selected] [ref=f10e11] [cursor=pointer]
+      - tab "广告统计" [ref=f10e12] [cursor=pointer]
+      - tab "监控" [ref=f10e13] [cursor=pointer]
+      - tab "审批" [ref=f10e14] [cursor=pointer]
+      - tab "公告" [ref=f10e15] [cursor=pointer]
+      - tab "反馈" [ref=f10e16] [cursor=pointer]
+      - tab "会员" [ref=f10e17] [cursor=pointer]
+      - tab "提现" [ref=f10e18] [cursor=pointer]
+      - tab "配置" [ref=f10e19] [cursor=pointer]
+    - tabpanel [ref=f10e20]:
+      - generic [ref=f10e21]:
+        - heading "用户统计" [level=2] [ref=f10e22]
+        - button "刷新" [ref=f10e23] [cursor=pointer]
+      - generic [ref=f10e24]:
+        - generic [ref=f10e25]:
+          - generic [ref=f10e26]: 总用户
+          - strong [ref=f10e27]: 1,248
+        - generic [ref=f10e28]:
+          - generic [ref=f10e29]: 今日活跃
+          - strong [ref=f10e30]: "86"
+        - generic [ref=f10e31]:
+          - generic [ref=f10e32]: 已绑定
+          - strong [ref=f10e33]: 1,102
+      - table [ref=f10e35]:
+        - rowgroup [ref=f10e36]:
+          - row [ref=f10e37]:
+            - columnheader "账号" [ref=f10e38]
+            - columnheader "设备" [ref=f10e39]
+            - columnheader "状态" [ref=f10e40]
+            - columnheader "操作" [ref=f10e41]
+        - rowgroup [ref=f10e42]:
+          - row [ref=f10e43]:
+            - cell "20260001" [ref=f10e44]
+            - cell "Android" [ref=f10e45]
+            - cell "正常" [ref=f10e46]
+            - cell [ref=f10e47]:
+              - button "查看" [ref=f10e48]
+          - row [ref=f10e49]:
+            - cell "20260002" [ref=f10e50]
+            - cell "iPhone" [ref=f10e51]
+            - cell "正常" [ref=f10e52]
+            - cell [ref=f10e53]:
+              - button "查看" [ref=f10e54]
+    - tabpanel [ref=f10e55]:
+      - generic [ref=f10e56]:
+        - heading "系统配置" [level=2] [ref=f10e57]
+        - button "刷新" [ref=f10e58] [cursor=pointer]
+      - generic [ref=f10e60]:
+        - heading "数据库配置" [level=3] [ref=f10e61]
+        - paragraph [ref=f10e62]: 两台服务器共享充值和会员数据时请选择 MySQL / MariaDB。
+        - generic [ref=f10e63]:
+          - generic [ref=f10e64]:
+            - generic [ref=f10e65]: 数据库地址
+            - textbox "数据库地址" [ref=f10e66]:
+              - /placeholder: localhost
+          - generic [ref=f10e67]:
+            - generic [ref=f10e68]: 端口
+            - textbox "端口" [ref=f10e69]: "3306"
+        - generic [ref=f10e70]:
+          - button "保存配置" [ref=f10e71] [cursor=pointer]
+          - button "测试连接" [ref=f10e72] [cursor=pointer]

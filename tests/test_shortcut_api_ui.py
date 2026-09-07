@@ -29,6 +29,7 @@ class ShortcutApiTemplateTests(unittest.TestCase):
         page_end = html.index('id="page-member"')
         page = html[page_start:page_end]
         self.assertIn('id="shortcut-api-member-status"', page)
+        self.assertIn('urgent_event', page)
 
     def test_main_script_loads_status_and_uses_member_api_key_endpoints(self):
         script = (ROOT / 'static' / 'js' / 'main.js').read_text(encoding='utf-8')

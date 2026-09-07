@@ -89,7 +89,10 @@ def ad_event():
     if event_type not in EVENT_COLUMNS:
         return jsonify({'success': False, 'message': '无效的广告事件'}), 400
     try:
-        record_ad_event(event_type)
+        if event_type == 'copy':
+            record_ad_event(event_type, username=data.get('username'))
+        else:
+            record_ad_event(event_type)
     except Exception:
         # 前端统计请求不应影响广告本身的展示和操作。
         app.logger.exception('广告漏斗统计写入失败')

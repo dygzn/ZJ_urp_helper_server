@@ -71,8 +71,8 @@ def member_create_order(user):
 
     if member_type not in MEMBER_PRICES:
         return jsonify({'success': False, 'message': '无效的会员类型'})
-    if pay_type not in ('alipay', 'wechat'):
-        return jsonify({'success': False, 'message': '无效的支付类型'})
+    if pay_type != 'alipay':
+        return jsonify({'success': False, 'message': '目前仅支持支付宝支付'})
 
     username = user['username']
     device_id = user['device_id']

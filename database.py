@@ -280,6 +280,13 @@ def _create_schema_sqlite(conn):
         )
     ''')
     conn.execute('''
+        CREATE TABLE IF NOT EXISTS ad_copy_users (
+            ad_key TEXT NOT NULL,
+            username TEXT NOT NULL,
+            PRIMARY KEY (ad_key, username)
+        )
+    ''')
+    conn.execute('''
         CREATE TABLE IF NOT EXISTS memberships (
             username TEXT PRIMARY KEY,
             member_type TEXT NOT NULL,
@@ -453,6 +460,13 @@ def _create_schema_mysql(conn):
             dismiss_count INT NOT NULL DEFAULT 0,
             updated_at VARCHAR(32) NOT NULL,
             PRIMARY KEY (ad_key, click_date)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ''')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS ad_copy_users (
+            ad_key VARCHAR(64) NOT NULL,
+            username VARCHAR(64) NOT NULL,
+            PRIMARY KEY (ad_key, username)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ''')
     conn.execute('''
@@ -658,6 +672,7 @@ MIGRATION_TABLES = {
     'feedback_replies': ['id', 'feedback_id', 'device_id', 'username', 'content', 'create_time'],
     'request_logs': ['id', 'device_id', 'username', 'endpoint', 'method', 'status_code', 'request_time'],
     'ad_click_stats': ['ad_key', 'click_date', 'impression_count', 'click_count', 'copy_count', 'dismiss_count', 'updated_at'],
+    'ad_copy_users': ['ad_key', 'username'],
     'memberships': ['username', 'member_type', 'expire_time', 'create_time'],
     'invitation_links': ['username', 'token', 'create_time'],
     'api_keys': ['username', 'key_hash', 'key_prefix', 'create_time'],

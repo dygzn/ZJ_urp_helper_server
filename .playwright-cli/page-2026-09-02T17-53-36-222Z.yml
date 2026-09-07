@@ -1,0 +1,94 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - heading "URP教务助手" [level=2] [ref=e4]
+      - button "x" [ref=e5] [cursor=pointer]
+    - navigation [ref=e6]:
+      - link "首页" [ref=e7] [cursor=pointer]:
+        - /url: "#"
+      - link "课程表" [ref=e12] [cursor=pointer]:
+        - /url: "#"
+      - link "考试安排" [ref=e16] [cursor=pointer]:
+        - /url: "#"
+      - link "成绩查询" [ref=e21] [cursor=pointer]:
+        - /url: "#"
+      - link "教学评估" [ref=e24] [cursor=pointer]:
+        - /url: "#"
+      - link "系统公告" [ref=e28] [cursor=pointer]:
+        - /url: "#"
+      - link "找我做事" [active] [ref=e33] [cursor=pointer]:
+        - /url: "#"
+      - link "反馈建议" [ref=e38] [cursor=pointer]:
+        - /url: "#"
+      - link "快捷指令 API" [ref=e42] [cursor=pointer]:
+        - /url: "#"
+      - link "会员购买" [ref=e47] [cursor=pointer]:
+        - /url: "#"
+    - generic [ref=e52]:
+      - button "换绑账号" [ref=e53] [cursor=pointer]
+      - paragraph [ref=e54]: "当前用户: 访客"
+  - generic [ref=e55]:
+    - banner [ref=e56]:
+      - button [ref=e57] [cursor=pointer]
+      - heading "找我做事" [level=1] [ref=e112]
+      - generic "广告位" [ref=e62]:
+        - generic [ref=e63]:
+          - link "推广 学生优惠资格出售，最高可得140元，点开了解详情" [ref=e64] [cursor=pointer]:
+            - /url: /ad-detail?source=header
+            - generic [ref=e65]: 推广
+            - strong [ref=e104]: 学生优惠资格出售：最高可得140元
+            - generic [ref=e69]:
+              - text: 点开了解详情
+              - generic [aria-hidden] [ref=e70]: →
+          - button "广告选项" [ref=e71] [cursor=pointer]: ⋯
+          - button "暂时关闭广告" [ref=e72] [cursor=pointer]: ×
+      - generic [ref=e73]: Offline
+    - generic [ref=e114]:
+      - generic [ref=e115]:
+        - generic [ref=e116]:
+          - generic [ref=e117]: 无情的作业机器
+          - heading "课程作业懒得做？ 我来帮你解决。" [level=2] [ref=e118]: 课程作业懒得做？我来帮你解决。
+          - paragraph [ref=e119]: 把课程名称、具体要求和截止时间发来，我会先帮你免费评估，价格实惠童叟无欺。
+          - button "联系我" [ref=e121] [cursor=pointer]:
+            - text: 联系我
+            - generic [aria-hidden] [ref=e122]: →
+        - complementary [ref=e123]:
+          - generic [ref=e124]: 空闲
+          - generic [ref=e125]: 当前可接单
+          - generic [ref=e128]: 更新于 2026/08/13 04:17
+      - heading "明确肯定可以做的" [level=2] [ref=e129]
+      - generic [ref=e130]:
+        - article [ref=e131]:
+          - generic [aria-hidden] [ref=e132]: Py
+          - heading "Python/C++/java等课程" [level=3] [ref=e133]
+          - paragraph [ref=e134]: 支持定制项目名称、代码，直接给到可以提交的pdf文件
+        - article [ref=e135]:
+          - generic [aria-hidden] [ref=e136]: Lx
+          - heading "Linux 实验" [level=3] [ref=e137]
+          - paragraph [ref=e138]: 定制系统名字等等，全包交付
+        - article [ref=e139]:
+          - generic [aria-hidden] [ref=e140]: X
+          - heading "Excel/word 相关软件操作" [level=3] [ref=e141]
+          - paragraph [ref=e142]: 计算机基础/数据分析等课程的任务可以上机完成
+        - article [ref=e143]:
+          - generic [aria-hidden] [ref=e144]: ☁
+          - heading "各类网课代刷" [level=3] [ref=e145]
+          - paragraph [ref=e146]: 智慧树/学习通等网课代刷
+      - heading "流程" [level=2] [ref=e147]
+      - generic [ref=e148]:
+        - article [ref=e149]:
+          - generic [aria-hidden] [ref=e150]: "1"
+          - generic [ref=e151]:
+            - heading "把要求发来" [level=3] [ref=e152]
+            - paragraph [ref=e153]: 附上课程、任务说明、截止时间
+        - article [ref=e154]:
+          - generic [aria-hidden] [ref=e155]: "2"
+          - generic [ref=e156]:
+            - heading "免费评估" [level=3] [ref=e157]
+            - paragraph [ref=e158]: 确认能否完成、处理方式、预计时间和报价
+        - article [ref=e159]:
+          - generic [aria-hidden] [ref=e160]: "3"
+          - generic [ref=e161]:
+            - heading "开始解决" [level=3] [ref=e162]
+            - paragraph [ref=e163]: 按约定时间交付
+      - paragraph [ref=e164]: 可以先把要求发来问一下，只有你想不到没有我做不到。

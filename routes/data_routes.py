@@ -4,14 +4,13 @@
 import os
 import json
 import random
-import threading
 from flask import Blueprint, request, jsonify
 from auth import require_login, require_bindding, require_member, require_grade_login
 from database import get_db
 from services.config_service import get_config
 from services.urp_service import (
     get_urgent_event, get_schedule, get_exams, get_grades,
-    get_unevaluated_courses, do_evaluation, check_and_auto_update,
+    get_unevaluated_courses, do_evaluation, start_auto_update,
     check_login_status, get_semesters, get_grades_by_semester,
     get_failed_grades, get_gpa, get_current_semester_grades,
     get_latest_semester_grade_summary,
@@ -26,11 +25,7 @@ data_bp = Blueprint('data', __name__)
 @require_bindding
 def api_urgent_event(user):
     try:
-        threading.Thread(
-            target=check_and_auto_update,
-            args=(user['username'], user['password']),
-            daemon=True
-        ).start()
+        start_auto_update(user['username'], user['password'])
 
         event = get_urgent_event(user['username'])
         return jsonify({'success': True, 'event': event})

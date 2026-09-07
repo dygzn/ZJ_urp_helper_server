@@ -5303,6 +5303,29 @@ body {
     box-shadow: 0 16px 42px rgba(18,36,70,0.08);
 }
 
+.ad-detail-disclosure {
+    margin-bottom: 20px;
+    padding: 14px 16px;
+    border: 1px solid rgba(255,149,0,0.24);
+    border-radius: 14px;
+    background: rgba(255,149,0,0.08);
+}
+
+.ad-detail-disclosure p {
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+.ad-detail-disclosure p + p {
+    margin-top: 7px;
+}
+
+.ad-detail-disclosure strong {
+    color: var(--text-primary);
+    font-weight: 750;
+}
+
 .ad-detail-kicker {
     margin-bottom: 12px;
     color: var(--accent);
@@ -5999,4 +6022,589 @@ body {
     .ad-detail-primary {
         width: 100%;
     }
+}
+
+/* ==================== UX 收口：触控、反馈与窄屏布局 ==================== */
+:root {
+    --touch-target: 44px;
+    --touch-target-strong: 48px;
+}
+
+button,
+input,
+select,
+textarea {
+    font: inherit;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+    touch-action: manipulation;
+}
+
+.menu-btn,
+.close-btn,
+.modal-close,
+.header-ad-options,
+.header-ad-close,
+.header-ad-detail-btn,
+.header-ad-restore,
+.icon-btn,
+.refresh-btn {
+    min-width: var(--touch-target);
+    min-height: var(--touch-target);
+}
+
+.nav-item {
+    min-height: 48px;
+    padding-block: 12px;
+}
+
+.rebind-btn,
+.btn-sm,
+.btn-primary,
+.btn-secondary,
+.eval-btn,
+.service-contact-trigger,
+.service-contact-option,
+.semester-option-btn,
+.other-major-chip,
+.feedback-reply-btn {
+    min-height: var(--touch-target-strong);
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select,
+.form-select,
+.week-select-wrap,
+.week-select-wrap select,
+.historical-schedule-select-wrap,
+.historical-schedule-select-wrap select {
+    min-height: var(--touch-target-strong);
+}
+
+:where(button, a, input, select, textarea):focus-visible {
+    outline: 3px solid rgba(0, 122, 255, 0.35);
+    outline-offset: 2px;
+}
+
+body.ui-locked {
+    overflow: hidden;
+}
+
+.page-access-gate[hidden] {
+    display: none;
+}
+
+.page.is-access-locked > :not([data-page-access-gate]) {
+    display: none;
+}
+
+.page-access-gate {
+    width: min(100%, 520px);
+    min-height: 280px;
+    margin: clamp(18px, 8vh, 72px) auto;
+    padding: 32px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    border: 1px solid rgba(0, 122, 255, 0.14);
+    border-radius: 20px;
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(245, 249, 255, 0.96));
+    box-shadow: 0 12px 32px rgba(18, 62, 128, 0.08);
+    text-align: center;
+}
+
+.page-access-gate-icon {
+    width: 52px;
+    height: 52px;
+    display: grid;
+    place-items: center;
+    border-radius: 16px;
+    background: rgba(0, 122, 255, 0.1);
+    color: var(--accent);
+    font-size: 24px;
+    font-weight: 800;
+}
+
+.page-access-gate h2 {
+    margin: 4px 0 0;
+    font-size: clamp(20px, 5vw, 24px);
+}
+
+.page-access-gate p {
+    max-width: 34em;
+    margin: 0 0 10px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.65;
+}
+
+.ui-toast-region {
+    position: fixed;
+    right: max(16px, env(safe-area-inset-right));
+    bottom: max(16px, env(safe-area-inset-bottom));
+    z-index: 2400;
+    width: min(calc(100vw - 32px), 360px);
+    pointer-events: none;
+}
+
+.ui-toast {
+    padding: 13px 16px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 14px;
+    background: rgba(29, 29, 31, 0.94);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16);
+    color: #fff;
+    font-size: 14px;
+    line-height: 1.45;
+    animation: ui-toast-in 0.2s var(--ease) both;
+}
+
+.ui-toast-success {
+    background: rgba(20, 132, 78, 0.96);
+}
+
+.ui-toast-error {
+    background: rgba(190, 45, 40, 0.96);
+}
+
+@keyframes ui-toast-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.ui-retry-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 28px 20px;
+    color: var(--error);
+    text-align: center;
+}
+
+.ui-retry-state p {
+    margin: 0;
+    line-height: 1.6;
+}
+
+.feedback-form-status {
+    min-height: 24px;
+    margin-top: 10px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.schedule-week-controls,
+.schedule-data-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.schedule-data-actions {
+    flex-wrap: wrap;
+}
+
+.schedule-week-controls .current-week {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--touch-target);
+}
+
+.service-contact-option {
+    min-width: 0;
+}
+
+.header-ad-main {
+    min-height: var(--touch-target);
+}
+
+.header-ad-copy small,
+.header-ad-cta,
+.header-ad-detail,
+.header-ad-detail-btn,
+.header-ad-restore {
+    font-size: 12px;
+}
+
+.header-ad-options,
+.header-ad-close {
+    width: var(--touch-target);
+    height: var(--touch-target);
+}
+
+.modal[aria-hidden="true"] {
+    pointer-events: none;
+}
+
+.modal[aria-hidden="false"] {
+    pointer-events: auto;
+}
+
+.ui-confirm-card {
+    width: min(92vw, 440px);
+}
+
+.ui-confirm-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.ui-confirm-actions button {
+    width: 100%;
+}
+
+.btn-danger {
+    background: #c9342f;
+    color: #fff;
+}
+
+.btn-danger:hover {
+    background: #a92723;
+}
+
+.ad-detail-back,
+.ad-detail-secondary,
+.ad-detail-primary,
+.ad-detail-copy-button,
+.ad-detail-hero-copy,
+.ad-detail-sticky-cta {
+    min-height: var(--touch-target-strong);
+}
+
+@media (max-width: 768px) {
+    :where(button, [role="button"]) {
+        min-width: var(--touch-target);
+        min-height: var(--touch-target);
+    }
+
+    input:not([type="checkbox"]):not([type="radio"]),
+    select,
+    textarea {
+        min-height: var(--touch-target-strong);
+    }
+
+    .header {
+        display: grid;
+        grid-template-columns: var(--touch-target) minmax(0, 1fr) auto;
+        grid-template-areas:
+            "menu title status"
+            "ad ad ad";
+        align-items: center;
+        column-gap: 8px;
+        row-gap: 8px;
+        min-height: 0;
+        padding: max(8px, env(safe-area-inset-top)) 12px 10px;
+    }
+
+    .menu-btn {
+        grid-area: menu;
+        width: var(--touch-target);
+        height: var(--touch-target);
+        margin: 0;
+        padding: 13px 12px;
+    }
+
+    #page-title {
+        grid-area: title;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .login-status-indicator {
+        grid-area: status;
+        min-height: var(--touch-target);
+        margin: 0;
+        padding: 5px 10px;
+        white-space: nowrap;
+    }
+
+    .header-ad-slot {
+        grid-area: ad;
+        order: initial;
+        width: 100%;
+        max-width: none;
+        min-width: 0;
+        margin: 0;
+    }
+
+    .header-ad-card {
+        min-height: var(--touch-target);
+    }
+
+    .header-ad-main {
+        min-width: 0;
+        min-height: var(--touch-target);
+        padding: 5px 92px 5px 9px;
+        gap: 6px;
+    }
+
+    .header-ad-copy {
+        min-width: 0;
+    }
+
+    .header-ad-copy strong {
+        font-size: 12px;
+    }
+
+    .header-ad-copy small {
+        display: none;
+    }
+
+    .header-ad-cta {
+        min-height: 32px;
+        padding-inline: 8px;
+        font-size: 12px;
+    }
+
+    .header-ad-options {
+        right: 40px;
+    }
+
+    .header-ad-close {
+        right: 0;
+    }
+
+    .header-ad-detail {
+        padding: 10px;
+        font-size: 12px;
+    }
+
+    .header-ad-detail-actions {
+        flex-wrap: wrap;
+    }
+
+    .header-ad-detail-btn,
+    .header-ad-restore {
+        min-height: var(--touch-target);
+    }
+
+    .sidebar {
+        --sidebar-width: min(86vw, 320px);
+        width: var(--sidebar-width);
+        height: 100dvh;
+        padding-top: env(safe-area-inset-top);
+    }
+
+    .sidebar-header {
+        min-height: 64px;
+        padding: 10px 14px;
+    }
+
+    .close-btn {
+        width: var(--touch-target);
+        height: var(--touch-target);
+        padding: 0;
+    }
+
+    .sidebar-nav {
+        padding: 6px 10px;
+    }
+
+    .nav-item {
+        min-height: 48px;
+        margin-bottom: 3px;
+        padding: 12px 14px;
+        font-size: 15px;
+    }
+
+    .sidebar-footer {
+        padding: 12px 14px max(14px, env(safe-area-inset-bottom));
+    }
+
+    .rebind-btn {
+        min-height: var(--touch-target-strong);
+    }
+
+    .content-wrapper {
+        min-width: 0;
+        padding: 14px 12px max(24px, env(safe-area-inset-bottom));
+    }
+
+    .modal {
+        align-items: flex-end;
+        padding: 12px;
+        padding-bottom: max(12px, env(safe-area-inset-bottom));
+    }
+
+    .modal-content {
+        width: 100%;
+        max-width: 560px;
+        max-height: calc(100dvh - 24px - env(safe-area-inset-top));
+        padding: 24px 20px;
+        border-radius: 22px;
+        overscroll-behavior: contain;
+    }
+
+    .modal-close {
+        top: 12px;
+        right: 12px;
+        width: var(--touch-target);
+        height: var(--touch-target);
+    }
+
+    .page-access-gate {
+        min-height: 270px;
+        margin: 18px 0;
+        padding: 28px 20px;
+    }
+
+    .action-bar {
+        width: 100%;
+    }
+
+    .schedule-bottom-controls {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .schedule-bottom-controls > * {
+        flex: none;
+        width: 100%;
+    }
+
+    .schedule-week-controls {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .schedule-week-controls .current-week {
+        grid-column: 1 / -1;
+        order: -1;
+        min-height: 36px;
+    }
+
+    .schedule-week-controls .week-select-wrap {
+        min-width: 0;
+        justify-content: center;
+        padding-inline: 8px;
+    }
+
+    .schedule-week-controls .week-select-wrap span {
+        display: none;
+    }
+
+    .schedule-week-controls button,
+    .schedule-week-controls .week-select-wrap,
+    .schedule-week-controls select {
+        width: 100%;
+    }
+
+    .schedule-data-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        width: 100%;
+        gap: 8px;
+    }
+
+    .schedule-data-actions button {
+        width: 100%;
+    }
+
+    .schedule-data-actions button:last-child {
+        grid-column: 1 / -1;
+    }
+
+    #page-exams .action-bar,
+    #page-evaluation .action-bar {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    #page-exams .action-bar button,
+    #page-evaluation .action-bar button {
+        width: 100%;
+    }
+
+    .grades-card-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grades-card-grid .grade-action-btn {
+        min-height: 124px;
+    }
+
+    .feedback-choice {
+        min-height: 56px;
+    }
+
+    .feedback-submit-btn {
+        min-height: var(--touch-target-strong);
+    }
+
+    .service-contact-option {
+        min-height: var(--touch-target-strong);
+    }
+
+    .member-plan-card,
+    .member-plan-card .btn-full,
+    .pay-type-option {
+        min-height: var(--touch-target-strong);
+    }
+}
+
+@media (max-width: 520px) {
+    .grades-card-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .grades-card-grid .grade-action-btn {
+        min-height: 96px;
+    }
+
+    #page-member .member-plans,
+    .pay-type-options {
+        grid-template-columns: 1fr;
+    }
+
+    .member-plan-title-row {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    #page-member .member-plan-price {
+        min-width: 0;
+        text-align: left;
+    }
+
+    .ui-confirm-actions {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Keep the urgent-action hit area large even on very narrow screens. */
+.urgent-header .refresh-btn {
+    width: var(--touch-target);
+    min-width: var(--touch-target);
+    height: var(--touch-target);
+    min-height: var(--touch-target);
+    padding: 0;
 }

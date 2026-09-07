@@ -12,7 +12,7 @@ from services.shortcut_service import (
     query_shortcut_data,
     resolve_api_key,
 )
-from services.urp_service import check_login_status
+from services.urp_service import check_login_status, start_auto_update
 from services.user_service import get_user_by_username
 
 
@@ -75,7 +75,7 @@ def shortcut_query():
     action = action.strip()
     if not isinstance(params, dict):
         return _shortcut_error(action, 'invalid_request', 'params 必须是对象')
-    if action not in {'historical_schedule', 'grades'}:
+    if action not in {'historical_schedule', 'grades', 'urgent_event'}:
         return _shortcut_error(action, 'invalid_action', '不支持的查询功能')
 
     username = resolve_api_key(raw_key.strip())
@@ -102,6 +102,8 @@ def shortcut_query():
         )
 
     try:
+        if action == 'urgent_event':
+            start_auto_update(username, user['password'])
         data = query_shortcut_data(username, action, params)
     except ValueError as exc:
         error_code = str(exc)

@@ -45,10 +45,8 @@ class HeaderAdPreviewTests(unittest.TestCase):
             header_html,
             r'<a[^>]+class="header-ad-main"[^>]+href="/ad-detail\?source=header"',
         )
-        self.assertIn("3分钟了解", header_html)
-        self.assertIn("购机每台奖励30–100元", header_html)
-        self.assertIn("无需垫资，先确认规则再参与", header_html)
-        self.assertIn("马上看看", header_html)
+        self.assertIn("学生优惠资格出售：最高可得140元", header_html)
+        self.assertIn("点开了解详情", header_html)
         self.assertIn('class="header-ad-cta"', header_html)
 
     def test_mobile_ad_promotes_short_highlight_copy(self):
@@ -61,11 +59,11 @@ class HeaderAdPreviewTests(unittest.TestCase):
         header_html = header.group("body")
 
         self.assertIn(
-            '<strong class="header-ad-copy-wide">3分钟了解｜购机每台奖励30–100元</strong>',
+            '<strong class="header-ad-copy-wide">学生优惠资格出售：最高可得140元</strong>',
             header_html,
         )
         self.assertIn(
-            '<strong class="header-ad-copy-compact">3分钟了解 · 最高100元/台</strong>',
+            '<strong class="header-ad-copy-compact">学生优惠资格出售：最高可得140元</strong>',
             header_html,
         )
         self.assertRegex(
@@ -120,7 +118,7 @@ class HeaderAdPreviewTests(unittest.TestCase):
         self.assertIn("淘宝", self.detail_html)
         self.assertIn("抖音", self.detail_html)
         self.assertIn("30-40 元", self.detail_html)
-        self.assertIn("50-100 元", self.detail_html)
+        self.assertIn("50-140 元", self.detail_html)
         self.assertIn("商家微信", self.detail_html)
         self.assertIn("订单", self.detail_html)
         self.assertIn("购机款", self.detail_html)
@@ -132,6 +130,34 @@ class HeaderAdPreviewTests(unittest.TestCase):
         self.assertNotIn("今年没有更换设备需求", self.detail_html)
         self.assertIn("账号密码", self.detail_html)
         self.assertIn("验证码", self.detail_html)
+
+    def test_detail_page_leads_with_transparent_activity_disclosure(self):
+        hero = re.search(
+            r'<section[^>]+class="ad-detail-hero"(?P<body>.*?)</section>',
+            self.detail_html,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(hero)
+        hero_html = hero.group("body")
+        disclosure = re.search(
+            r'<div[^>]+class="ad-detail-disclosure"(?P<body>.*?)</div>',
+            hero_html,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(disclosure)
+
+        disclosure_index = hero_html.index('class="ad-detail-disclosure"')
+        kicker_index = hero_html.index('class="ad-detail-kicker"')
+        title_index = hero_html.index("<h1")
+        self.assertLess(disclosure_index, kicker_index)
+        self.assertLess(disclosure_index, title_index)
+
+        disclosure_html = disclosure.group("body")
+        self.assertIn("项目方通过转售赚取差价", disclosure_html)
+        self.assertIn("我也会获得少量介绍收益", disclosure_html)
+        self.assertIn("今年还没换电脑或手机", disclosure_html)
+        self.assertIn("以官方政策、平台规则及商家最终说明为准", disclosure_html)
+        self.assertNotIn("肯定合法", self.detail_html)
 
     def test_detail_page_leads_with_no_advance_funding_notice(self):
         hero = re.search(
@@ -146,9 +172,9 @@ class HeaderAdPreviewTests(unittest.TestCase):
         title_index = hero_html.index("<h1")
 
         self.assertLess(funding_index, title_index)
-        self.assertIn("全程无需任何垫资", hero_html)
-        self.assertIn("商家发单时同步提供对应购机款", hero_html)
-        self.assertIn("未确认购买款到账前不要下单", self.detail_html)
+        self.assertIn("购机款到账后再下单", hero_html)
+        self.assertIn("不用自己垫钱", hero_html)
+        self.assertIn("下单前确认购机款到账", self.detail_html)
 
     def test_detail_page_places_a_low_effort_copy_action_above_the_fold(self):
         hero = re.search(
@@ -159,14 +185,14 @@ class HeaderAdPreviewTests(unittest.TestCase):
         self.assertIsNotNone(hero)
         hero_html = hero.group("body")
 
-        self.assertIn("咨询登记约3分钟", hero_html)
-        self.assertIn("先花3分钟确认规则，合适再参与", hero_html)
-        self.assertIn("添加微信仅用于了解规则，不代表必须参与", hero_html)
+        self.assertIn("大约3分钟就能了解清楚", hero_html)
+        self.assertIn("今年没换电脑或手机？先了解清楚再决定", hero_html)
+        self.assertIn("先咨询，不急着下单；确认规则后再决定。", hero_html)
         self.assertRegex(
             hero_html,
             r'<button[^>]+class="[^"]*ad-detail-hero-copy[^"]*"[^>]+data-copy-value="xttlqw_0329"',
         )
-        self.assertIn("复制微信，立即咨询", hero_html)
+        self.assertIn("复制微信，先聊两句", hero_html)
         self.assertIn('class="ad-detail-quick-steps"', hero_html)
         self.assertIn("约10秒", hero_html)
         self.assertIn("约1分钟", hero_html)
@@ -210,8 +236,8 @@ class HeaderAdPreviewTests(unittest.TestCase):
         self.assertIn('data-copy-value="xttlqw_0329"', contact_html)
         self.assertIn("meizhenxin", contact_html)
         self.assertIn('data-copy-value="meizhenxin"', contact_html)
-        self.assertIn("来自本网站", contact_html)
-        self.assertIn("以商家当期规则为准", contact_html)
+        self.assertIn("从本网站来的", contact_html)
+        self.assertIn("以商家当时说明的为准", contact_html)
         self.assertIn('aria-live="polite"', self.detail_html)
         self.assertIn('/static/js/service-status-ui.js', self.detail_html)
         self.assertIn('/static/js/ad-detail.js', self.detail_html)

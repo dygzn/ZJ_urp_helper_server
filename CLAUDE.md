@@ -94,7 +94,7 @@ urp/             # URP 底层模块（从 URP.py 拆分）
 - **pending_requests**: 换绑请求，含 `notified` 字段
 - **announcements** + **user_read_announcements**: 公告与已读状态
 - **feedbacks** + **feedback_replies**: 用户反馈与管理员回复
-- **request_logs**: 所有请求日志（`logging_service` 通过 Flask after_request 钩子写入）
+- **request_logs**: 历史请求日志表（当前运行时不再写入；在线监控使用进程内存状态）
 - **memberships**: `username` (PK), `member_type` (`basic`/`advanced`), `expire_time`
 - **orders**: 支付订单，`status` 为 `pending`/`paid`/`failed`
 

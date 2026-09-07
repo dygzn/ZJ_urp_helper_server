@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>管理后台 - URP教务助手</title>
-    <link rel="stylesheet" href="/static/css/admin.css?v=10">
+    <link rel="stylesheet" href="/static/css/admin.css?v=11">
 </head>
 <body>
     <div class="admin-container">
@@ -35,45 +35,45 @@
 
             <div class="admin-content">
                 <nav class="tabs" role="tablist">
-                    <button class="tab-btn active" type="button" onclick="switchTab('users')" role="tab">用户</button>
-                    <button class="tab-btn" type="button" onclick="switchTab('ad-stats')" role="tab">广告统计</button>
-                    <button class="tab-btn" type="button" onclick="switchTab('monitor')" role="tab">监控</button>
-                    <button class="tab-btn" type="button" onclick="switchTab('pending')" role="tab">审批</button>
-                    <button class="tab-btn" type="button" onclick="switchTab('announcements')" role="tab">公告</button>
-                    <button class="tab-btn" type="button" onclick="switchTab('service-status')" data-admin-tab="service-status" role="tab">个人状态</button>
-                    <button class="tab-btn" type="button" onclick="switchTab('feedback')" role="tab">反馈</button>
-                    <button class="tab-btn" type="button" onclick="switchTab('members')" role="tab">会员</button>
-                    <button class="tab-btn" type="button" onclick="switchTab('withdrawals')" role="tab">提现</button>
-                    <button class="tab-btn" type="button" onclick="switchTab('config')" role="tab">配置</button>
+                    <button id="tab-users-button" class="tab-btn active" type="button" data-tab="users" onclick="switchTab('users')" role="tab" aria-controls="tab-users" aria-selected="true" tabindex="0">用户</button>
+                    <button id="tab-ad-stats-button" class="tab-btn" type="button" data-tab="ad-stats" onclick="switchTab('ad-stats')" role="tab" aria-controls="tab-ad-stats" aria-selected="false" tabindex="-1">广告统计</button>
+                    <button id="tab-monitor-button" class="tab-btn" type="button" data-tab="monitor" onclick="switchTab('monitor')" role="tab" aria-controls="tab-monitor" aria-selected="false" tabindex="-1">监控</button>
+                    <button id="tab-pending-button" class="tab-btn" type="button" data-tab="pending" onclick="switchTab('pending')" role="tab" aria-controls="tab-pending" aria-selected="false" tabindex="-1">审批</button>
+                    <button id="tab-announcements-button" class="tab-btn" type="button" data-tab="announcements" onclick="switchTab('announcements')" role="tab" aria-controls="tab-announcements" aria-selected="false" tabindex="-1">公告</button>
+                    <button id="tab-service-status-button" class="tab-btn" type="button" data-tab="service-status" onclick="switchTab('service-status')" data-admin-tab="service-status" role="tab" aria-controls="tab-service-status" aria-selected="false" tabindex="-1">个人状态</button>
+                    <button id="tab-feedback-button" class="tab-btn" type="button" data-tab="feedback" onclick="switchTab('feedback')" role="tab" aria-controls="tab-feedback" aria-selected="false" tabindex="-1">反馈</button>
+                    <button id="tab-members-button" class="tab-btn" type="button" data-tab="members" onclick="switchTab('members')" role="tab" aria-controls="tab-members" aria-selected="false" tabindex="-1">会员</button>
+                    <button id="tab-withdrawals-button" class="tab-btn" type="button" data-tab="withdrawals" onclick="switchTab('withdrawals')" role="tab" aria-controls="tab-withdrawals" aria-selected="false" tabindex="-1">提现</button>
+                    <button id="tab-config-button" class="tab-btn" type="button" data-tab="config" onclick="switchTab('config')" role="tab" aria-controls="tab-config" aria-selected="false" tabindex="-1">配置</button>
                 </nav>
 
-                <section id="tab-users" class="tab-content active">
+                <section id="tab-users" class="tab-content active" role="tabpanel" aria-labelledby="tab-users-button">
                     <div class="section-header"><h2>用户统计</h2><button class="icon-btn" type="button" onclick="loadUsers()">刷新</button></div>
                     <div id="users-list" class="users-list"><div class="loading">加载中...</div></div>
                 </section>
 
-                <section id="tab-ad-stats" class="tab-content">
+                <section id="tab-ad-stats" class="tab-content" role="tabpanel" aria-labelledby="tab-ad-stats-button">
                     <div class="section-header"><h2>广告统计</h2><button class="icon-btn" type="button" onclick="loadAdStats()">刷新</button></div>
                     <div id="ad-stats" class="ad-stats"><div class="loading">加载中...</div></div>
                 </section>
 
-                <section id="tab-monitor" class="tab-content">
+                <section id="tab-monitor" class="tab-content" role="tabpanel" aria-labelledby="tab-monitor-button">
                     <div class="section-header"><h2>在线监控</h2><button class="icon-btn" type="button" onclick="loadMonitorData()">刷新</button></div>
                     <div class="monitor-summary"><span>在线人数：</span><strong id="online-count">-</strong></div>
                     <div id="online-users-list" class="online-users-list"><div class="loading">加载中...</div></div>
                 </section>
 
-                <section id="tab-pending" class="tab-content">
+                <section id="tab-pending" class="tab-content" role="tabpanel" aria-labelledby="tab-pending-button">
                     <div class="section-header"><h2>待审批换绑请求</h2><button class="icon-btn" type="button" onclick="loadPendingRequests()">刷新</button></div>
                     <div id="pending-list" class="pending-list"><div class="loading">加载中...</div></div>
                 </section>
 
-                <section id="tab-announcements" class="tab-content">
+                <section id="tab-announcements" class="tab-content" role="tabpanel" aria-labelledby="tab-announcements-button">
                     <div class="section-header"><h2>公告管理</h2><div class="button-group"><button class="icon-btn" type="button" onclick="loadAnnouncements()">刷新</button><button class="btn-primary" type="button" onclick="showCreateAnnouncementModal()">发布公告</button></div></div>
                     <div id="announcements-list" class="announcements-list"><div class="loading">加载中...</div></div>
                 </section>
 
-                <section id="tab-service-status" class="tab-content">
+                <section id="tab-service-status" class="tab-content" role="tabpanel" aria-labelledby="tab-service-status-button">
                     <div class="section-header"><h2>个人状态</h2><button class="icon-btn" type="button" onclick="loadAdminServiceStatus()">刷新</button></div>
                     <div class="config-section admin-service-status-panel">
                         <div class="admin-service-status-heading">
@@ -104,12 +104,12 @@
                     </div>
                 </section>
 
-                <section id="tab-feedback" class="tab-content">
+                <section id="tab-feedback" class="tab-content" role="tabpanel" aria-labelledby="tab-feedback-button">
                     <div class="section-header"><h2>用户反馈</h2><button class="icon-btn" type="button" onclick="loadAdminFeedbacks()">刷新</button></div>
                     <div id="feedback-list" class="feedback-list"><div class="loading">加载中...</div></div>
                 </section>
 
-                <section id="tab-members" class="tab-content">
+                <section id="tab-members" class="tab-content" role="tabpanel" aria-labelledby="tab-members-button">
                     <div class="section-header"><h2>会员管理</h2><button class="icon-btn" type="button" onclick="loadAdminMembers()">刷新</button></div>
                     <div class="config-section">
                         <h3>手动开通/续费</h3>
@@ -125,13 +125,13 @@
                     <div id="members-list" class="members-list"><div class="empty-state">&#36755;&#20837;&#23398;&#21495;&#21518;&#26597;&#35810;&#25110;&#35843;&#25972;&#20250;&#21592;&#29366;&#24577;</div></div>
                 </section>
 
-                <section id="tab-withdrawals" class="tab-content">
+                <section id="tab-withdrawals" class="tab-content" role="tabpanel" aria-labelledby="tab-withdrawals-button">
                     <div class="section-header"><h2>提现管理</h2><button class="icon-btn" type="button" onclick="loadAdminWithdrawals()">刷新</button></div>
                     <div id="commission-stats" class="commission-stats"><div class="loading">加载中...</div></div>
                     <div id="withdrawals-list" class="withdrawals-list"><div class="loading">加载中...</div></div>
                 </section>
 
-                <section id="tab-config" class="tab-content">
+                <section id="tab-config" class="tab-content" role="tabpanel" aria-labelledby="tab-config-button">
                     <div class="section-header"><h2>系统配置</h2><button class="icon-btn" type="button" onclick="loadConfig()">刷新</button></div>
                     <div class="config-container">
                         <div class="config-section">
@@ -184,14 +184,16 @@
         </div>
     </div>
 
-    <div id="approve-modal" class="modal"><div class="modal-content"><button class="modal-close" type="button" onclick="closeApproveModal()" aria-label="关闭">&times;</button><h2>审批换绑请求</h2><div id="approve-details" class="approve-details"></div><p class="modal-desc">批准后将解绑该设备的旧账号，用户需要重新登录并绑定新账号。</p><div class="button-group"><button type="button" class="btn-success" onclick="handleApprove()">批准</button><button type="button" class="btn-danger" onclick="handleReject()">拒绝</button></div></div></div>
+    <div id="approve-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="approve-modal-title"><div class="modal-content"><button class="modal-close" type="button" onclick="closeApproveModal()" aria-label="关闭">&times;</button><h2 id="approve-modal-title">审批换绑请求</h2><div id="approve-details" class="approve-details"></div><p class="modal-desc">批准后将解绑该设备的旧账号，用户需要重新登录并绑定新账号。</p><div class="button-group"><button type="button" class="btn-success" onclick="handleApprove()">批准</button><button type="button" class="btn-danger" onclick="handleReject()">拒绝</button></div></div></div>
 
-    <div id="announcement-modal" class="modal"><div class="modal-content"><button class="modal-close" type="button" onclick="closeAnnouncementModal()" aria-label="关闭">&times;</button><h2 id="announcement-modal-title">发布新公告</h2><form id="announcement-form" onsubmit="handleAnnouncementSubmit(event)"><div class="form-group"><label for="announcement-title">公告标题</label><input type="text" id="announcement-title" required placeholder="请输入公告标题"></div><div class="form-group"><label for="announcement-content">公告内容</label><textarea id="announcement-content" rows="8" required placeholder="请输入公告内容"></textarea></div><label><input type="checkbox" id="announcement-active" checked> 启用此公告</label><div class="button-group"><button type="submit" class="btn-primary">保存</button><button type="button" class="btn-secondary" onclick="closeAnnouncementModal()">取消</button></div></form></div></div>
+    <div id="announcement-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="announcement-modal-title"><div class="modal-content"><button class="modal-close" type="button" onclick="closeAnnouncementModal()" aria-label="关闭">&times;</button><h2 id="announcement-modal-title">发布新公告</h2><form id="announcement-form" onsubmit="handleAnnouncementSubmit(event)"><div class="form-group"><label for="announcement-title">公告标题</label><input type="text" id="announcement-title" required placeholder="请输入公告标题"></div><div class="form-group"><label for="announcement-content">公告内容</label><textarea id="announcement-content" rows="8" required placeholder="请输入公告内容"></textarea></div><label><input type="checkbox" id="announcement-active" checked> 启用此公告</label><div class="button-group"><button type="submit" class="btn-primary">保存</button><button type="button" class="btn-secondary" onclick="closeAnnouncementModal()">取消</button></div></form></div></div>
 
-    <div id="feedback-reply-modal" class="modal"><div class="modal-content"><button class="modal-close" type="button" onclick="closeFeedbackReplyModal()" aria-label="关闭">&times;</button><h2>回复反馈</h2><div id="feedback-reply-original" class="feedback-reply-original"></div><form onsubmit="handleFeedbackReplySubmit(event)"><div class="form-group"><label for="feedback-reply-content">回复内容</label><textarea id="feedback-reply-content" rows="5" placeholder="请输入回复内容"></textarea></div><div class="button-group"><button type="submit" class="btn-primary">发送回复</button><button type="button" class="btn-secondary" onclick="closeFeedbackReplyModal()">取消</button></div></form></div></div>
+    <div id="feedback-reply-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="feedback-reply-modal-title"><div class="modal-content"><button class="modal-close" type="button" onclick="closeFeedbackReplyModal()" aria-label="关闭">&times;</button><h2 id="feedback-reply-modal-title">回复反馈</h2><div id="feedback-reply-original" class="feedback-reply-original"></div><form onsubmit="handleFeedbackReplySubmit(event)"><div class="form-group"><label for="feedback-reply-content">回复内容</label><textarea id="feedback-reply-content" rows="5" placeholder="请输入回复内容"></textarea></div><div class="button-group"><button type="submit" class="btn-primary">发送回复</button><button type="button" class="btn-secondary" onclick="closeFeedbackReplyModal()">取消</button></div></form></div></div>
 
-    <div id="overlay" class="overlay"></div>
+    <div id="admin-toast-region" class="admin-toast-region" aria-live="polite" aria-atomic="true"></div>
+    <div id="overlay" class="overlay" onclick="adminHandleOverlayClick(event)"></div>
     <script src="/static/js/service-status-ui.js"></script>
-    <script src="/static/js/admin.js"></script>
+    <script src="/static/js/ui-ux.js?v=1"></script>
+    <script src="/static/js/admin.js?v=11"></script>
 </body>
 </html>

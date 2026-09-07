@@ -10,6 +10,7 @@ from services.config_service import get_config, save_config
 from services.user_service import unbind_user
 from services.member_service import ensure_invitation_earnings, _money, _money_string
 from services.ad_service import get_ad_click_stats
+from services.online_service import get_online_snapshot
 from constants import MEMBER_DURATION_DAYS
 
 admin_bp = Blueprint('admin_bp', __name__)
@@ -408,38 +409,7 @@ def admin_members_revoke():
 @admin_bp.route('/api/admin/monitor/online', methods=['GET'])
 @require_admin
 def monitor_online():
-    cutoff = (datetime.now() - timedelta(minutes=5)).strftime('%Y-%m-%d %H:%M:%S')
-    with get_db() as conn:
-        rows = conn.execute('''
-            SELECT device_id, username,
-                   MAX(request_time) as last_active,
-                   endpoint as last_endpoint
-            FROM request_logs
-            WHERE request_time >= ? AND device_id != ''
-            GROUP BY device_id
-            ORDER BY last_active DESC
-        ''', (cutoff,)).fetchall()
-
-        users = []
-        for row in rows:
-            last = conn.execute(
-                'SELECT endpoint FROM request_logs WHERE device_id = ? ORDER BY request_time DESC LIMIT 1',
-                (row['device_id'],)
-            ).fetchone()
-            users.append({
-                'device_id': row['device_id'],
-                'username': row['username'] or '未绑定',
-                'last_active': row['last_active'],
-                'last_endpoint': last['endpoint'] if last else ''
-            })
-
-    return jsonify({
-        'success': True,
-        'data': {
-            'online_count': len(users),
-            'users': users
-        }
-    })
+    return jsonify({'success': True, 'data': get_online_snapshot()})
 
 
 @admin_bp.route('/api/admin/withdrawals', methods=['GET'])

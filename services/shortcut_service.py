@@ -7,7 +7,7 @@ from datetime import datetime
 
 from database import get_db
 from services.config_service import get_current_urp_url
-from services.urp_service import get_latest_semester_grade_summary
+from services.urp_service import get_latest_semester_grade_summary, get_urgent_event
 
 
 API_KEY_PREFIX = 'urp_'
@@ -209,9 +209,37 @@ def normalize_grade_summary(student_id, result):
     }
 
 
+def normalize_urgent_event(student_id, result):
+    """把首页的下一事项转换为快捷指令易读取的稳定字段。"""
+    result = result if isinstance(result, dict) else {}
+    source = result.get('next')
+    if not isinstance(source, dict):
+        return {
+            'student_id': _as_text(student_id),
+            'has_event': False,
+            'event': None,
+        }
+
+    event = {
+        'type': _as_text(source.get('type')),
+        'title': _as_text(source.get('title')),
+        'location': _as_text(source.get('location')),
+        'time': _as_text(source.get('time')),
+        'countdown': source.get('countdown'),
+    }
+    if 'seat' in source:
+        event['seat'] = _as_text(source.get('seat'))
+
+    return {
+        'student_id': _as_text(student_id),
+        'has_event': True,
+        'event': event,
+    }
+
+
 def query_shortcut_data(student_id, action, params):
     """按快捷指令动作查询并规范化教务数据。"""
-    if action not in {'historical_schedule', 'grades'}:
+    if action not in {'historical_schedule', 'grades', 'urgent_event'}:
         raise ValueError('invalid_action')
     if not isinstance(params, dict):
         raise ValueError('invalid_params')
@@ -225,6 +253,12 @@ def query_shortcut_data(student_id, action, params):
         query = URP_query(get_current_urp_url(), student_id)
         result = query.historical_schedule_cx(semester)
         return normalize_historical_schedule(student_id, result)
+
+    if action == 'urgent_event':
+        return normalize_urgent_event(
+            student_id,
+            get_urgent_event(student_id),
+        )
 
     return normalize_grade_summary(
         student_id,

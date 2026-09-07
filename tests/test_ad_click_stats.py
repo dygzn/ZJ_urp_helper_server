@@ -114,6 +114,36 @@ class AdClickStatsServiceTests(unittest.TestCase):
             {'impression_count', 'copy_count', 'dismiss_count'}.issubset(columns)
         )
 
+    def test_copy_event_records_each_student_number_only_once(self):
+        database.init_db(self.database_config)
+
+        ad_service.record_ad_event(
+            'copy', self.database_config, now=self.now, username=' 2023123456 '
+        )
+        ad_service.record_ad_event(
+            'copy', self.database_config, now=self.now, username='2023123456'
+        )
+        ad_service.record_ad_event(
+            'copy', self.database_config, now=self.now, username='2023987654'
+        )
+        ad_service.record_ad_event('copy', self.database_config, now=self.now)
+
+        stats = ad_service.get_ad_click_stats(self.database_config, now=self.now)
+
+        self.assertEqual(stats['total_copies'], 4)
+        self.assertEqual(stats['copy_usernames'], ['2023123456', '2023987654'])
+        with database.get_db(self.database_config) as conn:
+            rows = conn.execute(
+                'SELECT ad_key, username FROM ad_copy_users ORDER BY username'
+            ).fetchall()
+        self.assertEqual(
+            [(row['ad_key'], row['username']) for row in rows],
+            [
+                ('student-discount', '2023123456'),
+                ('student-discount', '2023987654'),
+            ],
+        )
+
     def test_unknown_funnel_event_is_rejected(self):
         database.init_db(self.database_config)
 
@@ -209,6 +239,16 @@ class AdEventRouteTests(unittest.TestCase):
         self.assertEqual(response.status_code, 204)
         recorder.assert_called_once_with('impression')
 
+    def test_copy_event_forwards_the_submitted_student_number(self):
+        with mock.patch.object(app_module, 'record_ad_event') as recorder:
+            response = app_module.app.test_client().post(
+                '/api/ad/event',
+                json={'event': 'copy', 'username': '2023123456'},
+            )
+
+        self.assertEqual(response.status_code, 204)
+        recorder.assert_called_once_with('copy', username='2023123456')
+
     def test_public_event_endpoint_rejects_unknown_event(self):
         with mock.patch.object(app_module, 'record_ad_event') as recorder:
             response = app_module.app.test_client().post(
@@ -274,6 +314,7 @@ class AdminAdStatsUiTests(unittest.TestCase):
         self.assertIn('微信复制', self.js)
         self.assertIn('横幅点击率', self.js)
         self.assertIn('完整转化率', self.js)
+        self.assertIn('曾复制的学号', self.js)
 
 
 if __name__ == '__main__':

@@ -1,0 +1,7 @@
+- generic [ref=f6e4]:
+  - generic [ref=f6e5]: URP Helper
+  - heading "管理后台" [level=1] [ref=f6e6]
+  - paragraph [ref=f6e7]: 输入管理员密钥，进入后台处理用户、反馈、会员和系统配置。
+  - generic [ref=f6e8]:
+    - textbox "管理员密钥" [ref=f6e10]
+    - button "登录" [ref=f6e11] [cursor=pointer]

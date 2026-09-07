@@ -1,5 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const {
     buildServiceStatusViewModel,
@@ -115,4 +117,17 @@ test('点击外部、按 Escape 或选择联系方式都会关闭气泡', () => 
 test('未知动作保持联系气泡原状态', () => {
     assert.equal(nextContactPopoverState(true, 'unknown'), true);
     assert.equal(nextContactPopoverState(false, 'unknown'), false);
+});
+
+
+test('两个联系方式都使用统一的可点击选项类名', () => {
+    const template = fs.readFileSync(
+        path.join(__dirname, '..', 'templates', 'index.html'),
+        'utf8',
+    );
+    const optionClasses = [...template.matchAll(/class="([^"]*service-contact-option[^"]*)"/g)]
+        .map(match => match[1].split(/\s+/).filter(Boolean));
+
+    assert.equal(optionClasses.length, 2);
+    assert.deepEqual(optionClasses.map(classes => classes.includes('service-contact-option')), [true, true]);
 });

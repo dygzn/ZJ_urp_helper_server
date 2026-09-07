@@ -415,6 +415,70 @@ class ShortcutDataNormalizationTests(unittest.TestCase):
             }],
         })
 
+    def test_urgent_event_is_shortcut_friendly(self):
+        result = shortcut_service.normalize_urgent_event(
+            '2415108133',
+            {
+                'current': None,
+                'next': {
+                    'type': 'exam',
+                    'title': '高等数学',
+                    'location': '仙林校区教B-101',
+                    'time': '2026-09-03 08:00-10:00',
+                    'countdown': 35,
+                    'seat': 'A12',
+                },
+                'is_freshman': False,
+            },
+        )
+
+        self.assertEqual(result, {
+            'student_id': '2415108133',
+            'has_event': True,
+            'event': {
+                'type': 'exam',
+                'title': '高等数学',
+                'location': '仙林校区教B-101',
+                'time': '2026-09-03 08:00-10:00',
+                'countdown': 35,
+                'seat': 'A12',
+            },
+        })
+
+    def test_urgent_event_without_next_item_is_empty(self):
+        result = shortcut_service.normalize_urgent_event(
+            '2415108133',
+            {'current': None, 'next': None},
+        )
+
+        self.assertEqual(result, {
+            'student_id': '2415108133',
+            'has_event': False,
+            'event': None,
+        })
+
+    def test_query_urgent_event_reuses_home_event_source(self):
+        source = {
+            'current': None,
+            'next': {
+                'type': 'class',
+                'title': '软件工程导论',
+                'location': '仙林校区实C-501',
+                'time': '2026-09-03 08:20',
+                'countdown': 35,
+            },
+        }
+        with mock.patch.object(
+            shortcut_service, 'get_urgent_event', return_value=source
+        ) as get_event:
+            result = shortcut_service.query_shortcut_data(
+                '2415108133', 'urgent_event', {},
+            )
+
+        self.assertTrue(result['has_event'])
+        self.assertEqual(result['event']['title'], '软件工程导论')
+        get_event.assert_called_once_with('2415108133')
+
     def test_historical_schedule_skips_invalid_numeric_courses(self):
         result = shortcut_service.normalize_historical_schedule(
             '2415108133',
@@ -608,6 +672,57 @@ class ShortcutPublicQueryRouteTests(unittest.TestCase):
             'data': expected,
         })
         query.assert_called_once_with('2415108133', 'historical_schedule', {})
+
+    def test_urgent_event_returns_normalized_data(self):
+        expected = {
+            'student_id': '2415108133',
+            'has_event': True,
+            'event': {
+                'type': 'class',
+                'title': '软件工程导论',
+                'location': '仙林校区实C-501',
+                'time': '2026-09-03 08:20',
+                'countdown': 35,
+            },
+        }
+        with (
+            mock.patch.object(
+                shortcut_routes, 'query_shortcut_data', return_value=expected
+            ) as query,
+            mock.patch.object(shortcut_routes, 'start_auto_update'),
+        ):
+            response = self.client.post(
+                '/api/shortcut/query',
+                json={'key': 'urp_valid', 'action': 'urgent_event', 'params': {}},
+            )
+
+        self.assertEqual(response.get_json(), {
+            'success': True,
+            'action': 'urgent_event',
+            'message': '查询成功',
+            'data': expected,
+        })
+        query.assert_called_once_with('2415108133', 'urgent_event', {})
+
+    def test_urgent_event_starts_background_data_refresh(self):
+        expected = {
+            'student_id': '2415108133',
+            'has_event': False,
+            'event': None,
+        }
+        with (
+            mock.patch.object(
+                shortcut_routes, 'query_shortcut_data', return_value=expected
+            ),
+            mock.patch.object(shortcut_routes, 'start_auto_update') as start_update,
+        ):
+            response = self.client.post(
+                '/api/shortcut/query',
+                json={'key': 'urp_valid', 'action': 'urgent_event', 'params': {}},
+            )
+
+        self.assertEqual(response.get_json()['data'], expected)
+        start_update.assert_called_once_with('2415108133', 'password')
 
     def test_query_failure_has_stable_error_code(self):
         with mock.patch.object(

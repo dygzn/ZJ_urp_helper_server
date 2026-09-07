@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>URP 教务助手 · 广告位原型</title>
+  <style>
+    :root {
+      --bg: #f5f5f7;
+      --surface: #ffffff;
+      --surface-soft: #fafbff;
+      --text: #1d1d1f;
+      --muted: #6e6e73;
+      --muted-2: #86868b;
+      --line: #e4e6eb;
+      --blue: #007aff;
+      --blue-deep: #1558c0;
+      --blue-soft: #edf5ff;
+      --purple-soft: #f3f1ff;
+      --shadow: 0 8px 28px rgba(31, 43, 67, .06);
+      --shadow-soft: 0 2px 10px rgba(31, 43, 67, .04);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { min-height: 100%; }
+
+    body {
+      margin: 0;
+      color: var(--text);
+      background: var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Microsoft YaHei", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button, a { font: inherit; }
+
+    button { cursor: pointer; }
+
+    .app-shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 216px minmax(0, 1fr);
+    }
+
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      padding: 26px 14px 18px;
+      background: rgba(255, 255, 255, .9);
+      border-right: 1px solid rgba(210, 210, 215, .72);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 12px 28px;
+      white-space: nowrap;
+    }
+
+    .brand-mark {
+      width: 31px;
+      height: 31px;
+      display: grid;
+      place-items: center;
+      border-radius: 10px;
+      color: #fff;
+      background: linear-gradient(140deg, #1489ff, #2e5ee9);
+      box-shadow: 0 6px 14px rgba(0, 122, 255, .24);
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .brand-name { font-size: 17px; font-weight: 700; letter-spacing: -.02em; }
+
+    .nav-list { display: grid; gap: 6px; }
+
+    .nav-item {
+      width: 100%;
+      min-height: 46px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 13px;
+      border: 0;
+      border-radius: 12px;
+      color: #5e6674;
+      background: transparent;
+      text-align: left;
+      transition: background .18s ease, color .18s ease, transform .18s ease;
+    }
+
+    .nav-item:hover { color: var(--blue); background: #f2f7ff; }
+    .nav-item.active { color: var(--blue); background: #eaf3ff; font-weight: 650; }
+
+    .nav-icon {
+      width: 19px;
+      height: 19px;
+      flex: 0 0 19px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .sidebar-footer {
+      margin-top: auto;
+      padding: 16px 12px 0;
+      color: var(--muted-2);
+      font-size: 12px;
+      border-top: 1px solid #f0f1f4;
+    }
+
+    .sidebar-footer strong { display: block; margin-bottom: 4px; color: #4d5562; font-size: 13px; }
+
+    .main-area { min-width: 0; }
+
+    .topbar {
+      min-height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 0 42px;
+      background: rgba(255, 255, 255, .82);
+      border-bottom: 1px solid rgba(210, 210, 215, .72);
+      backdrop-filter: blur(18px);
+    }
+
+    .topbar-left { display: flex; align-items: baseline; gap: 12px; }
+    .topbar-title { margin: 0; font-size: 22px; letter-spacing: -.03em; }
+    .prototype-tag { color: var(--muted-2); font-size: 12px; }
+
+    .topbar-right { display: flex; align-items: center; gap: 18px; }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: #4d8061;
+      font-size: 12px;
+    }
+
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #34c759; }
+
+    .notification-button {
+      position: relative;
+      width: 35px;
+      height: 35px;
+      display: grid;
+      place-items: center;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      color: #5b6575;
+      background: transparent;
+    }
+
+    .notification-button:hover { color: var(--blue); background: #f1f6ff; }
+    .notification-button::after { content: ""; position: absolute; top: 6px; right: 7px; width: 5px; height: 5px; border-radius: 50%; background: #ff3b30; }
+
+    .user-chip { display: flex; align-items: center; gap: 9px; color: #4e5664; font-size: 14px; }
+
+    .avatar {
+      width: 31px;
+      height: 31px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      color: #fff;
+      background: #5d8ff4;
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .content-wrap {
+      width: min(1120px, calc(100% - 84px));
+      margin: 0 auto;
+      padding: 36px 0 58px;
+    }
+
+    .eyebrow {
+      margin: 0 0 9px;
+      color: var(--muted-2);
+      font-size: 12px;
+      letter-spacing: .04em;
+    }
+
+    .page-heading {
+      margin: 0 0 24px;
+      font-size: 30px;
+      line-height: 1.15;
+      letter-spacing: -.04em;
+    }
+
+    .core-card {
+      padding: 26px 28px 28px;
+      background: var(--surface);
+      border: 1px solid rgba(218, 221, 228, .85);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .card-heading-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .card-heading { margin: 0; font-size: 21px; letter-spacing: -.03em; }
+
+    .refresh-button {
+      min-height: 36px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 0 13px;
+      border: 1px solid #d7e5fa;
+      border-radius: 10px;
+      color: var(--blue);
+      background: #f7fbff;
+      font-size: 13px;
+      transition: background .18s ease, border-color .18s ease;
+    }
+
+    .refresh-button:hover { border-color: #a9c9f5; background: #eef6ff; }
+    .refresh-icon { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+    .urgent-row {
+      display: grid;
+      grid-template-columns: 56px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 17px;
+      margin-top: 22px;
+      padding: 22px;
+      border: 1px solid #e6ebf3;
+      border-radius: 14px;
+      background: linear-gradient(120deg, #fbfdff, #fff);
+    }
+
+    .urgent-icon {
+      width: 56px;
+      height: 56px;
+      display: grid;
+      place-items: center;
+      border-radius: 15px;
+      color: var(--blue);
+      background: #eaf3ff;
+    }
+
+    .urgent-icon svg { width: 29px; height: 29px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .urgent-label { display: flex; align-items: center; gap: 9px; margin-bottom: 6px; font-size: 16px; font-weight: 650; }
+    .urgent-label::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--blue); }
+    .urgent-copy { margin: 0; color: var(--muted); font-size: 13px; }
+
+    .task-link {
+      min-height: 38px;
+      padding: 0 19px;
+      border: 0;
+      border-radius: 10px;
+      color: #fff;
+      background: var(--blue);
+      font-size: 13px;
+      font-weight: 650;
+      box-shadow: 0 7px 14px rgba(0, 122, 255, .18);
+    }
+
+    .task-link:hover { background: #006fe6; }
+
+    .ad-card {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 210px auto;
+      align-items: center;
+      gap: 24px;
+      min-height: 176px;
+      margin-top: 24px;
+      padding: 23px 25px 20px;
+      overflow: hidden;
+      border: 1px solid #dce7fa;
+      border-radius: var(--radius);
+      background: linear-gradient(112deg, #f3f8ff 0%, #f7f5ff 56%, #f0f5ff 100%);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .ad-card::before { content: ""; position: absolute; width: 260px; height: 260px; left: 38%; top: -190px; border-radius: 50%; background: rgba(255, 255, 255, .5); }
+    .ad-copy, .ad-visual, .ad-actions { position: relative; z-index: 1; }
+    .ad-copy { min-width: 0; }
+
+    .ad-label {
+      display: inline-flex;
+      align-items: center;
+      min-height: 25px;
+      padding: 0 10px;
+      border-radius: 8px;
+      color: #5b4dde;
+      background: rgba(223, 219, 255, .78);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .05em;
+    }
+
+    .ad-title { margin: 12px 0 6px; color: #163f82; font-size: 20px; letter-spacing: -.03em; }
+    .ad-description { max-width: 590px; margin: 0; color: #61708a; font-size: 13px; line-height: 1.7; }
+
+    .ad-detail-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 12px;
+      padding: 0;
+      border: 0;
+      color: #1769db;
+      background: transparent;
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .ad-detail-button:hover { color: #064cae; }
+    .ad-detail-button svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+    .ad-visual { height: 118px; display: grid; place-items: center; }
+
+    .illustration {
+      position: relative;
+      width: 170px;
+      height: 112px;
+    }
+
+    .illustration-window {
+      position: absolute;
+      right: 11px;
+      top: 17px;
+      width: 122px;
+      height: 80px;
+      padding: 11px;
+      border: 5px solid rgba(117, 146, 237, .34);
+      border-radius: 13px;
+      background: rgba(255,255,255,.72);
+      box-shadow: 0 12px 24px rgba(96, 102, 197, .12);
+    }
+
+    .illustration-window::before { content: ""; display: block; width: 42px; height: 6px; margin-bottom: 11px; border-radius: 4px; background: #bdc9f8; box-shadow: 0 13px 0 #d8defa, 0 26px 0 #d8defa; }
+    .illustration-window::after { content: ""; position: absolute; right: 10px; top: 32px; width: 21px; height: 21px; border-radius: 7px; background: #b9c8ff; }
+    .illustration-piece { position: absolute; left: 21px; bottom: 18px; width: 38px; height: 32px; border-radius: 7px 12px 7px 12px; background: #5b4de0; transform: rotate(-8deg); box-shadow: 20px -17px 0 -9px #8da8fa; }
+    .illustration-orb { position: absolute; right: 0; bottom: 2px; width: 38px; height: 38px; border-radius: 50%; background: radial-gradient(circle at 34% 28%, #fff, #b5c4fa 65%); }
+    .illustration-spark { position: absolute; left: 4px; top: 13px; width: 19px; height: 19px; border: 4px solid #c5d3ff; border-top-color: transparent; border-radius: 55% 45% 55% 45%; transform: rotate(-28deg); }
+
+    .ad-actions {
+      align-self: end;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 9px;
+      min-width: 226px;
+    }
+
+    .ad-dismiss {
+      min-height: 35px;
+      padding: 0 12px;
+      border: 1px solid #d4d8e0;
+      border-radius: 9px;
+      color: #596171;
+      background: rgba(255, 255, 255, .78);
+      font-size: 12px;
+      white-space: nowrap;
+      transition: background .18s ease, border-color .18s ease, color .18s ease;
+    }
+
+    .ad-dismiss:hover { color: #1d3f72; border-color: #aebad0; background: #fff; }
+    .ad-dismiss.emphasis { color: #3e3a81; border-color: #c7c3ef; background: rgba(255, 255, 255, .88); }
+
+    .ad-feedback {
+      display: none;
+      margin-top: 13px;
+      color: #52627c;
+      font-size: 12px;
+    }
+
+    .ad-feedback.visible { display: block; }
+
+    .ad-placeholder {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      min-height: 74px;
+      margin-top: 24px;
+      padding: 17px 21px;
+      border: 1px dashed #cfd5df;
+      border-radius: 15px;
+      color: var(--muted);
+      background: rgba(255, 255, 255, .55);
+      font-size: 13px;
+    }
+
+    .ad-placeholder.visible { display: flex; }
+    .ad-placeholder-copy strong { display: block; margin-bottom: 2px; color: #495364; font-size: 13px; }
+    .restore-button { padding: 0; border: 0; color: var(--blue); background: transparent; font-size: 12px; font-weight: 650; white-space: nowrap; }
+    .restore-button:hover { color: #064cae; text-decoration: underline; }
+
+    .design-note {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin: 18px 3px 0;
+      color: #858c98;
+      font-size: 12px;
+    }
+
+    .design-note svg { width: 15px; height: 15px; flex: 0 0 15px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+    .interaction-status {
+      min-height: 18px;
+      margin-top: 8px;
+      color: #5a7f63;
+      font-size: 12px;
+    }
+
+    @media (max-width: 1000px) {
+      .app-shell { grid-template-columns: 188px minmax(0, 1fr); }
+      .content-wrap { width: min(100% - 52px, 920px); }
+      .ad-card { grid-template-columns: minmax(0, 1fr) 170px; }
+      .ad-actions { grid-column: 1 / -1; align-self: auto; justify-content: flex-start; min-width: 0; }
+    }
+
+    @media (max-width: 720px) {
+      .app-shell { display: block; }
+      .sidebar { min-height: auto; padding: 14px 12px 12px; border-right: 0; border-bottom: 1px solid var(--line); }
+      .brand { padding: 0 6px 13px; }
+      .nav-list { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+      .nav-item { flex: 0 0 auto; width: auto; min-height: 36px; padding: 0 11px; font-size: 12px; }
+      .nav-icon { width: 16px; height: 16px; flex-basis: 16px; }
+      .sidebar-footer { display: none; }
+      .topbar { min-height: 60px; padding: 0 18px; }
+      .prototype-tag, .status-pill { display: none; }
+      .user-chip { font-size: 12px; }
+      .content-wrap { width: calc(100% - 32px); padding: 25px 0 42px; }
+      .page-heading { font-size: 25px; margin-bottom: 18px; }
+      .core-card { padding: 20px 16px 18px; }
+      .card-heading { font-size: 18px; }
+      .urgent-row { grid-template-columns: 44px minmax(0, 1fr); gap: 12px; padding: 15px; }
+      .urgent-icon { width: 44px; height: 44px; border-radius: 12px; }
+      .urgent-icon svg { width: 24px; height: 24px; }
+      .urgent-label { font-size: 14px; }
+      .urgent-copy { font-size: 12px; }
+      .task-link { grid-column: 2; justify-self: start; min-height: 34px; }
+      .ad-card { grid-template-columns: minmax(0, 1fr); gap: 6px; min-height: 0; padding: 18px; }
+      .ad-title { font-size: 18px; }
+      .ad-visual { display: none; }
+      .ad-actions { margin-top: 10px; flex-wrap: wrap; }
+      .ad-placeholder { align-items: flex-start; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="主导航">
+      <div class="brand">
+        <div class="brand-mark">U</div>
+        <div class="brand-name">URP教务助手</div>
+      </div>
+
+      <nav class="nav-list">
+        <button class="nav-item active" type="button" data-title="首页">
+          <svg class="nav-icon" viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9h13v-9"/><path d="M9.5 19v-5h5v5"/></svg>
+          <span>首页</span>
+        </button>
+        <button class="nav-item" type="button" data-title="课程表">
+          <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18"/></svg>
+          <span>课程表</span>
+        </button>
+        <button class="nav-item" type="button" data-title="考试安排">
+          <svg class="nav-icon" viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6z"/><path d="M15 3v4h4M9 12h6M9 16h6"/></svg>
+          <span>考试安排</span>
+        </button>
+        <button class="nav-item" type="button" data-title="成绩查询">
+          <svg class="nav-icon" viewBox="0 0 24 24"><path d="M5 20V11M12 20V5M19 20V8"/><path d="M3 20h18"/></svg>
+          <span>成绩查询</span>
+        </button>
+        <button class="nav-item" type="button" data-title="教学评估">
+          <svg class="nav-icon" viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9z"/></svg>
+          <span>教学评估</span>
+        </button>
+        <button class="nav-item" type="button" data-title="系统公告">
+          <svg class="nav-icon" viewBox="0 0 24 24"><path d="M4 14v-4l13-5v14L4 14Z"/><path d="M17 10h3v4h-3M7 15l1.5 5h2L9 15"/></svg>
+          <span>系统公告</span>
+        </button>
+        <button class="nav-item" type="button" data-title="反馈建议">
+          <svg class="nav-icon" viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4z"/><path d="M8 9h8M8 12h5"/></svg>
+          <span>反馈建议</span>
+        </button>
+        <button class="nav-item" type="button" data-title="会员购买">
+          <svg class="nav-icon" viewBox="0 0 24 24"><path d="M4 8h16l-1 12H5z"/><path d="M8 8a4 4 0 0 1 8 0"/></svg>
+          <span>会员购买</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <strong>当前用户</strong>
+        <span>2024******08</span>
+      </div>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 class="topbar-title" id="topbar-title">首页</h1>
+          <span class="prototype-tag">广告位交互原型</span>
+        </div>
+        <div class="topbar-right">
+          <span class="status-pill"><span class="status-dot"></span>服务正常</span>
+          <button class="notification-button" type="button" aria-label="通知">
+            <svg class="nav-icon" viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8M10 21h4"/></svg>
+          </button>
+          <div class="user-chip"><span class="avatar">张</span><span>张同学</span></div>
+        </div>
+      </header>
+
+      <div class="content-wrap">
+        <p class="eyebrow">2024—2025 学年第二学期</p>
+        <h2 class="page-heading">今天也安排得明明白白</h2>
+
+        <section class="core-card" aria-labelledby="urgent-title">
+          <div class="card-heading-row">
+            <h3 class="card-heading" id="urgent-title">接下来最紧急的事情</h3>
+            <button class="refresh-button" id="refresh-button" type="button">
+              <svg class="refresh-icon" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0 2 5"/><path d="M20 4v7h-7"/></svg>
+              <span id="refresh-label">刷新</span>
+            </button>
+          </div>
+
+          <div class="urgent-row">
+            <div class="urgent-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M7 3h8l3 3v15H7z"/><path d="M15 3v4h4M10 12h5M10 16h4"/><path d="m14 18 1.5 1.5L19 16"/></svg>
+            </div>
+            <div>
+              <div class="urgent-label">本学期课程评估</div>
+              <p class="urgent-copy">请在 2025-06-10（周二）23:59 前完成对本学期课程的评估。</p>
+            </div>
+            <button class="task-link" type="button">去完成</button>
+          </div>
+          <div class="interaction-status" id="interaction-status" aria-live="polite"></div>
+        </section>
+
+        <section class="ad-card" id="ad-card" aria-label="推广内容">
+          <div class="ad-copy">
+            <span class="ad-label">推广</span>
+            <h3 class="ad-title">支持项目的合作推荐</h3>
+            <p class="ad-description">我们精选与校园学习相关的合作伙伴，为项目维护和服务稳定提供支持。</p>
+            <button class="ad-detail-button" id="detail-button" type="button">
+              了解详情
+              <svg viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg>
+            </button>
+            <div class="ad-feedback" id="ad-feedback" aria-live="polite">这里可以展示合作内容，但不会离开当前页面。</div>
+          </div>
+
+          <div class="ad-visual" aria-hidden="true">
+            <div class="illustration">
+              <div class="illustration-window"></div>
+              <div class="illustration-piece"></div>
+              <div class="illustration-orb"></div>
+              <div class="illustration-spark"></div>
+            </div>
+          </div>
+
+          <div class="ad-actions">
+            <button class="ad-dismiss" id="dismiss-button" type="button">暂时关闭</button>
+            <button class="ad-dismiss emphasis" id="never-button" type="button">不再显示广告</button>
+          </div>
+        </section>
+
+        <div class="ad-placeholder" id="ad-placeholder" aria-live="polite">
+          <div class="ad-placeholder-copy">
+            <strong id="placeholder-title">广告已暂时关闭</strong>
+            <span id="placeholder-copy">本次浏览不会再显示这条推广内容。</span>
+          </div>
+          <button class="restore-button" id="restore-button" type="button">恢复显示广告</button>
+        </div>
+
+        <p class="design-note">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 10v6M12 7h.01"/></svg>
+          广告是普通内容卡片：不固定、不遮挡、不阻塞课程数据加载。
+        </p>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    (() => {
+      const storageKey = 'urp-ad-preview-never-show';
+      const adCard = document.getElementById('ad-card');
+      const placeholder = document.getElementById('ad-placeholder');
+      const placeholderTitle = document.getElementById('placeholder-title');
+      const placeholderCopy = document.getElementById('placeholder-copy');
+      const interactionStatus = document.getElementById('interaction-status');
+      const refreshButton = document.getElementById('refresh-button');
+      const refreshLabel = document.getElementById('refresh-label');
+      const detailButton = document.getElementById('detail-button');
+      const adFeedback = document.getElementById('ad-feedback');
+
+      function showAd() {
+        adCard.style.display = 'grid';
+        placeholder.classList.remove('visible');
+      }
+
+      function hideAd(title, copy) {
+        adCard.style.display = 'none';
+        placeholderTitle.textContent = title;
+        placeholderCopy.textContent = copy;
+        placeholder.classList.add('visible');
+      }
+
+      function loadSavedPreference() {
+        if (localStorage.getItem(storageKey) === '1') {
+          hideAd('广告已永久关闭', '你已选择不再显示广告，可随时恢复。');
+        }
+      }
+
+      document.querySelectorAll('.nav-item').forEach((item) => {
+        item.addEventListener('click', () => {
+          document.querySelectorAll('.nav-item').forEach((nav) => nav.classList.remove('active'));
+          item.classList.add('active');
+          document.getElementById('topbar-title').textContent = item.dataset.title;
+          interactionStatus.textContent = `已切换到“${item.dataset.title}”，广告不会覆盖导航。`;
+        });
+      });
+
+      refreshButton.addEventListener('click', () => {
+        refreshLabel.textContent = '刚刚更新';
+        interactionStatus.textContent = '紧急事项已刷新，广告卡片仍保持在内容下方。';
+        window.setTimeout(() => { refreshLabel.textContent = '刷新'; }, 1800);
+      });
+
+      document.querySelector('.task-link').addEventListener('click', () => {
+        interactionStatus.textContent = '已点击“去完成”，主功能按钮不受广告影响。';
+      });
+
+      detailButton.addEventListener('click', () => {
+        adFeedback.classList.toggle('visible');
+        detailButton.firstChild.textContent = adFeedback.classList.contains('visible') ? '收起详情 ' : '了解详情 ';
+      });
+
+      document.getElementById('dismiss-button').addEventListener('click', () => {
+        hideAd('广告已暂时关闭', '本次浏览不会再显示这条推广内容。');
+        interactionStatus.textContent = '广告已暂时关闭，页面布局保持稳定。';
+      });
+
+      document.getElementById('never-button').addEventListener('click', () => {
+        localStorage.setItem(storageKey, '1');
+        hideAd('广告已永久关闭', '你已选择不再显示广告，可随时恢复。');
+        interactionStatus.textContent = '已记录“永不显示”偏好，刷新页面后仍然有效。';
+      });
+
+      document.getElementById('restore-button').addEventListener('click', () => {
+        localStorage.removeItem(storageKey);
+        showAd();
+        interactionStatus.textContent = '广告已恢复显示，你可以继续测试关闭操作。';
+      });
+
+      loadSavedPreference();
+    })();
+  </script>
+</body>
+</html>

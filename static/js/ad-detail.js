@@ -18,10 +18,21 @@
         if (typeof trackEventFn === 'function') return trackEventFn;
         if (typeof root.fetch === 'function') {
             return function(eventName) {
+                const payload = { event: eventName };
+                if (eventName === 'copy') {
+                    try {
+                        const username = String(
+                            root.localStorage?.getItem('urp_bound_username') || '',
+                        ).trim();
+                        if (username) payload.username = username;
+                    } catch (error) {
+                        // 本地存储不可用时仍正常记录匿名复制次数。
+                    }
+                }
                 root.fetch('/api/ad/event', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ event: eventName }),
+                    body: JSON.stringify(payload),
                     keepalive: true,
                 }).catch(() => {});
             };
@@ -40,14 +51,16 @@
         }
 
         const label = button?.querySelector?.('[data-copy-label]');
+        const originalLabel = label?.textContent || '';
+        const message = copied
+            ? (button?.dataset?.copySuccess || `已复制 ${value}`)
+            : '复制失败，请长按复制';
         button?.setAttribute?.('data-copy-state', copied ? 'copied' : 'failed');
         if (label) {
-            label.textContent = copied ? '已复制' : '复制失败，请手动复制';
+            label.textContent = copied ? '已复制，打开微信搜索添加' : '复制失败，请长按复制';
         }
         if (feedback) {
-            feedback.textContent = copied
-                ? (button?.dataset?.copySuccess || `已复制 ${value}`)
-                : `复制失败，请手动复制 ${value}`;
+            feedback.textContent = message;
         }
         if (copied) {
             try {
@@ -56,7 +69,21 @@
                 // 统计失败不能影响已经完成的复制操作。
             }
         }
-        return copied;
+
+        if (label) {
+            const schedule = typeof root.setTimeout === 'function'
+                ? root.setTimeout.bind(root)
+                : null;
+            if (schedule) {
+                schedule(() => {
+                    if (button?.isConnected !== false && label.isConnected !== false) {
+                        label.textContent = originalLabel;
+                    }
+                }, 1800);
+            }
+        }
+
+        return { copied, value, message };
     }
 
     function initializeAdDetailCopy(documentObject, copyTextFn, trackEventFn) {

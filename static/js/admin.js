@@ -1,6 +1,107 @@
 // ==================== 全局变量 ====================
 let adminKey = null;  // 管理员密钥
 let currentRequestId = null;  // 当前审批的请求ID
+const adminUi = typeof URPUI !== 'undefined' ? URPUI : null;
+const adminModalState = {
+    activeModal: null,
+    returnFocus: null,
+};
+
+function showAdminToast(message, type = 'info') {
+    const region = document.getElementById('admin-toast-region');
+    if (!region) return;
+    const toast = document.createElement('div');
+    toast.className = `admin-toast admin-toast-${type}`;
+    toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
+    toast.textContent = message || '';
+    region.appendChild(toast);
+    window.setTimeout(() => toast.remove(), 3600);
+}
+
+function adminGetFocusable(container) {
+    if (adminUi && typeof adminUi.getFocusableElements === 'function') {
+        return adminUi.getFocusableElements(container);
+    }
+    if (!container || typeof container.querySelectorAll !== 'function') return [];
+    return Array.from(container.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    )).filter(element => !element.disabled && !element.hidden);
+}
+
+function adminSyncOverlay() {
+    const overlay = document.getElementById('overlay');
+    const shouldShow = Boolean(
+        adminModalState.activeModal
+        && adminModalState.activeModal.classList.contains('active'),
+    );
+    overlay?.classList.toggle('active', shouldShow);
+    document.body?.classList.toggle('admin-ui-locked', shouldShow);
+}
+
+function adminOpenModal(modal, initialFocusSelector = '') {
+    if (!modal) return;
+    if (adminModalState.activeModal && adminModalState.activeModal !== modal) {
+        adminCloseModal(adminModalState.activeModal, false);
+    }
+    if (!adminModalState.activeModal) {
+        adminModalState.returnFocus = document.activeElement || null;
+    }
+    adminModalState.activeModal = modal;
+    modal.classList.add('active');
+    modal.setAttribute('aria-hidden', 'false');
+    adminSyncOverlay();
+
+    const initial = initialFocusSelector && modal.querySelector(initialFocusSelector);
+    const focusable = adminGetFocusable(modal);
+    (initial || focusable[0])?.focus?.({ preventScroll: true });
+}
+
+function adminCloseModal(modal, restoreFocus = true) {
+    if (!modal) return;
+    modal.classList.remove('active');
+    modal.setAttribute('aria-hidden', 'true');
+    if (adminModalState.activeModal === modal) {
+        adminModalState.activeModal = null;
+        const returnFocus = adminModalState.returnFocus;
+        adminModalState.returnFocus = null;
+        if (restoreFocus && returnFocus?.isConnected !== false) {
+            returnFocus.focus?.({ preventScroll: true });
+        }
+    }
+    adminSyncOverlay();
+}
+
+function adminHandleOverlayClick(event) {
+    if (event?.target !== event?.currentTarget) return;
+    adminCloseModal(adminModalState.activeModal);
+}
+
+function adminHandleKeydown(event) {
+    const modal = adminModalState.activeModal;
+    if (!modal) return;
+    if (event.key === 'Escape') {
+        adminCloseModal(modal);
+        return;
+    }
+    if (event.key !== 'Tab') return;
+
+    const focusable = adminGetFocusable(modal);
+    if (!focusable.length) {
+        event.preventDefault();
+        return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus?.({ preventScroll: true });
+    } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus?.({ preventScroll: true });
+    }
+}
+
+document.addEventListener('keydown', adminHandleKeydown);
 
 // ==================== 页面初始化 ====================
 document.addEventListener('DOMContentLoaded', function() {
@@ -60,15 +161,21 @@ function adminLogout() {
 
 // ==================== 标签页切换 ====================
 function switchTab(tabName) {
-    // 更新标签按钮状态
     const tabBtns = document.querySelectorAll('.tab-btn');
-    tabBtns.forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
-
-    // 切换内容
     const tabContents = document.querySelectorAll('.tab-content');
-    tabContents.forEach(content => content.classList.remove('active'));
-    document.getElementById(`tab-${tabName}`).classList.add('active');
+    if (adminUi && typeof adminUi.syncTabAriaState === 'function') {
+        adminUi.syncTabAriaState(tabBtns, tabContents, tabName);
+    } else {
+        tabBtns.forEach(btn => {
+            const isSelected = btn.dataset.tab === tabName;
+            btn.classList.toggle('active', isSelected);
+            btn.setAttribute('aria-selected', String(isSelected));
+        });
+        tabContents.forEach(content => {
+            const isSelected = content.id === `tab-${tabName}`;
+            content.classList.toggle('active', isSelected);
+        });
+    }
 
     // 加载对应数据
     if (tabName === 'pending') {
@@ -277,7 +384,6 @@ function showApproveModal(requestId, request) {
     currentRequestId = requestId;
 
     const modal = document.getElementById('approve-modal');
-    const overlay = document.getElementById('overlay');
     const detailsDiv = document.getElementById('approve-details');
 
     // 显示请求详情
@@ -296,16 +402,12 @@ function showApproveModal(requestId, request) {
         </div>
     `;
 
-    modal.classList.add('active');
-    overlay.classList.add('active');
+    adminOpenModal(modal);
 }
 
 function closeApproveModal() {
     const modal = document.getElementById('approve-modal');
-    const overlay = document.getElementById('overlay');
-
-    modal.classList.remove('active');
-    overlay.classList.remove('active');
+    adminCloseModal(modal);
 
     currentRequestId = null;
 }
@@ -313,7 +415,7 @@ function closeApproveModal() {
 // 处理批准
 async function handleApprove() {
     if (!currentRequestId) {
-        alert('请求ID丢失');
+        showAdminToast('请求ID丢失', 'error');
         return;
     }
 
@@ -337,22 +439,22 @@ async function handleApprove() {
         const data = await response.json();
 
         if (data.success) {
-            alert(data.message || '换绑请求已批准');
+            showAdminToast(data.message || '换绑请求已批准', 'success');
             closeApproveModal();
             loadPendingRequests();
         } else {
-            alert(data.message || '操作失败');
+            showAdminToast(data.message || '操作失败', 'error');
         }
     } catch (error) {
         console.error('批准失败:', error);
-        alert('网络错误，请重试');
+        showAdminToast('网络错误，请重试', 'error');
     }
 }
 
 // 处理拒绝
 async function handleReject() {
     if (!currentRequestId) {
-        alert('请求ID丢失');
+        showAdminToast('请求ID丢失', 'error');
         return;
     }
 
@@ -376,15 +478,15 @@ async function handleReject() {
         const data = await response.json();
 
         if (data.success) {
-            alert('换绑请求已拒绝');
+            showAdminToast('换绑请求已拒绝', 'success');
             closeApproveModal();
             loadPendingRequests();
         } else {
-            alert(data.message || '操作失败');
+            showAdminToast(data.message || '操作失败', 'error');
         }
     } catch (error) {
         console.error('拒绝失败:', error);
-        alert('网络错误，请重试');
+        showAdminToast('网络错误，请重试', 'error');
     }
 }
 
@@ -410,14 +512,14 @@ async function rejectRequest(requestId) {
         const data = await response.json();
 
         if (data.success) {
-            alert('换绑请求已拒绝');
+            showAdminToast('换绑请求已拒绝', 'success');
             loadPendingRequests();
         } else {
-            alert(data.message || '操作失败');
+            showAdminToast(data.message || '操作失败', 'error');
         }
     } catch (error) {
         console.error('拒绝失败:', error);
-        alert('网络错误，请重试');
+        showAdminToast('网络错误，请重试', 'error');
     }
 }
 
@@ -481,6 +583,7 @@ function renderAdStats(stats) {
     const clickRate = Number(stats.click_through_rate) || 0;
     const detailRate = Number(stats.detail_conversion_rate) || 0;
     const overallRate = Number(stats.overall_conversion_rate) || 0;
+    const copyUsernames = Array.isArray(stats.copy_usernames) ? stats.copy_usernames : [];
     const daily = Array.isArray(stats.daily) ? stats.daily : [];
     const rows = daily.slice().reverse().map(item => {
         const date = escapeHtml(String(item.date || '-'));
@@ -490,6 +593,10 @@ function renderAdStats(stats) {
         return `<div class="ad-stats-row"><span class="ad-stats-row-date">${date}</span><span class="ad-stats-row-metrics"><span>展示 ${dayImpressions}</span><span>点击 ${dayClicks}</span><strong>复制 ${dayCopies}</strong></span></div>`;
     }).join('');
 
+    const copyUsers = copyUsernames.map(username => (
+        `<span class="ad-copy-user">${escapeHtml(String(username))}</span>`
+    )).join('');
+
     container.innerHTML = `<div class="ud-cards ad-stats-cards">
         <div class="ud-card"><div class="ud-card-value">${impressions}</div><div class="ud-card-label">广告展示</div></div>
         <div class="ud-card ud-card-blue"><div class="ud-card-value">${clicks}</div><div class="ud-card-label">详情点击 · 横幅点击率 ${clickRate}%</div></div>
@@ -497,8 +604,12 @@ function renderAdStats(stats) {
         <div class="ud-card"><div class="ud-card-value">${overallRate}%</div><div class="ud-card-label">完整转化率</div></div>
     </div>
     <div class="ud-section ad-stats-section">
-        <div class="ud-section-header"><span class="ud-section-title">最近 14 天</span><span class="ad-stats-hint">关闭 ${dismissals} 次 · 按天汇总，不记录用户身份</span></div>
+        <div class="ud-section-header"><span class="ud-section-title">最近 14 天</span><span class="ad-stats-hint">关闭 ${dismissals} 次 · 漏斗次数按天汇总</span></div>
         <div class="ad-stats-daily">${rows || '<div class="empty-state"><div class="empty-state-text">暂无广告记录</div></div>'}</div>
+    </div>
+    <div class="ud-section ad-stats-section">
+        <div class="ud-section-header"><span class="ud-section-title">曾复制的学号</span><span class="ad-stats-hint">共 ${copyUsernames.length} 人 · 每个学号只显示一次</span></div>
+        <div class="ad-copy-users">${copyUsers || '<div class="empty-state"><div class="empty-state-text">暂时还没有学号记录</div></div>'}</div>
     </div>`;
 }
 
@@ -804,7 +915,7 @@ async function handleUpdateDatabase(event) {
     };
 
     if (type === 'mysql' && (!payload.mysql.host || !payload.mysql.database || !payload.mysql.user)) {
-        alert('请填写 MySQL 主机、数据库名和用户名');
+        showAdminToast('请填写 MySQL 主机、数据库名和用户名', 'error');
         return;
     }
 
@@ -836,7 +947,7 @@ async function handleUpdateDatabase(event) {
                 status.textContent = data.message || '保存失败';
                 status.className = 'config-inline-status config-inline-status-error';
             }
-            alert(data.message || '保存失败');
+            showAdminToast(data.message || '保存失败', 'error');
         }
     } catch (error) {
         console.error('保存数据库配置失败:', error);
@@ -878,7 +989,7 @@ async function handleMigrateSqliteData() {
                 status.textContent = data.message || '导入失败';
                 status.className = 'config-inline-status config-inline-status-error';
             }
-            alert(data.message || '导入失败');
+            showAdminToast(data.message || '导入失败', 'error');
         }
     } catch (error) {
         console.error('导入 SQLite 数据失败:', error);
@@ -915,7 +1026,7 @@ async function handleUpdateGradesMemberRequired() {
             if (status) {
                 status.textContent = '保存失败';
             }
-            alert(data.message || '保存失败');
+            showAdminToast(data.message || '保存失败', 'error');
         }
     } catch (error) {
         checkbox.checked = !required;
@@ -923,7 +1034,7 @@ async function handleUpdateGradesMemberRequired() {
             status.textContent = '保存失败';
         }
         console.error('保存查成绩权限失败:', error);
-        alert('网络错误，请重试');
+        showAdminToast('网络错误，请重试', 'error');
     }
 }
 async function switchUrl(urlIndex) {
@@ -946,14 +1057,14 @@ async function switchUrl(urlIndex) {
         const data = await response.json();
 
         if (data.success) {
-            alert(data.message || 'URL切换成功');
+            showAdminToast(data.message || 'URL切换成功', 'success');
             loadConfig();
         } else {
-            alert(data.message || '切换失败');
+            showAdminToast(data.message || '切换失败', 'error');
         }
     } catch (error) {
         console.error('切换URL失败:', error);
-        alert('网络错误，请重试');
+        showAdminToast('网络错误，请重试', 'error');
     }
 }
 
@@ -964,7 +1075,7 @@ async function handleUpdateUrls(event) {
     const url2 = document.getElementById('url-2').value.trim();
 
     if (!url1 || !url2) {
-        alert('请填写两个URL');
+        showAdminToast('请填写两个URL', 'error');
         return;
     }
 
@@ -987,14 +1098,14 @@ async function handleUpdateUrls(event) {
         const data = await response.json();
 
         if (data.success) {
-            alert(data.message || 'URL配置已更新');
+            showAdminToast(data.message || 'URL配置已更新', 'success');
             loadConfig();
         } else {
-            alert(data.message || '更新失败');
+            showAdminToast(data.message || '更新失败', 'error');
         }
     } catch (error) {
         console.error('更新URL配置失败:', error);
-        alert('网络错误，请重试');
+        showAdminToast('网络错误，请重试', 'error');
     }
 }
 
@@ -1003,7 +1114,7 @@ async function handleUpdateSemester(event) {
 
     const dateStr = document.getElementById('semester-start').value;
     if (!dateStr) {
-        alert('请选择日期');
+        showAdminToast('请选择日期', 'error');
         return;
     }
 
@@ -1019,13 +1130,13 @@ async function handleUpdateSemester(event) {
 
         const data = await response.json();
         if (data.success) {
-            alert(data.message || '学期配置已更新');
+            showAdminToast(data.message || '学期配置已更新', 'success');
         } else {
-            alert(data.message || '更新失败');
+            showAdminToast(data.message || '更新失败', 'error');
         }
     } catch (error) {
         console.error('更新学期配置失败:', error);
-        alert('网络错误，请重试');
+        showAdminToast('网络错误，请重试', 'error');
     }
 }
 
@@ -1107,9 +1218,7 @@ function showCreateAnnouncementModal() {
     document.getElementById('announcement-active').checked = true;
 
     const modal = document.getElementById('announcement-modal');
-    const overlay = document.getElementById('overlay');
-    modal.classList.add('active');
-    overlay.classList.add('active');
+    adminOpenModal(modal);
 }
 
 function showEditAnnouncementModal(id, announcement) {
@@ -1120,16 +1229,12 @@ function showEditAnnouncementModal(id, announcement) {
     document.getElementById('announcement-active').checked = announcement.is_active;
 
     const modal = document.getElementById('announcement-modal');
-    const overlay = document.getElementById('overlay');
-    modal.classList.add('active');
-    overlay.classList.add('active');
+    adminOpenModal(modal);
 }
 
 function closeAnnouncementModal() {
     const modal = document.getElementById('announcement-modal');
-    const overlay = document.getElementById('overlay');
-    modal.classList.remove('active');
-    overlay.classList.remove('active');
+    adminCloseModal(modal);
     currentAnnouncementId = null;
 }
 
@@ -1141,7 +1246,7 @@ async function handleAnnouncementSubmit(event) {
     const isActive = document.getElementById('announcement-active').checked;
 
     if (!title || !content) {
-        alert('标题和内容不能为空');
+        showAdminToast('标题和内容不能为空', 'error');
         return;
     }
 
@@ -1166,15 +1271,15 @@ async function handleAnnouncementSubmit(event) {
         const data = await response.json();
 
         if (data.success) {
-            alert(data.message || (isEdit ? '公告更新成功' : '公告发布成功'));
+            showAdminToast(data.message || (isEdit ? '公告更新成功' : '公告发布成功'), 'success');
             closeAnnouncementModal();
             loadAnnouncements();
         } else {
-            alert(data.message || '操作失败');
+            showAdminToast(data.message || '操作失败', 'error');
         }
     } catch (error) {
         console.error('保存公告失败:', error);
-        alert('网络错误，请重试');
+        showAdminToast('网络错误，请重试', 'error');
     }
 }
 
@@ -1194,14 +1299,14 @@ async function deleteAnnouncement(id) {
         const data = await response.json();
 
         if (data.success) {
-            alert('公告删除成功');
+            showAdminToast('公告删除成功', 'success');
             loadAnnouncements();
         } else {
-            alert(data.message || '删除失败');
+            showAdminToast(data.message || '删除失败', 'error');
         }
     } catch (error) {
         console.error('删除公告失败:', error);
-        alert('网络错误，请重试');
+        showAdminToast('网络错误，请重试', 'error');
     }
 }
 
@@ -1305,16 +1410,12 @@ function showFeedbackReplyModal(feedbackId, content) {
     document.getElementById('feedback-reply-content').value = '';
 
     const modal = document.getElementById('feedback-reply-modal');
-    const overlay = document.getElementById('overlay');
-    modal.classList.add('active');
-    overlay.classList.add('active');
+    adminOpenModal(modal);
 }
 
 function closeFeedbackReplyModal() {
     const modal = document.getElementById('feedback-reply-modal');
-    const overlay = document.getElementById('overlay');
-    modal.classList.remove('active');
-    overlay.classList.remove('active');
+    adminCloseModal(modal);
     currentReplyFeedbackId = null;
 }
 
@@ -1324,7 +1425,7 @@ async function handleFeedbackReplySubmit(event) {
     const content = document.getElementById('feedback-reply-content').value.trim();
 
     if (!content) {
-        alert('回复内容不能为空');
+        showAdminToast('回复内容不能为空', 'error');
         return;
     }
 
@@ -1341,15 +1442,15 @@ async function handleFeedbackReplySubmit(event) {
         const data = await response.json();
 
         if (data.success) {
-            alert('回复成功');
+            showAdminToast('回复成功', 'success');
             closeFeedbackReplyModal();
             loadAdminFeedbacks();
         } else {
-            alert(data.message || '回复失败');
+            showAdminToast(data.message || '回复失败', 'error');
         }
     } catch (error) {
         console.error('回复反馈失败:', error);
-        alert('网络错误，请重试');
+        showAdminToast('网络错误，请重试', 'error');
     }
 }
 
@@ -1369,14 +1470,14 @@ async function deleteAdminFeedback(id) {
         const data = await response.json();
 
         if (data.success) {
-            alert('反馈删除成功');
+            showAdminToast('反馈删除成功', 'success');
             loadAdminFeedbacks();
         } else {
-            alert(data.message || '删除失败');
+            showAdminToast(data.message || '删除失败', 'error');
         }
     } catch (error) {
         console.error('删除反馈失败:', error);
-        alert('网络错误，请重试');
+        showAdminToast('网络错误，请重试', 'error');
     }
 }
 
@@ -1581,10 +1682,10 @@ async function revokeMember(username) {
             msgDiv.textContent = data.message;
             loadAdminMembers(username);
         } else {
-            alert(data.message || '\u64a4\u9500\u5931\u8d25');
+            showAdminToast(data.message || '\u64a4\u9500\u5931\u8d25', 'error');
         }
     } catch (e) {
-        alert('\u7f51\u7edc\u9519\u8bef\uff0c\u8bf7\u91cd\u8bd5');
+        showAdminToast('\u7f51\u7edc\u9519\u8bef\uff0c\u8bf7\u91cd\u8bd5', 'error');
     }
 }
 
@@ -1646,13 +1747,14 @@ async function approveWithdrawal(id) {
         });
         const data = await resp.json();
         if (data.success) {
+            showAdminToast('提现审核已通过', 'success');
             loadAdminWithdrawals();
             loadCommissionStats();
         } else {
-            alert(data.message || '操作失败');
+            showAdminToast(data.message || '操作失败', 'error');
         }
     } catch (e) {
-        alert('网络错误，请重试');
+        showAdminToast('网络错误，请重试', 'error');
     }
 }
 
@@ -1665,13 +1767,14 @@ async function rejectWithdrawal(id) {
         });
         const data = await resp.json();
         if (data.success) {
+            showAdminToast('提现申请已拒绝', 'success');
             loadAdminWithdrawals();
             loadCommissionStats();
         } else {
-            alert(data.message || '操作失败');
+            showAdminToast(data.message || '操作失败', 'error');
         }
     } catch (e) {
-        alert('网络错误，请重试');
+        showAdminToast('网络错误，请重试', 'error');
     }
 }
 

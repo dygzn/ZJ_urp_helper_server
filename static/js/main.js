@@ -117,7 +117,21 @@ let isGuestMode = false;    // 访客模式（未绑定账号）
 // ==================== 标题栏广告位 ====================
 const headerAdNeverShowKey = 'urp_header_ad_never_show';
 const headerAdDismissedKey = 'urp_header_ad_dismissed';
+const boundUsernameStorageKey = 'urp_bound_username';
 let headerAdImpressionTracked = false;
+
+function rememberBoundUsername(username) {
+    try {
+        const normalized = String(username || '').trim();
+        if (normalized) {
+            localStorage.setItem(boundUsernameStorageKey, normalized);
+        } else {
+            localStorage.removeItem(boundUsernameStorageKey);
+        }
+    } catch (error) {
+        // 本地存储不可用时不影响登录和广告浏览。
+    }
+}
 
 function trackHeaderAdEvent(eventName) {
     fetch('/api/ad/event', {
@@ -218,15 +232,232 @@ function initializeHeaderAd() {
     renderHeaderAd();
 }
 
-// ==================== 防止双击放大 ====================
-let lastTouchEnd = 0;
-document.addEventListener('touchend', function(event) {
-    const now = Date.now();
-    if (now - lastTouchEnd <= 300) {
-        event.preventDefault();
+// ==================== 通用 UI 状态 ====================
+const urpUi = typeof URPUI !== 'undefined' ? URPUI : null;
+const uiModalState = {
+    activeModal: null,
+    returnFocus: null,
+    confirmationResolve: null,
+};
+
+function toggleUiClass(element, className, force) {
+    if (!element || !element.classList) return false;
+    if (typeof element.classList.toggle === 'function') {
+        return element.classList.toggle(className, force);
     }
-    lastTouchEnd = now;
-}, false);
+    if (force) element.classList.add(className);
+    else element.classList.remove(className);
+    return force;
+}
+
+function syncUiOverlay() {
+    const overlay = document.getElementById('overlay');
+    const sidebar = document.getElementById('sidebar');
+    const activeModal = uiModalState.activeModal;
+    const modalIsOpen = Boolean(
+        (activeModal && activeModal.classList && activeModal.classList.contains('active'))
+        || (document.querySelector && document.querySelector('.modal.active')),
+    );
+    const sidebarIsOpen = Boolean(
+        sidebar && sidebar.classList && sidebar.classList.contains('active'),
+    );
+    const shouldShow = modalIsOpen || sidebarIsOpen;
+
+    toggleUiClass(overlay, 'active', shouldShow);
+    if (document.body && document.body.classList) {
+        toggleUiClass(document.body, 'ui-locked', shouldShow);
+    }
+}
+
+function focusUiElement(element) {
+    if (!element || typeof element.focus !== 'function') return;
+    try {
+        element.focus({ preventScroll: true });
+    } catch (error) {
+        element.focus();
+    }
+}
+
+function getUiFocusable(container) {
+    if (urpUi && typeof urpUi.getFocusableElements === 'function') {
+        return urpUi.getFocusableElements(container);
+    }
+    if (!container || typeof container.querySelectorAll !== 'function') return [];
+    return Array.from(container.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    )).filter(element => !element.disabled && !element.hidden);
+}
+
+function openUiModal(modal, { initialFocusSelector = '' } = {}) {
+    if (!modal) return;
+
+    if (uiModalState.activeModal && uiModalState.activeModal !== modal) {
+        closeUiModal(uiModalState.activeModal, { restoreFocus: false });
+    }
+
+    if (!uiModalState.activeModal) {
+        uiModalState.returnFocus = document.activeElement || null;
+    }
+    uiModalState.activeModal = modal;
+    toggleUiClass(modal, 'active', true);
+    if (typeof modal.setAttribute === 'function') {
+        modal.setAttribute('aria-hidden', 'false');
+    }
+    syncUiOverlay();
+
+    let initialFocus = null;
+    if (initialFocusSelector && typeof modal.querySelector === 'function') {
+        initialFocus = modal.querySelector(initialFocusSelector);
+    }
+    const focusable = getUiFocusable(modal);
+    focusUiElement(initialFocus || focusable[0]);
+}
+
+function closeUiModal(modal, { restoreFocus = true } = {}) {
+    if (!modal) return;
+
+    toggleUiClass(modal, 'active', false);
+    if (typeof modal.setAttribute === 'function') {
+        modal.setAttribute('aria-hidden', 'true');
+    }
+    if (uiModalState.activeModal === modal) {
+        uiModalState.activeModal = null;
+        const focusTarget = uiModalState.returnFocus;
+        uiModalState.returnFocus = null;
+        if (restoreFocus && focusTarget && focusTarget.isConnected !== false) {
+            focusUiElement(focusTarget);
+        }
+    }
+    syncUiOverlay();
+}
+
+function showUiToast(message, type = 'info') {
+    const region = document.getElementById('ui-toast-region');
+    if (!region) return;
+
+    if (typeof region.replaceChildren === 'function') region.replaceChildren();
+    else region.innerHTML = '';
+
+    const toast = document.createElement('div');
+    toast.className = `ui-toast ui-toast-${type}`;
+    toast.setAttribute('role', 'status');
+    toast.textContent = String(message || '');
+    region.appendChild(toast);
+
+    const removeToast = () => {
+        if (toast.isConnected) toast.remove();
+    };
+    const schedule = (typeof window !== 'undefined' && window.setTimeout)
+        ? window.setTimeout.bind(window)
+        : setTimeout;
+    schedule(removeToast, 3200);
+}
+
+function resolveUiConfirmation(confirmed) {
+    const resolver = uiModalState.confirmationResolve;
+    uiModalState.confirmationResolve = null;
+    closeUiModal(document.getElementById('ui-confirm-modal'));
+    if (resolver) resolver(Boolean(confirmed));
+}
+
+function requestUiConfirmation({
+    title,
+    message,
+    confirmText = '确认',
+    cancelText = '取消',
+    danger = false,
+} = {}) {
+    const modal = document.getElementById('ui-confirm-modal');
+    if (!modal) return Promise.resolve(false);
+
+    if (uiModalState.confirmationResolve) {
+        uiModalState.confirmationResolve(false);
+        uiModalState.confirmationResolve = null;
+    }
+
+    const titleElement = document.getElementById('ui-confirm-title');
+    const messageElement = document.getElementById('ui-confirm-message');
+    const confirmButton = document.getElementById('ui-confirm-confirm');
+    const cancelButton = document.getElementById('ui-confirm-cancel');
+    if (titleElement) titleElement.textContent = title || '请确认';
+    if (messageElement) messageElement.textContent = message || '';
+    if (confirmButton) {
+        confirmButton.textContent = confirmText;
+        toggleUiClass(confirmButton, 'btn-danger', danger);
+    }
+    if (cancelButton) cancelButton.textContent = cancelText;
+
+    return new Promise(resolve => {
+        uiModalState.confirmationResolve = resolve;
+        openUiModal(modal, { initialFocusSelector: '#ui-confirm-cancel' });
+    });
+}
+
+function handleOverlayClick(event) {
+    if (!event || event.target !== event.currentTarget) return;
+
+    const modal = uiModalState.activeModal;
+    if (modal && (!urpUi || urpUi.isModalDismissible(modal))) {
+        if (modal.id === 'ui-confirm-modal') resolveUiConfirmation(false);
+        else closeUiModal(modal);
+        return;
+    }
+    closeSidebar();
+}
+
+function handleModalBackdropClick(event) {
+    const modal = event?.target;
+    if (!modal || !modal.classList?.contains('modal') || modal !== uiModalState.activeModal) {
+        return;
+    }
+    if (modal.id === 'ui-confirm-modal') resolveUiConfirmation(false);
+    else if (!urpUi || urpUi.isModalDismissible(modal)) closeUiModal(modal);
+}
+
+function handleUiKeydown(event) {
+    const modal = uiModalState.activeModal;
+    if (event.key === 'Escape') {
+        if (modal) {
+            if (modal.id === 'ui-confirm-modal') resolveUiConfirmation(false);
+            else if (!urpUi || urpUi.isModalDismissible(modal)) closeUiModal(modal);
+            return;
+        }
+
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar && sidebar.classList && sidebar.classList.contains('active')) {
+            closeSidebar();
+            return;
+        }
+
+        const trigger = document.getElementById('service-contact-trigger');
+        const popover = document.getElementById('service-contact-popover');
+        if (trigger && popover && !popover.hidden) {
+            setServiceContactPopoverOpen(false);
+            focusUiElement(trigger);
+        }
+        return;
+    }
+
+    if (event.key !== 'Tab' || !modal) return;
+    const focusable = getUiFocusable(modal);
+    if (focusable.length === 0) {
+        event.preventDefault();
+        return;
+    }
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        focusUiElement(last);
+    } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        focusUiElement(first);
+    }
+}
+
+document.addEventListener('keydown', handleUiKeydown);
+document.addEventListener('click', handleModalBackdropClick);
 
 // ==================== 设备ID管理 ====================
 function getDeviceId() {
@@ -323,6 +554,7 @@ async function checkBindStatus() {
 
         if (data.success && data.bound) {
             currentUsername = data.username;
+            rememberBoundUsername(currentUsername);
             document.getElementById('sidebar-username').textContent = currentUsername;
             ensureOwnInvitationTokenInUrl();
 
@@ -332,6 +564,7 @@ async function checkBindStatus() {
             switchPage(lastPage);
             loadAndShowAnnouncements();
         } else {
+            rememberBoundUsername(null);
             showLoginModal();
         }
     } catch (error) {
@@ -343,16 +576,17 @@ async function checkBindStatus() {
 // ==================== 登录相关 ====================
 function showLoginModal() {
     const modal = document.getElementById('login-modal');
-    modal.classList.add('active');
+    openUiModal(modal, { initialFocusSelector: '#username' });
 }
 
 function hideLoginModal() {
     const modal = document.getElementById('login-modal');
-    modal.classList.remove('active');
+    closeUiModal(modal);
 }
 
 function skipBind() {
     isGuestMode = true;
+    rememberBoundUsername(null);
     hideLoginModal();
     document.getElementById('sidebar-username').textContent = '访客';
     switchPage('home');
@@ -383,17 +617,18 @@ async function handleLogin(event) {
 
         if (data.success) {
             currentUsername = data.username;
+            rememberBoundUsername(currentUsername);
             isGuestMode = false;
             clearPendingInvitationToken();
             ensureOwnInvitationTokenInUrl();
             document.getElementById('sidebar-username').textContent = currentUsername;
             hideLoginModal();
-            const currentPage = localStorage.getItem('current_page') || 'home';
-            if (currentPage === 'shortcut-api') {
-                switchPage('shortcut-api');
-            } else {
-                loadUrgentEvent();
-            }
+            const availablePages = getAvailablePageNames();
+            const storedPage = localStorage.getItem('current_page') || 'home';
+            const currentPage = urpUi
+                ? urpUi.normalizePageName(storedPage, availablePages, 'home')
+                : (availablePages.includes(storedPage) ? storedPage : 'home');
+            switchPage(currentPage);
         } else {
             errorDiv.textContent = data.message || '登录失败';
         }
@@ -405,7 +640,13 @@ async function handleLogin(event) {
 
 // ==================== 换绑相关 ====================
 async function showRebindDialog() {
-    if (!confirm('确定要解绑当前账号并重新绑定吗？解绑后需要重新输入新账号密码。')) {
+    const confirmed = await requestUiConfirmation({
+        title: '重新绑定账号',
+        message: '解绑后需要重新输入新账号密码，确定继续吗？',
+        confirmText: '继续解绑',
+        danger: true,
+    });
+    if (!confirmed) {
         return;
     }
     await unbindForRebind();
@@ -413,8 +654,7 @@ async function showRebindDialog() {
 
 function closeRebindDialog() {
     const modal = document.getElementById('rebind-modal');
-    modal.classList.remove('active');
-    document.getElementById('overlay').classList.remove('active');
+    closeUiModal(modal);
 }
 
 async function handleRebind(event) {
@@ -439,20 +679,21 @@ async function unbindForRebind() {
 
         if (!data.success) {
             if (errorDiv) errorDiv.textContent = data.message || '解绑失败';
-            else alert(data.message || '解绑失败');
+            else showUiToast(data.message || '解绑失败', 'error');
             return;
         }
 
         currentUsername = null;
+        rememberBoundUsername(null);
         isGuestMode = false;
         document.getElementById('sidebar-username').textContent = '未绑定';
         closeRebindDialog();
         showLoginModal();
-        alert(data.message || '当前设备已解绑，请重新绑定新账号');
+        showUiToast(data.message || '当前设备已解绑，请重新绑定新账号', 'success');
     } catch (error) {
         console.error('解绑失败:', error);
         if (errorDiv) errorDiv.textContent = '网络错误，请重试';
-        else alert('网络错误，请重试');
+        else showUiToast('网络错误，请重试', 'error');
     }
 }
 
@@ -466,7 +707,7 @@ function showRebindNotifications(notifications) {
         }
         return `你的换绑申请（${n.old_username} → ${n.new_username}）状态已更新`;
     });
-    alert(messages.join('\n'));
+    showUiToast(messages.join('；'), 'info');
 
     const requestIds = notifications.map(n => n.request_id);
     fetch('/api/rebind_notified', {
@@ -481,13 +722,24 @@ function showRebindNotifications(notifications) {
 
 // ==================== 侧边栏控制 ====================
 function openSidebar() {
-    document.getElementById('sidebar').classList.add('active');
-    document.getElementById('overlay').classList.add('active');
+    const sidebar = document.getElementById('sidebar');
+    const trigger = document.getElementById('menu-trigger');
+    toggleUiClass(sidebar, 'active', true);
+    if (trigger) trigger.setAttribute('aria-expanded', 'true');
+    syncUiOverlay();
+    const closeButton = sidebar && sidebar.querySelector
+        ? sidebar.querySelector('.close-btn')
+        : null;
+    focusUiElement(closeButton);
 }
 
-function closeSidebar() {
-    document.getElementById('sidebar').classList.remove('active');
-    document.getElementById('overlay').classList.remove('active');
+function closeSidebar({ restoreFocus = true } = {}) {
+    const sidebar = document.getElementById('sidebar');
+    const trigger = document.getElementById('menu-trigger');
+    toggleUiClass(sidebar, 'active', false);
+    if (trigger) trigger.setAttribute('aria-expanded', 'false');
+    syncUiOverlay();
+    if (restoreFocus) focusUiElement(trigger);
 }
 
 // ==================== 页面切换 ====================
@@ -512,11 +764,32 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
+function getAvailablePageNames() {
+    const pageElements = document.querySelectorAll('.page');
+    const fromDom = Array.from(pageElements || [])
+        .map(page => page.id || '')
+        .filter(id => id.startsWith('page-'))
+        .map(id => id.slice(5));
+    if (fromDom.length > 0) return fromDom;
+
+    return [
+        'home', 'schedule', 'exams', 'grades', 'evaluation',
+        'announcements', 'service-status', 'feedback', 'shortcut-api', 'member',
+    ].filter(pageName => document.getElementById(`page-${pageName}`));
+}
+
 function switchPage(pageName) {
     let targetPage = document.getElementById(`page-${pageName}`);
     if (!targetPage) {
         pageName = 'home';
         targetPage = document.getElementById('page-home');
+    }
+
+    const availablePages = getAvailablePageNames();
+    if (urpUi && availablePages.length > 0) {
+        pageName = urpUi.normalizePageName(pageName, availablePages, 'home');
+        targetPage = document.getElementById(`page-${pageName}`)
+            || document.getElementById('page-home');
     }
 
     // 隐藏所有页面
@@ -548,8 +821,14 @@ function switchPage(pageName) {
     navItems.forEach(nav => {
         if (nav.getAttribute('data-page') === pageName) {
             nav.classList.add('active');
+            if (typeof nav.setAttribute === 'function') {
+                nav.setAttribute('aria-current', 'page');
+            }
         } else {
             nav.classList.remove('active');
+            if (typeof nav.removeAttribute === 'function') {
+                nav.removeAttribute('aria-current');
+            }
         }
     });
 
@@ -560,38 +839,43 @@ function switchPage(pageName) {
     loadPageData(pageName);
 }
 
-function loadPageData(pageName) {
-    if (isGuestMode && pageName === 'shortcut-api') {
-        const memberStatus = document.getElementById('shortcut-api-member-status');
-        const status = document.getElementById('shortcut-api-status');
-        if (memberStatus) {
-            memberStatus.innerHTML = `
-                <div class="member-status-none">
-                    <span>快捷指令 API 需要先绑定教务账号。</span>
-                    <button class="btn-primary" type="button" onclick="showLoginModal()">立即绑定</button>
-                </div>`;
-        }
-        if (status) {
-            status.innerHTML = '<p class="shortcut-api-muted">绑定账号后才能生成学号密钥</p>';
-        }
-        return;
-    }
+function setPageAccessLock(pageName, locked) {
+    const page = document.getElementById(`page-${pageName}`);
+    const gate = page && typeof page.querySelector === 'function'
+        ? page.querySelector('[data-page-access-gate]')
+        : null;
+    if (!page || !gate) return;
 
-    const needsBind = ['schedule', 'exams', 'grades', 'evaluation'];
-    if (isGuestMode && needsBind.includes(pageName)) {
-        const pages = {
-            'schedule': '课程表', 'exams': '考试安排', 'grades': '成绩查询',
-            'evaluation': '教务评价'
-        };
-        const targetPage = document.getElementById(`page-${pageName}`);
-        if (targetPage) {
-            targetPage.innerHTML = `
-                <div class="card" style="text-align:center;padding:40px 20px;">
-                    <p style="color:var(--text-secondary);margin-bottom:16px;">${pages[pageName]}需要绑定教务账号</p>
-                    <button class="btn-primary" onclick="showLoginModal()">立即绑定</button>
-                </div>`;
+    toggleUiClass(page, 'is-access-locked', locked);
+    gate.hidden = !locked;
+    if (locked) {
+        const copy = urpUi
+            ? urpUi.getGuestAccessCopy(pageName)
+            : {
+                title: '绑定教务账号后继续',
+                description: '请先绑定教务账号，再使用此功能。',
+                button: '立即绑定',
+            };
+        gate.innerHTML = `
+            <div class="page-access-gate-icon" aria-hidden="true">锁</div>
+            <h2>${escapeFeedbackHtml(copy.title)}</h2>
+            <p>${escapeFeedbackHtml(copy.description)}</p>
+            <button class="btn-primary" type="button" onclick="showLoginModal()">${escapeFeedbackHtml(copy.button)}</button>`;
+    } else if (typeof gate.replaceChildren === 'function') {
+        gate.replaceChildren();
+    } else {
+        gate.innerHTML = '';
+    }
+}
+
+function loadPageData(pageName) {
+    const gatedPages = ['schedule', 'exams', 'grades', 'evaluation', 'shortcut-api'];
+    if (gatedPages.includes(pageName)) {
+        if (isGuestMode) {
+            setPageAccessLock(pageName, true);
+            return;
         }
-        return;
+        setPageAccessLock(pageName, false);
     }
     switch(pageName) {
         case 'home':
@@ -679,19 +963,6 @@ document.addEventListener('click', async function(event) {
             ServiceStatusUI.nextContactPopoverState(true, 'outside-click'),
         );
     }
-});
-
-document.addEventListener('keydown', function(event) {
-    if (event.key !== 'Escape') return;
-
-    const trigger = document.getElementById('service-contact-trigger');
-    const popover = document.getElementById('service-contact-popover');
-    if (!trigger || !popover || popover.hidden) return;
-
-    setServiceContactPopoverOpen(
-        ServiceStatusUI.nextContactPopoverState(true, 'escape'),
-    );
-    trigger.focus();
 });
 
 async function loadServiceStatus() {
@@ -988,11 +1259,9 @@ let omSelected = { grade: null, major: null, class_num: null };  // 弹窗内当
 
 async function showOtherMajorModal() {
     const modal = document.getElementById('other-major-modal');
-    const overlay = document.getElementById('overlay');
     const body = document.getElementById('other-major-modal-body');
 
-    modal.classList.add('active');
-    overlay.classList.add('active');
+    openUiModal(modal);
 
     if (Object.keys(gradeData).length > 0) {
         _renderOtherMajorModal();
@@ -1073,8 +1342,7 @@ function omSelectClass(cls) {
 }
 
 function closeOtherMajorModal() {
-    document.getElementById('other-major-modal').classList.remove('active');
-    document.getElementById('overlay').classList.remove('active');
+    closeUiModal(document.getElementById('other-major-modal'));
 }
 
 async function loadOtherMajorSchedule() {
@@ -1111,18 +1379,15 @@ let historicalScheduleRequestId = 0;
 
 async function showHistoricalSchedule() {
     const modal = document.getElementById('historical-schedule-modal');
-    const overlay = document.getElementById('overlay');
-    if (!modal || !overlay) return;
+    if (!modal) return;
 
-    modal.classList.add('active');
-    overlay.classList.add('active');
+    openUiModal(modal);
     await loadHistoricalSchedule();
 }
 
 function closeHistoricalSchedule() {
     const modal = document.getElementById('historical-schedule-modal');
-    if (modal) modal.classList.remove('active');
-    document.getElementById('overlay').classList.remove('active');
+    closeUiModal(modal);
 }
 
 async function loadHistoricalSchedule(semester = '') {
@@ -1190,8 +1455,9 @@ function backToMySchedule() {
 }
 
 // 更新课程表数据（从服务器获取最新数据）
-async function updateScheduleData() {
-    const btn = event.target;
+async function updateScheduleData(event) {
+    const btn = event?.currentTarget || event?.target || document.getElementById('update-schedule-btn');
+    if (!btn) return;
     const originalText = btn.textContent;
 
     btn.disabled = true;
@@ -1207,16 +1473,16 @@ async function updateScheduleData() {
         const data = await response.json();
 
         if (data.success) {
-            alert('课程表更新成功');
+            showUiToast('课程表更新成功', 'success');
             cachedSchedule = null;  // 清除缓存，重新拉取
             // 重新加载课程表
             loadSchedule();
         } else {
-            alert(data.message || '更新失败');
+            showUiToast(data.message || '更新失败', 'error');
         }
     } catch (error) {
         console.error('更新课程表失败:', error);
-        alert('更新课程表失败，学校可能暂未开放课表查询');
+        showUiToast('更新课程表失败，学校可能暂未开放查询', 'error');
     } finally {
         btn.disabled = false;
         btn.textContent = originalText;
@@ -1470,11 +1736,11 @@ function showCourseDetail(el) {
         ${course.room ? `<div class="course-detail-row"><span class="course-detail-label">教室</span><span>${course.room}</span></div>` : ''}
     `;
 
-    modal.classList.add('active');
+    openUiModal(modal);
 }
 
 function closeCourseDetail() {
-    document.getElementById('course-detail-modal').classList.remove('active');
+    closeUiModal(document.getElementById('course-detail-modal'));
 }
 
 function changeWeek(delta) {
@@ -1541,8 +1807,9 @@ function jumpToWeek(week) {
 
 // ==================== 考试安排相关 ====================
 // 更新考试安排数据（从服务器获取最新数据）
-async function updateExamsData() {
-    const btn = event.target;
+async function updateExamsData(event) {
+    const btn = event?.currentTarget || event?.target || document.getElementById('update-exams-btn');
+    if (!btn) return;
     const originalText = btn.textContent;
 
     btn.disabled = true;
@@ -1558,15 +1825,15 @@ async function updateExamsData() {
         const data = await response.json();
 
         if (data.success) {
-            alert('考试安排更新成功');
+            showUiToast('考试安排更新成功', 'success');
             // 重新加载考试安排
             loadExams();
         } else {
-            alert(data.message || '更新失败');
+            showUiToast(data.message || '更新失败', 'error');
         }
     } catch (error) {
         console.error('更新考试安排失败:', error);
-        alert('更新考试安排失败，学校可能暂未开放考试查询');
+        showUiToast('更新考试安排失败，学校可能暂未开放查询', 'error');
     } finally {
         btn.disabled = false;
         btn.textContent = originalText;
@@ -1817,11 +2084,9 @@ async function gradesShowCurrentSemester() {
 async function gradesShowSemesterPicker() {
     await checkLoginStatus();
     const modal = document.getElementById('semester-picker-modal');
-    const overlay = document.getElementById('overlay');
     const list = document.getElementById('semester-picker-list');
     list.innerHTML = '<div class="loading">加载中...</div>';
-    modal.classList.add('active');
-    overlay.classList.add('active');
+    openUiModal(modal);
     try {
         const resp = await fetch('/api/grades/semesters', { headers: { 'X-Device-ID': getDeviceId() } });
         const data = await resp.json();
@@ -1838,8 +2103,7 @@ async function gradesShowSemesterPicker() {
 }
 
 function closeSemesterPicker() {
-    document.getElementById('semester-picker-modal').classList.remove('active');
-    document.getElementById('overlay').classList.remove('active');
+    closeUiModal(document.getElementById('semester-picker-modal'));
 }
 
 async function gradesPickSemester(semester) {
@@ -1983,12 +2247,10 @@ let _examSessions = null; // 缓存会话数据
 async function gradesShowExamPicker() {
     await checkLoginStatus();
     const modal = document.getElementById('exam-picker-modal');
-    const overlay = document.getElementById('overlay');
-    modal.classList.add('active');
-    overlay.classList.add('active');
     document.getElementById('exam-picker-title').textContent = '选择学期';
     const body = document.getElementById('exam-picker-body');
     body.innerHTML = '<div class="loading">加载中...</div>';
+    openUiModal(modal);
 
     if (!_examSessions) {
         try {
@@ -2054,8 +2316,7 @@ async function examPickExam(jxzxjh, ksbh, examName) {
 }
 
 function closeExamPicker() {
-    document.getElementById('exam-picker-modal').classList.remove('active');
-    document.getElementById('overlay').classList.remove('active');
+    closeUiModal(document.getElementById('exam-picker-modal'));
 }
 
 // 切换到成绩页时不自动加载，等用户点击功能按钮
@@ -2228,7 +2489,10 @@ function displayUnevaluatedCourses(courses) {
 async function doEvaluation() {
     await checkLoginStatus();
     const resultDiv = document.getElementById('evaluation-result');
-    if (!unevaluatedCoursesData || unevaluatedCoursesData.length === 0) { alert('没有未评估的课程'); return; }
+    if (!unevaluatedCoursesData || unevaluatedCoursesData.length === 0) {
+        showUiToast('没有未评估的课程', 'info');
+        return;
+    }
     resultDiv.innerHTML = '<div class="loading">正在提交评教...</div>';
     try {
         const response = await fetch('/api/evaluation', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Device-ID': getDeviceId() }, body: JSON.stringify({ courses: unevaluatedCoursesData }) });
@@ -2320,15 +2584,12 @@ function showAnnouncementPopup(announcement) {
     document.getElementById('never-show-checkbox').checked = false;
 
     const modal = document.getElementById('announcement-popup');
-    const overlay = document.getElementById('overlay');
-
-    modal.style.display = 'flex';
-    overlay.classList.add('active');
+    openUiModal(modal);
 }
 
 // 关闭公告弹窗
 async function closeAnnouncementPopup() {
-    const neverShow = document.getElementById('never-show-checkbox').checked;
+    const neverShow = document.getElementById('never-show-checkbox')?.checked === true;
 
     // 标记为已读
     if (currentPopupAnnouncementId) {
@@ -2349,10 +2610,7 @@ async function closeAnnouncementPopup() {
     }
 
     const modal = document.getElementById('announcement-popup');
-    const overlay = document.getElementById('overlay');
-
-    modal.style.display = 'none';
-    overlay.classList.remove('active');
+    closeUiModal(modal);
 
     currentPopupAnnouncementId = null;
 }
@@ -2382,11 +2640,11 @@ async function loadAnnouncementsList() {
                 `;
             }
         } else {
-            contentDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+            renderRetryState(contentDiv, data.message || '公告加载失败', loadAnnouncementsList);
         }
     } catch (error) {
         console.error('加载公告列表失败:', error);
-        contentDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+        renderRetryState(contentDiv, '公告加载失败，请重试', loadAnnouncementsList);
     }
 }
 
@@ -2446,6 +2704,19 @@ function formatFeedbackTime(value) {
     });
 }
 
+function renderRetryState(container, message, retry) {
+    if (!container) return;
+    container.innerHTML = `
+        <div class="ui-retry-state" role="alert">
+            <p>${escapeFeedbackHtml(message || '加载失败')}</p>
+            <button class="btn-secondary" type="button">重新加载</button>
+        </div>`;
+    const retryButton = container.querySelector('.ui-retry-state button');
+    if (retryButton && typeof retry === 'function') {
+        retryButton.addEventListener('click', () => { void retry(); });
+    }
+}
+
 // 加载反馈页面
 async function loadFeedbackPage() {
     const contentDiv = document.getElementById('feedback-list-content');
@@ -2462,25 +2733,35 @@ async function loadFeedbackPage() {
         if (data.success) {
             displayFeedbackList(data.my_feedbacks || [], data.public_feedbacks || []);
         } else {
-            contentDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+            renderRetryState(contentDiv, data.message || '反馈加载失败', loadFeedbackPage);
         }
     } catch (error) {
         console.error('加载反馈列表失败:', error);
-        contentDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+        renderRetryState(contentDiv, '反馈加载失败，请重试', loadFeedbackPage);
     }
 }
 
 // 提交新反馈
 async function submitNewFeedback() {
     const contentInput = document.getElementById('new-feedback-content');
+    if (!contentInput) return;
     const content = contentInput.value.trim();
-    const visibility = document.querySelector('input[name="feedback-visibility"]:checked').value;
+    const visibility = document.querySelector('input[name="feedback-visibility"]:checked')?.value || 'public';
+    const submitButton = document.querySelector('.feedback-submit-btn');
+    const status = document.getElementById('feedback-form-status');
 
     if (!content) {
-        alert('先写一点反馈内容吧');
+        if (status) status.textContent = '先写一点反馈内容吧';
+        showUiToast('先写一点反馈内容吧', 'error');
         contentInput.focus();
         return;
     }
+
+    if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.textContent = '提交中...';
+    }
+    if (status) status.textContent = '正在提交反馈...';
 
     try {
         const response = await fetch('/api/feedback', {
@@ -2495,23 +2776,33 @@ async function submitNewFeedback() {
 
         if (data.success) {
             contentInput.value = '';
-            loadFeedbackPage();
+            if (status) status.textContent = '反馈已提交，感谢你的建议。';
+            showUiToast('反馈已提交', 'success');
+            await loadFeedbackPage();
         } else {
-            alert(data.message || '提交失败');
+            if (status) status.textContent = data.message || '提交失败，请稍后重试';
+            showUiToast(data.message || '提交失败', 'error');
         }
     } catch (error) {
         console.error('提交反馈失败:', error);
-        alert('网络错误，请重试');
+        if (status) status.textContent = '网络错误，请重试';
+        showUiToast('网络错误，请重试', 'error');
+    } finally {
+        if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.textContent = '提交反馈';
+        }
     }
 }
 
 // 提交回复
 async function submitFeedbackReply(feedbackId) {
     const textarea = document.getElementById(`reply-input-${feedbackId}`);
+    if (!textarea) return;
     const content = textarea.value.trim();
 
     if (!content) {
-        alert('请输入回复内容');
+        showUiToast('请输入回复内容', 'error');
         textarea.focus();
         return;
     }
@@ -2528,13 +2819,14 @@ async function submitFeedbackReply(feedbackId) {
         const data = await response.json();
 
         if (data.success) {
-            loadFeedbackPage();
+            showUiToast('回复已发送', 'success');
+            await loadFeedbackPage();
         } else {
-            alert(data.message || '回复失败');
+            showUiToast(data.message || '回复失败', 'error');
         }
     } catch (error) {
         console.error('回复失败:', error);
-        alert('网络错误，请重试');
+        showUiToast('网络错误，请重试', 'error');
     }
 }
 
@@ -2662,7 +2954,7 @@ async function loadMemberStatus(targetId = 'member-status-card') {
         });
         const data = await resp.json();
         if (!data.success) {
-            card.innerHTML = `<p style="color:var(--error);">${data.message || '加载失败'}</p>`;
+            renderRetryState(card, data.message || '会员状态加载失败', () => loadMemberStatus(targetId));
             return;
         }
         const d = data.data;
@@ -2685,7 +2977,7 @@ async function loadMemberStatus(targetId = 'member-status-card') {
         }
     } catch (e) {
         currentMemberStatus = null;
-        card.innerHTML = `<p style="color:var(--error);">加载失败，请稍后重试</p>`;
+        renderRetryState(card, '会员状态加载失败，请重试', () => loadMemberStatus(targetId));
     }
 }
 
@@ -2756,7 +3048,7 @@ async function loadShortcutApiKey() {
         }
         renderShortcutApiKeyStatus(data.data || {});
     } catch (e) {
-        status.innerHTML = `<p class="shortcut-api-error">${escapeGradeHtml(e.message || '密钥状态加载失败')}</p>`;
+        renderRetryState(status, e.message || '密钥状态加载失败', loadShortcutApiKey);
     }
 }
 
@@ -2766,8 +3058,14 @@ async function generateShortcutApiKey() {
         renderShortcutApiKeyStatus(null);
         return;
     }
-    if (shortcutApiHasKey && !confirm('重新生成后，旧密钥会立即失效，确定继续吗？')) {
-        return;
+    if (shortcutApiHasKey) {
+        const confirmed = await requestUiConfirmation({
+            title: '重新生成快捷指令密钥',
+            message: '重新生成后，旧密钥会立即失效，确定继续吗？',
+            confirmText: '重新生成',
+            danger: true,
+        });
+        if (!confirmed) return;
     }
 
     if (status) status.innerHTML = '<div class="loading">正在生成...</div>';
@@ -3120,14 +3418,11 @@ function showPayDialog(memberType) {
     document.getElementById('pay-confirm-btn').disabled = false;
     document.getElementById('pay-confirm-btn').textContent = '\u786e\u8ba4\u652f\u4ed8';
     const modal = document.getElementById('pay-modal');
-    const overlay = document.getElementById('overlay');
-    modal.classList.add('active');
-    overlay.classList.add('active');
+    openUiModal(modal);
 }
 
 function closePayDialog() {
-    document.getElementById('pay-modal').classList.remove('active');
-    document.getElementById('overlay').classList.remove('active');
+    closeUiModal(document.getElementById('pay-modal'));
     _currentPayMemberType = null;
 }
 
@@ -3175,7 +3470,6 @@ let _withdrawAvailable = 0;
 
 async function showWithdrawDialog() {
     const modal = document.getElementById('withdraw-modal');
-    const overlay = document.getElementById('overlay');
     const errDiv = document.getElementById('withdraw-error');
     errDiv.textContent = '';
     document.getElementById('withdraw-real-name').value = '';
@@ -3230,16 +3524,14 @@ async function showWithdrawDialog() {
             document.getElementById('withdraw-history').innerHTML = histHtml;
         }
 
-        modal.classList.add('active');
-        overlay.classList.add('active');
+        openUiModal(modal);
     } catch (e) {
         errDiv.textContent = '加载失败，请重试';
     }
 }
 
 function closeWithdrawDialog() {
-    document.getElementById('withdraw-modal').classList.remove('active');
-    document.getElementById('overlay').classList.remove('active');
+    closeUiModal(document.getElementById('withdraw-modal'));
 }
 
 async function handleWithdraw(event) {
@@ -3262,7 +3554,7 @@ async function handleWithdraw(event) {
         });
         const data = await resp.json();
         if (data.success) {
-            alert(data.message);
+            showUiToast(data.message || '提现申请已提交', 'success');
             closeWithdrawDialog();
             loadInvitationEarnings();
         } else {

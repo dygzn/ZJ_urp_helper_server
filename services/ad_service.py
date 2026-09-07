@@ -1,6 +1,6 @@
 """广告访问统计服务。
 
-只保存按广告和日期聚合后的次数，不保存设备号、学号或 IP 等用户标识。
+漏斗次数按广告和日期聚合；复制事件另按广告保存一份去重学号名单。
 """
 from datetime import datetime, timedelta
 
@@ -20,8 +20,8 @@ def _current_time(value=None):
     return value or datetime.now()
 
 
-def record_ad_event(event_type, db_config=None, now=None):
-    """记录一次广告漏斗事件，按本地日期匿名聚合。"""
+def record_ad_event(event_type, db_config=None, now=None, username=None):
+    """记录一次广告漏斗事件，并为复制事件保存去重学号。"""
     column = EVENT_COLUMNS.get(event_type)
     if column is None:
         raise ValueError('无效的广告事件')
@@ -46,6 +46,13 @@ def record_ad_event(event_type, db_config=None, now=None):
             'WHERE ad_key = ? AND click_date = ?',
             (updated_at, AD_KEY, click_date),
         )
+        normalized_username = str(username or '').strip()
+        if event_type == 'copy' and normalized_username:
+            conn.execute(
+                f'{insert_prefix} INTO ad_copy_users (ad_key, username) '
+                'VALUES (?, ?)',
+                (AD_KEY, normalized_username[:64]),
+            )
 
 
 def record_ad_click(db_config=None, now=None):
@@ -85,6 +92,11 @@ def get_ad_click_stats(db_config=None, now=None, daily_days=14):
             'dismiss_count FROM ad_click_stats '
             'WHERE ad_key = ? AND click_date >= ? ORDER BY click_date ASC',
             (AD_KEY, start_string),
+        ).fetchall()
+        copy_user_rows = conn.execute(
+            'SELECT username FROM ad_copy_users '
+            'WHERE ad_key = ? ORDER BY username ASC',
+            (AD_KEY,),
         ).fetchall()
 
     counts = {
@@ -139,5 +151,6 @@ def get_ad_click_stats(db_config=None, now=None, daily_days=14):
         'click_through_rate': _percentage(total_clicks, total_impressions),
         'detail_conversion_rate': _percentage(total_copies, total_clicks),
         'overall_conversion_rate': _percentage(total_copies, total_impressions),
+        'copy_usernames': [str(row['username']) for row in copy_user_rows],
         'daily': daily,
     }
