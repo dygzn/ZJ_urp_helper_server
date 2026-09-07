@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>URP教务助手</title>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
@@ -11,10 +11,10 @@
     <div id="sidebar" class="sidebar">
         <div class="sidebar-header">
             <h2>URP教务助手</h2>
-            <button class="close-btn" type="button" onclick="closeSidebar()">x</button>
+            <button class="close-btn" type="button" onclick="closeSidebar()" aria-label="关闭导航菜单">×</button>
         </div>
         <nav class="sidebar-nav">
-            <a href="#" class="nav-item active" data-page="home"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg><span>首页</span></a>
+            <a href="#" class="nav-item active" data-page="home" aria-current="page"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg><span>首页</span></a>
             <a href="#" class="nav-item" data-page="schedule"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="9" y1="4" x2="9" y2="2"/><line x1="15" y1="4" x2="15" y2="2"/></svg><span>课程表</span></a>
             <a href="#" class="nav-item" data-page="exams"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span>考试安排</span></a>
             <a href="#" class="nav-item" data-page="grades"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span>成绩查询</span></a>
@@ -33,20 +33,20 @@
 
     <div id="main-content" class="main-content">
         <header class="header">
-            <button class="menu-btn" type="button" onclick="openSidebar()"><span></span><span></span><span></span></button>
+            <button id="menu-trigger" class="menu-btn" type="button" onclick="openSidebar()" aria-label="打开导航菜单" aria-controls="sidebar" aria-expanded="false"><span></span><span></span><span></span></button>
             <h1 id="page-title">首页</h1>
             <div id="header-ad-slot" class="header-ad-slot" aria-label="广告位" hidden>
                 <div id="header-ad-card" class="header-ad-card">
-                    <a class="header-ad-main" href="/ad-detail?source=header" aria-label="推广 约3分钟了解活动，无需垫资，购机每台奖励30到100元，马上看看">
+                    <a class="header-ad-main" href="/ad-detail?source=header" aria-label="推广 学生优惠资格出售，最高可得140元，点开了解详情">
                         <span class="header-ad-tag">推广</span>
-                        <span class="header-ad-copy"><strong class="header-ad-copy-wide">3分钟了解｜购机每台奖励30–100元</strong><strong class="header-ad-copy-compact">3分钟了解 · 最高100元/台</strong><small>无需垫资，先确认规则再参与</small></span>
-                        <span class="header-ad-cta">马上看看 <span aria-hidden="true">→</span></span>
+                        <span class="header-ad-copy"><strong class="header-ad-copy-wide">学生优惠资格出售：最高可得140元</strong><strong class="header-ad-copy-compact">学生优惠资格出售：最高可得140元</strong><small>大约3分钟了解清楚，不合适也没关系</small></span>
+                        <span class="header-ad-cta">点开了解详情 <span aria-hidden="true">→</span></span>
                     </a>
                     <button class="header-ad-options" type="button" data-ad-action="options" aria-expanded="false" aria-controls="header-ad-detail" aria-label="广告选项">⋯</button>
                     <button class="header-ad-close" type="button" data-ad-action="dismiss" aria-label="暂时关闭广告">×</button>
                 </div>
                 <div id="header-ad-detail" class="header-ad-detail" hidden>
-                    <p><strong>学生购机活动</strong> · 几分钟了解规则，合适再参与。</p>
+                    <p><strong>学生优惠活动</strong> · 先把细节了解清楚，再决定要不要参加。</p>
                     <div class="header-ad-detail-actions">
                         <button class="header-ad-detail-btn" type="button" data-ad-action="never-show">本设备永不显示</button>
                         <button class="header-ad-detail-btn" type="button" data-ad-action="dismiss">暂时关闭</button>
@@ -54,7 +54,7 @@
                 </div>
                 <button id="header-ad-restore" class="header-ad-restore" type="button" data-ad-action="restore" hidden>广告已隐藏 · 恢复展示</button>
             </div>
-            <div id="login-status-indicator" class="login-status-indicator"><span class="status-dot status-checking"></span><span class="status-text">检查中</span></div>
+            <div id="login-status-indicator" class="login-status-indicator" role="status" aria-live="polite"><span class="status-dot status-checking"></span><span class="status-text">检查中</span></div>
         </header>
 
         <div class="content-wrapper">
@@ -66,6 +66,7 @@
             </div>
 
             <div id="page-schedule" class="page">
+                <div class="page-access-gate" data-page-access-gate hidden></div>
                 <div class="schedule-container">
                     <h2>课程表</h2>
                     <p class="page-section-desc">可以尝试下滑点击历年课表查询选择本学期课表进行查询。</p>
@@ -87,20 +88,25 @@
                         </div>
                     </div>
                     <div class="action-bar schedule-bottom-controls">
-                        <button class="btn-secondary" type="button" onclick="changeWeek(-1)">上一周</button>
-                        <label class="week-select-wrap" for="week-select"><span>周次</span><select id="week-select" onchange="changeWeek(parseInt(this.value,10)-currentWeek)"></select></label>
-                        <span class="current-week">第 <span id="current-week">1</span> 周</span>
-                        <button class="btn-secondary" type="button" onclick="changeWeek(1)">下一周</button>
-                        <button class="btn-primary" type="button" onclick="loadSchedule()">刷新显示</button>
-                        <button class="btn-primary" type="button" onclick="updateScheduleData()">更新课程表</button>
-                        <button class="btn-secondary" type="button" onclick="showHistoricalSchedule()">历年课表查询</button>
+                        <div class="schedule-week-controls">
+                            <button class="btn-secondary" type="button" onclick="changeWeek(-1)">上一周</button>
+                            <label class="week-select-wrap" for="week-select"><span>周次</span><select id="week-select" onchange="changeWeek(parseInt(this.value,10)-currentWeek)"></select></label>
+                            <span class="current-week" aria-label="当前周次">第 <span id="current-week">1</span> 周</span>
+                            <button class="btn-secondary" type="button" onclick="changeWeek(1)">下一周</button>
+                        </div>
+                        <div class="schedule-data-actions">
+                            <button class="btn-primary" type="button" onclick="loadSchedule()">刷新显示</button>
+                            <button id="update-schedule-btn" class="btn-primary" type="button" onclick="updateScheduleData(event)">更新课程表</button>
+                            <button class="btn-secondary" type="button" onclick="showHistoricalSchedule()">历年课表查询</button>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div id="page-exams" class="page"><div class="exams-container"><h2>考试安排</h2><p class="page-section-desc">展示已缓存的考试安排，也可以重新从教务系统获取。</p><div id="exams-content" class="exams-content"><div class="loading">加载中...</div></div><div class="action-bar"><button class="btn-primary" type="button" onclick="loadExams()">刷新显示</button><button class="btn-primary" type="button" onclick="updateExamsData()">更新考试安排</button></div></div></div>
+            <div id="page-exams" class="page"><div class="page-access-gate" data-page-access-gate hidden></div><div class="exams-container"><h2>考试安排</h2><p class="page-section-desc">展示已缓存的考试安排，也可以重新从教务系统获取。</p><div id="exams-content" class="exams-content"><div class="loading">加载中...</div></div><div class="action-bar"><button class="btn-primary" type="button" onclick="loadExams()">刷新显示</button><button id="update-exams-btn" class="btn-primary" type="button" onclick="updateExamsData(event)">更新考试安排</button></div></div></div>
 
             <div id="page-grades" class="page">
+                <div class="page-access-gate" data-page-access-gate hidden></div>
                 <div class="grades-container grades-dashboard">
                     <div class="grades-dashboard-main">
                         <h2>成绩查询</h2>
@@ -144,7 +150,7 @@
                 </div>
             </div>
 
-            <div id="page-evaluation" class="page"><div class="evaluation-container"><h2>教学评估</h2><p class="page-section-desc">查询待评课程，支持一键提交默认评教。</p><div class="action-bar"><button class="btn-primary" id="do-eval-btn" type="button" onclick="checkUnevaluatedCourses()">刷新查询</button><button class="btn-primary" id="one-click-eval-btn" type="button" onclick="oneClickEvaluation()">一键评教</button></div><div id="evaluation-result" class="evaluation-result"></div></div></div>
+            <div id="page-evaluation" class="page"><div class="page-access-gate" data-page-access-gate hidden></div><div class="evaluation-container"><h2>教学评估</h2><p class="page-section-desc">查询待评课程，支持一键提交默认评教。</p><div class="action-bar"><button class="btn-primary" id="do-eval-btn" type="button" onclick="checkUnevaluatedCourses()">刷新查询</button><button class="btn-primary" id="one-click-eval-btn" type="button" onclick="oneClickEvaluation()">一键评教</button></div><div id="evaluation-result" class="evaluation-result"></div></div></div>
 
             <div id="page-announcements" class="page"><div class="announcements-container"><h2>系统公告</h2><p class="page-section-desc">查看管理员发布的公告和通知。</p><div id="announcements-list-content" class="announcements-list-content"><div class="loading">加载中...</div></div></div></div>
 
@@ -158,11 +164,11 @@
                             <div class="service-contact-control">
                                 <button id="service-contact-trigger" class="service-contact-trigger" type="button" aria-expanded="false" aria-controls="service-contact-popover">联系我 <span aria-hidden="true">→</span></button>
                                 <div id="service-contact-popover" class="service-contact-popover" hidden>
-                                    <a class="servic    e-contact-option" data-contact="wechat" data-copy-text="Dygzn123" href="weixin://contacts/profile/Dygzn123" target="_blank" rel="noopener noreferrer">
+                                    <a class="service-contact-option" data-contact="wechat" data-copy-text="Dygzn123" href="weixin://contacts/profile/Dygzn123" target="_blank" rel="noopener noreferrer" aria-label="微信：复制微信号并尝试打开微信">
                                         <span class="service-contact-icon is-wechat" aria-hidden="true">微</span>
                                         <span><strong>微信</strong><small data-copy-feedback>复制微信号并尝试打开微信</small></span>
                                     </a>
-                                    <button class="service-contact-option" data-contact="qq" data-copy-text="786171937" type="button">
+                                    <button class="service-contact-option" data-contact="qq" data-copy-text="786171937" type="button" aria-label="QQ：复制 786171937">
                                         <span class="service-contact-icon is-qq" aria-hidden="true">Q</span>
                                         <span><strong>QQ</strong><small data-copy-feedback>786171937</small></span>
                                     </button>
@@ -238,20 +244,22 @@
                         <div class="feedback-visibility-row" role="radiogroup" aria-label="反馈可见范围">
                             <label class="feedback-choice"><input type="radio" name="feedback-visibility" value="public" checked><span><strong>公开</strong><small>其他同学可查看并参与回复</small></span></label>
                             <label class="feedback-choice"><input type="radio" name="feedback-visibility" value="self"><span><strong>仅自己可见</strong><small>适合账号、隐私或个人问题</small></span></label>
-                            <button class="btn-primary feedback-submit-btn" type="button" onclick="submitNewFeedback()">提交反馈</button>
+                            <button class="btn-primary feedback-submit-btn" type="button" onclick="submitNewFeedback()" aria-describedby="feedback-form-status">提交反馈</button>
                         </div>
+                        <div id="feedback-form-status" class="feedback-form-status" role="status" aria-live="polite"></div>
                     </div>
                     <div id="feedback-list-content" class="feedback-list-content"><div class="loading">加载中...</div></div>
                 </div>
             </div>
 
             <div id="page-shortcut-api" class="page">
+                <div class="page-access-gate" data-page-access-gate hidden></div>
                 <div class="shortcut-api-page-container">
                     <div class="shortcut-api-page-head">
                         <div>
                             <span class="member-plan-kicker">快捷指令</span>
                             <h2>快捷指令 API</h2>
-                            <p class="page-section-desc">为 Apple 快捷指令提供历年课表和本学期成绩查询，返回结构化 JSON，方便直接提取和展示。</p>
+                            <p class="page-section-desc">为 Apple 快捷指令提供历年课表、本学期成绩和接下来最紧急事项查询，返回结构化 JSON，方便直接提取和展示。</p>
                         </div>
                         <span class="shortcut-api-badge">初级会员以上</span>
                     </div>
@@ -278,7 +286,7 @@
                         </div>
                         <div class="shortcut-api-help">
                             <div><span>接口地址</span><code id="shortcut-api-endpoint"></code></div>
-                            <p>请求体使用 <code>{"key":"你的密钥","action":"grades","params":{}}</code>。密钥只显示一次，请立即复制保存；重新生成会使旧密钥失效。</p>
+                            <p>支持 <code>historical_schedule</code>、<code>grades</code> 和 <code>urgent_event</code> 三种 action。请求体示例：<code>{"key":"你的密钥","action":"grades","params":{}}</code>。密钥只显示一次，请立即复制保存；重新生成会使旧密钥失效。</p>
                         </div>
                     </section>
                 </div>
@@ -347,11 +355,11 @@
         </div>
     </div>
 
-    <div id="login-modal" class="modal">
+    <div id="login-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="login-modal-title" data-dismissible="false">
         <div class="modal-content login-card">
-            <button class="modal-close login-close" type="button" onclick="skipBind()" aria-label="关闭">x</button>
+            <button class="modal-close login-close" type="button" onclick="skipBind()" aria-label="暂不绑定，继续以访客浏览">×</button>
             <div class="login-header">
-                <h2>绑定教务账号</h2>
+                <h2 id="login-modal-title">绑定教务账号</h2>
                 <p class="modal-desc">绑定后即可查询课表、成绩、考试安排等教务信息。</p>
             </div>
             <form id="login-form" class="login-form" onsubmit="handleLogin(event)">
@@ -373,28 +381,42 @@
         </div>
     </div>
 
-    <div id="rebind-modal" class="modal"><div class="modal-content"><button class="modal-close" type="button" onclick="closeRebindDialog()">x</button><h2>重新绑定账号</h2><p class="modal-desc">确认后会解绑当前设备账号，然后重新打开绑定窗口。</p><form id="rebind-form" onsubmit="handleRebind(event)"><button type="submit" class="btn-primary btn-full">确认解绑并重新绑定</button></form><div id="rebind-error" class="error-message"></div></div></div>
+    <div id="rebind-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="rebind-modal-title"><div class="modal-content"><button class="modal-close" type="button" onclick="closeRebindDialog()" aria-label="关闭">×</button><h2 id="rebind-modal-title">重新绑定账号</h2><p class="modal-desc">确认后会解绑当前设备账号，然后重新打开绑定窗口。</p><form id="rebind-form" onsubmit="handleRebind(event)"><button type="submit" class="btn-primary btn-full">确认解绑并重新绑定</button></form><div id="rebind-error" class="error-message"></div></div></div>
 
-    <div id="announcement-popup" class="modal announcement-popup"><div class="modal-content announcement-modal-content"><button class="modal-close" type="button" onclick="closeAnnouncementPopup()">x</button><h2 id="announcement-popup-title">系统公告</h2><div id="announcement-popup-content" class="announcement-popup-content"></div><div class="announcement-popup-footer"><label class="never-show-label"><input type="checkbox" id="never-show-checkbox"> 不再显示此公告</label><button class="btn-primary" type="button" onclick="closeAnnouncementPopup()">关闭</button></div></div></div>
+    <div id="announcement-popup" class="modal announcement-popup" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="announcement-popup-title"><div class="modal-content announcement-modal-content"><button class="modal-close" type="button" onclick="closeAnnouncementPopup()" aria-label="关闭">×</button><h2 id="announcement-popup-title">系统公告</h2><div id="announcement-popup-content" class="announcement-popup-content"></div><div class="announcement-popup-footer"><label class="never-show-label"><input type="checkbox" id="never-show-checkbox"> 不再显示此公告</label><button class="btn-primary" type="button" onclick="closeAnnouncementPopup()">关闭</button></div></div></div>
 
-    <div id="withdraw-modal" class="modal"><div class="modal-content"><button class="modal-close" type="button" onclick="closeWithdrawDialog()">x</button><h2>申请提现</h2><div id="withdraw-available" class="withdraw-available"><div class="loading">加载中...</div></div><form id="withdraw-form" onsubmit="handleWithdraw(event)"><div class="form-group"><label for="withdraw-real-name">真实姓名</label><input type="text" id="withdraw-real-name" required placeholder="请输入真实姓名"></div><div class="form-group"><label for="withdraw-alipay">支付宝账号</label><input type="text" id="withdraw-alipay" required placeholder="请输入支付宝账号"></div><button type="submit" class="btn-primary btn-full">提交提现申请</button></form><div id="withdraw-error" class="error-message"></div><div id="withdraw-history" class="withdraw-history"></div></div></div>
+    <div id="withdraw-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="withdraw-modal-title"><div class="modal-content"><button class="modal-close" type="button" onclick="closeWithdrawDialog()" aria-label="关闭">×</button><h2 id="withdraw-modal-title">申请提现</h2><div id="withdraw-available" class="withdraw-available"><div class="loading">加载中...</div></div><form id="withdraw-form" onsubmit="handleWithdraw(event)"><div class="form-group"><label for="withdraw-real-name">真实姓名</label><input type="text" id="withdraw-real-name" required placeholder="请输入真实姓名"></div><div class="form-group"><label for="withdraw-alipay">支付宝账号</label><input type="text" id="withdraw-alipay" required placeholder="请输入支付宝账号"></div><button type="submit" class="btn-primary btn-full">提交提现申请</button></form><div id="withdraw-error" class="error-message"></div><div id="withdraw-history" class="withdraw-history"></div></div></div>
 
-    <div id="pay-modal" class="modal"><div class="modal-content pay-modal-card"><button class="modal-close" type="button" onclick="closePayDialog()" aria-label="&#20851;&#38381;">x</button><h2 id="pay-modal-title">&#24320;&#36890;&#20250;&#21592;</h2><p id="pay-modal-desc" class="modal-desc"></p><div class="pay-section-title">&#36873;&#25321;&#25903;&#20184;&#26041;&#24335;</div><div class="pay-type-options" role="radiogroup" aria-label="&#25903;&#20184;&#26041;&#24335;"><label class="pay-type-option pay-type-option-active" for="pay-type-alipay"><input type="radio" id="pay-type-alipay" name="pay-type" value="alipay" checked onchange="updatePayTypeUI()"><span class="pay-type-mark pay-type-alipay">&#25903;</span><span class="pay-type-copy"><strong>&#25903;&#20184;&#23453;</strong><small>&#25512;&#33616;&#20351;&#29992;&#25903;&#20184;&#23453;&#23436;&#25104;&#25903;&#20184;</small></span></label><label class="pay-type-option" for="pay-type-wechat"><input type="radio" id="pay-type-wechat" name="pay-type" value="wechat" onchange="updatePayTypeUI()"><span class="pay-type-mark pay-type-wechat">&#24494;</span><span class="pay-type-copy"><strong>&#24494;&#20449;&#25903;&#20184;</strong><small>&#36866;&#21512;&#22312;&#24494;&#20449;&#29615;&#22659;&#25110;&#25163;&#26426;&#19978;&#25903;&#20184;</small></span></label></div><button id="pay-confirm-btn" class="btn-primary btn-full pay-confirm-btn" type="button" onclick="confirmPay()">&#30830;&#35748;&#25903;&#20184;</button><div id="pay-error" class="error-message"></div></div></div>
+    <div id="pay-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="pay-modal-title"><div class="modal-content pay-modal-card"><button class="modal-close" type="button" onclick="closePayDialog()" aria-label="关闭">×</button><h2 id="pay-modal-title">&#24320;&#36890;&#20250;&#21592;</h2><p id="pay-modal-desc" class="modal-desc"></p><div class="pay-section-title">&#36873;&#25321;&#25903;&#20184;&#26041;&#24335;</div><div class="pay-type-options" role="radiogroup" aria-label="&#25903;&#20184;&#26041;&#24335;"><label class="pay-type-option pay-type-option-active" for="pay-type-alipay"><input type="radio" id="pay-type-alipay" name="pay-type" value="alipay" checked onchange="updatePayTypeUI()"><span class="pay-type-mark pay-type-alipay">&#25903;</span><span class="pay-type-copy"><strong>&#25903;&#20184;&#23453;</strong><small>&#25512;&#33616;&#20351;&#29992;&#25903;&#20184;&#23453;&#23436;&#25104;&#25903;&#20184;</small></span></label></div><button id="pay-confirm-btn" class="btn-primary btn-full pay-confirm-btn" type="button" onclick="confirmPay()">&#30830;&#35748;&#25903;&#20184;</button><div id="pay-error" class="error-message"></div></div></div>
 
-    <div id="semester-picker-modal" class="modal"><div class="modal-content"><button class="modal-close" type="button" onclick="closeSemesterPicker()">x</button><h2>选择学期</h2><div id="semester-picker-list" class="semester-picker-list"></div></div></div>
+    <div id="semester-picker-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="semester-picker-title"><div class="modal-content"><button class="modal-close" type="button" onclick="closeSemesterPicker()" aria-label="关闭">×</button><h2 id="semester-picker-title">选择学期</h2><div id="semester-picker-list" class="semester-picker-list"></div></div></div>
 
-    <div id="exam-picker-modal" class="modal"><div class="modal-content"><button class="modal-close" type="button" onclick="closeExamPicker()">x</button><h2 id="exam-picker-title">选择学期</h2><div id="exam-picker-body" class="exam-picker-body"></div></div></div>
+    <div id="exam-picker-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="exam-picker-title"><div class="modal-content"><button class="modal-close" type="button" onclick="closeExamPicker()" aria-label="关闭">×</button><h2 id="exam-picker-title">选择学期</h2><div id="exam-picker-body" class="exam-picker-body"></div></div></div>
 
-    <div id="course-detail-modal" class="modal"><div class="modal-content"><button class="modal-close" type="button" onclick="closeCourseDetail()">x</button><h2 id="course-detail-name">课程详情</h2><div id="course-detail-body" class="course-detail-body"></div></div></div>
+    <div id="course-detail-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="course-detail-name"><div class="modal-content"><button class="modal-close" type="button" onclick="closeCourseDetail()" aria-label="关闭">×</button><h2 id="course-detail-name">课程详情</h2><div id="course-detail-body" class="course-detail-body"></div></div></div>
 
-    <div id="other-major-modal" class="modal"><div class="modal-content"><button class="modal-close" type="button" onclick="closeOtherMajorModal()">x</button><h2>其它专业课程</h2><div id="other-major-modal-body" class="other-major-modal-body"></div></div></div>
+    <div id="other-major-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="other-major-modal-title"><div class="modal-content"><button class="modal-close" type="button" onclick="closeOtherMajorModal()" aria-label="关闭">×</button><h2 id="other-major-modal-title">其它专业课程</h2><div id="other-major-modal-body" class="other-major-modal-body"></div></div></div>
 
-    <div id="historical-schedule-modal" class="modal"><div class="modal-content historical-schedule-modal-content"><button class="modal-close" type="button" onclick="closeHistoricalSchedule()">x</button><h2>历年课表查询</h2><p class="modal-desc">选择学期后展示该学期全部课程</p><label class="historical-schedule-select-wrap" for="historical-semester-select"><span>学年学期</span><select id="historical-semester-select" onchange="loadHistoricalSchedule(this.value)"></select></label><div id="historical-schedule-body" class="historical-schedule-body"><div class="loading">加载中...</div></div></div></div>
+    <div id="historical-schedule-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="historical-schedule-modal-title"><div class="modal-content historical-schedule-modal-content"><button class="modal-close" type="button" onclick="closeHistoricalSchedule()" aria-label="关闭">×</button><h2 id="historical-schedule-modal-title">历年课表查询</h2><p class="modal-desc">选择学期后展示该学期全部课程</p><label class="historical-schedule-select-wrap" for="historical-semester-select"><span>学年学期</span><select id="historical-semester-select" onchange="loadHistoricalSchedule(this.value)"></select></label><div id="historical-schedule-body" class="historical-schedule-body"><div class="loading">加载中...</div></div></div></div>
 
-    <div id="overlay" class="overlay" onclick="closeSidebar()"></div>
+    <div id="ui-toast-region" class="ui-toast-region" aria-live="polite" aria-atomic="true"></div>
+
+    <div id="ui-confirm-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="ui-confirm-title">
+        <div class="modal-content ui-confirm-card">
+            <h2 id="ui-confirm-title">请确认</h2>
+            <p id="ui-confirm-message" class="modal-desc"></p>
+            <div class="ui-confirm-actions">
+                <button id="ui-confirm-cancel" class="btn-secondary" type="button" onclick="resolveUiConfirmation(false)">取消</button>
+                <button id="ui-confirm-confirm" class="btn-primary" type="button" onclick="resolveUiConfirmation(true)">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="overlay" class="overlay" onclick="handleOverlayClick(event)"></div>
 
     <script src="/static/js/schedule-layout.js"></script>
     <script src="/static/js/service-status-ui.js"></script>
+    <script src="/static/js/ui-ux.js"></script>
     <script src="/static/js/main.js"></script>
 </body>
 </html>

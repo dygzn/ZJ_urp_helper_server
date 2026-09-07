@@ -18,8 +18,25 @@ from routes.misc_routes import misc_bp
 from routes.sign_routes import sign_bp
 
 app = Flask(__name__)
+app.config.update(
+    TEMPLATES_AUTO_RELOAD=True,
+    SEND_FILE_MAX_AGE_DEFAULT=0,
+)
 app.secret_key = 'your-secret-key-change-this'
 INDEX_QUERY_ALLOWLIST = ('page', 'invite')
+UI_CACHE_PATHS = {'/', '/admin', '/ad-detail'}
+
+
+@app.after_request
+def prevent_stale_ui(response):
+    """让页面和本地静态资源始终读取最新内容。"""
+    if request.path in UI_CACHE_PATHS or request.path.startswith('/static/'):
+        response.headers['Cache-Control'] = (
+            'no-store, no-cache, must-revalidate, max-age=0'
+        )
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+    return response
 
 def initialize_database():
     """初始化完整数据库，并为快捷指令 API 保留独立兜底。"""
@@ -89,7 +106,10 @@ def ad_event():
     if event_type not in EVENT_COLUMNS:
         return jsonify({'success': False, 'message': '无效的广告事件'}), 400
     try:
-        record_ad_event(event_type)
+        if event_type == 'copy':
+            record_ad_event(event_type, username=data.get('username'))
+        else:
+            record_ad_event(event_type)
     except Exception:
         # 前端统计请求不应影响广告本身的展示和操作。
         app.logger.exception('广告漏斗统计写入失败')
@@ -121,4 +141,4 @@ if __name__ == '__main__':
 
     debug = os.environ.get('FLASK_DEBUG', '').lower() in ('1', 'true', 'yes', 'on')
     port = int(os.environ.get('PORT', '5000'))
-    app.run(debug=True, host='0.0.0.0', port=port, use_reloader=debug)
+    app.run(debug=debug, host='0.0.0.0', port=port, use_reloader=debug)
