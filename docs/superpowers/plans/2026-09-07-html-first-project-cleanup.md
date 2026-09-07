@@ -26,7 +26,7 @@
 **Files:** 新建 `tests/test_html_first_contract.py`、`tests/test_ui_copy_contract.js`；必要时仅更新已有测试中与资源 query string 解析有关的断言。
 
 - [ ] 在 Python 测试中导入 Flask 应用并增加以下断言：`TEMPLATES_AUTO_RELOAD` 为真、`app.jinja_env.auto_reload` 为真；`/`、`/admin`、`/ad-detail` 和 `/static/js/main.js` 的响应包含 `Cache-Control: no-store`、`Pragma: no-cache`、`Expires: 0`。
-- [ ] 在同一 Python 测试中读取应用路由表，断言以下路径不存在：`/api/grades`、`/api/schedule/other_majors`、`/api/schedule/other_major`、`/api/rebind_notified`、`/api/admin/invitation_debug`、`/api/admin/pending_requests`、`/api/admin/approve_rebind`、`/api/sign/login`、`/api/sign/login_link`、`/api/sign/status`、`/api/sign/start`、`/api/sign/stop`、`/api/sign/stream`。断言仍保留 `/api/login`、`/api/request_rebind`、`/api/member/notify`、`/api/shortcut/*` 和所有九个有效管理员页签所需接口。
+- [ ] 在同一 Python 测试中读取应用路由表，断言以下路径不存在：`/api/grades`、`/api/schedule/other_majors`、`/api/schedule/other_major`、`/api/rebind_notified`、`/api/admin/invitation_debug`、`/api/admin/pending_requests`、`/api/admin/approve_rebind`、`/api/sign/login`、`/api/sign/login_link`、`/api/sign/status`、`/api/sign/start`、`/api/sign/stop`、`/api/sign/stream`。断言仍保留 `/api/login`、`/api/request_rebind`、`/api/member/pay_notify`、`/api/member/pay_return`、`/api/shortcut/*` 和所有九个有效管理员页签所需接口。
 - [ ] 读取三个模板源码并断言分别存在 `user-ui-copy`、`admin-ui-copy`、`ad-ui-copy` 根节点，以及至少一个 `data-ui-copy` 节点和一个 `data-ui-template` 节点；断言固定版本 query string（如 `main.js?v=11`、`style.css?v=11`）不再是模板资源引用的契约。
 - [ ] 在 Node 测试中实现一个不依赖第三方包的轻量 fake root，覆盖 `data-ui-copy` 的读取、`{{name}}` 占位符格式化、`data-ui-template` 克隆和 slot 填充；测试要求 slot 文本通过 `textContent` 写入，不执行 HTML。
 - [ ] 增加静态源扫描测试：剥离 JS 注释后，`static/js/main.js`、`static/js/admin.js`、`static/js/ad-detail.js`、`static/js/ui-ux.js` 和 `static/js/service-status-ui.js` 不得包含中文字符串字面量；同时断言这些脚本不再引用本任务拟删除的 API 路径。
