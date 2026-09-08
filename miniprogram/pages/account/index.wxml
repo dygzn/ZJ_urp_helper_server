@@ -1,0 +1,33 @@
+<view class="page safe-bottom account-page">
+  <view class="page-header">
+    <text class="page-title">我的</text>
+    <text class="page-subtitle">管理微信身份与教务账号绑定。</text>
+  </view>
+
+  <view wx:if="{{loading}}" class="state">正在读取绑定状态…</view>
+
+  <view wx:else class="card account-card">
+    <view class="account-row">
+      <text class="account-label">绑定状态</text>
+      <text class="account-value {{bound ? 'bound' : 'unbound'}}">{{bound ? '已绑定' : '未绑定'}}</text>
+    </view>
+    <view class="account-row">
+      <text class="account-label">教务账号</text>
+      <text class="account-value">{{username || '尚未绑定'}}</text>
+    </view>
+    <button
+      wx:if="{{bound}}"
+      class="plain-button account-action"
+      bindtap="rebind"
+      loading="{{rebindLoading}}"
+      disabled="{{rebindLoading}}"
+    >重新绑定</button>
+    <button wx:else class="primary-button account-action" bindtap="goBind">立即绑定</button>
+    <text wx:if="{{message}}" class="account-message">{{message}}</text>
+  </view>
+
+  <view wx:if="{{errorMessage}}" class="state state-error">
+    <text>{{errorMessage}}</text>
+    <button class="secondary-button state-action" bindtap="loadBinding">重试</button>
+  </view>
+</view>

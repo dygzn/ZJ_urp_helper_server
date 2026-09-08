@@ -1,0 +1,46 @@
+.account-card {
+  padding: 8rpx 28rpx 28rpx;
+}
+
+.account-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 92rpx;
+  border-bottom: 1rpx solid #edf0f4;
+}
+
+.account-label {
+  color: #8490a3;
+  font-size: 26rpx;
+}
+
+.account-value {
+  max-width: 65%;
+  color: #25324a;
+  font-size: 28rpx;
+  font-weight: 600;
+  text-align: right;
+  word-break: break-all;
+}
+
+.account-value.bound {
+  color: #26734d;
+}
+
+.account-value.unbound {
+  color: #b7791f;
+}
+
+.account-action {
+  margin-top: 28rpx;
+}
+
+.account-message {
+  display: block;
+  margin-top: 18rpx;
+  color: #52647a;
+  font-size: 24rpx;
+  line-height: 1.5;
+  text-align: center;
+}

@@ -46,6 +46,24 @@ class MiniProgramContractTests(unittest.TestCase):
             ],
         )
 
+    def test_bind_and_account_pages_expose_auth_controls(self):
+        bind_markup = (MINIPROGRAM_ROOT / 'pages' / 'bind' / 'index.wxml')
+        account_markup = (MINIPROGRAM_ROOT / 'pages' / 'account' / 'index.wxml')
+        app_script = (MINIPROGRAM_ROOT / 'app.js').read_text(encoding='utf-8')
+
+        self.assertTrue(bind_markup.is_file(), f'缺少绑定页: {bind_markup}')
+        self.assertTrue(account_markup.is_file(), f'缺少账号页: {account_markup}')
+        bind_text = bind_markup.read_text(encoding='utf-8')
+        account_text = account_markup.read_text(encoding='utf-8')
+        for marker in ('username', 'password', 'bind', 'status'):
+            self.assertIn(marker, bind_text)
+        self.assertIn('username', account_text)
+        self.assertIn('rebind', account_text)
+        self.assertIn('ensureSession', app_script)
+        self.assertTrue(
+            'wx.switchTab' in app_script or 'wx.navigateTo' in app_script
+        )
+
 
 if __name__ == '__main__':
     unittest.main()
