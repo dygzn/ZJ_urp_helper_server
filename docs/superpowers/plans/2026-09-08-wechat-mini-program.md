@@ -73,17 +73,17 @@
 
   ```python
   self.db_config = {
-      'database': {
-          'type': 'sqlite',
-          'sqlite_path': os.path.join(self.temp_dir.name, 'wechat.db'),
-      }
+      'type': 'sqlite',
+      'sqlite_path': os.path.join(self.temp_dir.name, 'wechat.db'),
+      'mysql': {},
   }
+  self.init_config = {'database': self.db_config}
   self.config_patch = mock.patch(
       'database.get_database_config',
       return_value=self.db_config,
   )
   self.config_patch.start()
-  database.init_db(self.db_config)
+  database.init_db(self.init_config)
   ```
 
 - [ ] **Step 2: Write service tests that must initially fail.**
