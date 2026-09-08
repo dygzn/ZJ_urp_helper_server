@@ -207,6 +207,24 @@ def _create_schema_sqlite(conn):
         )
     ''')
     conn.execute('''
+        CREATE TABLE IF NOT EXISTS wechat_bindings (
+            openid TEXT PRIMARY KEY,
+            device_id TEXT NOT NULL UNIQUE,
+            unionid TEXT,
+            bind_time TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+    ''')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS wechat_sessions (
+            token_hash TEXT PRIMARY KEY,
+            openid TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            last_seen_at TEXT NOT NULL
+        )
+    ''')
+    conn.execute('''
         CREATE TABLE IF NOT EXISTS pending_requests (
             request_id TEXT PRIMARY KEY,
             device_id TEXT NOT NULL,
@@ -390,6 +408,24 @@ def _create_schema_mysql(conn):
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ''')
     conn.execute('''
+        CREATE TABLE IF NOT EXISTS wechat_bindings (
+            openid VARCHAR(128) PRIMARY KEY,
+            device_id VARCHAR(128) NOT NULL UNIQUE,
+            unionid VARCHAR(128),
+            bind_time VARCHAR(32) NOT NULL,
+            updated_at VARCHAR(32) NOT NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ''')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS wechat_sessions (
+            token_hash VARCHAR(64) PRIMARY KEY,
+            openid VARCHAR(128) NOT NULL,
+            expires_at VARCHAR(32) NOT NULL,
+            created_at VARCHAR(32) NOT NULL,
+            last_seen_at VARCHAR(32) NOT NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ''')
+    conn.execute('''
         CREATE TABLE IF NOT EXISTS pending_requests (
             request_id VARCHAR(128) PRIMARY KEY,
             device_id VARCHAR(128) NOT NULL,
@@ -565,6 +601,9 @@ def _create_schema_mysql(conn):
 def _create_indexes(conn):
     indexes = [
         'CREATE INDEX idx_username ON users(username)',
+        'CREATE INDEX idx_wechat_binding_device ON wechat_bindings(device_id)',
+        'CREATE INDEX idx_wechat_session_openid ON wechat_sessions(openid)',
+        'CREATE INDEX idx_wechat_session_expire ON wechat_sessions(expires_at)',
         'CREATE INDEX idx_device_id ON pending_requests(device_id)',
         'CREATE INDEX idx_announcement_active ON announcements(is_active)',
         'CREATE INDEX idx_user_read ON user_read_announcements(device_id)',
@@ -665,6 +704,8 @@ def test_database_config(database_config):
         return False, str(exc)
 MIGRATION_TABLES = {
     'users': ['device_id', 'username', 'password', 'bind_time', 'last_auto_update'],
+    'wechat_bindings': ['openid', 'device_id', 'unionid', 'bind_time', 'updated_at'],
+    'wechat_sessions': ['token_hash', 'openid', 'expires_at', 'created_at', 'last_seen_at'],
     'pending_requests': ['request_id', 'device_id', 'old_username', 'new_username', 'reason', 'request_time', 'status', 'notified'],
     'announcements': ['id', 'title', 'content', 'create_time', 'is_active'],
     'user_read_announcements': ['device_id', 'announcement_id', 'read_time', 'never_show'],
