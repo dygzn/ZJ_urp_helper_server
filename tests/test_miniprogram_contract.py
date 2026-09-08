@@ -101,10 +101,10 @@ class MiniProgramContractTests(unittest.TestCase):
         tab_items = config.get('tabBar', {}).get('list', [])
         self.assertEqual(len(tab_items), len(icon_names))
         for item, icon_name in zip(tab_items, icon_names):
-            self.assertEqual(item.get('iconPath'), f'assets/icons/{icon_name}.svg')
+            self.assertEqual(item.get('iconPath'), f'assets/icons/{icon_name}.png')
             self.assertEqual(
                 item.get('selectedIconPath'),
-                f'assets/icons/{icon_name}-selected.svg',
+                f'assets/icons/{icon_name}-selected.png',
             )
             self.assertTrue(
                 (MINIPROGRAM_ROOT / item['iconPath']).is_file(),
@@ -121,7 +121,7 @@ class MiniProgramContractTests(unittest.TestCase):
         self.assertEqual(home_markup.count('quick-icon-image'), 4)
         for icon_name in icon_names[1:]:
             self.assertIn(
-                f'/assets/icons/{icon_name}-selected.svg',
+                f'/assets/icons/{icon_name}-selected.png',
                 home_markup,
             )
 
