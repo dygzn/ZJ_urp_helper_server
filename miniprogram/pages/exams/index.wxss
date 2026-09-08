@@ -1,0 +1,57 @@
+.exams-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.refresh-button {
+  width: 132rpx;
+  min-height: 68rpx;
+  margin: 0;
+  font-size: 24rpx;
+}
+
+.exam-card {
+  margin-bottom: 18rpx;
+  padding: 26rpx;
+  border: 1rpx solid #e8ecf2;
+  border-radius: 22rpx;
+  background: #ffffff;
+  box-shadow: 0 10rpx 28rpx rgba(30, 78, 121, 0.05);
+}
+
+.exam-head,
+.exam-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.exam-head {
+  padding-bottom: 18rpx;
+  border-bottom: 1rpx solid #edf0f4;
+}
+
+.exam-course {
+  max-width: 70%;
+  color: #25324a;
+  font-size: 29rpx;
+  font-weight: 700;
+}
+
+.exam-week {
+  color: #1e4e79;
+  font-size: 23rpx;
+}
+
+.exam-row {
+  min-height: 66rpx;
+  color: #8490a3;
+  font-size: 24rpx;
+}
+
+.exam-row text:last-child {
+  max-width: 68%;
+  color: #344054;
+  text-align: right;
+}

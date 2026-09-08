@@ -64,6 +64,29 @@ class MiniProgramContractTests(unittest.TestCase):
             'wx.switchTab' in app_script or 'wx.navigateTo' in app_script
         )
 
+    def test_mvp_pages_declare_pull_refresh_states_and_endpoints(self):
+        page_contracts = {
+            'home': ('/api/check_bind', '/api/urgent_event'),
+            'schedule': ('/api/schedule', '/api/update_schedule'),
+            'grades': ('/api/grades/latest_summary', '/api/grades/current'),
+            'exams': ('/api/exams', '/api/update_exams'),
+            'account': ('/api/request_rebind',),
+        }
+        for page_name, endpoints in page_contracts.items():
+            script_path = MINIPROGRAM_ROOT / 'pages' / page_name / 'index.js'
+            markup_path = MINIPROGRAM_ROOT / 'pages' / page_name / 'index.wxml'
+            self.assertTrue(script_path.is_file(), f'缺少页面脚本: {script_path}')
+            self.assertTrue(markup_path.is_file(), f'缺少页面模板: {markup_path}')
+            script = script_path.read_text(encoding='utf-8')
+            markup = markup_path.read_text(encoding='utf-8')
+            self.assertIn('onPullDownRefresh', script)
+            self.assertTrue(
+                any(marker in markup for marker in ('loading', 'error', 'empty', 'state')),
+                f'页面缺少状态节点: {markup_path}',
+            )
+            for endpoint in endpoints:
+                self.assertIn(endpoint, script)
+
 
 if __name__ == '__main__':
     unittest.main()

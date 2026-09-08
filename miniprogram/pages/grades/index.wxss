@@ -1,0 +1,82 @@
+.grades-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.refresh-button {
+  width: 132rpx;
+  min-height: 68rpx;
+  margin: 0;
+  font-size: 24rpx;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16rpx;
+}
+
+.summary-card {
+  min-height: 126rpx;
+  padding: 22rpx;
+  border-radius: 20rpx;
+  background: #ffffff;
+  box-shadow: 0 10rpx 28rpx rgba(30, 78, 121, 0.05);
+}
+
+.summary-label,
+.summary-value {
+  display: block;
+}
+
+.summary-label {
+  color: #8490a3;
+  font-size: 23rpx;
+}
+
+.summary-value {
+  margin-top: 14rpx;
+  color: #1e4e79;
+  font-size: 38rpx;
+  font-weight: 700;
+}
+
+.summary-semester {
+  overflow: hidden;
+  font-size: 25rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.danger-value {
+  color: #b54747;
+}
+
+.grade-card {
+  padding: 0 26rpx;
+}
+
+.grade-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 88rpx;
+  border-bottom: 1rpx solid #edf0f4;
+}
+
+.grade-row:last-child {
+  border-bottom: 0;
+}
+
+.grade-course {
+  max-width: 72%;
+  color: #344054;
+  font-size: 26rpx;
+}
+
+.grade-score {
+  color: #1e4e79;
+  font-size: 28rpx;
+  font-weight: 700;
+}

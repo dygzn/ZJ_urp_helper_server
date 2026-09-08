@@ -1,0 +1,56 @@
+<view class="page safe-bottom grades-page">
+  <view class="page-header grades-header">
+    <view>
+      <text class="page-title">成绩</text>
+      <text class="page-subtitle">查看当前学期与最近学期概览。</text>
+    </view>
+    <button class="plain-button refresh-button" bindtap="loadGrades" loading="{{loading}}" disabled="{{loading}}">刷新</button>
+  </view>
+
+  <view wx:if="{{loading}}" class="state">正在读取成绩…</view>
+  <view wx:elif="{{errorMessage}}" class="state state-error">
+    <text>{{errorMessage}}</text>
+    <button class="secondary-button state-action" bindtap="loadGrades">重试</button>
+  </view>
+  <view wx:elif="{{!bound}}" class="card state">
+    <text>绑定教务账号后查看成绩</text>
+    <button class="primary-button state-action" bindtap="goBind">立即绑定</button>
+  </view>
+  <block wx:else>
+    <view class="summary-grid">
+      <view class="summary-card">
+        <text class="summary-label">最近学期</text>
+        <text class="summary-value summary-semester">{{summary.semester || '--'}}</text>
+      </view>
+      <view class="summary-card">
+        <text class="summary-label">当前课程</text>
+        <text class="summary-value">{{currentGrades.length}}</text>
+      </view>
+      <view class="summary-card">
+        <text class="summary-label">当前挂科</text>
+        <text class="summary-value danger-value">{{summary.failed.current.length}}</text>
+      </view>
+      <view class="summary-card">
+        <text class="summary-label">历史挂科</text>
+        <text class="summary-value">{{summary.failed.past.length}}</text>
+      </view>
+    </view>
+
+    <view class="section-title"><text>当前学期成绩</text><text>{{currentGrades.length}} 门</text></view>
+    <view wx:if="{{!currentGrades.length}}" class="card state">暂无当前学期成绩</view>
+    <view wx:else class="card grade-card">
+      <view wx:for="{{currentGrades}}" wx:key="index" class="grade-row">
+        <text class="grade-course">{{item.course}}</text>
+        <text class="grade-score">{{item.displayScore}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{summary.passed.length}}" class="section-title"><text>最近学期通过课程</text><text>{{summary.passed.length}} 门</text></view>
+    <view wx:if="{{summary.passed.length}}" class="card grade-card">
+      <view wx:for="{{summary.passed}}" wx:key="index" class="grade-row">
+        <text class="grade-course">{{item.course}}</text>
+        <text class="grade-score">{{item.displayScore}}</text>
+      </view>
+    </view>
+  </block>
+</view>

@@ -1,0 +1,100 @@
+.schedule-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.refresh-button {
+  width: 132rpx;
+  min-height: 68rpx;
+  margin: 0;
+  font-size: 24rpx;
+}
+
+.week-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24rpx;
+  padding: 12rpx;
+  border-radius: 20rpx;
+  background: #edf4fb;
+}
+
+.week-button {
+  width: 180rpx;
+  min-height: 70rpx;
+  margin: 0;
+  font-size: 24rpx;
+}
+
+.week-label {
+  color: #1e4e79;
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.day-card {
+  margin-bottom: 22rpx;
+}
+
+.day-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 8rpx 12rpx;
+}
+
+.day-label {
+  color: #25324a;
+  font-size: 29rpx;
+  font-weight: 700;
+}
+
+.day-count {
+  color: #8490a3;
+  font-size: 23rpx;
+}
+
+.course-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12rpx;
+  padding: 24rpx;
+  border: 1rpx solid #e8ecf2;
+  border-left: 8rpx solid #1e4e79;
+  border-radius: 18rpx;
+  background: #ffffff;
+}
+
+.course-main {
+  min-width: 0;
+  padding-right: 18rpx;
+}
+
+.course-name,
+.course-location,
+.course-meta text {
+  display: block;
+}
+
+.course-name {
+  color: #25324a;
+  font-size: 29rpx;
+  font-weight: 700;
+}
+
+.course-location {
+  margin-top: 8rpx;
+  color: #8490a3;
+  font-size: 23rpx;
+}
+
+.course-meta {
+  flex-shrink: 0;
+  color: #1e4e79;
+  font-size: 23rpx;
+  line-height: 1.6;
+  text-align: right;
+}

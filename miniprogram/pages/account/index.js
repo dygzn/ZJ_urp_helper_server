@@ -36,6 +36,7 @@ Page({
         return data;
       })
       .catch(error => {
+        wx.showToast({ title: (error.message || '读取绑定状态失败，请重试').slice(0, 20), icon: 'none' });
         this.setData({
           loading: false,
           errorMessage: error.message || '读取绑定状态失败，请重试',
@@ -67,6 +68,7 @@ Page({
             }, 450);
           })
           .catch(error => {
+            wx.showToast({ title: (error.message || '重新绑定失败，请重试').slice(0, 20), icon: 'none' });
             this.setData({
               rebindLoading: false,
               message: error.message || '重新绑定失败，请重试',

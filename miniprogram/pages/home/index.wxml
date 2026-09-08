@@ -1,0 +1,66 @@
+<view class="page safe-bottom home-page">
+  <view class="hero-card">
+    <text class="eyebrow">URP HELPER</text>
+    <text class="hero-title">{{bound ? '你好，' + username : '从微信开始使用'}}</text>
+    <text class="hero-subtitle">{{bound ? '今天也把教务安排掌握在手里。' : '绑定教务账号后查看课表、成绩和考试。'}}</text>
+    <button wx:if="{{!bound}}" class="primary-button hero-action" bindtap="goBind">绑定教务账号</button>
+  </view>
+
+  <view wx:if="{{loading}}" class="state">正在读取首页信息…</view>
+
+  <block wx:elif="{{bound}}">
+    <view class="section-title">
+      <text>现在和接下来</text>
+      <text>自动更新</text>
+    </view>
+    <view wx:if="{{urgentLoading}}" class="card state compact-state">正在读取紧急事项…</view>
+    <view wx:elif="{{urgent}}" class="card urgent-card">
+      <view wx:if="{{urgent.current}}" class="event-block current-event">
+        <text class="event-label">正在进行</text>
+        <text class="event-title">{{urgent.current.title}}</text>
+        <text class="event-meta">{{urgent.current.time}} · {{urgent.current.location}}</text>
+      </view>
+      <view wx:elif="{{urgent.next}}" class="event-block">
+        <text class="event-label">下一件事</text>
+        <text class="event-title">{{urgent.next.title}}</text>
+        <text class="event-meta">{{urgent.next.time}} · {{urgent.next.location}}</text>
+      </view>
+      <view wx:else class="state compact-state">暂时没有紧急事项</view>
+    </view>
+    <view wx:if="{{urgentError}}" class="card inline-error">
+      <text>{{urgentError}}</text>
+      <button class="plain-button mini-action" bindtap="loadUrgent">重试</button>
+    </view>
+
+    <view class="section-title"><text>常用功能</text></view>
+    <view class="quick-grid">
+      <view class="quick-card" bindtap="openSchedule">
+        <text class="quick-icon">课</text>
+        <text class="quick-title">课程表</text>
+        <text class="quick-desc">查看本周安排</text>
+      </view>
+      <view class="quick-card" bindtap="openGrades">
+        <text class="quick-icon">分</text>
+        <text class="quick-title">成绩查询</text>
+        <text class="quick-desc">掌握学业进度</text>
+      </view>
+      <view class="quick-card" bindtap="openExams">
+        <text class="quick-icon">考</text>
+        <text class="quick-title">考试安排</text>
+        <text class="quick-desc">时间地点一目了然</text>
+      </view>
+      <view class="quick-card" bindtap="openAccount">
+        <text class="quick-icon">我</text>
+        <text class="quick-title">我的账号</text>
+        <text class="quick-desc">查看绑定状态</text>
+      </view>
+    </view>
+  </block>
+
+  <view wx:elif="{{errorMessage}}" class="state state-error">
+    <text>{{errorMessage}}</text>
+    <button class="secondary-button state-action" bindtap="loadHome">重试</button>
+  </view>
+
+  <view class="footer-note">数据来自 URP Helper 服务</view>
+</view>

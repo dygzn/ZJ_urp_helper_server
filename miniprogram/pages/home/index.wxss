@@ -1,0 +1,145 @@
+.hero-card {
+  margin-bottom: 28rpx;
+  padding: 40rpx 32rpx;
+  border-radius: 28rpx;
+  background: linear-gradient(135deg, #1e4e79, #2e729e);
+  color: #ffffff;
+  box-shadow: 0 20rpx 40rpx rgba(30, 78, 121, 0.2);
+}
+
+.eyebrow {
+  display: block;
+  opacity: 0.72;
+  font-size: 22rpx;
+  letter-spacing: 4rpx;
+}
+
+.hero-title,
+.hero-subtitle {
+  display: block;
+}
+
+.hero-title {
+  margin-top: 18rpx;
+  font-size: 44rpx;
+  font-weight: 700;
+}
+
+.hero-subtitle {
+  margin-top: 12rpx;
+  opacity: 0.82;
+  font-size: 25rpx;
+  line-height: 1.6;
+}
+
+.hero-action {
+  margin-top: 28rpx;
+  color: #1e4e79;
+  background: #ffffff;
+}
+
+.compact-state {
+  padding: 28rpx 16rpx;
+}
+
+.urgent-card {
+  padding: 28rpx;
+}
+
+.event-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.event-label {
+  color: #1e4e79;
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
+.event-title {
+  margin-top: 10rpx;
+  color: #25324a;
+  font-size: 34rpx;
+  font-weight: 700;
+}
+
+.event-meta {
+  margin-top: 10rpx;
+  color: #8490a3;
+  font-size: 24rpx;
+}
+
+.current-event {
+  padding-left: 18rpx;
+  border-left: 6rpx solid #1e4e79;
+}
+
+.inline-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #b54747;
+  font-size: 24rpx;
+}
+
+.mini-action {
+  width: 140rpx;
+  min-height: 64rpx;
+  margin: 0;
+  font-size: 24rpx;
+}
+
+.quick-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20rpx;
+}
+
+.quick-card {
+  min-height: 196rpx;
+  padding: 26rpx;
+  border: 1rpx solid #e8ecf2;
+  border-radius: 22rpx;
+  background: #ffffff;
+  box-shadow: 0 12rpx 30rpx rgba(30, 78, 121, 0.05);
+}
+
+.quick-icon,
+.quick-title,
+.quick-desc {
+  display: block;
+}
+
+.quick-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60rpx;
+  height: 60rpx;
+  border-radius: 18rpx;
+  color: #1e4e79;
+  background: #edf4fb;
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.quick-title {
+  margin-top: 22rpx;
+  color: #25324a;
+  font-size: 29rpx;
+  font-weight: 700;
+}
+
+.quick-desc {
+  margin-top: 8rpx;
+  color: #8490a3;
+  font-size: 22rpx;
+}
+
+.footer-note {
+  margin-top: 36rpx;
+  color: #a1aaba;
+  font-size: 22rpx;
+  text-align: center;
+}
