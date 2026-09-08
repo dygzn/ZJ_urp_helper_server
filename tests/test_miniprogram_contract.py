@@ -87,6 +87,12 @@ class MiniProgramContractTests(unittest.TestCase):
             for endpoint in endpoints:
                 self.assertIn(endpoint, script)
 
+    def test_schedule_wxml_uses_wxml_safe_course_properties(self):
+        markup = (
+            MINIPROGRAM_ROOT / 'pages' / 'schedule' / 'index.wxml'
+        ).read_text(encoding='utf-8')
+        self.assertNotRegex(markup, r'\bcourse\.[\u4e00-\u9fff]')
+
 
 if __name__ == '__main__':
     unittest.main()

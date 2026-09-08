@@ -33,12 +33,12 @@
       </view>
       <view wx:for="{{item.courses}}" wx:for-item="course" wx:key="index" class="course-card">
         <view class="course-main">
-          <text class="course-name">{{course.课程名}}</text>
-          <text class="course-location">{{course.位置 || course.上课地点 || '地点待定'}}</text>
+          <text class="course-name">{{course.courseName}}</text>
+          <text class="course-location">{{course.location || '地点待定'}}</text>
         </view>
         <view class="course-meta">
-          <text>第 {{course.节次}} 节</text>
-          <text wx:if="{{course.节数}}">共 {{course.节数}} 节</text>
+          <text>第 {{course.period}} 节</text>
+          <text wx:if="{{course.duration}}">共 {{course.duration}} 节</text>
         </view>
       </view>
     </view>

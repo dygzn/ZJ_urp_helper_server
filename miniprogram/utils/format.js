@@ -46,7 +46,12 @@ function groupSchedule(schedule) {
       const day = asNumber(course['星期'] ?? course.day, 0);
       if (day < 1 || day > 7) return;
       if (!groups.has(day)) groups.set(day, []);
-      groups.get(day).push(Object.assign({}, course));
+      groups.get(day).push(Object.assign({}, course, {
+        courseName: course.courseName || course['课程名'] || '',
+        location: course.location || course['位置'] || course['上课地点'] || '',
+        period: course.period || course['节次'] || '',
+        duration: course.duration || course['节数'] || '',
+      }));
     });
   });
 

@@ -36,6 +36,24 @@ test('groupSchedule sorts courses into weekday groups without mutation', () => {
     assert.equal(JSON.stringify(input), original);
 });
 
+test('groupSchedule exposes WXML-safe course display fields', () => {
+    const groups = format.groupSchedule({
+        1: [{
+            '课程名': '周一课程',
+            '星期': '1',
+            '节次': '3',
+            '节数': '2',
+            '上课地点': 'A101',
+        }],
+    });
+
+    const course = groups[0].courses[0];
+    assert.equal(course.courseName, '周一课程');
+    assert.equal(course.period, '3');
+    assert.equal(course.duration, '2');
+    assert.equal(course.location, 'A101');
+});
+
 test('formatScore and formatExam normalize empty and backend values', () => {
     assert.equal(typeof format.formatScore, 'function');
     assert.equal(typeof format.formatExam, 'function');
