@@ -16,6 +16,7 @@ from routes.member_routes import member_bp
 from routes.shortcut_routes import shortcut_bp
 from routes.misc_routes import misc_bp
 from routes.sign_routes import sign_bp
+from routes.wechat_routes import wechat_bp
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-change-this'
@@ -48,6 +49,7 @@ app.register_blueprint(member_bp)
 app.register_blueprint(shortcut_bp)
 app.register_blueprint(misc_bp)
 app.register_blueprint(sign_bp)
+app.register_blueprint(wechat_bp)
 
 @app.errorhandler(Exception)
 def handle_api_exception(error):
