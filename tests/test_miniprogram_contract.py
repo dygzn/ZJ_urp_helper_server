@@ -93,6 +93,38 @@ class MiniProgramContractTests(unittest.TestCase):
         ).read_text(encoding='utf-8')
         self.assertNotRegex(markup, r'\bcourse\.[\u4e00-\u9fff]')
 
+    def test_tabbar_and_home_quick_actions_have_local_icons(self):
+        config = json.loads(
+            (MINIPROGRAM_ROOT / 'app.json').read_text(encoding='utf-8')
+        )
+        icon_names = ('home', 'schedule', 'grades', 'exams', 'account')
+        tab_items = config.get('tabBar', {}).get('list', [])
+        self.assertEqual(len(tab_items), len(icon_names))
+        for item, icon_name in zip(tab_items, icon_names):
+            self.assertEqual(item.get('iconPath'), f'assets/icons/{icon_name}.svg')
+            self.assertEqual(
+                item.get('selectedIconPath'),
+                f'assets/icons/{icon_name}-selected.svg',
+            )
+            self.assertTrue(
+                (MINIPROGRAM_ROOT / item['iconPath']).is_file(),
+                f'缺少 Tab 图标: {item["iconPath"]}',
+            )
+            self.assertTrue(
+                (MINIPROGRAM_ROOT / item['selectedIconPath']).is_file(),
+                f'缺少选中 Tab 图标: {item["selectedIconPath"]}',
+            )
+
+        home_markup = (
+            MINIPROGRAM_ROOT / 'pages' / 'home' / 'index.wxml'
+        ).read_text(encoding='utf-8')
+        self.assertEqual(home_markup.count('quick-icon-image'), 4)
+        for icon_name in icon_names[1:]:
+            self.assertIn(
+                f'/assets/icons/{icon_name}-selected.svg',
+                home_markup,
+            )
+
 
 if __name__ == '__main__':
     unittest.main()

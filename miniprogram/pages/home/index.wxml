@@ -35,22 +35,30 @@
     <view class="section-title"><text>常用功能</text></view>
     <view class="quick-grid">
       <view class="quick-card" bindtap="openSchedule">
-        <text class="quick-icon">课</text>
+        <view class="quick-icon">
+          <image class="quick-icon-image" src="/assets/icons/schedule-selected.svg" mode="aspectFit" />
+        </view>
         <text class="quick-title">课程表</text>
         <text class="quick-desc">查看本周安排</text>
       </view>
       <view class="quick-card" bindtap="openGrades">
-        <text class="quick-icon">分</text>
+        <view class="quick-icon">
+          <image class="quick-icon-image" src="/assets/icons/grades-selected.svg" mode="aspectFit" />
+        </view>
         <text class="quick-title">成绩查询</text>
         <text class="quick-desc">掌握学业进度</text>
       </view>
       <view class="quick-card" bindtap="openExams">
-        <text class="quick-icon">考</text>
+        <view class="quick-icon">
+          <image class="quick-icon-image" src="/assets/icons/exams-selected.svg" mode="aspectFit" />
+        </view>
         <text class="quick-title">考试安排</text>
         <text class="quick-desc">时间地点一目了然</text>
       </view>
       <view class="quick-card" bindtap="openAccount">
-        <text class="quick-icon">我</text>
+        <view class="quick-icon">
+          <image class="quick-icon-image" src="/assets/icons/account-selected.svg" mode="aspectFit" />
+        </view>
         <text class="quick-title">我的账号</text>
         <text class="quick-desc">查看绑定状态</text>
       </view>

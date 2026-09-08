@@ -22,23 +22,33 @@
     "list": [
       {
         "pagePath": "pages/home/index",
-        "text": "首页"
+        "text": "首页",
+        "iconPath": "assets/icons/home.svg",
+        "selectedIconPath": "assets/icons/home-selected.svg"
       },
       {
         "pagePath": "pages/schedule/index",
-        "text": "课表"
+        "text": "课表",
+        "iconPath": "assets/icons/schedule.svg",
+        "selectedIconPath": "assets/icons/schedule-selected.svg"
       },
       {
         "pagePath": "pages/grades/index",
-        "text": "成绩"
+        "text": "成绩",
+        "iconPath": "assets/icons/grades.svg",
+        "selectedIconPath": "assets/icons/grades-selected.svg"
       },
       {
         "pagePath": "pages/exams/index",
-        "text": "考试"
+        "text": "考试",
+        "iconPath": "assets/icons/exams.svg",
+        "selectedIconPath": "assets/icons/exams-selected.svg"
       },
       {
         "pagePath": "pages/account/index",
-        "text": "我的"
+        "text": "我的",
+        "iconPath": "assets/icons/account.svg",
+        "selectedIconPath": "assets/icons/account-selected.svg"
       }
     ]
   },

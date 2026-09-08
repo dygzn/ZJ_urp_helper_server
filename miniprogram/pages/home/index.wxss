@@ -124,6 +124,11 @@
   font-weight: 700;
 }
 
+.quick-icon-image {
+  width: 40rpx;
+  height: 40rpx;
+}
+
 .quick-title {
   margin-top: 22rpx;
   color: #25324a;
