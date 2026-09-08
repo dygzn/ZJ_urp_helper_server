@@ -8,6 +8,7 @@ from database import get_db
 from services.config_service import get_admin_key, get_config
 from services.user_service import get_device_id, get_user_by_device
 from services.urp_service import check_login_status, _login_cache
+from services.wechat_auth_service import get_wechat_request_session
 
 
 def require_admin(f):
@@ -18,6 +19,22 @@ def require_admin(f):
         if admin_key != get_admin_key():
             return jsonify({'success': False, 'message': '管理员密钥错误'}), 403
         return f(*args, **kwargs)
+    return decorated_function
+
+
+def require_wechat_session(f):
+    """校验小程序自定义登录态，允许未绑定教务账号进入绑定接口。"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        wechat_session = get_wechat_request_session()
+        if not wechat_session:
+            return jsonify({
+                'success': False,
+                'message': '微信登录已失效，请重新登录',
+                'code': 'WECHAT_SESSION_REQUIRED',
+            }), 401
+        return f(wechat_session=wechat_session, *args, **kwargs)
+
     return decorated_function
 
 

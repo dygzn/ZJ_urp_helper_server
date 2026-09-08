@@ -11,7 +11,27 @@ def get_device_id():
     """获取设备唯一标识"""
     device_id = request.headers.get('X-Device-ID')
     if device_id:
-        return device_id
+        return device_id.strip()
+
+    authorization = request.headers.get('Authorization', '')
+    if authorization.strip():
+        # 延迟导入，避免微信认证服务与用户服务之间形成模块循环依赖。
+        from services.wechat_auth_service import (
+            get_unbound_device_id,
+            get_wechat_request_session,
+        )
+
+        session = get_wechat_request_session()
+        if session:
+            if session.get('device_id'):
+                return session['device_id']
+            return get_unbound_device_id(session['openid'])
+
+        # Bearer 已明确表明请求来自小程序。无效 token 不应退回
+        # User-Agent/IP 这种弱身份，否则可能意外命中其它用户的旧绑定。
+        token_digest = hashlib.sha256(authorization.encode('utf-8')).hexdigest()[:32]
+        return f'wx_invalid_{token_digest}'
+
     user_agent = request.headers.get('User-Agent', '')
     ip = request.remote_addr
     device_string = f"{user_agent}_{ip}"

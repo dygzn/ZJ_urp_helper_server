@@ -118,6 +118,28 @@ def get_binding(openid):
     }
 
 
+def get_binding_by_device_id(device_id):
+    device_id = str(device_id or '').strip()
+    if not device_id:
+        return None
+
+    with get_db() as conn:
+        row = conn.execute(
+            'SELECT openid, device_id, unionid, bind_time, updated_at '
+            'FROM wechat_bindings WHERE device_id = ?',
+            (device_id,),
+        ).fetchone()
+    if not row:
+        return None
+    return {
+        'openid': row['openid'],
+        'device_id': row['device_id'],
+        'unionid': row['unionid'],
+        'bind_time': row['bind_time'],
+        'updated_at': row['updated_at'],
+    }
+
+
 def get_unbound_device_id(openid):
     openid = str(openid or '').strip()
     if not openid:

@@ -6,6 +6,10 @@ from unittest import mock
 
 import database
 from services.user_service import bind_user
+from services.wechat_auth_service import (
+    bind_openid_to_device,
+    create_session,
+)
 
 
 class WechatRouteTests(unittest.TestCase):
@@ -113,6 +117,27 @@ class WechatRouteTests(unittest.TestCase):
                 ('openid-route-2',),
             ).fetchone()
         self.assertEqual(row['device_id'], 'existing-web-device')
+
+    def test_existing_check_bind_route_accepts_bearer_token(self):
+        self.load_routes()
+        bind_user('bearer-device', '2024987654', 'password')
+        bind_openid_to_device('openid-route-3', 'bearer-device')
+        token = create_session('openid-route-3')
+
+        response = self.client.get(
+            '/api/check_bind',
+            headers={'Authorization': f'Bearer {token}'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.get_json(),
+            {
+                'success': True,
+                'bound': True,
+                'username': '2024987654',
+            },
+        )
 
 
 if __name__ == '__main__':
