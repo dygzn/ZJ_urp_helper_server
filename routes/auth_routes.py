@@ -112,7 +112,7 @@ def api_check_login_status():
     username = user['username']
     password = user['password']
 
-    from URP import URP_login
+    from urp import URP_login
     url = get_current_urp_url()
 
     try:

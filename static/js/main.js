@@ -1071,10 +1071,10 @@ const PERIOD_TIMES_FRESHMAN = [
     { start: '18:30', end: '19:15' }, { start: '19:25', end: '20:10' },
 ];
 
-function updateScheduleTimeline(isFreshman) {
+function updateScheduleTimeline(isFreshman, root = document) {
     userIsFreshman = !!isFreshman;
     const times = isFreshman ? PERIOD_TIMES_FRESHMAN : PERIOD_TIMES_DEFAULT;
-    document.querySelectorAll('.timeline-item').forEach((item, i) => {
+    root.querySelectorAll('.timeline-item').forEach((item, i) => {
         if (!times[i]) return;
         item.querySelector('.timeline-time-start').textContent = times[i].start;
         item.querySelector('.timeline-time-end').textContent = times[i].end;
@@ -1256,6 +1256,545 @@ function refreshUrgentEvent() {
 let otherMajorScheduleData = null;  // 临时存储其他班级课表，不覆盖 cachedSchedule
 let gradeData = {};      // {grade: {major: [class_num, ...]}}，加载一次后缓存
 let omSelected = { grade: null, major: null, class_num: null };  // 弹窗内当前选中状态
+const SCHEDULE_MIN_WEEK = 1;
+const SCHEDULE_MAX_WEEK = 25;
+const scheduleSwipeGesture = {
+    pointerId: null,
+    startX: 0,
+    startY: 0,
+    lastX: 0,
+    startTime: 0,
+    width: 1,
+    dragging: false,
+    cancelled: false,
+    moved: false,
+    obstacleType: null,
+    crossedObstacle: false,
+    airborne: false,
+    crashed: false,
+    crashFinished: false,
+    releasedAfterCrash: false,
+    lastMoveTime: 0,
+};
+let scheduleSwipeTransition = null;
+let scheduleSwipeTransitionTimer = null;
+let scheduleDinoHoldTimer = null;
+let scheduleDinoAirborneTimer = null;
+let scheduleDinoCrashTimer = null;
+let suppressScheduleSwipeClick = false;
+let scheduleSwipeFrame = null;
+let scheduleSwipePendingEvent = null;
+
+function getScheduleSwipeElements() {
+    const viewport = document.getElementById('schedule-content');
+    const track = document.getElementById('schedule-swipe-track');
+    if (!viewport || !track || typeof track.querySelectorAll !== 'function') return null;
+
+    const dinoLane = viewport.querySelector('.schedule-dino-lane');
+    const panels = Array.from(track.querySelectorAll('.schedule-week-panel'));
+    const previous = panels.find(panel => panel.dataset.schedulePanel === 'previous');
+    const current = panels.find(panel => panel.dataset.schedulePanel === 'current');
+    const next = panels.find(panel => panel.dataset.schedulePanel === 'next');
+    if (!previous || !current || !next) return null;
+
+    return {
+        viewport,
+        track,
+        panels,
+        previous,
+        current,
+        next,
+        dinoLane,
+    };
+}
+
+function ensureScheduleSwipePanels() {
+    const swipe = getScheduleSwipeElements();
+    if (!swipe || !swipe.current) return swipe;
+
+    [swipe.previous, swipe.next].forEach(panel => {
+        if (panel.querySelector('.schedule-grid')) return;
+        panel.innerHTML = swipe.current.innerHTML;
+        panel.querySelectorAll('[id]').forEach(element => element.removeAttribute('id'));
+    });
+    return swipe;
+}
+
+function getSchedulePanelElements(panel) {
+    if (!panel) return {};
+    return {
+        scheduleDays: panel.querySelector('.schedule-days'),
+        scheduleGrid: panel.querySelector('.schedule-grid'),
+        scheduleHeader: panel.querySelector('.schedule-header'),
+    };
+}
+
+function getScheduleDataSource(fallbackSchedule = {}) {
+    if (otherMajorScheduleData) return otherMajorScheduleData;
+    if (cachedSchedule) return cachedSchedule;
+    return fallbackSchedule || {};
+}
+
+function getScheduleWeekPayload(source, week) {
+    if (week < SCHEDULE_MIN_WEEK || week > SCHEDULE_MAX_WEEK) return {};
+    const weekKey = String(week);
+    if (!Object.prototype.hasOwnProperty.call(source || {}, weekKey)) return {};
+    return { [weekKey]: source[weekKey] };
+}
+
+function setScheduleSwipeTransform(offset, { animate = false } = {}) {
+    const swipe = getScheduleSwipeElements();
+    if (!swipe) return;
+
+    swipe.track.classList.toggle('is-animating', animate);
+    swipe.track.style.transform = `translate3d(calc(-33.333333% + ${offset}px), 0, 0)`;
+}
+
+function applyScheduleSwipeResistance(deltaX) {
+    const atFirstWeek = currentWeek <= SCHEDULE_MIN_WEEK && deltaX > 0;
+    const atLastWeek = currentWeek >= SCHEDULE_MAX_WEEK && deltaX < 0;
+    return atFirstWeek || atLastWeek ? deltaX * 0.24 : deltaX;
+}
+
+function getScheduleSwipeWidth(viewport) {
+    if (!viewport) return 1;
+    const rect = typeof viewport.getBoundingClientRect === 'function'
+        ? viewport.getBoundingClientRect()
+        : null;
+    return Math.max(viewport.clientWidth || rect?.width || 1, 1);
+}
+
+function clearScheduleDinoGestureTimers({ includeCrash = true } = {}) {
+    if (scheduleDinoHoldTimer !== null) {
+        window.clearTimeout(scheduleDinoHoldTimer);
+        scheduleDinoHoldTimer = null;
+    }
+    if (scheduleDinoAirborneTimer !== null) {
+        window.clearTimeout(scheduleDinoAirborneTimer);
+        scheduleDinoAirborneTimer = null;
+    }
+    if (includeCrash && scheduleDinoCrashTimer !== null) {
+        window.clearTimeout(scheduleDinoCrashTimer);
+        scheduleDinoCrashTimer = null;
+    }
+}
+
+function finishScheduleDinoCrash(swipe = getScheduleSwipeElements()) {
+    if (!swipe) return;
+    clearScheduleDinoGestureTimers();
+    swipe.viewport.classList.remove(
+        'is-swiping',
+        'is-settling',
+        'is-dino-jumping',
+        'is-dino-crashed',
+        'has-dino-obstacle',
+    );
+    swipe.track.classList.remove('is-dragging', 'is-animating');
+    swipe.track.style.setProperty('--schedule-swipe-direction', '0');
+    swipe.track.style.setProperty('--schedule-swipe-progress', '0');
+    if (swipe.dinoLane) {
+        swipe.dinoLane.style.setProperty('--dino-obstacle-progress', '0');
+        swipe.dinoLane.style.setProperty('--dino-obstacle-shift', '140px');
+        swipe.dinoLane.style.setProperty('--dino-fireball-distance', '240px');
+        swipe.dinoLane.dataset.blocked = 'false';
+    }
+    setScheduleSwipeTransform(0);
+    resetScheduleSwipeGesture();
+}
+
+function crashScheduleDino() {
+    const swipe = getScheduleSwipeElements();
+    if (!swipe || scheduleSwipeGesture.crashed) return;
+
+    scheduleSwipeGesture.crashed = true;
+    scheduleSwipeGesture.airborne = false;
+    scheduleSwipeGesture.dragging = false;
+    clearScheduleDinoGestureTimers({ includeCrash: false });
+    if (swipe.dinoLane) swipe.dinoLane.style.setProperty('--dino-obstacle-shift', '-20px');
+    swipe.viewport.classList.remove('is-swiping', 'is-dino-jumping');
+    swipe.viewport.classList.add('is-dino-crashed');
+    swipe.track.classList.remove('is-dragging');
+    setScheduleSwipeTransform(0, { animate: true });
+
+    scheduleDinoCrashTimer = window.setTimeout(() => {
+        scheduleDinoCrashTimer = null;
+        scheduleSwipeGesture.crashFinished = true;
+        if (scheduleSwipeGesture.pointerId === null || scheduleSwipeGesture.releasedAfterCrash) {
+            finishScheduleDinoCrash(swipe);
+        }
+    }, 800);
+}
+
+function armScheduleDinoHoldTimer() {
+    if (scheduleDinoHoldTimer !== null) window.clearTimeout(scheduleDinoHoldTimer);
+    scheduleSwipeGesture.lastMoveTime = Date.now();
+    scheduleDinoHoldTimer = window.setTimeout(() => {
+        scheduleDinoHoldTimer = null;
+        if (shouldCrashScheduleDino({
+            airborne: scheduleSwipeGesture.airborne,
+            pointerDown: scheduleSwipeGesture.pointerId !== null,
+            idleMs: Date.now() - scheduleSwipeGesture.lastMoveTime,
+        })) {
+            crashScheduleDino();
+        }
+    }, 610);
+}
+
+function resetScheduleSwipeGesture() {
+    if (scheduleSwipeFrame !== null) window.cancelAnimationFrame(scheduleSwipeFrame);
+    scheduleSwipeFrame = null;
+    scheduleSwipePendingEvent = null;
+    scheduleSwipeGesture.pointerId = null;
+    scheduleSwipeGesture.startX = 0;
+    scheduleSwipeGesture.startY = 0;
+    scheduleSwipeGesture.lastX = 0;
+    scheduleSwipeGesture.startTime = 0;
+    scheduleSwipeGesture.width = 1;
+    scheduleSwipeGesture.dragging = false;
+    scheduleSwipeGesture.cancelled = false;
+    scheduleSwipeGesture.moved = false;
+    scheduleSwipeGesture.obstacleType = null;
+    scheduleSwipeGesture.crossedObstacle = false;
+    scheduleSwipeGesture.airborne = false;
+    scheduleSwipeGesture.crashed = false;
+    scheduleSwipeGesture.crashFinished = false;
+    scheduleSwipeGesture.releasedAfterCrash = false;
+    scheduleSwipeGesture.lastMoveTime = 0;
+}
+
+function finishScheduleSwipeTransition() {
+    const transition = scheduleSwipeTransition;
+    const swipe = getScheduleSwipeElements();
+    if (!transition || !swipe) return;
+
+    // 轨道可能几乎没有剩余位移；不能用它的结束事件提前清除恐龙动画。
+    const remaining = transition.finishNotBefore - performance.now();
+    if (remaining > 0) {
+        if (scheduleSwipeTransitionTimer !== null) window.clearTimeout(scheduleSwipeTransitionTimer);
+        scheduleSwipeTransitionTimer = window.setTimeout(finishScheduleSwipeTransition, remaining);
+        return;
+    }
+
+    scheduleSwipeTransition = null;
+    if (scheduleSwipeTransitionTimer !== null) {
+        window.clearTimeout(scheduleSwipeTransitionTimer);
+        scheduleSwipeTransitionTimer = null;
+    }
+    swipe.track.removeEventListener('transitionend', transition.onTransitionEnd);
+    swipe.track.classList.remove('is-animating', 'is-changing');
+    swipe.viewport.classList.remove(
+        'is-settling',
+        'is-dino-jumping',
+        'is-dino-reversing',
+        'is-dino-fireball',
+        'is-dino-completing',
+        'is-dino-button-jump',
+        'is-dino-crashed',
+        'has-dino-obstacle',
+    );
+    swipe.track.style.setProperty('--schedule-swipe-direction', '0');
+    swipe.track.style.setProperty('--schedule-swipe-progress', '0');
+    if (swipe.dinoLane) {
+        swipe.dinoLane.style.setProperty('--dino-obstacle-progress', '0');
+        swipe.dinoLane.style.setProperty('--dino-obstacle-shift', '140px');
+        swipe.dinoLane.style.setProperty('--dino-fireball-distance', '240px');
+        swipe.dinoLane.dataset.blocked = 'false';
+    }
+
+    if (!transition.shouldChange) {
+        swipe.panels.forEach(panel => panel.classList.remove('is-swipe-target'));
+        setScheduleSwipeTransform(0);
+        return;
+    }
+
+    currentWeek = transition.week;
+    localStorage.setItem('current_week', currentWeek);
+    updateScheduleDates(currentWeek);
+    swipe.panels.forEach(panel => panel.classList.remove('is-swipe-target'));
+    setScheduleSwipeTransform(0);
+
+    if (otherMajorScheduleData) {
+        displaySchedule(getScheduleWeekPayload(otherMajorScheduleData, currentWeek));
+    } else {
+        loadSchedule(currentWeek);
+    }
+}
+
+function animateScheduleSwipeTo(result, width, dinoReleaseAction = 'idle') {
+    const swipe = getScheduleSwipeElements();
+    if (!swipe) return;
+
+    const targetPanel = result.direction > 0 ? swipe.next : swipe.previous;
+    swipe.panels.forEach(panel => panel.classList.remove('is-swipe-target'));
+    if (result.shouldChange && targetPanel) targetPanel.classList.add('is-swipe-target');
+
+    const transition = {
+        shouldChange: result.shouldChange,
+        week: result.week,
+        finishNotBefore: performance.now() + (
+            window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 0 : 380
+        ),
+        onTransitionEnd: event => {
+            if (event.target === swipe.track && event.propertyName === 'transform') {
+                finishScheduleSwipeTransition();
+            }
+        },
+    };
+    scheduleSwipeTransition = transition;
+    swipe.viewport.classList.remove('is-swiping', 'is-dino-fireball', 'is-dino-reversing', 'is-dino-completing');
+    swipe.viewport.classList.add('is-settling');
+    swipe.track.classList.toggle('is-changing', result.shouldChange);
+    swipe.track.style.setProperty('--schedule-swipe-direction', String(result.direction));
+    swipe.track.addEventListener('transitionend', transition.onTransitionEnd);
+    if (dinoReleaseAction === 'fireball') {
+        swipe.viewport.classList.remove('is-dino-jumping');
+        swipe.viewport.classList.add('is-dino-fireball');
+    } else if (dinoReleaseAction === 'reverse-jump') {
+        swipe.viewport.classList.remove('is-dino-jumping');
+        swipe.viewport.classList.add('is-dino-reversing');
+    } else if (dinoReleaseAction === 'complete') {
+        swipe.viewport.classList.add('is-dino-completing');
+        if (!swipe.viewport.classList.contains('is-dino-jumping')) {
+            if (swipe.dinoLane) {
+                swipe.dinoLane.style.setProperty('--dino-obstacle-progress', '1');
+                swipe.dinoLane.style.setProperty('--dino-obstacle-shift', '0px');
+            }
+            swipe.viewport.classList.add('is-dino-jumping');
+        }
+    } else {
+        swipe.viewport.classList.remove('has-dino-obstacle', 'is-dino-jumping');
+    }
+    setScheduleSwipeTransform(result.direction * -width, { animate: true });
+    scheduleSwipeTransitionTimer = window.setTimeout(finishScheduleSwipeTransition, 460);
+}
+
+function handleSchedulePointerDown(event) {
+    const swipe = getScheduleSwipeElements();
+    if (!swipe || scheduleSwipeTransition || scheduleSwipeGesture.pointerId !== null) return;
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    if (event.target.closest && event.target.closest('button, select, a, input, textarea')) return;
+
+    scheduleSwipeGesture.pointerId = event.pointerId;
+    scheduleSwipeGesture.startX = event.clientX;
+    scheduleSwipeGesture.startY = event.clientY;
+    scheduleSwipeGesture.lastX = event.clientX;
+    scheduleSwipeGesture.startTime = Date.now();
+    scheduleSwipeGesture.width = getScheduleSwipeWidth(swipe.viewport);
+    scheduleSwipeGesture.dragging = false;
+    scheduleSwipeGesture.cancelled = false;
+    scheduleSwipeGesture.moved = false;
+    scheduleSwipeGesture.obstacleType = null;
+    scheduleSwipeGesture.crossedObstacle = false;
+    scheduleSwipeGesture.airborne = false;
+    scheduleSwipeGesture.crashed = false;
+    scheduleSwipeGesture.crashFinished = false;
+    scheduleSwipeGesture.releasedAfterCrash = false;
+    scheduleSwipeGesture.lastMoveTime = Date.now();
+    clearScheduleDinoGestureTimers();
+    suppressScheduleSwipeClick = false;
+    swipe.viewport.classList.remove(
+        'is-dino-jumping',
+        'is-dino-reversing',
+        'is-dino-fireball',
+        'is-dino-completing',
+        'is-dino-button-jump',
+        'is-dino-crashed',
+        'has-dino-obstacle',
+    );
+    if (swipe.dinoLane) {
+        swipe.dinoLane.style.setProperty('--dino-obstacle-progress', '0');
+        swipe.dinoLane.style.setProperty('--dino-obstacle-shift', '140px');
+        swipe.dinoLane.style.setProperty('--dino-fireball-distance', '240px');
+        swipe.dinoLane.dataset.blocked = 'false';
+    }
+}
+
+function handleSchedulePointerMove(event) {
+    if (event.pointerId !== scheduleSwipeGesture.pointerId) return;
+    if (scheduleSwipeGesture.dragging && event.cancelable) event.preventDefault();
+    scheduleSwipePendingEvent = event;
+    if (scheduleSwipeFrame !== null) return;
+    scheduleSwipeFrame = window.requestAnimationFrame(() => {
+        scheduleSwipeFrame = null;
+        const pending = scheduleSwipePendingEvent;
+        scheduleSwipePendingEvent = null;
+        if (pending) renderSchedulePointerMove(pending);
+    });
+}
+
+function renderSchedulePointerMove(event) {
+    const swipe = getScheduleSwipeElements();
+    if (!swipe || event.pointerId !== scheduleSwipeGesture.pointerId || scheduleSwipeTransition) return;
+
+    if (scheduleSwipeGesture.crashed) {
+        if (event.cancelable) event.preventDefault();
+        return;
+    }
+
+    const deltaX = event.clientX - scheduleSwipeGesture.startX;
+    const deltaY = event.clientY - scheduleSwipeGesture.startY;
+    scheduleSwipeGesture.lastX = event.clientX;
+
+    if (!scheduleSwipeGesture.dragging) {
+        if (scheduleSwipeGesture.cancelled || (Math.abs(deltaX) < 8 && Math.abs(deltaY) < 8)) return;
+        if (Math.abs(deltaY) > Math.abs(deltaX)) {
+            scheduleSwipeGesture.cancelled = true;
+            return;
+        }
+
+        scheduleSwipeGesture.dragging = true;
+        scheduleSwipeGesture.moved = true;
+        scheduleSwipeGesture.obstacleType = pickScheduleDinoObstacle();
+        if (typeof swipe.viewport.setPointerCapture === 'function') {
+            swipe.viewport.setPointerCapture(event.pointerId);
+        }
+        swipe.viewport.classList.add('is-swiping');
+        swipe.viewport.classList.add('has-dino-obstacle');
+        swipe.track.classList.add('is-dragging');
+        if (swipe.dinoLane) swipe.dinoLane.dataset.obstacle = scheduleSwipeGesture.obstacleType;
+    }
+
+    if (!scheduleSwipeGesture.dragging) return;
+    if (event.cancelable) event.preventDefault();
+
+    const offset = applyScheduleSwipeResistance(deltaX);
+    const direction = deltaX < 0 ? 1 : -1;
+    const progress = Math.min(Math.abs(offset) / scheduleSwipeGesture.width, 1);
+    swipe.track.style.setProperty('--schedule-swipe-direction', String(direction));
+    swipe.track.style.setProperty('--schedule-swipe-progress', progress.toFixed(3));
+    const dinoCue = resolveScheduleDinoCue({
+        deltaX,
+        viewportWidth: scheduleSwipeGesture.width,
+        currentWeek,
+        minWeek: SCHEDULE_MIN_WEEK,
+        maxWeek: SCHEDULE_MAX_WEEK,
+    });
+    if (swipe.dinoLane) {
+        swipe.dinoLane.dataset.direction = dinoCue.direction < 0 ? 'previous' : 'next';
+        swipe.dinoLane.dataset.blocked = String(dinoCue.blocked);
+        const obstacleShift = dinoCue.blocked
+            ? Math.max(24, (1 - dinoCue.obstacleProgress) * 140)
+            : (1 - dinoCue.obstacleProgress) * 140;
+        // 同一位移决定起跳和落地；暂停、反向拖动也保持安全间距。
+        const lift = dinoCue.blocked ? 0 : 32 * Math.min(1,
+            Math.max(0, (40 - obstacleShift) / 30),
+            Math.max(0, (obstacleShift + 100) / 30));
+        swipe.dinoLane.style.setProperty('--dino-drag-lift', `${-lift}px`);
+        scheduleSwipeGesture.airborne = lift > 0;
+        if (scheduleSwipeGesture.airborne) {
+            armScheduleDinoHoldTimer();
+        } else if (scheduleDinoHoldTimer !== null) {
+            window.clearTimeout(scheduleDinoHoldTimer);
+            scheduleDinoHoldTimer = null;
+        }
+        swipe.dinoLane.style.setProperty('--dino-obstacle-progress', String(dinoCue.obstacleProgress));
+        swipe.dinoLane.style.setProperty('--dino-obstacle-shift', `${obstacleShift}px`);
+        swipe.dinoLane.style.setProperty('--dino-fireball-distance', `${100 + obstacleShift}px`);
+    }
+    scheduleSwipeGesture.crossedObstacle = dinoCue.crossedObstacle;
+    swipe.track.style.transform = `translate3d(calc(-33.333333% + ${offset}px), 0, 0)`;
+}
+
+function handleSchedulePointerEnd(event, cancelled = false) {
+    if (event.pointerId === scheduleSwipeGesture.pointerId && scheduleSwipePendingEvent) {
+        window.cancelAnimationFrame(scheduleSwipeFrame);
+        scheduleSwipeFrame = null;
+        const pending = scheduleSwipePendingEvent;
+        scheduleSwipePendingEvent = null;
+        renderSchedulePointerMove(pending);
+    }
+    const swipe = getScheduleSwipeElements();
+    if (!swipe || event.pointerId !== scheduleSwipeGesture.pointerId) return;
+
+    if (scheduleSwipeGesture.crashed) {
+        if (typeof swipe.viewport.releasePointerCapture === 'function') {
+            try {
+                swipe.viewport.releasePointerCapture(event.pointerId);
+            } catch (error) {
+                // 撞击后指针可能已经由浏览器释放。
+            }
+        }
+        scheduleSwipeGesture.pointerId = null;
+        scheduleSwipeGesture.releasedAfterCrash = true;
+        if (scheduleSwipeGesture.crashFinished) finishScheduleDinoCrash(swipe);
+        return;
+    }
+
+    const wasDragging = scheduleSwipeGesture.dragging;
+    const deltaX = (typeof event.clientX === 'number' ? event.clientX : scheduleSwipeGesture.lastX)
+        - scheduleSwipeGesture.startX;
+    const duration = Date.now() - scheduleSwipeGesture.startTime;
+    const width = scheduleSwipeGesture.width;
+    const hadObstacle = Boolean(scheduleSwipeGesture.obstacleType);
+    const crossedObstacle = scheduleSwipeGesture.crossedObstacle;
+    suppressScheduleSwipeClick = scheduleSwipeGesture.moved;
+    clearScheduleDinoGestureTimers();
+
+    if (typeof swipe.viewport.releasePointerCapture === 'function') {
+        try {
+            swipe.viewport.releasePointerCapture(event.pointerId);
+        } catch (error) {
+            // 指针已经释放时浏览器可能抛错，不影响周次切换。
+        }
+    }
+    resetScheduleSwipeGesture();
+
+    if (!wasDragging) {
+        swipe.viewport.classList.remove('is-swiping', 'is-dino-jumping', 'has-dino-obstacle');
+        return;
+    }
+
+    swipe.track.classList.remove('is-dragging');
+    const result = cancelled
+        ? { shouldChange: false, direction: 0, week: currentWeek }
+        : resolveScheduleSwipe({
+            deltaX,
+            duration,
+            viewportWidth: width,
+            currentWeek,
+            minWeek: SCHEDULE_MIN_WEEK,
+            maxWeek: SCHEDULE_MAX_WEEK,
+        });
+    const dinoReleaseAction = resolveScheduleDinoRelease({
+        hadObstacle,
+        crossedObstacle,
+        shouldChange: result.shouldChange,
+    });
+    // 快扫会跨过整个起跳区间，松手后补播完整越障动作。
+    if (result.shouldChange && duration < 200) {
+        swipe.viewport.classList.add('has-dino-obstacle', 'is-dino-jumping', 'is-dino-button-jump');
+    }
+    animateScheduleSwipeTo(result, width, dinoReleaseAction);
+}
+
+function handleScheduleSwipeClick(event) {
+    if (!suppressScheduleSwipeClick) return;
+    suppressScheduleSwipeClick = false;
+    event.preventDefault();
+    event.stopPropagation();
+}
+
+function initScheduleSwipe() {
+    const swipe = ensureScheduleSwipePanels();
+    if (!swipe || swipe.viewport.dataset.scheduleSwipeReady === 'true') return;
+
+    swipe.viewport.dataset.scheduleSwipeReady = 'true';
+    swipe.viewport.addEventListener('pointerdown', handleSchedulePointerDown);
+    swipe.viewport.addEventListener('pointermove', handleSchedulePointerMove);
+    swipe.viewport.addEventListener('pointerup', event => handleSchedulePointerEnd(event));
+    swipe.viewport.addEventListener('pointercancel', event => handleSchedulePointerEnd(event, true));
+    swipe.viewport.addEventListener('click', handleScheduleSwipeClick, true);
+}
+
+if (typeof document !== 'undefined'
+    && typeof document.addEventListener === 'function'
+    && typeof document.getElementById === 'function') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initScheduleSwipe, { once: true });
+    } else {
+        initScheduleSwipe();
+    }
+}
 
 async function showOtherMajorModal() {
     const modal = document.getElementById('other-major-modal');
@@ -1490,13 +2029,40 @@ async function updateScheduleData(event) {
 }
 
 function resetScheduleDisplay() {
-    const scheduleDays = document.getElementById('schedule-days');
-    const scheduleGrid = document.querySelector('.schedule-grid');
-    const scheduleHeader = document.querySelector('.schedule-header');
+    clearScheduleDinoGestureTimers();
+    resetScheduleSwipeGesture();
+    const swipe = ensureScheduleSwipePanels();
+    const panels = swipe?.panels || [document.querySelector('.schedule-week-panel')].filter(Boolean);
 
-    scheduleDays.innerHTML = '';
-    scheduleGrid.classList.remove('has-evening');
-    setScheduleWeekendVisibility(false, scheduleGrid, scheduleHeader);
+    panels.forEach(panel => {
+        const { scheduleDays, scheduleGrid, scheduleHeader } = getSchedulePanelElements(panel);
+        if (!scheduleDays || !scheduleGrid || !scheduleHeader) return;
+        scheduleDays.innerHTML = '';
+        scheduleGrid.classList.remove('has-evening');
+        setScheduleWeekendVisibility(false, scheduleGrid, scheduleHeader);
+    });
+    if (swipe) {
+        swipe.track.classList.remove('is-dragging', 'is-animating', 'is-changing');
+        swipe.viewport.classList.remove(
+            'is-swiping',
+            'is-settling',
+            'is-dino-jumping',
+            'is-dino-reversing',
+            'is-dino-fireball',
+            'is-dino-completing',
+            'is-dino-button-jump',
+            'is-dino-crashed',
+            'has-dino-obstacle',
+        );
+        swipe.panels.forEach(panel => panel.classList.remove('is-swipe-target'));
+        if (swipe.dinoLane) {
+            swipe.dinoLane.style.setProperty('--dino-obstacle-progress', '0');
+            swipe.dinoLane.style.setProperty('--dino-obstacle-shift', '140px');
+            swipe.dinoLane.style.setProperty('--dino-fireball-distance', '240px');
+            swipe.dinoLane.dataset.blocked = 'false';
+        }
+        setScheduleSwipeTransform(0);
+    }
 }
 
 async function loadSchedule(week = null, autoFetched = false) {
@@ -1609,9 +2175,9 @@ async function loadSchedule(week = null, autoFetched = false) {
     }
 }
 
-function displaySchedule(schedule) {
-    const scheduleDays = document.getElementById('schedule-days');
-    const scheduleGrid = document.querySelector('.schedule-grid');
+function renderScheduleWeek(schedule, panel) {
+    const { scheduleDays, scheduleGrid, scheduleHeader } = getSchedulePanelElements(panel);
+    if (!scheduleDays || !scheduleGrid || !scheduleHeader) return;
 
     // 为每个星期创建课程列表
     const daysCourses = {
@@ -1631,18 +2197,7 @@ function displaySchedule(schedule) {
 
                 if (dayNum && section) {
                     if (section >= 9) hasEvening = true;
-                    daysCourses[dayNum].push({
-                        code: course['课程号'] || '',
-                        name: course['课程名'],
-                        credit: course['学分'] || '',
-                        teacher: course['教师'] || '',
-                        section: section,
-                        duration: duration,
-                        location: location,
-                        campus: course['校区'] || '',
-                        building: course['教学楼'] || '',
-                        room: course['教室'] || ''
-                    });
+                    daysCourses[dayNum].push(buildScheduleCourseCardData(course, dayNum));
                 }
             });
         }
@@ -1671,20 +2226,7 @@ function displaySchedule(schedule) {
             // 为课程分配颜色（基于课程名称的哈希值）
             const colorIndex = getColorIndex(course.name);
 
-            const dayNames = ['', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'];
-            const courseData = encodeURIComponent(JSON.stringify({
-                code: course.code,
-                name: course.name,
-                credit: course.credit,
-                teacher: course.teacher,
-                day: dayNames[day] || `星期${day}`,
-                section: course.section,
-                duration: course.duration,
-                campus: course.campus,
-                building: course.building,
-                room: course.room,
-                location: course.location
-            }));
+            const courseData = encodeURIComponent(JSON.stringify(course));
 
             html += `
                 <div class="course-card course-card-color-${colorIndex}"
@@ -1702,12 +2244,53 @@ function displaySchedule(schedule) {
 
     scheduleDays.innerHTML = html;
     scheduleGrid.classList.toggle('has-evening', hasEvening);
-    setScheduleWeekendVisibility(
-        hasWeekend,
-        scheduleGrid,
-        document.querySelector('.schedule-header'),
+    setScheduleWeekendVisibility(hasWeekend, scheduleGrid, scheduleHeader);
+    updateScheduleTimeline(userIsFreshman, panel);
+}
+
+function displaySchedule(schedule) {
+    clearScheduleDinoGestureTimers();
+    resetScheduleSwipeGesture();
+    const swipe = ensureScheduleSwipePanels();
+    if (!swipe) {
+        renderScheduleWeek(schedule, document.querySelector('.schedule-week-panel'));
+        return;
+    }
+
+    const source = getScheduleDataSource(schedule);
+    [
+        [swipe.previous, currentWeek - 1],
+        [swipe.current, currentWeek],
+        [swipe.next, currentWeek + 1],
+    ].forEach(([panel, week], index) => {
+        panel.dataset.week = String(week);
+        panel.classList.toggle('is-current', index === 1);
+        panel.classList.toggle('is-swipe-adjacent', index !== 1);
+        panel.classList.remove('is-swipe-target');
+        panel.setAttribute('aria-hidden', index === 1 ? 'false' : 'true');
+        renderScheduleWeek(getScheduleWeekPayload(source, week), panel);
+    });
+
+    updateScheduleDates(currentWeek);
+    swipe.track.classList.remove('is-dragging', 'is-animating', 'is-changing');
+    swipe.viewport.classList.remove(
+        'is-swiping',
+        'is-settling',
+        'is-dino-jumping',
+        'is-dino-reversing',
+        'is-dino-fireball',
+        'is-dino-completing',
+        'is-dino-button-jump',
+        'is-dino-crashed',
+        'has-dino-obstacle',
     );
-    updateScheduleTimeline(userIsFreshman);
+    if (swipe.dinoLane) {
+        swipe.dinoLane.style.setProperty('--dino-obstacle-progress', '0');
+        swipe.dinoLane.style.setProperty('--dino-obstacle-shift', '140px');
+        swipe.dinoLane.style.setProperty('--dino-fireball-distance', '240px');
+        swipe.dinoLane.dataset.blocked = 'false';
+    }
+    setScheduleSwipeTransform(0);
 }
 
 // 根据课程名称生成颜色索引
@@ -1722,19 +2305,9 @@ function getColorIndex(courseName) {
 function showCourseDetail(el) {
     const course = JSON.parse(decodeURIComponent(el.dataset.course));
     const modal = document.getElementById('course-detail-modal');
-    const endSection = course.section + course.duration - 1;
 
     document.getElementById('course-detail-name').textContent = course.name;
-    document.getElementById('course-detail-body').innerHTML = `
-        ${course.code ? `<div class="course-detail-row"><span class="course-detail-label">课程号</span><span>${course.code}</span></div>` : ''}
-        ${course.teacher ? `<div class="course-detail-row"><span class="course-detail-label">教师</span><span>${course.teacher}</span></div>` : ''}
-        ${course.credit ? `<div class="course-detail-row"><span class="course-detail-label">学分</span><span>${course.credit}</span></div>` : ''}
-        <div class="course-detail-row"><span class="course-detail-label">时间</span><span>${course.day} 第${course.section}-${endSection}节</span></div>
-        ${course.location ? `<div class="course-detail-row"><span class="course-detail-label">地点</span><span>${course.location}</span></div>` : ''}
-        ${course.campus ? `<div class="course-detail-row"><span class="course-detail-label">校区</span><span>${course.campus}</span></div>` : ''}
-        ${course.building ? `<div class="course-detail-row"><span class="course-detail-label">教学楼</span><span>${course.building}</span></div>` : ''}
-        ${course.room ? `<div class="course-detail-row"><span class="course-detail-label">教室</span><span>${course.room}</span></div>` : ''}
-    `;
+    document.getElementById('course-detail-body').innerHTML = buildScheduleCourseDetailHtml(course);
 
     openUiModal(modal);
 }
@@ -1743,9 +2316,35 @@ function closeCourseDetail() {
     closeUiModal(document.getElementById('course-detail-modal'));
 }
 
-function changeWeek(delta) {
+function changeWeek(delta, animate = false) {
+    const buttonSwipe = resolveScheduleButtonSwipe({
+        delta,
+        currentWeek,
+        minWeek: SCHEDULE_MIN_WEEK,
+        maxWeek: SCHEDULE_MAX_WEEK,
+    });
     const newWeek = currentWeek + delta;
-    if (newWeek >= 1 && newWeek <= 25) {
+
+    if (animate) {
+        const swipe = ensureScheduleSwipePanels();
+        if (!buttonSwipe.shouldChange || !swipe || scheduleSwipeTransition || scheduleSwipeGesture.pointerId !== null) return;
+
+        clearScheduleDinoGestureTimers();
+        resetScheduleSwipeGesture();
+        const obstacleType = pickScheduleDinoObstacle();
+        if (swipe.dinoLane) {
+            swipe.dinoLane.dataset.direction = buttonSwipe.direction < 0 ? 'previous' : 'next';
+            swipe.dinoLane.dataset.obstacle = obstacleType;
+            swipe.dinoLane.dataset.blocked = 'false';
+            swipe.dinoLane.style.setProperty('--dino-obstacle-progress', '0');
+            swipe.dinoLane.style.setProperty('--dino-obstacle-shift', '140px');
+        }
+        swipe.viewport.classList.add('has-dino-obstacle', 'is-dino-jumping', 'is-dino-button-jump');
+        animateScheduleSwipeTo(buttonSwipe, getScheduleSwipeWidth(swipe.viewport), 'complete');
+        return;
+    }
+
+    if (newWeek >= SCHEDULE_MIN_WEEK && newWeek <= SCHEDULE_MAX_WEEK) {
         if (otherMajorScheduleData) {
             currentWeek = newWeek;
             document.getElementById('week-select').value = newWeek;
@@ -1776,23 +2375,30 @@ function updateScheduleDates(week) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    for (let day = 1; day <= 7; day++) {
-        const dateEl = document.getElementById(`schedule-date-${day}`);
-        const dayEl = document.getElementById(`schedule-day-${day}`);
-        if (!dateEl) continue;
+    const swipe = ensureScheduleSwipePanels();
+    const panels = swipe?.panels || [document.querySelector('.schedule-week-panel')].filter(Boolean);
+    panels.forEach(panel => {
+        const panelWeek = Number.parseInt(panel.dataset.week, 10);
+        if (!Number.isInteger(panelWeek) || panelWeek < SCHEDULE_MIN_WEEK || panelWeek > SCHEDULE_MAX_WEEK) return;
 
-        const date = new Date(semesterStart);
-        date.setDate(date.getDate() + (week - 1) * 7 + (day - 1));
+        for (let day = 1; day <= 7; day++) {
+            const dateEl = panel.querySelector(`[data-schedule-date="${day}"]`);
+            const dayEl = panel.querySelector(`[data-schedule-day="${day}"]`);
+            if (!dateEl) continue;
 
-        const m = date.getMonth() + 1;
-        const d = date.getDate();
-        dateEl.textContent = `${m}月${d}日`;
+            const date = new Date(semesterStart);
+            date.setDate(date.getDate() + (panelWeek - 1) * 7 + (day - 1));
 
-        // 高亮今天
-        if (dayEl) {
-            dayEl.classList.toggle('schedule-day-today', date.getTime() === today.getTime());
+            const m = date.getMonth() + 1;
+            const d = date.getDate();
+            dateEl.textContent = `${m}月${d}日`;
+
+            // 高亮今天
+            if (dayEl) {
+                dayEl.classList.toggle('schedule-day-today', date.getTime() === today.getTime());
+            }
         }
-    }
+    });
 }
 
 function jumpToWeek(week) {

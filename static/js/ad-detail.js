@@ -57,7 +57,7 @@
             : '复制失败，请长按复制';
         button?.setAttribute?.('data-copy-state', copied ? 'copied' : 'failed');
         if (label) {
-            label.textContent = copied ? '已复制，打开微信搜索添加' : '复制失败，请长按复制';
+            label.textContent = copied ? '已复制联系信息' : '复制失败，请长按复制';
         }
         if (feedback) {
             feedback.textContent = message;

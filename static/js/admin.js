@@ -183,6 +183,7 @@ function switchTab(tabName) {
     } else if (tabName === 'users') {
         loadUsers();
     } else if (tabName === 'ad-stats') {
+        loadAdvertisement();
         loadAdStats();
     } else if (tabName === 'announcements') {
         loadAnnouncements();

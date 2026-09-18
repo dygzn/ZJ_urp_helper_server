@@ -23,7 +23,7 @@ def urp_login(username, password):
     登录URP教务系统
     返回: (success: bool, message: str, cookies: dict)
     """
-    from URP import URP_login
+    from urp import URP_login
     url = get_current_urp_url()
     try:
         urp = URP_login(url, username, password)
@@ -41,7 +41,7 @@ def check_login_status(username, password, cookies):
     now = time.time()
     url = get_current_urp_url()
 
-    from URP import URP_login
+    from urp import URP_login
     from urp.login import _is_vpn_url
 
     if not _is_vpn_url(url) and username in _login_cache and now - _login_cache[username] < LOGIN_CACHE_TTL:
@@ -317,7 +317,7 @@ def _perform_auto_update(username, password):
             return False, '今日已更新'
 
     try:
-        from URP import URP_login, URP_query
+        from urp import URP_login, URP_query
         url = get_current_urp_url()
 
         urp = URP_login(url, username, password)
@@ -409,7 +409,7 @@ def get_exams(username):
 
 def get_grades(username):
     """获取成绩"""
-    from URP import URP_query
+    from urp import URP_query
     url = get_current_urp_url()
     try:
         urp_query = URP_query(url, username)
@@ -422,7 +422,7 @@ def get_grades(username):
 
 def get_semesters(username):
     """获取所有学期列表"""
-    from URP import URP_query
+    from urp import URP_query
     url = get_current_urp_url()
     try:
         urp_query = URP_query(url, username)
@@ -434,7 +434,7 @@ def get_semesters(username):
 
 def get_current_semester_grades(username):
     """获取本学期成绩"""
-    from URP import URP_query
+    from urp import URP_query
     url = get_current_urp_url()
     urp_query = URP_query(url, username)
     courses = urp_query.score_current_semester()
@@ -443,7 +443,7 @@ def get_current_semester_grades(username):
 
 def get_grades_by_semester(username, semester):
     """获取指定学期的及格成绩"""
-    from URP import URP_query
+    from urp import URP_query
     url = get_current_urp_url()
     try:
         urp_query = URP_query(url, username)
@@ -494,7 +494,7 @@ def _semester_sort_key(semester, fallback_index):
 
 
 def get_latest_semester_grade_summary(username):
-    from URP import URP_query
+    from urp import URP_query
     url = get_current_urp_url()
     urp_query = URP_query(url, username)
 
@@ -517,7 +517,7 @@ def get_latest_semester_grade_summary(username):
 
 def get_failed_grades(username):
     """获取不及格成绩，分为尚不及格和曾不及格"""
-    from URP import URP_query
+    from urp import URP_query
     url = get_current_urp_url()
     urp_query = URP_query(url, username)
     result = urp_query.score_failed()
@@ -528,7 +528,7 @@ def get_failed_grades(username):
 
 def get_gpa(username):
     """获取学分绩点和学位绩点"""
-    from URP import URP_query
+    from urp import URP_query
     url = get_current_urp_url()
     try:
         urp_query = URP_query(url, username)
@@ -540,7 +540,7 @@ def get_gpa(username):
 
 def get_exam_sessions(username):
     """获取考试成绩查询的所有学期和考试名称列表"""
-    from URP import URP_query
+    from urp import URP_query
     url = get_current_urp_url()
     try:
         urp_query = URP_query(url, username)
@@ -552,7 +552,7 @@ def get_exam_sessions(username):
 
 def get_exam_scores(username, jxzxjh, ksbh):
     """查询指定考试的成绩"""
-    from URP import URP_query
+    from urp import URP_query
     url = get_current_urp_url()
     try:
         urp_query = URP_query(url, username)
@@ -566,7 +566,7 @@ def get_exam_scores(username, jxzxjh, ksbh):
 def get_unevaluated_courses(username):
     """获取未评估的课程列表"""
     try:
-        from URP import URP_query
+        from urp import URP_query
         urp_url = get_current_urp_url()
         query = URP_query(urp_url, username)
         return query.check_evaluation()
@@ -578,7 +578,7 @@ def get_unevaluated_courses(username):
 def do_evaluation(username, courses_data):
     """执行教务评价"""
     try:
-        from URP import URP_query
+        from urp import URP_query
         urp_url = get_current_urp_url()
         urp = URP_query(urp_url, username)
         success, message = urp.do_evaluation(courses_data)

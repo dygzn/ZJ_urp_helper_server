@@ -3114,6 +3114,80 @@ body.admin-ui-locked {
     }
 }
 
+/* 窄屏容器允许收缩；宽表由各自的滚动容器承载。 */
+@media (max-width: 768px) {
+    .admin-content,
+    .tab-content,
+    .config-container,
+    .config-section,
+    .form-grid,
+    .ud-section,
+    .modal-content {
+        min-width: 0;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+    }
+
+    .config-container,
+    .form-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .form-grid > *,
+    .database-field,
+    .search-container input,
+    .info-value,
+    .url-option > * {
+        min-width: 0;
+    }
+
+    input:not([type="checkbox"]):not([type="radio"]),
+    select,
+    textarea {
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .section-actions,
+    .request-header,
+    .request-actions,
+    .announcement-header,
+    .feedback-header,
+    .ud-section-header,
+    .ud-toggle,
+    .ad-stats-row,
+    .ad-stats-row-metrics,
+    .search-container,
+    .member-form-btns {
+        flex-wrap: wrap;
+        gap: 8px;
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .ud-cards,
+    .ad-stats-cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .ud-card { min-width: 0; overflow-wrap: anywhere; }
+    .ud-card-value { font-size: 24px; }
+    .ud-bar-chart { overflow-x: auto; }
+    .ud-col { flex: 1 0 24px; }
+    .ud-dist-name,
+    .ud-dist-stat { white-space: normal; overflow-wrap: anywhere; }
+
+    .ad-stats-row { padding-block: 10px; }
+    .ad-stats-row-metrics { flex: 1 1 100%; }
+    .current-url-display,
+    .url-option,
+    .request-card,
+    .announcement-card,
+    .feedback-list,
+    .hint-message { overflow-wrap: anywhere; }
+}
+
 .admin-toast-region {
     position: fixed;
     z-index: 1200;

@@ -9,6 +9,7 @@ from database import ensure_api_keys_table, init_db
 from services.logging_service import init_logging
 from services.config_service import get_admin_key
 from services.ad_service import EVENT_COLUMNS, record_ad_event
+from services.ad_config_service import get_ad_config
 from routes.auth_routes import auth_bp
 from routes.data_routes import data_bp
 from routes.admin_routes import admin_bp
@@ -74,7 +75,10 @@ def favicon():
 
 @app.route('/ad-detail')
 def ad_detail():
-    response = render_template('ad_detail.html')
+    ad = get_ad_config()
+    if not ad['enabled']:
+        return render_template('ad_detail.html', ad=ad), 404
+    response = render_template('ad_detail.html', ad=ad)
     if request.args.get('source') == 'header':
         try:
             record_ad_event('click')
@@ -86,6 +90,8 @@ def ad_detail():
 
 @app.route('/api/ad/event', methods=['POST'])
 def ad_event():
+    if not get_ad_config()['enabled']:
+        return '', 204
     data = request.get_json(silent=True) or {}
     event_type = data.get('event')
     if event_type not in EVENT_COLUMNS:
@@ -114,7 +120,7 @@ def index():
         response = redirect(target, code=302)
         response.headers['Cache-Control'] = 'no-store'
         return response
-    return render_template('index.html')
+    return render_template('index.html', ad=get_ad_config())
 
 
 if __name__ == '__main__':

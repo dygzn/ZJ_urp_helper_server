@@ -61,6 +61,58 @@ HISTORICAL_GRID_HTML = '''
 '''
 
 
+SCHEDULE_RESULT_HTML = '''
+<html>
+  <table class="displayTag" id="user">
+    <thead>
+      <tr>
+        <th class="sortable">培养方案</th>
+        <th class="sortable">课程号</th>
+        <th class="sortable">课程名</th>
+        <th class="sortable">课序号</th>
+        <th class="sortable">学分</th>
+        <th class="sortable">课程属性</th>
+        <th class="sortable">考试类型</th>
+        <th class="sortable">教师</th>
+        <th class="sortable">大纲日历</th>
+        <th class="sortable">修读方式</th>
+        <th class="sortable">选课状态</th>
+        <th class="sortable">周次</th>
+        <th class="sortable">星期</th>
+        <th class="sortable">节次</th>
+        <th class="sortable">节数</th>
+        <th class="sortable">校区</th>
+        <th class="sortable">教学楼</th>
+        <th class="sortable">教室</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="odd">
+        <td rowspan="1">2024级工业工程人才培养方案</td>
+        <td rowspan="1">01318011</td>
+        <td rowspan="1">软件工程导论</td>
+        <td rowspan="1">01</td>
+        <td rowspan="1">2.0</td>
+        <td rowspan="1">任选</td>
+        <td rowspan="1">考查</td>
+        <td rowspan="1">刘海艳* </td>
+        <td rowspan="1"><img title="大纲日历"></td>
+        <td rowspan="1">正常</td>
+        <td rowspan="1">选中</td>
+        <td>1-4周</td>
+        <td>3</td>
+        <td>第一节</td>
+        <td>2</td>
+        <td>仙林校区</td>
+        <td>实C</td>
+        <td>-501</td>
+      </tr>
+    </tbody>
+  </table>
+</html>
+'''
+
+
 class ScheduleRequestTests(unittest.TestCase):
     def test_schedule_cx_uses_original_xk_endpoint(self):
         query = object.__new__(URP_query)
@@ -97,6 +149,29 @@ class ScheduleRequestTests(unittest.TestCase):
             captured['kwargs']['headers']['Referer'],
             'https://223.112.21.198:6443/7b68f983/menu/menu.jsp',
         )
+
+    def test_schedule_cx_parses_course_metadata_for_course_detail(self):
+        query = object.__new__(URP_query)
+        query.url = 'https://223.112.21.198:6443/7b68f983/'
+        query.account = '2415108133'
+
+        def capture_request(method, url, **kwargs):
+            return SimpleNamespace(text=SCHEDULE_RESULT_HTML)
+
+        query._request = capture_request
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            old_cwd = os.getcwd()
+            os.chdir(temp_dir)
+            try:
+                result = query.schedule_cx()
+            finally:
+                os.chdir(old_cwd)
+
+        self.assertEqual(result['3'][0]['课程属性'], '任选')
+        self.assertEqual(result['3'][0]['考试类型'], '考查')
+        self.assertEqual(result['3'][0]['修读方式'], '正常')
+        self.assertEqual(result['3'][0]['选课状态'], '选中')
 
     def test_historical_schedule_cx_posts_and_parses_grid_courses(self):
         query = object.__new__(URP_query)
@@ -180,7 +255,7 @@ class ScheduleRequestTests(unittest.TestCase):
             }),
             patch('auth.check_login_status', return_value=(True, {})),
             patch('routes.data_routes.get_current_urp_url', return_value='https://urp.example/'),
-            patch('URP.URP_query', FakeQuery),
+            patch('urp.URP_query', FakeQuery),
         ):
             response = app.test_client().get(
                 '/api/historical_schedule?semester=2025-2026-2-1',

@@ -107,6 +107,18 @@ class HeaderAdPreviewTests(unittest.TestCase):
         self.assertIn("trackHeaderAdEvent('dismiss')", self.js)
         self.assertIn("keepalive: true", self.js)
 
+    def test_permanent_hide_overrides_ad_flex_layout(self):
+        hidden_rule = re.search(
+            r"\.header-ad-slot\[hidden\]\s*,\s*"
+            r"\.header-ad-card\[hidden\]\s*,\s*"
+            r"\.header-ad-detail\[hidden\]\s*,\s*"
+            r"\.header-ad-restore\[hidden\]\s*\{(?P<body>[^}]*)\}",
+            self.css,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(hidden_rule)
+        self.assertRegex(hidden_rule.group("body"), r"display:\s*none\s*!important")
+
     def test_detail_page_describes_student_discount_rewards(self):
         self.assertTrue(self.detail_html, f"详情页不存在: {DETAIL_PAGE}")
         self.assertNotIn(

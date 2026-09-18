@@ -171,8 +171,8 @@ class AutoUpdateDatabaseLifetimeTests(unittest.TestCase):
 
         with (
             patch.object(urp_service, 'get_db', side_effect=fake_get_db),
-            patch('URP.URP_login', FakeLogin),
-            patch('URP.URP_query', FakeQuery),
+            patch('urp.URP_login', FakeLogin),
+            patch('urp.URP_query', FakeQuery),
             patch.object(urp_service, 'get_current_urp_url', return_value='http://urp.test/'),
         ):
             result = urp_service.check_and_auto_update(

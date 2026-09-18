@@ -248,7 +248,7 @@ def query_shortcut_data(student_id, action, params):
         semester = params.get('semester', '')
         if not isinstance(semester, str):
             raise ValueError('invalid_params')
-        from URP import URP_query
+        from urp import URP_query
 
         query = URP_query(get_current_urp_url(), student_id)
         result = query.historical_schedule_cx(semester)

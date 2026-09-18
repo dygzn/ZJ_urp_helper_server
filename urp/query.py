@@ -1,11 +1,12 @@
 import json
 import os
 import re
+from collections import defaultdict
+
 import requests
 import urllib3
 from bs4 import BeautifulSoup
 from urllib.parse import urlsplit
-from urp.schedule_legacy import schedule_cx_legacy
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 from urp.login import (
     VPNUnavailableError,
@@ -356,7 +357,91 @@ class URP_query:
 
     def schedule_cx(self):
         """使用原课表接口获取当前学期课表并写入缓存。"""
-        return schedule_cx_legacy(self)
+        headers = {
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
+            'Connection': 'keep-alive',
+            'Referer': f'{self.url}menu/menu.jsp',
+            'Upgrade-Insecure-Requests': '1',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0',
+        }
+        response = self._request(
+            'GET',
+            f'{self.url}xkAction.do',
+            headers=headers,
+            params={'actionType': '6', 'yzxh': self.account},
+            verify=False,
+        )
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        course_table = next(
+            (table for table in soup.find_all('table')
+             if table.find('th', class_='sortable')),
+            None,
+        )
+        if not course_table:
+            raise Exception("未找到课表数据，学校可能暂未开放课表查询")
+
+        schedule_by_week = defaultdict(list)
+        current_course_info = {}
+
+        for row in course_table.find_all('tr', class_='odd'):
+            tds = row.find_all('td')
+            if not tds:
+                continue
+
+            if len(tds) >= 11:
+                current_course_info = {
+                    '课程号': tds[1].get_text(strip=True),
+                    '课程名': tds[2].get_text(strip=True),
+                    '学分': tds[4].get_text(strip=True),
+                    '课程属性': tds[5].get_text(strip=True),
+                    '考试类型': tds[6].get_text(strip=True),
+                    '教师': tds[7].get_text(strip=True).rstrip('* '),
+                    '修读方式': tds[9].get_text(strip=True),
+                    '选课状态': tds[10].get_text(strip=True),
+                }
+
+            if len(tds) < 7 or not current_course_info.get('课程名'):
+                continue
+
+            week_str, day_str, period_str, duration_str = (
+                tds[-7].get_text(strip=True),
+                tds[-6].get_text(strip=True),
+                tds[-5].get_text(strip=True),
+                tds[-4].get_text(strip=True),
+            )
+            campus_str, building_str, room_str = (
+                tds[-3].get_text(strip=True),
+                tds[-2].get_text(strip=True),
+                tds[-1].get_text(strip=True),
+            )
+
+            if not week_str:
+                continue
+
+            weeks = self._parse_weeks(week_str)
+            period_num = self._parse_period(period_str)
+            location = f'{campus_str}{building_str}{room_str}'
+            for week in weeks:
+                schedule_by_week[week].append({
+                    **current_course_info,
+                    '星期': day_str,
+                    '节次': period_num,
+                    '节数': duration_str,
+                    '校区': campus_str,
+                    '教学楼': building_str,
+                    '教室': room_str,
+                    '位置': location,
+                })
+
+        schedule_data = {str(week): courses for week, courses in schedule_by_week.items()}
+        user_dir = os.path.join('user_data', self.account)
+        os.makedirs(user_dir, exist_ok=True)
+        with open(os.path.join(user_dir, 'schedule.json'), 'w', encoding='utf-8') as f:
+            json.dump(schedule_data, f, ensure_ascii=False, indent=2)
+
+        return schedule_data
 
     def historical_schedule_cx(self, semester=None):
         """查询历年学期课表；未指定学期时自动选择页面中的最新学期。"""

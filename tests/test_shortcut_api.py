@@ -508,7 +508,7 @@ class ShortcutDataNormalizationTests(unittest.TestCase):
 
     def test_query_rejects_unsupported_action(self):
         with (
-            mock.patch('URP.URP_query') as query_class,
+            mock.patch('urp.URP_query') as query_class,
             mock.patch.object(shortcut_service, 'get_latest_semester_grade_summary') as grade_summary,
         ):
             with self.assertRaisesRegex(ValueError, '^invalid_action$'):

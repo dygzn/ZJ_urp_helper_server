@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>URP教务助手</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=11">
+    <link rel="stylesheet" href="/static/css/style.css?v=17">
 </head>
 <body>
 
@@ -35,18 +35,20 @@
         <header class="header">
             <button id="menu-trigger" class="menu-btn" type="button" onclick="openSidebar()" aria-label="打开导航菜单" aria-controls="sidebar" aria-expanded="false"><span></span><span></span><span></span></button>
             <h1 id="page-title">首页</h1>
+            {% if ad.enabled %}
             <div id="header-ad-slot" class="header-ad-slot" aria-label="广告位" hidden>
                 <div id="header-ad-card" class="header-ad-card">
-                    <a class="header-ad-main" href="/ad-detail?source=header" aria-label="推广 学生优惠资格出售，最高可得140元，点开了解详情">
+                    <a class="header-ad-main" href="/ad-detail?source=header" aria-label="推广 {{ ad.title }}，查看详情">
+                        {% if ad.image_url %}<img class="header-ad-thumbnail" src="{{ ad.image_url }}" alt="" onerror="this.hidden=true">{% endif %}
                         <span class="header-ad-tag">推广</span>
-                        <span class="header-ad-copy"><strong class="header-ad-copy-wide">学生优惠资格出售：最高可得140元</strong><strong class="header-ad-copy-compact">学生优惠资格出售：最高可得140元</strong><small>大约3分钟了解清楚，不合适也没关系</small></span>
-                        <span class="header-ad-cta">点开了解详情 <span aria-hidden="true">→</span></span>
+                        <span class="header-ad-copy"><strong class="header-ad-copy-wide">{{ ad.title }}</strong><strong class="header-ad-copy-compact">{{ ad.title }}</strong><small>{{ ad.summary }}</small></span>
+                        <span class="header-ad-cta">查看详情 <span aria-hidden="true">→</span></span>
                     </a>
                     <button class="header-ad-options" type="button" data-ad-action="options" aria-expanded="false" aria-controls="header-ad-detail" aria-label="广告选项">⋯</button>
                     <button class="header-ad-close" type="button" data-ad-action="dismiss" aria-label="暂时关闭广告">×</button>
                 </div>
                 <div id="header-ad-detail" class="header-ad-detail" hidden>
-                    <p><strong>学生优惠活动</strong> · 先把细节了解清楚，再决定要不要参加。</p>
+                    <p>{{ ad.summary }}</p>
                     <div class="header-ad-detail-actions">
                         <button class="header-ad-detail-btn" type="button" data-ad-action="never-show">本设备永不显示</button>
                         <button class="header-ad-detail-btn" type="button" data-ad-action="dismiss">暂时关闭</button>
@@ -54,6 +56,7 @@
                 </div>
                 <button id="header-ad-restore" class="header-ad-restore" type="button" data-ad-action="restore" hidden>广告已隐藏 · 恢复展示</button>
             </div>
+            {% endif %}
             <div id="login-status-indicator" class="login-status-indicator" role="status" aria-live="polite"><span class="status-dot status-checking"></span><span class="status-text">检查中</span></div>
         </header>
 
@@ -68,31 +71,60 @@
             <div id="page-schedule" class="page">
                 <div class="page-access-gate" data-page-access-gate hidden></div>
                 <div class="schedule-container">
-                    <h2>课程表</h2>
-                    <p class="page-section-desc">可以尝试下滑点击历年课表查询选择本学期课表进行查询。</p>
                     <div id="schedule-message" class="schedule-message" style="display:none;"></div>
-                    <div id="schedule-content" class="schedule-content">
-                        <div class="schedule-header"><div class="schedule-header-time"></div><div class="schedule-header-day">周一</div><div class="schedule-header-day">周二</div><div class="schedule-header-day">周三</div><div class="schedule-header-day">周四</div><div class="schedule-header-day">周五</div><div class="schedule-header-day schedule-header-weekend">周六</div><div class="schedule-header-day schedule-header-weekend">周日</div></div>
-                        <div class="schedule-grid">
-                            <div class="schedule-timeline">
-                                <div class="timeline-item"><div class="timeline-section">1</div><div class="timeline-time-start">08:20</div><div class="timeline-time-end">09:05</div></div>
-                                <div class="timeline-item"><div class="timeline-section">2</div><div class="timeline-time-start">09:15</div><div class="timeline-time-end">10:00</div></div>
-                                <div class="timeline-item"><div class="timeline-section">3</div><div class="timeline-time-start">10:20</div><div class="timeline-time-end">11:05</div></div>
-                                <div class="timeline-item"><div class="timeline-section">4</div><div class="timeline-time-start">11:15</div><div class="timeline-time-end">12:00</div></div>
-                                <div class="timeline-item"><div class="timeline-section">5</div><div class="timeline-time-start">14:00</div><div class="timeline-time-end">14:45</div></div>
-                                <div class="timeline-item"><div class="timeline-section">6</div><div class="timeline-time-start">14:55</div><div class="timeline-time-end">15:40</div></div>
-                                <div class="timeline-item"><div class="timeline-section">7</div><div class="timeline-time-start">16:00</div><div class="timeline-time-end">16:45</div></div>
-                                <div class="timeline-item"><div class="timeline-section">8</div><div class="timeline-time-start">16:55</div><div class="timeline-time-end">17:40</div></div>
-                            </div>
-                            <div class="schedule-days" id="schedule-days"></div>
+                    <div id="schedule-content" class="schedule-content schedule-swipe-viewport" aria-label="课程表周次切换区域">
+                        <div class="schedule-dino-lane" aria-hidden="true" data-direction="next" data-obstacle="cactus-single">
+                            <span class="schedule-dino-stage">
+                                <span class="schedule-dino-cloud schedule-dino-cloud-a"></span>
+                                <span class="schedule-dino-cloud schedule-dino-cloud-b"></span>
+                                <span class="schedule-dino-character">
+                                    <svg viewBox="0 0 48 56" role="presentation" focusable="false">
+                                        <path fill="#268343" d="M25 38h8v11h5v4H27l-3-11z"/>
+                                        <path fill="currentColor" d="M23 7Q23 2 29 2h9q8 0 8 8v8q0 5-6 5H30v5q5 5 4 11-1 7-10 7h-4Q8 44 4 34L1 25q7 7 14 6l7-10z"/>
+                                        <path fill="#a5dc85" d="M29 25q-7 5-8 11t6 7q6-2 5-8z"/>
+                                        <path fill="currentColor" d="M15 39h10l-3 10h6v4H16l-2-5z"/>
+                                        <path d="M31 29h5v4" fill="none" stroke="#268343" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <path d="M27 7q3-2 7-1" fill="none" stroke="#81cf79" stroke-width="2.5" stroke-linecap="round"/>
+                                        <ellipse cx="35" cy="11" rx="3.4" ry="4" fill="var(--dino-eye, #fff)"/>
+                                        <ellipse cx="36" cy="11.5" rx="1.6" ry="2.3" fill="#193c29"/>
+                                        <circle cx="36.5" cy="10.5" r="0.6" fill="#fff"/>
+                                        <circle cx="42" cy="14" r="1" fill="#268343"/>
+                                        <path d="M33 19h9" fill="none" stroke="#246c3b" stroke-width="1.8" stroke-linecap="round"/>
+                                    </svg>
+                                </span>
+                                <span class="schedule-dino-fireball"></span>
+                                <span class="schedule-dino-dust"><i></i><i></i><i></i></span>
+                                <span class="schedule-dino-obstacle"><i></i><b></b></span>
+                                <span class="schedule-dino-fragments"><i></i><i></i><i></i><i></i></span>
+                                <span class="schedule-dino-dizzy"><i></i><i></i><i></i></span>
+                            </span>
+                        </div>
+                        <div id="schedule-swipe-track" class="schedule-swipe-track">
+                            <section class="schedule-week-panel" data-schedule-panel="previous" aria-hidden="true"></section>
+                            <section class="schedule-week-panel is-current" data-schedule-panel="current" aria-hidden="false">
+                                <div class="schedule-header"><div class="schedule-header-time"></div><div class="schedule-header-day" data-schedule-day="1"><span class="schedule-day-name">周一</span><span class="schedule-day-date" data-schedule-date="1"></span></div><div class="schedule-header-day" data-schedule-day="2"><span class="schedule-day-name">周二</span><span class="schedule-day-date" data-schedule-date="2"></span></div><div class="schedule-header-day" data-schedule-day="3"><span class="schedule-day-name">周三</span><span class="schedule-day-date" data-schedule-date="3"></span></div><div class="schedule-header-day" data-schedule-day="4"><span class="schedule-day-name">周四</span><span class="schedule-day-date" data-schedule-date="4"></span></div><div class="schedule-header-day" data-schedule-day="5"><span class="schedule-day-name">周五</span><span class="schedule-day-date" data-schedule-date="5"></span></div><div class="schedule-header-day schedule-header-weekend" data-schedule-day="6"><span class="schedule-day-name">周六</span><span class="schedule-day-date" data-schedule-date="6"></span></div><div class="schedule-header-day schedule-header-weekend" data-schedule-day="7"><span class="schedule-day-name">周日</span><span class="schedule-day-date" data-schedule-date="7"></span></div></div>
+                                <div class="schedule-grid">
+                                    <div class="schedule-timeline">
+                                        <div class="timeline-item"><div class="timeline-section">1</div><div class="timeline-time-start">08:20</div><div class="timeline-time-end">09:05</div></div>
+                                        <div class="timeline-item"><div class="timeline-section">2</div><div class="timeline-time-start">09:15</div><div class="timeline-time-end">10:00</div></div>
+                                        <div class="timeline-item"><div class="timeline-section">3</div><div class="timeline-time-start">10:20</div><div class="timeline-time-end">11:05</div></div>
+                                        <div class="timeline-item"><div class="timeline-section">4</div><div class="timeline-time-start">11:15</div><div class="timeline-time-end">12:00</div></div>
+                                        <div class="timeline-item"><div class="timeline-section">5</div><div class="timeline-time-start">14:00</div><div class="timeline-time-end">14:45</div></div>
+                                        <div class="timeline-item"><div class="timeline-section">6</div><div class="timeline-time-start">14:55</div><div class="timeline-time-end">15:40</div></div>
+                                        <div class="timeline-item"><div class="timeline-section">7</div><div class="timeline-time-start">16:00</div><div class="timeline-time-end">16:45</div></div>
+                                        <div class="timeline-item"><div class="timeline-section">8</div><div class="timeline-time-start">16:55</div><div class="timeline-time-end">17:40</div></div>
+                                    </div>
+                                    <div class="schedule-days" id="schedule-days"></div>
+                                </div>
+                            </section>
+                            <section class="schedule-week-panel" data-schedule-panel="next" aria-hidden="true"></section>
                         </div>
                     </div>
                     <div class="action-bar schedule-bottom-controls">
                         <div class="schedule-week-controls">
-                            <button class="btn-secondary" type="button" onclick="changeWeek(-1)">上一周</button>
+                            <button class="btn-secondary" type="button" onclick="changeWeek(-1, true)">上一周</button>
                             <label class="week-select-wrap" for="week-select"><span>周次</span><select id="week-select" onchange="changeWeek(parseInt(this.value,10)-currentWeek)"></select></label>
-                            <span class="current-week" aria-label="当前周次">第 <span id="current-week">1</span> 周</span>
-                            <button class="btn-secondary" type="button" onclick="changeWeek(1)">下一周</button>
+                            <button class="btn-secondary" type="button" onclick="changeWeek(1, true)">下一周</button>
                         </div>
                         <div class="schedule-data-actions">
                             <button class="btn-primary" type="button" onclick="loadSchedule()">刷新显示</button>
@@ -417,6 +449,6 @@
     <script src="/static/js/schedule-layout.js"></script>
     <script src="/static/js/service-status-ui.js"></script>
     <script src="/static/js/ui-ux.js?v=1"></script>
-    <script src="/static/js/main.js?v=11"></script>
+    <script src="/static/js/main.js?v=16"></script>
 </body>
 </html>

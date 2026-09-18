@@ -48,7 +48,7 @@ def api_schedule(user):
 @require_login
 def api_update_schedule(user):
     try:
-        from URP import URP_query
+        from urp import URP_query
 
         username = user['username']
         password = user['password']
@@ -71,7 +71,7 @@ def api_update_schedule(user):
 def api_historical_schedule(user):
     """查询指定历史学期的完整课表网格，不覆盖当前课表缓存。"""
     try:
-        from URP import URP_query
+        from urp import URP_query
 
         semester = request.args.get('semester', '').strip()
         current_url = get_current_urp_url()
@@ -96,7 +96,7 @@ def api_exams(user):
 @require_login
 def api_update_exams(user):
     try:
-        from URP import URP_query
+        from urp import URP_query
 
         username = user['username']
         password = user['password']

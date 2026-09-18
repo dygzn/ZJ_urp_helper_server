@@ -7,6 +7,8 @@ from flask import Blueprint, request, jsonify, render_template
 from database import get_db, get_database_config, test_database_config, migrate_sqlite_to_current_database
 from auth import require_admin
 from services.config_service import get_config, save_config
+from services.ad_config_service import get_ad_config, validate_ad_config
+
 from services.user_service import unbind_user
 from services.member_service import ensure_invitation_earnings, _money, _money_string
 from services.ad_service import get_ad_click_stats
@@ -14,6 +16,21 @@ from services.online_service import get_online_snapshot
 from constants import MEMBER_DURATION_DAYS
 
 admin_bp = Blueprint('admin_bp', __name__)
+
+
+@admin_bp.route('/api/admin/advertisement', methods=['GET', 'PUT'])
+@require_admin
+def admin_advertisement():
+    if request.method == 'GET':
+        return jsonify(success=True, data=get_ad_config())
+    try:
+        ad = validate_ad_config(request.get_json(silent=True))
+    except ValueError as error:
+        return jsonify(success=False, message=str(error)), 400
+    config = get_config()
+    config['advertisement'] = ad
+    save_config(config)
+    return jsonify(success=True, message='广告配置已保存', data=ad)
 
 
 def _new_commission_stat(username):
