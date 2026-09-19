@@ -215,7 +215,8 @@ def api_other_majors(user):
     """返回其他年级+专业+班级列表，格式：{grade: {major: [class, ...]}，仅含有课表缓存的组合"""
     my_username = user['username']
     with get_db() as conn:
-        rows = conn.execute('SELECT DISTINCT username FROM users').fetchall()
+        # 学号目录来自账号主表；users 只保存设备绑定，归档后可能为空。
+        rows = conn.execute('SELECT username FROM user_account').fetchall()
     # result: {grade: {major: set(class_num)}}
     result = {}
     for row in rows:
@@ -248,7 +249,8 @@ def api_other_major_schedule(user):
         return jsonify({'success': False, 'message': '请指定有效的年级、专业和班级'})
 
     with get_db() as conn:
-        rows = conn.execute('SELECT username FROM users').fetchall()
+        # 学号目录来自账号主表；users 只保存设备绑定，归档后可能为空。
+        rows = conn.execute('SELECT username FROM user_account').fetchall()
 
     candidates = []
     for row in rows:

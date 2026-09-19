@@ -527,6 +527,95 @@ async function rejectRequest(requestId) {
 // ==================== 用户统计仪表盘 ====================
 
 let userStatsData = null;
+let bindingArchivePreview = null;
+let bindingArchiveBatch = null;
+
+async function previewBindingArchive() {
+    const status = document.getElementById('binding-archive-status');
+    const previewButton = document.getElementById('archive-preview-button');
+    const executeButton = document.getElementById('archive-execute-button');
+    previewButton.disabled = true;
+    executeButton.disabled = true;
+    bindingArchivePreview = null;
+    bindingArchiveBatch = null;
+    document.getElementById('binding-archive-prepared').checked = false;
+    status.textContent = '正在读取当前数据库…';
+    try {
+        const response = await fetch('/api/admin/bindings/archive', {cache: 'no-store', headers: {'Admin-Key': adminKey}});
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.message || '预览失败');
+        const data = result.data;
+        if (!data || data.protocol_version !== 2) {
+            throw new Error('归档模块版本不一致：服务器仍返回旧版数据。请完整更新服务代码、重启所有进程并强制刷新页面，暂勿执行清理。');
+        }
+        if (!data.enabled) {
+            status.textContent = '当前使用 SQLite，此功能仅用于服务器 MySQL，无法执行清理。';
+            return;
+        }
+        bindingArchivePreview = data;
+        // randomUUID 在普通 HTTP 的服务器后台不可用，使用 getRandomValues 生成 UUID。
+        const bytes = crypto.getRandomValues(new Uint8Array(16));
+        bytes[6] = (bytes[6] & 15) | 64;
+        bytes[8] = (bytes[8] & 63) | 128;
+        const hex = Array.from(bytes, n => n.toString(16).padStart(2, '0')).join('');
+        bindingArchiveBatch = `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+        const count = data.counts;
+        status.textContent = `目标：${data.target.host}:${data.target.port}/${data.target.database}。处理后保留 ${data.unique_users} 个用户，每个学号一条。已有 user_account ${data.archived_records} 个；旧版复数表 ${data.legacy_compact_records || 0} 条。待清理：绑定 ${count.users} 条、换绑请求 ${count.pending_requests} 条、微信绑定 ${count.wechat_bindings} 条、会话 ${count.wechat_sessions} 条、旧版用户归档 ${count.user_account_archive || 0} 条、旧版关联明细 ${count.binding_record_archive || 0} 条。`;
+        // 旧版复数账号表不计入设备清理 counts，但只要它还有记录，
+        // 仍然需要执行一次合并，否则它会一直占用数据库并绕过新主表。
+        const hasLegacyAccounts = Number(data.legacy_compact_records || 0) > 0;
+        executeButton.disabled = !hasLegacyAccounts && !Object.values(count).some(n => n > 0);
+    } catch (error) {
+        status.textContent = error.message;
+    } finally {
+        previewButton.disabled = false;
+    }
+}
+
+async function executeBindingArchive() {
+    if (!bindingArchivePreview || !bindingArchiveBatch) return;
+    if (!document.getElementById('binding-archive-prepared').checked) {
+        showAdminToast('请先完成数据库备份并暂停其他实例及用户入口', 'error');
+        return;
+    }
+    const target = bindingArchivePreview.target;
+    if (!confirm(`确认将 ${target.host}:${target.port}/${target.database} 的用户资料按学号合并为 ${bindingArchivePreview.unique_users} 条？仅保留账号、最近绑定的密码和时间信息；旧设备、会话及旧归档明细将清除，用户需重新登录绑定。`)) return;
+    const button = document.getElementById('archive-execute-button');
+    const previewButton = document.getElementById('archive-preview-button');
+    const status = document.getElementById('binding-archive-status');
+    button.disabled = true;
+    previewButton.disabled = true;
+    status.textContent = '正在归档、核对并清理，请勿关闭页面…';
+    try {
+        const response = await fetch('/api/admin/bindings/archive', {
+            method: 'POST', headers: {'Admin-Key': adminKey, 'Content-Type': 'application/json'},
+            body: JSON.stringify({protocol_version: 2, fingerprint: bindingArchivePreview.fingerprint, batch_id: bindingArchiveBatch, prepared: true})
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+            if (response.status === 409) bindingArchivePreview = null;
+            throw new Error(result.message || '归档失败');
+        }
+        if (!result.data || result.data.protocol_version !== 2 || !Number.isInteger(result.data.account_count)
+            || result.data.account_count < 0 || !Number.isInteger(result.data.counts?.users)) {
+            const batch = result.data?.batch_id || bindingArchiveBatch;
+            bindingArchivePreview = null;
+            throw new Error(`服务器返回旧版或不完整结果，未确认精简成功。批次 ${batch}。请核对旧归档表并完整更新、重启服务，暂勿再次清理。`);
+        }
+        status.textContent = `${result.message || '用户资料已合并保存'}。精简用户 ${result.data.account_count} 个，每个学号一条；清理绑定 ${result.data.counts.users} 条；批次 ${result.data.batch_id}。`;
+        bindingArchivePreview = null;
+        bindingArchiveBatch = null;
+        await loadUsers();
+    } catch (error) {
+        status.textContent = bindingArchivePreview
+            ? `${error.message} 如遇网络中断，可点击执行按钮使用同一批次重试。`
+            : error.message;
+        button.disabled = !bindingArchivePreview;
+    } finally {
+        previewButton.disabled = false;
+    }
+}
+
 let userChartMode = 'new';
 
 async function loadUsers() {

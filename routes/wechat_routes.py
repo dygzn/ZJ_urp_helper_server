@@ -72,7 +72,7 @@ def bind_wechat_account(wechat_session):
 
     if current_binding:
         device_id = current_binding['device_id']
-    elif existing_user:
+    elif existing_user and existing_user.get('device_id'):
         existing_binding = get_binding_by_device_id(existing_user['device_id'])
         if existing_binding and existing_binding['openid'] != openid:
             return jsonify({

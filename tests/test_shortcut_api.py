@@ -238,6 +238,13 @@ class UserLookupTests(unittest.TestCase):
                     ),
                 ],
             )
+            conn.execute(
+                '''INSERT INTO user_account
+                   (username, password, registered_at, last_bind_time, archived_at)
+                   VALUES (?, ?, ?, ?, ?)''',
+                ('2415108133', 'new-password', '2026-09-01T12:00:00',
+                 '2026-09-02T12:00:00', '2026-09-02T12:00:00'),
+            )
         self.get_db_patcher = mock.patch.object(
             user_service,
             'get_db',

@@ -27,15 +27,54 @@ member_bp = Blueprint('member', __name__)
 def _lock_withdrawal_state(conn, username):
     """串行化同一用户的提现余额检查；兼容 SQLite 和 MySQL。"""
     if hasattr(conn, 'conn'):
-        # MySQL 连接关闭 autocommit 后，FOR UPDATE 会锁定绑定用户行，
-        # 直到本次提现事务提交或回滚。
+        # MySQL 连接关闭 autocommit 后，FOR UPDATE 会锁定账号主表行，
+        # 直到本次提现事务提交或回滚。users 归档后可能没有设备行，
+        # 因此不能用设备绑定表作为并发锁。
         conn.execute(
-            'SELECT device_id FROM users WHERE username = ? FOR UPDATE',
+            'SELECT username FROM user_account WHERE username = ? FOR UPDATE',
             (username,),
         ).fetchall()
     else:
         # SQLite 没有 FOR UPDATE；立即取得写锁，避免两个请求同时通过余额检查。
         conn.execute('BEGIN IMMEDIATE')
+
+
+def _lock_order(conn, order_no):
+    """读取并锁定支付订单，保证重复回调只结算一次。"""
+    if hasattr(conn, 'conn'):
+        return conn.execute(
+            'SELECT * FROM orders WHERE order_no = ? FOR UPDATE',
+            (order_no,),
+        ).fetchone()
+    # SQLite 没有 FOR UPDATE；支付回调事务从一开始就取得写锁，
+    # 防止两个并发回调同时把同一笔订单当成 pending 结算。
+    conn.execute('BEGIN IMMEDIATE')
+    return conn.execute(
+        'SELECT * FROM orders WHERE order_no = ?',
+        (order_no,),
+    ).fetchone()
+
+
+def _lock_membership_state(conn, username):
+    """锁定同一学号的会员状态，避免不同订单并发续费互相覆盖。"""
+    if hasattr(conn, 'conn'):
+        # user_account 是每个学号唯一的一行；锁它可以把同一账号的
+        # 不同订单串行化。随后对会员行使用当前读，确保看见前一笔续费。
+        conn.execute(
+            'SELECT username FROM user_account WHERE username = ? FOR UPDATE',
+            (username,),
+        ).fetchone()
+        return conn.execute(
+            'SELECT member_type, expire_time FROM memberships WHERE username = ? FOR UPDATE',
+            (username,),
+        ).fetchone()
+
+    # SQLite 的 _lock_order 已经通过 BEGIN IMMEDIATE 锁住整个写事务，
+    # 这里保持同一查询接口即可。
+    return conn.execute(
+        'SELECT member_type, expire_time FROM memberships WHERE username = ?',
+        (username,),
+    ).fetchone()
 
 
 @member_bp.route('/api/member/status', methods=['GET'])
@@ -157,10 +196,10 @@ def member_pay_notify():
             return 'fail', 400
 
         with get_db() as conn:
-            order = conn.execute(
-                'SELECT * FROM orders WHERE order_no = ?', (order_no,)
-            ).fetchone()
+            order = _lock_order(conn, order_no)
             if not order:
+                return 'fail', 400
+            if _money(amount) != _money(order['amount']):
                 return 'fail', 400
             if order['status'] == 'paid':
                 ensure_invitation_earnings(conn, order_no=order_no)
@@ -174,9 +213,7 @@ def member_pay_notify():
 
             username = order['username']
             member_type = order['member_type']
-            existing = conn.execute(
-                'SELECT member_type, expire_time FROM memberships WHERE username = ?', (username,)
-            ).fetchone()
+            existing = _lock_membership_state(conn, username)
 
             expire_base = paid_at
             if existing:

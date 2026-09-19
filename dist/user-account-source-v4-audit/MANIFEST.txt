@@ -1,0 +1,6 @@
+Canonical account source: user_account
+Device binding source: users
+Protocol version: 2
+Includes all templates and static CSS/JS dependencies used by the homepage, admin page, and advertisement detail page.
+SQLite migration: users are imported before legacy user_accounts so newer bindings win.
+Payment callbacks: same-account membership updates are serialized.

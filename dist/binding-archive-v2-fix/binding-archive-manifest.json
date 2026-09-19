@@ -1,0 +1,8 @@
+{
+  "database.py": "6dd65a126c93d94546cca73a6c2e58a36552c9fb7c2c79e1ec94072658888296",
+  "services/binding_archive_service.py": "e16644c1395340d118c006207261a4104e1500dd1c2db2a2c5fd5fa69143c5d0",
+  "routes/admin_routes.py": "9dfd5800aa830b1010fe696d1d21903600f94ed83f5b885a3eee3dc9a482f28f",
+  "static/js/admin.js": "193661a75b8b7372f0aaad9c5767c7f9826b9f68c461c761957b21b4bb8e3368",
+  "templates/admin.html": "82ee7c13a4ccc28c21f7c46d695b64702cf04eeb433f8229cfa9cfc545bffaba",
+  "docs/binding-archive.md": "4242d386d042b779dc632b9825c6ffe016127e4fd5f60df5039ac44663d319a2"
+}

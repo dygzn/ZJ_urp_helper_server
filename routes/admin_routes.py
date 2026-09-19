@@ -13,9 +13,21 @@ from services.user_service import unbind_user
 from services.member_service import ensure_invitation_earnings, _money, _money_string
 from services.ad_service import get_ad_click_stats
 from services.online_service import get_online_snapshot
+from services.binding_archive_service import preview_archive, execute_archive, historical_users
 from constants import MEMBER_DURATION_DAYS
 
 admin_bp = Blueprint('admin_bp', __name__)
+
+
+def _public_config(config):
+    """返回管理员前端可见的配置，不把数据库密码发回浏览器。"""
+    public = dict(config or {})
+    database = dict(public.get('database') or {})
+    mysql = dict(database.get('mysql') or {})
+    mysql.pop('password', None)
+    database['mysql'] = mysql
+    public['database'] = database
+    return public
 
 
 @admin_bp.route('/api/admin/advertisement', methods=['GET', 'PUT'])
@@ -175,7 +187,7 @@ def admin_approve_rebind():
             return jsonify({'success': False, 'message': '请求不存在'})
 
         if approved:
-            unbind_user(row['device_id'])
+            unbind_user(row['device_id'], conn=conn)
             conn.execute(
                 'UPDATE pending_requests SET status = ? WHERE request_id = ?',
                 ('approved', request_id)
@@ -196,11 +208,7 @@ def admin_approve_rebind():
 def admin_users():
     try:
         with get_db() as conn:
-            rows = conn.execute('''
-                SELECT username, MIN(bind_time) as first_bind_time
-                FROM users
-                GROUP BY username
-            ''').fetchall()
+            rows = historical_users(conn)
 
         total = len(rows)
         daily_counts = defaultdict(int)
@@ -232,6 +240,37 @@ def admin_users():
         return jsonify({'success': False, 'message': f'用户统计加载失败: {str(e)}'})
 
 
+@admin_bp.route('/api/admin/bindings/archive', methods=['GET', 'POST'])
+@require_admin
+def admin_archive_bindings():
+    try:
+        from services import binding_archive_service
+        if getattr(binding_archive_service, 'PROTOCOL_VERSION', None) != 2:
+            raise ValueError('归档模块版本不一致。请更新 services/binding_archive_service.py 并重启所有服务进程，暂勿执行清理')
+        if request.method == 'GET':
+            response = jsonify(success=True, data=preview_archive())
+            response.headers['Cache-Control'] = 'no-store'
+            return response
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict) or payload.get('prepared') is not True:
+            return jsonify(success=False, message='请先备份数据库并暂停其他实例和用户入口'), 400
+        if payload.get('protocol_version') != 2:
+            raise ValueError('操作页面版本过旧，请强制刷新页面并重新预览')
+        result = execute_archive(payload.get('fingerprint'), payload.get('batch_id'))
+        if (not isinstance(result, dict) or result.get('protocol_version') != 2
+                or type(result.get('account_count')) is not int):
+            raise ValueError('执行返回旧版或不完整结果，未确认精简成功。请核对旧归档表并完整更新、重启服务，暂勿再次清理')
+    except ValueError as error:
+        return jsonify(success=False, message=str(error)), 409
+    except Exception:
+        # 数据库异常可能带 INSERT 参数（账号密码），不将其返回或写入日志。
+        return jsonify(success=False, message='归档未完成。请重新预览；若结果不确定，可使用原批次重试。'), 500
+    # 只有提交成功后才清理当前进程缓存；其他 worker 由部署流程重启。
+    from services.urp_service import _login_cache
+    _login_cache.clear()
+    return jsonify(success=True, data=result, message='用户资料已按学号合并保存，旧设备及会话明细已清理，请重启所有服务进程后开放用户入口')
+
+
 @admin_bp.route('/api/admin/ad_stats', methods=['GET'])
 @require_admin
 def admin_ad_stats():
@@ -244,7 +283,7 @@ def admin_ad_stats():
 @require_admin
 def admin_get_config():
     config = get_config()
-    return jsonify({'success': True, 'config': config})
+    return jsonify({'success': True, 'config': _public_config(config)})
 @admin_bp.route('/api/admin/config/database', methods=['POST'])
 @require_admin
 def admin_set_database_config():
@@ -269,12 +308,18 @@ def admin_set_database_config():
         password = mysql.get('password')
         if password in (None, '') and existing_db.get('type') == 'mysql':
             password = existing_mysql.get('password', '')
+        try:
+            mysql_port = int(mysql.get('port') or 3306)
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'message': 'MySQL 端口必须是数字'}), 400
+        if not 1 <= mysql_port <= 65535:
+            return jsonify({'success': False, 'message': 'MySQL 端口范围应为 1-65535'}), 400
         database_config = {
             'type': 'mysql',
             'sqlite_path': existing_db.get('sqlite_path', 'data/urp_helper.db'),
             'mysql': {
                 'host': (mysql.get('host') or '').strip(),
-                'port': int(mysql.get('port') or 3306),
+                'port': mysql_port,
                 'database': (mysql.get('database') or '').strip(),
                 'user': (mysql.get('user') or '').strip(),
                 'password': password or '',
@@ -287,7 +332,7 @@ def admin_set_database_config():
 
     config['database'] = database_config
     save_config(config)
-    return jsonify({'success': True, 'message': message, 'config': config})
+    return jsonify({'success': True, 'message': message, 'config': _public_config(config)})
 @admin_bp.route('/api/admin/config/database/migrate_sqlite', methods=['POST'])
 @require_admin
 def admin_migrate_sqlite_to_database():
@@ -363,7 +408,8 @@ def admin_members():
 
     with get_db() as conn:
         user = conn.execute(
-            'SELECT username, bind_time FROM users WHERE username = ? LIMIT 1',
+            '''SELECT username, registered_at AS bind_time
+               FROM user_account WHERE username = ? LIMIT 1''',
             (username,)
         ).fetchone()
         member = conn.execute(

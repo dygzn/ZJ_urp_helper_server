@@ -118,6 +118,33 @@ class WechatRouteTests(unittest.TestCase):
             ).fetchone()
         self.assertEqual(row['device_id'], 'existing-web-device')
 
+    def test_bind_allocates_device_when_account_has_no_active_device(self):
+        routes = self.load_routes()
+        with database.get_db() as conn:
+            conn.execute('''INSERT INTO user_account
+                (username, password, registered_at, last_bind_time, archived_at)
+                VALUES ('2024123456', 'account-password', '2026', '2026', '2026')''')
+
+        with mock.patch.object(routes, 'code_to_session', return_value={
+                'openid': 'openid-route-no-device', 'unionid': 'unionid-route-no-device'}):
+            session_response = self.client.post('/api/wechat/session', json={'code': 'code-no-device'})
+        token = session_response.get_json()['token']
+
+        with mock.patch.object(routes, 'urp_login', return_value=(True, '登录成功', None)):
+            response = self.client.post(
+                '/api/wechat/bind',
+                headers={'Authorization': f'Bearer {token}'},
+                json={'username': '2024123456', 'password': 'new-password'},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        with database.get_db() as conn:
+            row = conn.execute(
+                'SELECT device_id FROM wechat_bindings WHERE openid = ?',
+                ('openid-route-no-device',),
+            ).fetchone()
+        self.assertTrue(row['device_id'])
+
     def test_existing_check_bind_route_accepts_bearer_token(self):
         self.load_routes()
         bind_user('bearer-device', '2024987654', 'password')

@@ -8,6 +8,7 @@ import os
 import re
 import sqlite3
 from contextlib import contextmanager
+from datetime import datetime
 from constants import DB_FILE
 from services.config_service import get_config
 
@@ -170,8 +171,18 @@ def get_db(config_override=None):
 def _exec_ignore(conn, sql):
     try:
         conn.execute(sql)
-    except Exception:
-        pass
+    except Exception as exc:
+        # 迁移需要可重复执行，但权限不足、表损坏或目标表不存在都不应
+        # 被伪装成成功，否则应用会在运行请求时才以更难定位的方式失败。
+        message = str(exc).lower()
+        ignorable = (
+            'already exists',
+            'duplicate column',
+            'duplicate key name',
+            'duplicate key',
+        )
+        if not any(marker in message for marker in ignorable):
+            raise
 
 
 def _create_api_keys_table(conn, db_type):
@@ -679,12 +690,48 @@ def ensure_api_keys_table(config_override=None):
         _exec_ignore(conn, 'CREATE UNIQUE INDEX idx_api_keys_hash ON api_keys(key_hash)')
 
 
+def _create_binding_archive_tables(conn, db_type):
+    text_type = 'LONGTEXT' if db_type == 'mysql' else 'TEXT'
+    suffix = ' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4' if db_type == 'mysql' else ''
+    conn.execute(f'''CREATE TABLE IF NOT EXISTS user_account (
+        username VARCHAR(64) PRIMARY KEY,
+        password {text_type} NOT NULL,
+        registered_at VARCHAR(32) NOT NULL,
+        last_bind_time VARCHAR(32) NOT NULL,
+        archived_at VARCHAR(32) NOT NULL
+    ){suffix}''')
+    conn.execute(f'''CREATE TABLE IF NOT EXISTS binding_archive_batches (
+        batch_id VARCHAR(36) PRIMARY KEY,
+        archived_at VARCHAR(32) NOT NULL,
+        result_json {text_type} NOT NULL
+    ){suffix}''')
+
+
+def _migrate_plural_user_accounts(conn):
+    """把早期版本的 user_accounts（复数）合并到新的唯一账号主表。"""
+    try:
+        # 用一次幂等的 INSERT 完成补齐，避免旧表有数万条记录时每次启动
+        # 都执行一次逐行 SELECT。INSERT OR IGNORE 在 MySQL 适配器中会
+        # 转成 INSERT IGNORE，因此已有的单数主表记录永远不会被覆盖。
+        conn.execute('''INSERT OR IGNORE INTO user_account
+            (username, password, registered_at, last_bind_time, archived_at)
+            SELECT username, password, registered_at, last_bind_time, archived_at
+            FROM user_accounts''')
+    except Exception as exc:
+        message = str(exc).lower()
+        if 'no such table' in message or "doesn't exist" in message or 'does not exist' in message:
+            return
+        raise
+
+
 def init_db(config_override=None):
     """初始化当前配置指向的数据库表结构。"""
     db_config = get_database_config(config_override)
     with get_db(config_override) as conn:
         # 先创建快捷指令密钥表，避免其它历史表初始化失败时遗漏新表。
         _create_api_keys_table(conn, db_config['type'])
+        _create_binding_archive_tables(conn, db_config['type'])
+        _migrate_plural_user_accounts(conn)
         if db_config['type'] == 'mysql':
             _create_schema_mysql(conn)
         else:
@@ -703,7 +750,15 @@ def test_database_config(database_config):
     except Exception as exc:
         return False, str(exc)
 MIGRATION_TABLES = {
+    'user_account': ['username', 'password', 'registered_at', 'last_bind_time', 'archived_at'],
+    # 旧 users 是设备绑定记录；先从它提取最新绑定凭据，再导入
+    # 旧复数账号表。这样“旧复数表 + 更晚 users 绑定”的数据库不会
+    # 因 INSERT OR IGNORE 先占用主键而丢失最新密码。
     'users': ['device_id', 'username', 'password', 'bind_time', 'last_auto_update'],
+    # 仅作为旧 SQLite 导入源，当前目标表是 user_account。它必须排在
+    # users 后面：只补齐 users 没有的账号，不覆盖设备表中的较新绑定。
+    'user_accounts': ['username', 'password', 'registered_at', 'last_bind_time', 'archived_at'],
+    'binding_archive_batches': ['batch_id', 'archived_at', 'result_json'],
     'wechat_bindings': ['openid', 'device_id', 'unionid', 'bind_time', 'updated_at'],
     'wechat_sessions': ['token_hash', 'openid', 'expires_at', 'created_at', 'last_seen_at'],
     'pending_requests': ['request_id', 'device_id', 'old_username', 'new_username', 'reason', 'request_time', 'status', 'notified'],
@@ -725,11 +780,43 @@ MIGRATION_TABLES = {
     'orders': ['order_no', 'device_id', 'username', 'member_type', 'amount', 'pay_type', 'status', 'create_time', 'pay_time', 'notify_url', 'pay_url'],
     'admin_service_status': ['id', 'status_text', 'accepting_orders', 'updated_at'],
 }
+ACCOUNT_FIELDS = ('username', 'password', 'registered_at', 'last_bind_time', 'archived_at')
 
 
 def _source_columns(source_conn, table):
     rows = source_conn.execute(f'PRAGMA table_info({table})').fetchall()
     return {row['name'] for row in rows}
+
+
+def _account_rows_from_legacy_users(rows, archived_at=None):
+    """从旧版 users 设备记录生成一条一学号账号资料。"""
+    archived_at = archived_at or datetime.now().isoformat()
+    accounts = {}
+    for row in rows:
+        username = str(row['username'] or '').strip()
+        bind_time = str(row['bind_time'] or '').strip()
+        if not username or not bind_time:
+            raise ValueError('旧 users 表存在缺少学号或绑定时间的记录，已停止导入')
+        password = row['password'] or ''
+        current = accounts.get(username)
+        if current is None:
+            accounts[username] = {
+                'username': username,
+                'password': password,
+                'registered_at': bind_time,
+                'last_bind_time': bind_time,
+                'archived_at': archived_at,
+            }
+            continue
+
+        if bind_time < current['registered_at']:
+            current['registered_at'] = bind_time
+        if bind_time >= current['last_bind_time']:
+            # 旧版本可能已经把设备表密码清空；空值不能覆盖有效凭据。
+            if password:
+                current['password'] = password
+            current['last_bind_time'] = bind_time
+    return list(accounts.values())
 
 
 def migrate_sqlite_to_current_database(sqlite_path=None):
@@ -742,32 +829,68 @@ def migrate_sqlite_to_current_database(sqlite_path=None):
     if not os.path.exists(sqlite_path):
         return False, f'SQLite 文件不存在: {sqlite_path}', {}
 
-    init_db()
     result = {}
-    source = sqlite3.connect(sqlite_path)
-    source.row_factory = sqlite3.Row
     try:
-        with get_db() as target:
-            for table, columns in MIGRATION_TABLES.items():
-                try:
-                    existing_columns = _source_columns(source, table)
-                    usable_columns = [col for col in columns if col in existing_columns]
-                    if not usable_columns:
-                        result[table] = 0
-                        continue
-                    select_sql = f"SELECT {', '.join(usable_columns)} FROM {table}"
-                    rows = source.execute(select_sql).fetchall()
-                    if not rows:
-                        result[table] = 0
-                        continue
-                    placeholders = ', '.join(['?'] * len(usable_columns))
-                    insert_sql = f"REPLACE INTO {table} ({', '.join(usable_columns)}) VALUES ({placeholders})"
-                    values = [tuple(row[col] for col in usable_columns) for row in rows]
-                    target.executemany(insert_sql, values)
-                    result[table] = len(values)
-                except Exception as exc:
-                    result[table] = f'失败: {exc}'
-    finally:
-        source.close()
+        init_db()
+        source = sqlite3.connect(sqlite_path)
+        source.row_factory = sqlite3.Row
+        try:
+            with get_db() as target:
+                for table, columns in MIGRATION_TABLES.items():
+                    try:
+                        existing_columns = _source_columns(source, table)
+                        usable_columns = [col for col in columns if col in existing_columns]
+                        if not usable_columns:
+                            result[table] = 0
+                            continue
+                        select_sql = f"SELECT {', '.join(usable_columns)} FROM {table}"
+                        if table == 'users' and {'username', 'bind_time', 'device_id'} <= set(usable_columns):
+                            # 同一学号、同一绑定时间存在多条设备记录时，
+                            # 固定设备顺序，保证迁移结果可重复。
+                            select_sql += ' ORDER BY username, bind_time, device_id'
+                        rows = source.execute(select_sql).fetchall()
+                        if not rows:
+                            result[table] = 0
+                            if table == 'users':
+                                result['user_account_from_users'] = 0
+                            continue
+                        placeholders = ', '.join(['?'] * len(usable_columns))
+                        target_table = 'user_account' if table == 'user_accounts' else table
+                        operation = 'INSERT OR IGNORE' if table == 'user_accounts' else 'REPLACE'
+                        insert_sql = f"{operation} INTO {target_table} ({', '.join(usable_columns)}) VALUES ({placeholders})"
+                        values = [tuple(row[col] for col in usable_columns) for row in rows]
+                        account_rows = None
+                        if table == 'users':
+                            # 先从旧设备记录提取账号资料，再把兼容表中的密码
+                            # 清空，确保新库的凭据只存在于 user_account。
+                            account_rows = _account_rows_from_legacy_users(rows)
+                            if 'password' in usable_columns:
+                                password_index = usable_columns.index('password')
+                                values = [
+                                    tuple('' if index == password_index else value
+                                          for index, value in enumerate(row_values))
+                                    for row_values in values
+                                ]
+                        target.executemany(insert_sql, values)
+                        result[table] = len(values)
+                        if account_rows is not None:
+                            if account_rows:
+                                target.executemany(
+                                    '''INSERT OR IGNORE INTO user_account
+                                       (username, password, registered_at, last_bind_time, archived_at)
+                                       VALUES (?, ?, ?, ?, ?)''',
+                                    [tuple(account[field] for field in ACCOUNT_FIELDS)
+                                     for account in account_rows],
+                                )
+                            result['user_account_from_users'] = len(account_rows)
+                    except Exception as table_error:
+                        result[table] = f'失败: {table_error}'
+                        raise
+        finally:
+            source.close()
+    except Exception as exc:
+        # 任何一张表失败都让 get_db 回滚整个导入，避免前面已经提交的
+        # 表造成“部分迁移却显示成功”的误导。
+        return False, f'SQLite 数据导入失败，已回滚: {exc}', result
 
     return True, 'SQLite 数据导入完成', result

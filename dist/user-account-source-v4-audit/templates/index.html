@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URP教务助手</title>
+    <link rel="stylesheet" href="/static/css/style.css?v=17">
+</head>
+<body>
+
+    <div id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+            <h2>URP教务助手</h2>
+            <button class="close-btn" type="button" onclick="closeSidebar()" aria-label="关闭导航菜单">×</button>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="#" class="nav-item active" data-page="home" aria-current="page"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg><span>首页</span></a>
+            <a href="#" class="nav-item" data-page="schedule"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="9" y1="4" x2="9" y2="2"/><line x1="15" y1="4" x2="15" y2="2"/></svg><span>课程表</span></a>
+            <a href="#" class="nav-item" data-page="exams"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span>考试安排</span></a>
+            <a href="#" class="nav-item" data-page="grades"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span>成绩查询</span></a>
+            <a href="#" class="nav-item" data-page="evaluation"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><span>教学评估</span></a>
+            <a href="#" class="nav-item" data-page="announcements"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg><span>系统公告</span></a>
+            <a href="#" class="nav-item" data-page="service-status"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M3 12h18"/></svg><span>找我做事</span></a>
+            <a href="#" class="nav-item" data-page="feedback"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg><span>反馈建议</span></a>
+            <a href="#" class="nav-item" data-page="shortcut-api"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 7a5 5 0 00-7.07 0L5.5 9.43a5 5 0 007.07 7.07L15 14.07"/><path d="M9 17a5 5 0 007.07 0l2.43-2.43a5 5 0 00-7.07-7.07L9 9.93"/><path d="M8 12h8"/></svg><span>快捷指令 API</span></a>
+            <a href="#" class="nav-item" data-page="member"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg><span>会员购买</span></a>
+        </nav>
+        <div class="sidebar-footer">
+            <button class="rebind-btn" type="button" onclick="showRebindDialog()">换绑账号</button>
+            <p class="user-info">当前用户: <span id="sidebar-username">未登录</span></p>
+        </div>
+    </div>
+
+    <div id="main-content" class="main-content">
+        <header class="header">
+            <button id="menu-trigger" class="menu-btn" type="button" onclick="openSidebar()" aria-label="打开导航菜单" aria-controls="sidebar" aria-expanded="false"><span></span><span></span><span></span></button>
+            <h1 id="page-title">首页</h1>
+            {% if ad.enabled %}
+            <div id="header-ad-slot" class="header-ad-slot" aria-label="广告位" hidden>
+                <div id="header-ad-card" class="header-ad-card">
+                    <a class="header-ad-main" href="/ad-detail?source=header" aria-label="推广 {{ ad.title }}，查看详情">
+                        {% if ad.image_url %}<img class="header-ad-thumbnail" src="{{ ad.image_url }}" alt="" onerror="this.hidden=true">{% endif %}
+                        <span class="header-ad-tag">推广</span>
+                        <span class="header-ad-copy"><strong class="header-ad-copy-wide">{{ ad.title }}</strong><strong class="header-ad-copy-compact">{{ ad.title }}</strong><small>{{ ad.summary }}</small></span>
+                        <span class="header-ad-cta">查看详情 <span aria-hidden="true">→</span></span>
+                    </a>
+                    <button class="header-ad-options" type="button" data-ad-action="options" aria-expanded="false" aria-controls="header-ad-detail" aria-label="广告选项">⋯</button>
+                    <button class="header-ad-close" type="button" data-ad-action="dismiss" aria-label="暂时关闭广告">×</button>
+                </div>
+                <div id="header-ad-detail" class="header-ad-detail" hidden>
+                    <p>{{ ad.summary }}</p>
+                    <div class="header-ad-detail-actions">
+                        <button class="header-ad-detail-btn" type="button" data-ad-action="never-show">本设备永不显示</button>
+                        <button class="header-ad-detail-btn" type="button" data-ad-action="dismiss">暂时关闭</button>
+                    </div>
+                </div>
+                <button id="header-ad-restore" class="header-ad-restore" type="button" data-ad-action="restore" hidden>广告已隐藏 · 恢复展示</button>
+            </div>
+            {% endif %}
+            <div id="login-status-indicator" class="login-status-indicator" role="status" aria-live="polite"><span class="status-dot status-checking"></span><span class="status-text">检查中</span></div>
+        </header>
+
+        <div class="content-wrapper">
+            <div id="page-home" class="page active">
+                <div class="urgent-card">
+                    <div class="urgent-header"><h2>接下来最紧急的事情</h2><button class="refresh-btn" type="button" onclick="refreshUrgentEvent()" aria-label="刷新紧急事项"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg><span>刷新</span></button></div>
+                    <div id="urgent-content" class="urgent-content"><div class="loading">加载中...</div></div>
+                </div>
+            </div>
+
+            <div id="page-schedule" class="page">
+                <div class="page-access-gate" data-page-access-gate hidden></div>
+                <div class="schedule-container">
+                    <div id="schedule-message" class="schedule-message" style="display:none;"></div>
+                    <div id="schedule-content" class="schedule-content schedule-swipe-viewport" aria-label="课程表周次切换区域">
+                        <div class="schedule-dino-lane" aria-hidden="true" data-direction="next" data-obstacle="cactus-single">
+                            <span class="schedule-dino-stage">
+                                <span class="schedule-dino-cloud schedule-dino-cloud-a"></span>
+                                <span class="schedule-dino-cloud schedule-dino-cloud-b"></span>
+                                <span class="schedule-dino-character">
+                                    <svg viewBox="0 0 48 56" role="presentation" focusable="false">
+                                        <path fill="#268343" d="M25 38h8v11h5v4H27l-3-11z"/>
+                                        <path fill="currentColor" d="M23 7Q23 2 29 2h9q8 0 8 8v8q0 5-6 5H30v5q5 5 4 11-1 7-10 7h-4Q8 44 4 34L1 25q7 7 14 6l7-10z"/>
+                                        <path fill="#a5dc85" d="M29 25q-7 5-8 11t6 7q6-2 5-8z"/>
+                                        <path fill="currentColor" d="M15 39h10l-3 10h6v4H16l-2-5z"/>
+                                        <path d="M31 29h5v4" fill="none" stroke="#268343" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <path d="M27 7q3-2 7-1" fill="none" stroke="#81cf79" stroke-width="2.5" stroke-linecap="round"/>
+                                        <ellipse cx="35" cy="11" rx="3.4" ry="4" fill="var(--dino-eye, #fff)"/>
+                                        <ellipse cx="36" cy="11.5" rx="1.6" ry="2.3" fill="#193c29"/>
+                                        <circle cx="36.5" cy="10.5" r="0.6" fill="#fff"/>
+                                        <circle cx="42" cy="14" r="1" fill="#268343"/>
+                                        <path d="M33 19h9" fill="none" stroke="#246c3b" stroke-width="1.8" stroke-linecap="round"/>
+                                    </svg>
+                                </span>
+                                <span class="schedule-dino-fireball"></span>
+                                <span class="schedule-dino-dust"><i></i><i></i><i></i></span>
+                                <span class="schedule-dino-obstacle"><i></i><b></b></span>
+                                <span class="schedule-dino-fragments"><i></i><i></i><i></i><i></i></span>
+                                <span class="schedule-dino-dizzy"><i></i><i></i><i></i></span>
+                            </span>
+                        </div>
+                        <div id="schedule-swipe-track" class="schedule-swipe-track">
+                            <section class="schedule-week-panel" data-schedule-panel="previous" aria-hidden="true"></section>
+                            <section class="schedule-week-panel is-current" data-schedule-panel="current" aria-hidden="false">
+                                <div class="schedule-header"><div class="schedule-header-time"></div><div class="schedule-header-day" data-schedule-day="1"><span class="schedule-day-name">周一</span><span class="schedule-day-date" data-schedule-date="1"></span></div><div class="schedule-header-day" data-schedule-day="2"><span class="schedule-day-name">周二</span><span class="schedule-day-date" data-schedule-date="2"></span></div><div class="schedule-header-day" data-schedule-day="3"><span class="schedule-day-name">周三</span><span class="schedule-day-date" data-schedule-date="3"></span></div><div class="schedule-header-day" data-schedule-day="4"><span class="schedule-day-name">周四</span><span class="schedule-day-date" data-schedule-date="4"></span></div><div class="schedule-header-day" data-schedule-day="5"><span class="schedule-day-name">周五</span><span class="schedule-day-date" data-schedule-date="5"></span></div><div class="schedule-header-day schedule-header-weekend" data-schedule-day="6"><span class="schedule-day-name">周六</span><span class="schedule-day-date" data-schedule-date="6"></span></div><div class="schedule-header-day schedule-header-weekend" data-schedule-day="7"><span class="schedule-day-name">周日</span><span class="schedule-day-date" data-schedule-date="7"></span></div></div>
+                                <div class="schedule-grid">
+                                    <div class="schedule-timeline">
+                                        <div class="timeline-item"><div class="timeline-section">1</div><div class="timeline-time-start">08:20</div><div class="timeline-time-end">09:05</div></div>
+                                        <div class="timeline-item"><div class="timeline-section">2</div><div class="timeline-time-start">09:15</div><div class="timeline-time-end">10:00</div></div>
+                                        <div class="timeline-item"><div class="timeline-section">3</div><div class="timeline-time-start">10:20</div><div class="timeline-time-end">11:05</div></div>
+                                        <div class="timeline-item"><div class="timeline-section">4</div><div class="timeline-time-start">11:15</div><div class="timeline-time-end">12:00</div></div>
+                                        <div class="timeline-item"><div class="timeline-section">5</div><div class="timeline-time-start">14:00</div><div class="timeline-time-end">14:45</div></div>
+                                        <div class="timeline-item"><div class="timeline-section">6</div><div class="timeline-time-start">14:55</div><div class="timeline-time-end">15:40</div></div>
+                                        <div class="timeline-item"><div class="timeline-section">7</div><div class="timeline-time-start">16:00</div><div class="timeline-time-end">16:45</div></div>
+                                        <div class="timeline-item"><div class="timeline-section">8</div><div class="timeline-time-start">16:55</div><div class="timeline-time-end">17:40</div></div>
+                                    </div>
+                                    <div class="schedule-days" id="schedule-days"></div>
+                                </div>
+                            </section>
+                            <section class="schedule-week-panel" data-schedule-panel="next" aria-hidden="true"></section>
+                        </div>
+                    </div>
+                    <div class="action-bar schedule-bottom-controls">
+                        <div class="schedule-week-controls">
+                            <button class="btn-secondary" type="button" onclick="changeWeek(-1, true)">上一周</button>
+                            <label class="week-select-wrap" for="week-select"><span>周次</span><select id="week-select" onchange="changeWeek(parseInt(this.value,10)-currentWeek)"></select></label>
+                            <button class="btn-secondary" type="button" onclick="changeWeek(1, true)">下一周</button>
+                        </div>
+                        <div class="schedule-data-actions">
+                            <button class="btn-primary" type="button" onclick="loadSchedule()">刷新显示</button>
+                            <button id="update-schedule-btn" class="btn-primary" type="button" onclick="updateScheduleData(event)">更新课程表</button>
+                            <button class="btn-secondary" type="button" onclick="showHistoricalSchedule()">历年课表查询</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="page-exams" class="page"><div class="page-access-gate" data-page-access-gate hidden></div><div class="exams-container"><h2>考试安排</h2><p class="page-section-desc">展示已缓存的考试安排，也可以重新从教务系统获取。</p><div id="exams-content" class="exams-content"><div class="loading">加载中...</div></div><div class="action-bar"><button class="btn-primary" type="button" onclick="loadExams()">刷新显示</button><button id="update-exams-btn" class="btn-primary" type="button" onclick="updateExamsData(event)">更新考试安排</button></div></div></div>
+
+            <div id="page-grades" class="page">
+                <div class="page-access-gate" data-page-access-gate hidden></div>
+                <div class="grades-container grades-dashboard">
+                    <div class="grades-dashboard-main">
+                        <h2>成绩查询</h2>
+                        <div id="grades-menu" class="grades-menu grades-card-grid">
+                            <button class="grade-action-btn grade-action-btn-summary" type="button" onclick="gradesLoadLatestSummary()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-7"/></svg>
+                                <span class="grade-action-label">一键查本学期成绩</span>
+                                <span class="grade-action-desc">自动展示最新学期及格成绩和不及格成绩</span>
+                            </button>
+                            <button class="grade-action-btn" type="button" onclick="gradesShowCurrentSemester()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                                <span class="grade-action-label">本学期成绩</span>
+                                <span class="grade-action-desc">查看当前学期已出的课程成绩</span>
+                            </button>
+                            <button class="grade-action-btn" type="button" onclick="gradesShowSemesterPicker()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 6h6M9 10h6M9 14h4"/></svg>
+                                <span class="grade-action-label">按学期查询</span>
+                                <span class="grade-action-desc">选择学期查看历史及格成绩</span>
+                            </button>
+                            <button class="grade-action-btn grade-action-btn-warn" type="button" onclick="gradesLoadFailed()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+                                <span class="grade-action-label">不及格成绩</span>
+                                <span class="grade-action-desc">查看尚不及格和曾不及格记录</span>
+                            </button>
+                            <button class="grade-action-btn grade-action-btn-accent" type="button" onclick="gradesLoadGpa()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19V9M12 19V5M19 19v-7"/></svg>
+                                <span class="grade-action-label">学分绩点</span>
+                                <span class="grade-action-desc">查询学分绩点和学位绩点</span>
+                            </button>
+                            <button class="grade-action-btn" type="button" onclick="gradesShowExamPicker()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M9 15l2 2 4-5"/></svg>
+                                <span class="grade-action-label">考试成绩</span>
+                                <span class="grade-action-desc">按考试场次查询成绩明细</span>
+                            </button>
+                        </div>
+                        <div id="grades-result" class="grades-result" style="display:none;">
+                            <div class="grades-result-header"><button class="grades-back-btn" type="button" onclick="gradesBackToMenu()">返回</button><h3 id="grades-result-title"></h3></div>
+                            <div id="grades-content" class="grades-content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="page-evaluation" class="page"><div class="page-access-gate" data-page-access-gate hidden></div><div class="evaluation-container"><h2>教学评估</h2><p class="page-section-desc">查询待评课程，支持一键提交默认评教。</p><div class="action-bar"><button class="btn-primary" id="do-eval-btn" type="button" onclick="checkUnevaluatedCourses()">刷新查询</button><button class="btn-primary" id="one-click-eval-btn" type="button" onclick="oneClickEvaluation()">一键评教</button></div><div id="evaluation-result" class="evaluation-result"></div></div></div>
+
+            <div id="page-announcements" class="page"><div class="announcements-container"><h2>系统公告</h2><p class="page-section-desc">查看管理员发布的公告和通知。</p><div id="announcements-list-content" class="announcements-list-content"><div class="loading">加载中...</div></div></div></div>
+
+            <div id="page-service-status" class="page">
+                <div class="service-status-container">
+                    <div class="service-hero-grid">
+                        <section class="service-intro-card">
+                            <span class="service-status-kicker">无情的作业机器</span>
+                            <h2 class="service-hero-title">课程作业懒得做？<br>我来帮你解决。</h2>
+                            <p class="service-hero-description">把课程名称、具体要求和截止时间发来，我会先帮你免费评估，价格实惠童叟无欺。</p>
+                            <div class="service-contact-control">
+                                <button id="service-contact-trigger" class="service-contact-trigger" type="button" aria-expanded="false" aria-controls="service-contact-popover">联系我 <span aria-hidden="true">→</span></button>
+                                <div id="service-contact-popover" class="service-contact-popover" hidden>
+                                    <a class="service-contact-option" data-contact="wechat" data-copy-text="Dygzn123" href="weixin://contacts/profile/Dygzn123" target="_blank" rel="noopener noreferrer" aria-label="微信：复制微信号并尝试打开微信">
+                                        <span class="service-contact-icon is-wechat" aria-hidden="true">微</span>
+                                        <span><strong>微信</strong><small data-copy-feedback>复制微信号并尝试打开微信</small></span>
+                                    </a>
+                                    <button class="service-contact-option" data-contact="qq" data-copy-text="786171937" type="button" aria-label="QQ：复制 786171937">
+                                        <span class="service-contact-icon is-qq" aria-hidden="true">Q</span>
+                                        <span><strong>QQ</strong><small data-copy-feedback>786171937</small></span>
+                                    </button>
+                                </div>
+                            </div>
+                        </section>
+                        <aside id="service-status-content" class="service-status-card">
+                            <div class="loading">加载中...</div>
+                        </aside>
+                    </div>
+
+                    <h2 class="service-section-title">明确肯定可以做的</h2>
+                    <div class="service-offer-grid">
+                        <article class="service-offer-card">
+                            <span class="service-offer-icon" aria-hidden="true">Py</span>
+                            <h3>Python/C++/java等课程</h3>
+                            <p>支持定制项目名称、代码，直接给到可以提交的pdf文件</p>
+                        </article>
+                        <article class="service-offer-card">
+                            <span class="service-offer-icon" aria-hidden="true">Lx</span>
+                            <h3>Linux 实验</h3>
+                            <p>定制系统名字等等，全包交付</p>
+                        </article>
+                        <article class="service-offer-card">
+                            <span class="service-offer-icon" aria-hidden="true">X</span>
+                            <h3>Excel/word 相关软件操作</h3>
+                            <p>计算机基础/数据分析等课程的任务可以上机完成</p>
+                        </article>
+                            <article class="service-offer-card">
+                            <span class="service-offer-icon" aria-hidden="true">☁</span>
+                            <h3>各类网课代刷</h3>
+                            <p>智慧树/学习通等网课代刷</p>
+                        </article>
+                    </div>
+
+                    <h2 class="service-section-title">流程</h2>
+                    <div class="service-process-grid">
+                        <article class="service-process-step">
+                            <span aria-hidden="true">1</span>
+                            <div><h3>把要求发来</h3><p>附上课程、任务说明、截止时间</p></div>
+                        </article>
+                        <article class="service-process-step">
+                            <span aria-hidden="true">2</span>
+                            <div><h3>免费评估</h3><p>确认能否完成、处理方式、预计时间和报价</p></div>
+                        </article>
+                        <article class="service-process-step">
+                            <span aria-hidden="true">3</span>
+                            <div><h3>开始解决</h3><p>按约定时间交付</p></div>
+                        </article>
+                    </div>
+                    <p class="service-pricing-note">可以先把要求发来问一下，只有你想不到没有我做不到。</p>
+                </div>
+            </div>
+
+            <div id="page-feedback" class="page">
+                <div class="feedback-container">
+                    <div class="feedback-hero">
+                        <div>
+                            <h2>反馈建议</h2>
+                            <p class="page-section-desc">遇到问题、想到点子，或者希望管理员跟进的事情，都可以写在这里。</p>
+                        </div>
+                        <div class="feedback-hero-note">通常会在查看后回复</div>
+                    </div>
+                    <div class="feedback-new-box">
+                        <div class="feedback-new-head">
+                            <div>
+                                <h3>告诉我们你的想法</h3>
+                                <p>描述越具体，处理起来越快。</p>
+                            </div>
+                            <span class="feedback-soft-badge">可公开讨论</span>
+                        </div>
+                        <textarea id="new-feedback-content" rows="5" placeholder="例如：课表刷新失败、成绩显示异常，或你希望新增的功能..."></textarea>
+                        <div class="feedback-visibility-row" role="radiogroup" aria-label="反馈可见范围">
+                            <label class="feedback-choice"><input type="radio" name="feedback-visibility" value="public" checked><span><strong>公开</strong><small>其他同学可查看并参与回复</small></span></label>
+                            <label class="feedback-choice"><input type="radio" name="feedback-visibility" value="self"><span><strong>仅自己可见</strong><small>适合账号、隐私或个人问题</small></span></label>
+                            <button class="btn-primary feedback-submit-btn" type="button" onclick="submitNewFeedback()" aria-describedby="feedback-form-status">提交反馈</button>
+                        </div>
+                        <div id="feedback-form-status" class="feedback-form-status" role="status" aria-live="polite"></div>
+                    </div>
+                    <div id="feedback-list-content" class="feedback-list-content"><div class="loading">加载中...</div></div>
+                </div>
+            </div>
+
+            <div id="page-shortcut-api" class="page">
+                <div class="page-access-gate" data-page-access-gate hidden></div>
+                <div class="shortcut-api-page-container">
+                    <div class="shortcut-api-page-head">
+                        <div>
+                            <span class="member-plan-kicker">快捷指令</span>
+                            <h2>快捷指令 API</h2>
+                            <p class="page-section-desc">为 Apple 快捷指令提供历年课表、本学期成绩和接下来最紧急事项查询，返回结构化 JSON，方便直接提取和展示。</p>
+                        </div>
+                        <span class="shortcut-api-badge">初级会员以上</span>
+                    </div>
+
+                    <div id="shortcut-api-member-status" class="member-status-card member-status-panel">
+                        <div class="loading">加载中...</div>
+                    </div>
+
+                    <section id="shortcut-api-card" class="shortcut-api-card" aria-labelledby="shortcut-api-title">
+                        <div class="shortcut-api-card-head">
+                            <div>
+                                <span class="member-plan-kicker">学号密钥</span>
+                                <h3 id="shortcut-api-title">教务查询 API</h3>
+                                <p>生成后可在 Apple 快捷指令中调用，密钥只绑定学号，与设备 ID 无关。</p>
+                            </div>
+                            <span class="shortcut-api-badge">安全存储</span>
+                        </div>
+                        <div id="shortcut-api-status" class="shortcut-api-status">
+                            <div class="loading">加载中...</div>
+                            <button class="btn-primary" type="button" onclick="generateShortcutApiKey()" hidden>生成快捷指令密钥</button>
+                        </div>
+                        <div id="shortcut-api-key" class="shortcut-api-key" hidden>
+                            <button id="shortcut-api-copy" class="btn-primary" type="button" onclick="copyShortcutApiKey()" hidden>复制密钥</button>
+                        </div>
+                        <div class="shortcut-api-help">
+                            <div><span>接口地址</span><code id="shortcut-api-endpoint"></code></div>
+                            <p>支持 <code>historical_schedule</code>、<code>grades</code> 和 <code>urgent_event</code> 三种 action。请求体示例：<code>{"key":"你的密钥","action":"grades","params":{}}</code>。密钥只显示一次，请立即复制保存；重新生成会使旧密钥失效。</p>
+                        </div>
+                    </section>
+                </div>
+            </div>
+
+            <div id="page-member" class="page">
+                <div class="member-container">
+                    <div class="member-page-head">
+                        <h2>会员购买</h2>
+                        <p class="page-section-desc">续费会自动叠加到原到期日之后，不会覆盖剩余天数。</p>
+                    </div>
+
+                    <div id="member-status-card" class="member-status-card member-status-panel">
+                        <div class="loading">加载中...</div>
+                    </div>
+
+                    <div class="member-plans" aria-label="会员套餐">
+                        <div class="member-plan-card">
+                            <div class="member-plan-kicker">功能会员</div>
+                            <div class="member-plan-title-row">
+                                <div>
+                                    <h3>初级会员</h3>
+                                    <p class="member-plan-desc">用于解锁管理员设置为会员可用的查询能力。</p>
+                                </div>
+                                <p class="member-plan-price">3 元<span>/ 半年</span></p>
+                            </div>
+                            <ul class="member-plan-list">
+                                <li>可使用受限查询功能，例如成绩查询</li>
+                                <li>适合只需要日常教务查询的用户</li>
+                                <li>到期前继续开通会自动顺延有效期</li>
+                            </ul>
+                            <button class="btn-primary btn-full" type="button" onclick="showPayDialog('basic')">开通初级会员</button>
+                        </div>
+
+                        <div class="member-plan-card member-plan-advanced">
+                            <div class="member-plan-kicker">支持会员</div>
+                            <div class="member-plan-title-row">
+                                <div>
+                                    <h3>高级会员</h3>
+                                    <p class="member-plan-desc">不额外增加查询功能，主要用于支持项目继续维护。</p>
+                                </div>
+                                <p class="member-plan-price">5 元<span>/ 半年</span></p>
+                            </div>
+                            <ul class="member-plan-list">
+                                <li>包含初级会员的受限查询权限</li>
+                                <li>支持项目继续维护，感谢你的支持</li>
+                                <li>感谢支持，项目会优先保障稳定性</li>
+                            </ul>
+                            <button class="btn-primary btn-full" type="button" onclick="showPayDialog('advanced')">开通高级会员</button>
+                        </div>
+                    </div>
+
+                    <div id="active-pay-links" class="active-pay-links"></div>
+                    <div id="member-orders-content" class="member-orders-content"></div>
+                    <div id="invitation-card" class="invitation-card">
+                        <h3>邀请与返佣</h3>
+                        <div id="invitation-link-content" class="invitation-link-content">
+                            <div class="loading">加载中...</div>
+                        </div>
+                        <div id="invitation-earnings-content">
+                            <div class="loading">加载中...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="login-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="login-modal-title" data-dismissible="false">
+        <div class="modal-content login-card">
+            <button class="modal-close login-close" type="button" onclick="skipBind()" aria-label="暂不绑定，继续以访客浏览">×</button>
+            <div class="login-header">
+                <h2 id="login-modal-title">绑定教务账号</h2>
+                <p class="modal-desc">绑定后即可查询课表、成绩、考试安排等教务信息。</p>
+            </div>
+            <form id="login-form" class="login-form" onsubmit="handleLogin(event)">
+                <div class="login-field-grid">
+                    <div class="form-group">
+                        <label for="username">学号</label>
+                        <input type="text" id="username" name="username" required autocomplete="username" placeholder="请输入学号">
+                    </div>
+                    <div class="form-group">
+                        <label for="password">教务密码</label>
+                        <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="请输入教务密码">
+                    </div>
+                </div>
+                <div class="login-actions">
+                    <button type="submit" class="btn-primary btn-full">绑定账号</button>
+                </div>
+            </form>
+            <div id="login-error" class="error-message"></div>
+        </div>
+    </div>
+
+    <div id="rebind-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="rebind-modal-title"><div class="modal-content"><button class="modal-close" type="button" onclick="closeRebindDialog()" aria-label="关闭">×</button><h2 id="rebind-modal-title">重新绑定账号</h2><p class="modal-desc">确认后会解绑当前设备账号，然后重新打开绑定窗口。</p><form id="rebind-form" onsubmit="handleRebind(event)"><button type="submit" class="btn-primary btn-full">确认解绑并重新绑定</button></form><div id="rebind-error" class="error-message"></div></div></div>
+
+    <div id="announcement-popup" class="modal announcement-popup" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="announcement-popup-title"><div class="modal-content announcement-modal-content"><button class="modal-close" type="button" onclick="closeAnnouncementPopup()" aria-label="关闭">×</button><h2 id="announcement-popup-title">系统公告</h2><div id="announcement-popup-content" class="announcement-popup-content"></div><div class="announcement-popup-footer"><label class="never-show-label"><input type="checkbox" id="never-show-checkbox"> 不再显示此公告</label><button class="btn-primary" type="button" onclick="closeAnnouncementPopup()">关闭</button></div></div></div>
+
+    <div id="withdraw-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="withdraw-modal-title"><div class="modal-content"><button class="modal-close" type="button" onclick="closeWithdrawDialog()" aria-label="关闭">×</button><h2 id="withdraw-modal-title">申请提现</h2><div id="withdraw-available" class="withdraw-available"><div class="loading">加载中...</div></div><form id="withdraw-form" onsubmit="handleWithdraw(event)"><div class="form-group"><label for="withdraw-real-name">真实姓名</label><input type="text" id="withdraw-real-name" required placeholder="请输入真实姓名"></div><div class="form-group"><label for="withdraw-alipay">支付宝账号</label><input type="text" id="withdraw-alipay" required placeholder="请输入支付宝账号"></div><button type="submit" class="btn-primary btn-full">提交提现申请</button></form><div id="withdraw-error" class="error-message"></div><div id="withdraw-history" class="withdraw-history"></div></div></div>
+
+    <div id="pay-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="pay-modal-title"><div class="modal-content pay-modal-card"><button class="modal-close" type="button" onclick="closePayDialog()" aria-label="关闭">×</button><h2 id="pay-modal-title">&#24320;&#36890;&#20250;&#21592;</h2><p id="pay-modal-desc" class="modal-desc"></p><div class="pay-section-title">&#36873;&#25321;&#25903;&#20184;&#26041;&#24335;</div><div class="pay-type-options" role="radiogroup" aria-label="&#25903;&#20184;&#26041;&#24335;"><label class="pay-type-option pay-type-option-active" for="pay-type-alipay"><input type="radio" id="pay-type-alipay" name="pay-type" value="alipay" checked onchange="updatePayTypeUI()"><span class="pay-type-mark pay-type-alipay">&#25903;</span><span class="pay-type-copy"><strong>&#25903;&#20184;&#23453;</strong><small>&#25512;&#33616;&#20351;&#29992;&#25903;&#20184;&#23453;&#23436;&#25104;&#25903;&#20184;</small></span></label></div><button id="pay-confirm-btn" class="btn-primary btn-full pay-confirm-btn" type="button" onclick="confirmPay()">&#30830;&#35748;&#25903;&#20184;</button><div id="pay-error" class="error-message"></div></div></div>
+
+    <div id="semester-picker-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="semester-picker-title"><div class="modal-content"><button class="modal-close" type="button" onclick="closeSemesterPicker()" aria-label="关闭">×</button><h2 id="semester-picker-title">选择学期</h2><div id="semester-picker-list" class="semester-picker-list"></div></div></div>
+
+    <div id="exam-picker-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="exam-picker-title"><div class="modal-content"><button class="modal-close" type="button" onclick="closeExamPicker()" aria-label="关闭">×</button><h2 id="exam-picker-title">选择学期</h2><div id="exam-picker-body" class="exam-picker-body"></div></div></div>
+
+    <div id="course-detail-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="course-detail-name"><div class="modal-content"><button class="modal-close" type="button" onclick="closeCourseDetail()" aria-label="关闭">×</button><h2 id="course-detail-name">课程详情</h2><div id="course-detail-body" class="course-detail-body"></div></div></div>
+
+    <div id="other-major-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="other-major-modal-title"><div class="modal-content"><button class="modal-close" type="button" onclick="closeOtherMajorModal()" aria-label="关闭">×</button><h2 id="other-major-modal-title">其它专业课程</h2><div id="other-major-modal-body" class="other-major-modal-body"></div></div></div>
+
+    <div id="historical-schedule-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="historical-schedule-modal-title"><div class="modal-content historical-schedule-modal-content"><button class="modal-close" type="button" onclick="closeHistoricalSchedule()" aria-label="关闭">×</button><h2 id="historical-schedule-modal-title">历年课表查询</h2><p class="modal-desc">选择学期后展示该学期全部课程</p><label class="historical-schedule-select-wrap" for="historical-semester-select"><span>学年学期</span><select id="historical-semester-select" onchange="loadHistoricalSchedule(this.value)"></select></label><div id="historical-schedule-body" class="historical-schedule-body"><div class="loading">加载中...</div></div></div></div>
+
+    <div id="ui-toast-region" class="ui-toast-region" aria-live="polite" aria-atomic="true"></div>
+
+    <div id="ui-confirm-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="ui-confirm-title">
+        <div class="modal-content ui-confirm-card">
+            <h2 id="ui-confirm-title">请确认</h2>
+            <p id="ui-confirm-message" class="modal-desc"></p>
+            <div class="ui-confirm-actions">
+                <button id="ui-confirm-cancel" class="btn-secondary" type="button" onclick="resolveUiConfirmation(false)">取消</button>
+                <button id="ui-confirm-confirm" class="btn-primary" type="button" onclick="resolveUiConfirmation(true)">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="overlay" class="overlay" onclick="handleOverlayClick(event)"></div>
+
+    <script src="/static/js/schedule-layout.js"></script>
+    <script src="/static/js/service-status-ui.js"></script>
+    <script src="/static/js/ui-ux.js?v=1"></script>
+    <script src="/static/js/main.js?v=16"></script>
+</body>
+</html>

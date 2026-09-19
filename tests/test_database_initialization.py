@@ -72,6 +72,18 @@ class ApiKeySchemaInitializationTests(unittest.TestCase):
         self.assertNotIn('device_id', table_sql)
         self.assertIn('CREATE UNIQUE INDEX idx_api_keys_hash ON api_keys(key_hash)', connection.statements)
 
+    def test_schema_initializer_only_ignores_idempotent_errors(self):
+        class FailingConnection:
+            def __init__(self, message):
+                self.message = message
+
+            def execute(self, sql, params=None):
+                raise RuntimeError(self.message)
+
+        database._exec_ignore(FailingConnection('index already exists'), 'CREATE INDEX x')
+        with self.assertRaisesRegex(RuntimeError, 'permission denied'):
+            database._exec_ignore(FailingConnection('permission denied'), 'CREATE INDEX x')
+
 
 class AppDatabaseInitializationTests(unittest.TestCase):
     def test_startup_ensures_api_keys_table_when_full_init_fails(self):

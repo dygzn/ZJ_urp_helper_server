@@ -312,7 +312,12 @@ def _perform_auto_update(username, password):
         if row is None:
             return False, '用户不存在'
 
-        last_update = row[0]
+        # SQLite 测试替身可能返回元组，而 MySQL DictCursor 返回字典；
+        # 优先按列名读取，兼容两种连接实现。
+        try:
+            last_update = row['last_auto_update']
+        except (KeyError, IndexError, TypeError):
+            last_update = row[0]
         if last_update == today:
             return False, '今日已更新'
 

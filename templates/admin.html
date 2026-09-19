@@ -50,6 +50,7 @@
 
                 <section id="tab-users" class="tab-content active" role="tabpanel" aria-labelledby="tab-users-button">
                     <div class="section-header"><h2>用户统计</h2><button class="icon-btn" type="button" onclick="loadUsers()">刷新</button></div>
+                    <p class="config-desc">包含当前绑定与归档历史，按学号去重统计；重新绑定不会重复计入新增用户。</p>
                     <div id="users-list" class="users-list"><div class="loading">加载中...</div></div>
                 </section>
 
@@ -158,6 +159,16 @@
                             </form>
                             <button class="btn-secondary btn-full" type="button" onclick="handleMigrateSqliteData()">从本机 SQLite 导入数据</button>
                             <div id="database-config-status" class="hint-message"></div>
+                        </div>
+                        <div class="config-section">
+                            <h3>服务器迁移：归档旧绑定</h3>
+                            <p class="config-desc">按学号去重，每个用户只保存一条账号资料：学号（账号）、最近绑定记录中的密码、首次登记时间、最近绑定时间和归档时间。不保存设备 ID、微信会话或完整绑定快照。</p>
+                            <p class="config-desc">首次登记时间取已知最早的绑定时间。已有旧版归档会一起合并精简；核对后清除旧绑定、换绑请求、微信会话及旧归档明细。会员、订单、反馈保持不变，用户统计保留，用户需重新登录绑定。</p>
+                            <p class="config-desc">执行前请完成数据库备份，暂停其他服务实例及用户入口，等待正在处理的请求结束。完成后重启所有服务进程再开放入口。</p>
+                            <button id="archive-preview-button" class="btn-secondary btn-full" type="button" onclick="previewBindingArchive()">预览当前数据库与归档数量</button>
+                            <div id="binding-archive-status" class="hint-message" role="status" aria-live="polite"></div>
+                            <label class="admin-check-row"><span>我已备份数据库，并暂停其他实例及用户入口</span><input id="binding-archive-prepared" type="checkbox"></label>
+                            <button id="archive-execute-button" class="btn-danger btn-full" type="button" onclick="executeBindingArchive()" disabled>保存精简用户资料并清理旧数据</button>
                         </div>
                         <div class="config-section">
                             <h3>本学期第一周</h3>
