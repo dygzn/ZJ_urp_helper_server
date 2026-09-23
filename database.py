@@ -739,6 +739,44 @@ def init_db(config_override=None):
         _run_migrations(conn, db_config['type'])
         _drop_removed_tables(conn)
         _create_indexes(conn)
+        _create_wechat_account_bindings(conn, db_config['type'])
+        _create_lab_credentials(conn, db_config['type'])
+
+
+def _create_lab_credentials(conn, db_type):
+    suffix = ' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4' if db_type == 'mysql' else ''
+    conn.execute(f'''CREATE TABLE IF NOT EXISTS lab_credentials (
+        username VARCHAR(64) PRIMARY KEY,
+        password_ciphertext TEXT NOT NULL,
+        updated_at VARCHAR(32) NOT NULL
+    ){suffix}''')
+
+
+def _create_wechat_account_bindings(conn, db_type):
+    suffix = ' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4' if db_type == 'mysql' else ''
+    conn.execute(f'''CREATE TABLE IF NOT EXISTS wechat_account_bindings (
+        openid VARCHAR(128) PRIMARY KEY,
+        username VARCHAR(64) UNIQUE,
+        bind_time VARCHAR(32) NOT NULL,
+        updated_at VARCHAR(32) NOT NULL
+    ){suffix}''')
+
+    _migrate_legacy_wechat_bindings(conn)
+
+
+def _migrate_legacy_wechat_bindings(conn):
+    # 保留解绑后的空关系作为迁移标记，避免旧设备关系在下次启动时复活。
+    # 旧表没有 username 唯一约束，同一学号可能对应多个历史微信。逐行按
+    # 更新时间倒序导入，才能让新表稳定地保留最近关系，而不是依赖数据库
+    # 未承诺的 SELECT 返回顺序；INSERT OR IGNORE 仍会保留已有的解绑标记。
+    legacy_rows = conn.execute('''SELECT w.openid, u.username, w.bind_time, w.updated_at
+        FROM wechat_bindings w JOIN users u ON u.device_id = w.device_id
+        JOIN user_account a ON a.username = u.username
+        ORDER BY w.updated_at DESC, w.openid ASC''').fetchall()
+    for row in legacy_rows:
+        conn.execute('''INSERT OR IGNORE INTO wechat_account_bindings
+            (openid, username, bind_time, updated_at) VALUES (?, ?, ?, ?)''',
+            (row['openid'], row['username'], row['bind_time'], row['updated_at']))
 
 
 def test_database_config(database_config):
@@ -750,6 +788,7 @@ def test_database_config(database_config):
     except Exception as exc:
         return False, str(exc)
 MIGRATION_TABLES = {
+    'wechat_account_bindings': ['openid', 'username', 'bind_time', 'updated_at'],
     'user_account': ['username', 'password', 'registered_at', 'last_bind_time', 'archived_at'],
     # 旧 users 是设备绑定记录；先从它提取最新绑定凭据，再导入
     # 旧复数账号表。这样“旧复数表 + 更晚 users 绑定”的数据库不会
@@ -886,6 +925,10 @@ def migrate_sqlite_to_current_database(sqlite_path=None):
                     except Exception as table_error:
                         result[table] = f'失败: {table_error}'
                         raise
+                # init_db() 在复制源表之前运行；旧 SQLite 只有 wechat_bindings
+                # 时，必须在 users/user_account 已复制完成后再提升一次旧关系，
+                # 否则目标库只会有兼容表而新接口仍看不到绑定。
+                _migrate_legacy_wechat_bindings(target)
         finally:
             source.close()
     except Exception as exc:

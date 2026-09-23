@@ -9,12 +9,12 @@ from auth import require_login, require_bindding, require_member, require_grade_
 from database import get_db
 from services.config_service import get_config
 from services.urp_service import (
-    get_urgent_event, get_schedule, get_exams, get_grades,
+    get_urgent_event, get_schedule, get_exams,
     get_unevaluated_courses, do_evaluation, start_auto_update,
     check_login_status, get_semesters, get_grades_by_semester,
     get_failed_grades, get_gpa, get_current_semester_grades,
     get_latest_semester_grade_summary,
-    get_exam_sessions, get_exam_scores
+    get_exam_sessions, get_exam_scores, LEGACY_GRADES_ENDPOINT_MESSAGE
 )
 from services.config_service import get_current_urp_url
 
@@ -117,11 +117,12 @@ def api_update_exams(user):
 @data_bp.route('/api/grades', methods=['GET'])
 @require_grade_login('basic')
 def api_grades(user):
-    try:
-        grades = get_grades(user['username'])
-        return jsonify({'success': True, 'grades': grades})
-    except Exception as e:
-        return jsonify({'success': False, 'message': str(e)})
+    """保留旧路径，但明确告知调用方改用新的成绩接口。"""
+    return jsonify({
+        'success': False,
+        'error_code': 'deprecated_endpoint',
+        'message': LEGACY_GRADES_ENDPOINT_MESSAGE,
+    }), 410
 
 
 @data_bp.route('/api/grades/current', methods=['GET'])

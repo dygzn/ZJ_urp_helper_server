@@ -105,6 +105,14 @@ document.addEventListener('keydown', adminHandleKeydown);
 
 // ==================== 页面初始化 ====================
 document.addEventListener('DOMContentLoaded', function() {
+    const sectionSelect = document.getElementById('admin-section-select');
+    document.querySelectorAll('.tabs .tab-btn').forEach(button => {
+        const option = document.createElement('option');
+        option.value = button.dataset.tab;
+        option.textContent = button.textContent.trim();
+        option.selected = button.classList.contains('active');
+        sectionSelect.appendChild(option);
+    });
     // 检查是否已登录（从sessionStorage获取）
     const savedKey = sessionStorage.getItem('admin_key');
     if (savedKey) {
@@ -161,6 +169,8 @@ function adminLogout() {
 
 // ==================== 标签页切换 ====================
 function switchTab(tabName) {
+    const sectionSelect = document.getElementById('admin-section-select');
+    if (sectionSelect) sectionSelect.value = tabName;
     const tabBtns = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
     if (adminUi && typeof adminUi.syncTabAriaState === 'function') {
@@ -182,6 +192,8 @@ function switchTab(tabName) {
         loadPendingRequests();
     } else if (tabName === 'users') {
         loadUsers();
+    } else if (tabName === 'wechat') {
+        loadWechatBindings();
     } else if (tabName === 'ad-stats') {
         loadAdvertisement();
         loadAdStats();
@@ -959,6 +971,15 @@ function displayConfig(config) {
             gradesMemberStatus.textContent = required ? '当前：需要初级会员' : '当前：无需会员';
         }
     }
+    const memberPageEnabled = document.getElementById('member-page-enabled');
+    const memberPageStatus = document.getElementById('member-page-status');
+    if (memberPageEnabled) {
+        const enabled = config.member_page_enabled !== false;
+        memberPageEnabled.checked = enabled;
+        if (memberPageStatus) {
+            memberPageStatus.textContent = enabled ? '当前：显示' : '当前：隐藏';
+        }
+    }
     fillDatabaseConfig(config.database || {});
 }
 
@@ -1127,6 +1148,48 @@ async function handleUpdateGradesMemberRequired() {
         showAdminToast('网络错误，请重试', 'error');
     }
 }
+
+async function handleUpdateMemberPageEnabled() {
+    const checkbox = document.getElementById('member-page-enabled');
+    const status = document.getElementById('member-page-status');
+    if (!checkbox) return;
+
+    const enabled = !!checkbox.checked;
+    if (status) {
+        status.textContent = '保存中...';
+    }
+
+    try {
+        const response = await fetch('/api/admin/config/member_page', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Admin-Key': adminKey
+            },
+            body: JSON.stringify({ member_page_enabled: enabled })
+        });
+        const data = await response.json();
+        if (response.ok && data.success) {
+            if (status) {
+                status.textContent = enabled ? '当前：显示（刷新前端后生效）' : '当前：隐藏（刷新前端后生效）';
+            }
+        } else {
+            checkbox.checked = !enabled;
+            if (status) {
+                status.textContent = '保存失败';
+            }
+            showAdminToast(data.message || '保存失败', 'error');
+        }
+    } catch (error) {
+        checkbox.checked = !enabled;
+        if (status) {
+            status.textContent = '保存失败';
+        }
+        console.error('保存前端充值页面显示设置失败:', error);
+        showAdminToast('网络错误，请重试', 'error');
+    }
+}
+
 async function switchUrl(urlIndex) {
     if (!confirm(`确定要切换到URL ${urlIndex + 1}吗？`)) {
         return;
@@ -1620,9 +1683,9 @@ function renderOnlineUsers(users) {
     let html = '<table class="monitor-table"><thead><tr><th>用户名</th><th>最后活跃</th><th>最后操作</th></tr></thead><tbody>';
     users.forEach(u => {
         html += `<tr>
-            <td>${escapeHtml(u.username)}</td>
-            <td>${u.last_active.split(' ')[1] || u.last_active}</td>
-            <td>${escapeHtml(u.last_endpoint)}</td>
+            <td data-label="用户名">${escapeHtml(u.username)}</td>
+            <td data-label="最后活跃">${u.last_active.split(' ')[1] || u.last_active}</td>
+            <td data-label="最后操作">${escapeHtml(u.last_endpoint)}</td>
         </tr>`;
     });
     html += '</tbody></table>';
@@ -1798,25 +1861,25 @@ async function loadAdminWithdrawals() {
             const withdrawn = parseFloat(w.withdrawn) || 0;
             const availableAfter = parseFloat(w.available_after) || 0;
             html += `<tr>
-                <td><div class="commission-user">${w.username}</div></td>
-                <td>
+                <td data-label="申请人"><div class="commission-user">${w.username}</div></td>
+                <td data-label="收款信息">
                     <div class="withdraw-payee">${w.real_name}</div>
                     <div class="commission-muted">${w.alipay_account}</div>
                 </td>
-                <td><strong>¥${amount.toFixed(2)}</strong></td>
-                <td>
+                <td data-label="提现金额"><strong>¥${amount.toFixed(2)}</strong></td>
+                <td data-label="佣金情况">
                     <div class="commission-mini-grid">
                         <span>累计 ¥${earned.toFixed(2)}</span>
                         <span>已占用 ¥${withdrawn.toFixed(2)}</span>
                         <span>通过后剩 ¥${availableAfter.toFixed(2)}</span>
                     </div>
                 </td>
-                <td><span class="admin-status-pill ${statusClass[w.status] || ''}">${statusMap[w.status] || w.status}</span></td>
-                <td>
+                <td data-label="状态"><span class="admin-status-pill ${statusClass[w.status] || ''}">${statusMap[w.status] || w.status}</span></td>
+                <td data-label="时间">
                     <div>${w.create_time ? w.create_time.slice(0, 16) : ''}</div>
                     ${w.review_time ? `<div class="commission-muted">审核 ${w.review_time.slice(0, 16)}</div>` : ''}
                 </td>
-                <td>${w.status === 'pending' ? `
+                <td data-label="操作">${w.status === 'pending' ? `
                     <button class="btn-sm btn-success" onclick="approveWithdrawal(${w.id})">通过</button>
                     <button class="btn-sm btn-danger" onclick="rejectWithdrawal(${w.id})">拒绝</button>
                 ` : '-'}</td>
@@ -1893,16 +1956,16 @@ async function loadCommissionStats() {
             const available = parseFloat(u.available) || 0;
             const pending = parseFloat(u.pending_withdraw) || 0;
             html += `<tr class="${available > 0 ? 'commission-row-active' : ''}">
-                <td><span class="commission-user">${u.username}</span></td>
-                <td>${u.invitee_count || 0} 人 / ${u.commission_count || 0} 笔${u.milestone_count ? ` / ${u.milestone_count} 个任务奖励` : ''}</td>
-                <td>¥${u.invitee_paid_amount}</td>
-                <td>¥${u.earned}</td>
-                <td>
+                <td data-label="邀请人"><span class="commission-user">${u.username}</span></td>
+                <td data-label="团队">${u.invitee_count || 0} 人 / ${u.commission_count || 0} 笔${u.milestone_count ? ` / ${u.milestone_count} 个任务奖励` : ''}</td>
+                <td data-label="充值额">¥${u.invitee_paid_amount}</td>
+                <td data-label="累计佣金">¥${u.earned}</td>
+                <td data-label="已占用">
                     <div>¥${u.withdrawn}</div>
                     ${pending > 0 ? `<div class="commission-muted">含审核中 ¥${pending.toFixed(2)}</div>` : ''}
                 </td>
-                <td><strong class="commission-available">¥${u.available}</strong></td>
-                <td>${u.last_earning_time ? u.last_earning_time.slice(0, 16) : '-'}</td>
+                <td data-label="可提现"><strong class="commission-available">¥${u.available}</strong></td>
+                <td data-label="最近收益">${u.last_earning_time ? u.last_earning_time.slice(0, 16) : '-'}</td>
             </tr>`;
         }
         html += '</tbody></table></div>';

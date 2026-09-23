@@ -5261,7 +5261,7 @@ body {
     }
 }
 
-/* 绑定账号弹窗 */
+/* 登录弹窗 */
 #login-modal .login-card {
     width: min(92vw, 500px);
     max-width: 500px;
@@ -5305,6 +5305,68 @@ body {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 14px;
+}
+
+.login-bind-option {
+    display: grid;
+    gap: 8px;
+}
+
+.login-bind-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    width: fit-content;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 650;
+    cursor: pointer;
+}
+
+.login-bind-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    min-height: 18px;
+    margin: 0;
+    accent-color: var(--accent);
+}
+
+.login-disclaimer-trigger {
+    justify-self: start;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--accent);
+    font: inherit;
+    font-size: 12px;
+    line-height: 1.65;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+}
+
+.login-disclaimer-trigger:hover,
+.login-disclaimer-trigger:focus-visible {
+    color: var(--accent-hover, var(--accent));
+}
+
+.password-disclaimer-card {
+    width: min(92vw, 520px);
+    max-width: 520px;
+    padding: 30px;
+    border-radius: 18px;
+}
+
+.password-disclaimer-card h2 {
+    margin: 0 0 14px;
+    font-size: 22px;
+}
+
+.password-disclaimer-copy {
+    margin: 0 0 22px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.8;
 }
 
 #login-modal .form-group {

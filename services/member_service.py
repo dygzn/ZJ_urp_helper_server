@@ -28,7 +28,7 @@ def _generate_md5(s):
 
 def _get_server_url():
     config = get_config()
-    return config.get('server_url', 'http://localhost:5000').rstrip('/')
+    return config.get('server_url', 'http://localhost:5050').rstrip('/')
 
 
 def _money(value):

@@ -1,1 +1,0 @@
-Canonical account source: user_account\nDevice binding source: users\nProtocol version: 2\n

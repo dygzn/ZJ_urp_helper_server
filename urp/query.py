@@ -118,7 +118,7 @@ class URP_query:
         if error_td:
             raise Exception('本学期成绩查询未打开')
         courses = []
-        for row in soup.find_all('tr', class_='odd'):
+        for row in soup.find_all('tr'):
             cols = row.find_all('td')
             if len(cols) >= 8:
                 courses.append({'课程名': cols[2].get_text(strip=True), '成绩': cols[7].get_text(strip=True)})
@@ -133,7 +133,7 @@ class URP_query:
 
         def parse_table(table):
             courses = []
-            for row in table.find_all('tr', class_='odd'):
+            for row in table.find_all('tr'):
                 cols = row.find_all('td')
                 if len(cols) >= 9:
                     courses.append({
@@ -205,7 +205,6 @@ class URP_query:
             r'new Array\("([^"]+)","([^"]+)","([^"]+)"\)', html
         ):
             exams.append({'name': name, 'ksbh': ksbh, 'jxzxjh': jxzxjh})
-
         return {'semesters': semesters, 'exams': exams}
 
     def score_resit(self, jxzxjh, ksbh):
@@ -215,7 +214,7 @@ class URP_query:
         }, verify=False)
         soup = BeautifulSoup(response.text, 'html.parser')
         courses = []
-        for row in soup.find_all('tr', class_='odd'):
+        for row in soup.find_all('tr'):
             cols = row.find_all('td')
             if len(cols) >= 6:
                 courses.append({
@@ -376,46 +375,99 @@ class URP_query:
 
         course_table = next(
             (table for table in soup.find_all('table')
-             if table.find('th', class_='sortable')),
+             if any(
+                 re.sub(r'\s+', '', cell.get_text(' ', strip=True)) == '课程名'
+                 for cell in table.find_all(['th', 'td'], class_='sortable')
+             )),
             None,
         )
         if not course_table:
+            course_table = next(
+                (table for table in soup.find_all('table')
+                 if table.find('th', class_='sortable')),
+                None,
+            )
+        if not course_table:
             raise Exception("未找到课表数据，学校可能暂未开放课表查询")
+
+        def normalize_header(value):
+            return re.sub(r'\s+', '', value or '')
+
+        header_names = []
+        for header_row in course_table.find_all('tr'):
+            if header_row.find_parent('thead') is None:
+                continue
+            header_cells = header_row.find_all(['th', 'td'], recursive=False)
+            candidate = [
+                normalize_header(cell.get_text(' ', strip=True))
+                for cell in header_cells
+            ]
+            if '课程名' in candidate:
+                header_names = candidate
+                break
+
+        header_indexes = {name: index for index, name in enumerate(header_names)}
+
+        def header_index(*names):
+            for name in names:
+                index = header_indexes.get(normalize_header(name))
+                if index is not None:
+                    return index
+            return None
+
+        def cell_text(cells, *names):
+            index = header_index(*names)
+            if index is None or index >= len(cells):
+                return ''
+            return cells[index].get_text(strip=True)
 
         schedule_by_week = defaultdict(list)
         current_course_info = {}
 
-        for row in course_table.find_all('tr', class_='odd'):
-            tds = row.find_all('td')
+        for row in course_table.find_all('tr'):
+            if row.find_parent('thead') is not None:
+                continue
+
+            tds = row.find_all('td', recursive=False)
             if not tds:
                 continue
 
-            if len(tds) >= 11:
+            is_full_course_row = bool(header_names) and len(tds) >= len(header_names)
+            if is_full_course_row:
                 current_course_info = {
-                    '课程号': tds[1].get_text(strip=True),
-                    '课程名': tds[2].get_text(strip=True),
-                    '学分': tds[4].get_text(strip=True),
-                    '课程属性': tds[5].get_text(strip=True),
-                    '考试类型': tds[6].get_text(strip=True),
-                    '教师': tds[7].get_text(strip=True).rstrip('* '),
-                    '修读方式': tds[9].get_text(strip=True),
-                    '选课状态': tds[10].get_text(strip=True),
+                    '课程号': cell_text(tds, '课程号', '课程代码'),
+                    '课程名': cell_text(tds, '课程名'),
+                    '学分': cell_text(tds, '学分'),
+                    '课程属性': cell_text(tds, '课程属性'),
+                    '考试类型': cell_text(tds, '考试类型'),
+                    '教师': cell_text(tds, '教师', '任课教师').rstrip('* '),
+                    '修读方式': cell_text(tds, '修读方式'),
+                    '选课状态': cell_text(tds, '选课状态'),
                 }
 
             if len(tds) < 7 or not current_course_info.get('课程名'):
                 continue
 
-            week_str, day_str, period_str, duration_str = (
-                tds[-7].get_text(strip=True),
-                tds[-6].get_text(strip=True),
-                tds[-5].get_text(strip=True),
-                tds[-4].get_text(strip=True),
-            )
-            campus_str, building_str, room_str = (
-                tds[-3].get_text(strip=True),
-                tds[-2].get_text(strip=True),
-                tds[-1].get_text(strip=True),
-            )
+            if is_full_course_row:
+                week_str = cell_text(tds, '周次', '上课周次')
+                day_str = cell_text(tds, '星期', '上课星期')
+                period_str = cell_text(tds, '节次', '上课节次')
+                duration_str = cell_text(tds, '节数', '上课节数')
+                campus_str = cell_text(tds, '校区')
+                building_str = cell_text(tds, '教学楼')
+                room_str = cell_text(tds, '教室')
+            else:
+                week_str, day_str, period_str, duration_str = (
+                    tds[-7].get_text(strip=True),
+                    tds[-6].get_text(strip=True),
+                    tds[-5].get_text(strip=True),
+                    tds[-4].get_text(strip=True),
+                )
+                campus_str, building_str, room_str = (
+                    tds[-3].get_text(strip=True),
+                    tds[-2].get_text(strip=True),
+                    tds[-1].get_text(strip=True),
+                )
 
             if not week_str:
                 continue

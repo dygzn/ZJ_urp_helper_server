@@ -7,7 +7,7 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for
 from werkzeug.exceptions import HTTPException
 from database import ensure_api_keys_table, init_db
 from services.logging_service import init_logging
-from services.config_service import get_admin_key
+from services.config_service import get_admin_key, get_config
 from services.ad_service import EVENT_COLUMNS, record_ad_event
 from services.ad_config_service import get_ad_config
 from routes.auth_routes import auth_bp
@@ -18,6 +18,7 @@ from routes.shortcut_routes import shortcut_bp
 from routes.misc_routes import misc_bp
 from routes.sign_routes import sign_bp
 from routes.wechat_routes import wechat_bp
+from routes.lab_routes import lab_bp
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-change-this'
@@ -51,6 +52,7 @@ app.register_blueprint(shortcut_bp)
 app.register_blueprint(misc_bp)
 app.register_blueprint(sign_bp)
 app.register_blueprint(wechat_bp)
+app.register_blueprint(lab_bp)
 
 @app.errorhandler(Exception)
 def handle_api_exception(error):
@@ -120,7 +122,12 @@ def index():
         response = redirect(target, code=302)
         response.headers['Cache-Control'] = 'no-store'
         return response
-    return render_template('index.html', ad=get_ad_config())
+    config = get_config()
+    return render_template(
+        'index.html',
+        ad=get_ad_config(),
+        member_page_enabled=config.get('member_page_enabled', True) is not False,
+    )
 
 
 if __name__ == '__main__':
@@ -131,5 +138,5 @@ if __name__ == '__main__':
     print("=" * 50)
 
     debug = os.environ.get('FLASK_DEBUG', '').lower() in ('1', 'true', 'yes', 'on')
-    port = int(os.environ.get('PORT', '5000'))
+    port = int(os.environ.get('PORT', '5050'))
     app.run(debug=True, host='0.0.0.0', port=port, use_reloader=debug)

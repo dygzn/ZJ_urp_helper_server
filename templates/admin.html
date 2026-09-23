@@ -2,9 +2,9 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>管理后台 - URP教务助手</title>
-    <link rel="stylesheet" href="/static/css/admin.css?v=12">
+    <link rel="stylesheet" href="/static/css/admin.css?v=14">
 <link rel="stylesheet" href="/static/css/ad-template.css?v=1">
 </head>
 <body>
@@ -35,7 +35,12 @@
             </header>
 
             <div class="admin-content">
-                <nav class="tabs" role="tablist">
+                <div class="admin-mobile-nav">
+                    <label for="admin-section-select">管理栏目</label>
+                    <select id="admin-section-select" onchange="switchTab(this.value)" aria-label="切换管理栏目"></select>
+                </div>
+                <nav class="tabs" role="tablist" aria-label="管理栏目">
+                    <button id="tab-wechat-button" class="tab-btn" type="button" data-tab="wechat" onclick="switchTab('wechat')" role="tab" aria-controls="tab-wechat" aria-selected="false" tabindex="-1">微信绑定</button>
                     <button id="tab-users-button" class="tab-btn active" type="button" data-tab="users" onclick="switchTab('users')" role="tab" aria-controls="tab-users" aria-selected="true" tabindex="0">用户</button>
                     <button id="tab-ad-stats-button" class="tab-btn" type="button" data-tab="ad-stats" onclick="switchTab('ad-stats')" role="tab" aria-controls="tab-ad-stats" aria-selected="false" tabindex="-1">广告管理</button>
                     <button id="tab-monitor-button" class="tab-btn" type="button" data-tab="monitor" onclick="switchTab('monitor')" role="tab" aria-controls="tab-monitor" aria-selected="false" tabindex="-1">监控</button>
@@ -48,6 +53,13 @@
                     <button id="tab-config-button" class="tab-btn" type="button" data-tab="config" onclick="switchTab('config')" role="tab" aria-controls="tab-config" aria-selected="false" tabindex="-1">配置</button>
                 </nav>
 
+                <section id="tab-wechat" class="tab-content" role="tabpanel" aria-labelledby="tab-wechat-button">
+                    <div class="section-header"><h2>小程序微信绑定</h2><button class="icon-btn" type="button" onclick="loadWechatBindings()">刷新</button></div>
+                    <p class="config-desc">微信直接绑定学号，解绑不影响网页设备和会员权益。广告内容在“广告管理”中统一维护。</p>
+                    <form onsubmit="event.preventDefault(); loadWechatBindings(1)"><div class="form-group"><label for="wechat-username-filter">按学号查询</label><input id="wechat-username-filter" maxlength="64" placeholder="输入完整学号，留空查询全部"></div><button class="btn-primary" type="submit">查询</button></form>
+                    <div id="wechat-bindings-list" class="users-list"></div>
+                    <div class="wechat-pagination"><button id="wechat-prev" type="button" class="btn-secondary" onclick="loadWechatBindings(wechatPage - 1)">上一页</button><span id="wechat-page"></span><button id="wechat-next" type="button" class="btn-secondary" onclick="loadWechatBindings(wechatPage + 1)">下一页</button></div>
+                </section>
                 <section id="tab-users" class="tab-content active" role="tabpanel" aria-labelledby="tab-users-button">
                     <div class="section-header"><h2>用户统计</h2><button class="icon-btn" type="button" onclick="loadUsers()">刷新</button></div>
                     <p class="config-desc">包含当前绑定与归档历史，按学号去重统计；重新绑定不会重复计入新增用户。</p>
@@ -125,6 +137,7 @@
                         <div id="grant-member-msg" class="hint-message"></div>
                     </div>
                     <div class="config-section"><label class="admin-check-row"><span><strong>成绩查询需要会员</strong><small>开启后普通用户无法直接查询成绩</small></span><input type="checkbox" id="grades-member-required" onchange="handleUpdateGradesMemberRequired()"></label><span id="grades-member-status" class="hint-message"></span></div>
+                    <div class="config-section"><label class="admin-check-row"><span><strong>显示前端充值页面</strong><small>关闭后前端不显示会员购买导航和充值页面</small></span><input type="checkbox" id="member-page-enabled" onchange="handleUpdateMemberPageEnabled()"></label><span id="member-page-status" class="hint-message"></span></div>
                     <div id="members-list" class="members-list"><div class="empty-state">&#36755;&#20837;&#23398;&#21495;&#21518;&#26597;&#35810;&#25110;&#35843;&#25972;&#20250;&#21592;&#29366;&#24577;</div></div>
                 </section>
 
@@ -207,7 +220,8 @@
     <div id="overlay" class="overlay" onclick="adminHandleOverlayClick(event)"></div>
     <script src="/static/js/service-status-ui.js"></script>
     <script src="/static/js/ui-ux.js?v=1"></script>
-    <script src="/static/js/admin.js?v=12"></script>
+    <script src="/static/js/admin.js?v=14"></script>
+    <script src="/static/js/admin-wechat.js?v=2"></script>
 <script src="/static/js/admin-ad.js?v=1"></script>
 </body>
 </html>

@@ -41,6 +41,7 @@ def get_config():
         ],
         'semester_start': '2026-03-02',
         'grades_require_member': True,
+        'member_page_enabled': True,
         'database': {
             'type': 'sqlite',
             'sqlite_path': 'data/urp_helper.db',
@@ -53,7 +54,11 @@ def get_config():
             }
         },
     }
-    return load_json_file(CONFIG_FILE, default_config)
+    config = load_json_file(CONFIG_FILE, default_config)
+    if not isinstance(config, dict):
+        return default_config
+    config.setdefault('member_page_enabled', True)
+    return config
 
 
 def save_config(config):

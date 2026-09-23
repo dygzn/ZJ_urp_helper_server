@@ -18,7 +18,7 @@ def get_invitation_link(conn, username):
 
 
 def build_invitation_url(server_url, token):
-    base_url = (server_url or 'http://localhost:5000').rstrip('/')
+    base_url = (server_url or 'http://localhost:5050').rstrip('/')
     return f"{base_url}/?{urlencode({'invite': token})}"
 
 

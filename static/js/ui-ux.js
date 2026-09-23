@@ -11,29 +11,29 @@
 }(typeof globalThis !== 'undefined' ? globalThis : this, function createUrpUi() {
     const guestAccessCopy = {
         schedule: {
-            title: '课表查询需要绑定教务账号',
-            description: '绑定后即可查看课程安排，并保留当前页面操作。',
-            button: '立即绑定',
+            title: '课表查询需要登录教务账号',
+            description: '登录后即可查看课程安排，并保留当前页面操作。',
+            button: '立即登录',
         },
         exams: {
-            title: '考试查询需要绑定教务账号',
-            description: '绑定后即可查看考试安排，并保留当前页面操作。',
-            button: '立即绑定',
+            title: '考试查询需要登录教务账号',
+            description: '登录后即可查看考试安排，并保留当前页面操作。',
+            button: '立即登录',
         },
         grades: {
-            title: '成绩查询需要绑定教务账号',
-            description: '绑定后即可查询成绩，并保留当前页面操作。',
-            button: '立即绑定',
+            title: '成绩查询需要登录教务账号',
+            description: '登录后即可查询成绩，并保留当前页面操作。',
+            button: '立即登录',
         },
         evaluation: {
-            title: '评教需要绑定教务账号',
-            description: '绑定后即可进入评教页面，并保留当前页面操作。',
-            button: '立即绑定',
+            title: '评教需要登录教务账号',
+            description: '登录后即可进入评教页面，并保留当前页面操作。',
+            button: '立即登录',
         },
         'shortcut-api': {
-            title: '快捷 API 需要绑定教务账号',
-            description: '绑定后即可使用快捷 API，并保留当前页面操作。',
-            button: '立即绑定',
+            title: '快捷 API 需要登录教务账号',
+            description: '登录后即可使用快捷 API，并保留当前页面操作。',
+            button: '立即登录',
         },
     };
 
@@ -50,9 +50,9 @@
 
     function getGuestAccessCopy(pageName) {
         return guestAccessCopy[pageName] || {
-            title: '绑定教务账号后继续',
-            description: '请先绑定教务账号，再使用此功能。',
-            button: '立即绑定',
+            title: '登录教务账号后继续',
+            description: '请先登录教务账号，再使用此功能。',
+            button: '立即登录',
         };
     }
 

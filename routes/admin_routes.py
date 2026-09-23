@@ -352,6 +352,22 @@ def admin_set_grades_member_required():
     message = '查成绩已设置为需要会员' if require_member else '查成绩已设置为无需会员'
     return jsonify({'success': True, 'message': message, 'config': config})
 
+
+@admin_bp.route('/api/admin/config/member_page', methods=['POST'])
+@require_admin
+def admin_set_member_page_enabled():
+    data = request.get_json() or {}
+    enabled = data.get('member_page_enabled')
+    if not isinstance(enabled, bool):
+        return jsonify({'success': False, 'message': '前端充值页面开关必须是布尔值'}), 400
+
+    config = get_config()
+    config['member_page_enabled'] = enabled
+    save_config(config)
+    message = '前端充值页面已开启' if enabled else '前端充值页面已隐藏'
+    return jsonify({'success': True, 'message': message, 'config': _public_config(config)})
+
+
 @admin_bp.route('/api/admin/config/url', methods=['POST'])
 @require_admin
 def admin_switch_url():

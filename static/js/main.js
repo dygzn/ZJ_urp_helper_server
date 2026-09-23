@@ -399,6 +399,7 @@ function handleOverlayClick(event) {
     const modal = uiModalState.activeModal;
     if (modal && (!urpUi || urpUi.isModalDismissible(modal))) {
         if (modal.id === 'ui-confirm-modal') resolveUiConfirmation(false);
+        else if (modal.id === 'password-disclaimer-modal') closePasswordDisclaimer();
         else closeUiModal(modal);
         return;
     }
@@ -411,6 +412,7 @@ function handleModalBackdropClick(event) {
         return;
     }
     if (modal.id === 'ui-confirm-modal') resolveUiConfirmation(false);
+    else if (modal.id === 'password-disclaimer-modal') closePasswordDisclaimer();
     else if (!urpUi || urpUi.isModalDismissible(modal)) closeUiModal(modal);
 }
 
@@ -419,6 +421,7 @@ function handleUiKeydown(event) {
     if (event.key === 'Escape') {
         if (modal) {
             if (modal.id === 'ui-confirm-modal') resolveUiConfirmation(false);
+            else if (modal.id === 'password-disclaimer-modal') closePasswordDisclaimer();
             else if (!urpUi || urpUi.isModalDismissible(modal)) closeUiModal(modal);
             return;
         }
@@ -584,6 +587,35 @@ function hideLoginModal() {
     closeUiModal(modal);
 }
 
+let passwordDisclaimerReturnToLogin = false;
+
+function showPasswordDisclaimer() {
+    const modal = document.getElementById('password-disclaimer-modal');
+    if (!modal) return;
+
+    const loginModal = document.getElementById('login-modal');
+    passwordDisclaimerReturnToLogin = Boolean(
+        loginModal && loginModal.classList && loginModal.classList.contains('active'),
+    );
+    if (passwordDisclaimerReturnToLogin) {
+        closeUiModal(loginModal, { restoreFocus: false });
+    }
+    openUiModal(modal, { initialFocusSelector: '#password-disclaimer-close' });
+}
+
+function closePasswordDisclaimer() {
+    const modal = document.getElementById('password-disclaimer-modal');
+    closeUiModal(modal, { restoreFocus: false });
+
+    const shouldReturnToLogin = passwordDisclaimerReturnToLogin;
+    passwordDisclaimerReturnToLogin = false;
+    if (shouldReturnToLogin) {
+        openUiModal(document.getElementById('login-modal'), {
+            initialFocusSelector: '#bind-account',
+        });
+    }
+}
+
 function skipBind() {
     isGuestMode = true;
     rememberBoundUsername(null);
@@ -598,7 +630,10 @@ async function handleLogin(event) {
 
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
-    const invitationToken = getPendingInvitationToken();
+    const bindControl = document.getElementById('bind-account');
+    // 没有控件时按旧版客户端处理，避免旧页面升级期间意外失去绑定能力。
+    const bindAccount = bindControl ? Boolean(bindControl.checked) : true;
+    const invitationToken = bindAccount ? getPendingInvitationToken() : null;
     const errorDiv = document.getElementById('login-error');
 
     errorDiv.textContent = '';
@@ -610,25 +645,42 @@ async function handleLogin(event) {
                 'Content-Type': 'application/json',
                 'X-Device-ID': getDeviceId()
             },
-            body: JSON.stringify({ username, password, invitation_token: invitationToken })
+            body: JSON.stringify({
+                username,
+                password,
+                bind_account: bindAccount,
+                invitation_token: invitationToken,
+            })
         });
 
         const data = await response.json();
 
         if (data.success) {
-            currentUsername = data.username;
-            rememberBoundUsername(currentUsername);
-            isGuestMode = false;
-            clearPendingInvitationToken();
-            ensureOwnInvitationTokenInUrl();
-            document.getElementById('sidebar-username').textContent = currentUsername;
+            const isBound = data.bound !== false;
             hideLoginModal();
-            const availablePages = getAvailablePageNames();
-            const storedPage = localStorage.getItem('current_page') || 'home';
-            const currentPage = urpUi
-                ? urpUi.normalizePageName(storedPage, availablePages, 'home')
-                : (availablePages.includes(storedPage) ? storedPage : 'home');
-            switchPage(currentPage);
+
+            if (isBound) {
+                currentUsername = data.username;
+                rememberBoundUsername(currentUsername);
+                isGuestMode = false;
+                clearPendingInvitationToken();
+                ensureOwnInvitationTokenInUrl();
+                document.getElementById('sidebar-username').textContent = currentUsername;
+                const availablePages = getAvailablePageNames();
+                const storedPage = localStorage.getItem('current_page') || 'home';
+                const currentPage = urpUi
+                    ? urpUi.normalizePageName(storedPage, availablePages, 'home')
+                    : (availablePages.includes(storedPage) ? storedPage : 'home');
+                switchPage(currentPage);
+            } else {
+                currentUsername = null;
+                rememberBoundUsername(null);
+                isGuestMode = true;
+                document.getElementById('sidebar-username').textContent = '访客';
+                switchPage('home');
+                loadAndShowAnnouncements();
+                showUiToast(data.message || '登录成功，本次未绑定账号；下次使用需重新登录', 'info');
+            }
         } else {
             errorDiv.textContent = data.message || '登录失败';
         }
@@ -812,6 +864,7 @@ function switchPage(pageName) {
         'service-status': '找我做事',
         'feedback': '反馈建议',
         'shortcut-api': '快捷指令 API',
+        'lab': '实验提交',
         'member': '会员购买',
     };
     document.getElementById('page-title').textContent = titles[pageName] || '首页';
@@ -852,9 +905,9 @@ function setPageAccessLock(pageName, locked) {
         const copy = urpUi
             ? urpUi.getGuestAccessCopy(pageName)
             : {
-                title: '绑定教务账号后继续',
-                description: '请先绑定教务账号，再使用此功能。',
-                button: '立即绑定',
+                title: '登录教务账号后继续',
+                description: '请先登录教务账号，再使用此功能。',
+                button: '立即登录',
             };
         gate.innerHTML = `
             <div class="page-access-gate-icon" aria-hidden="true">锁</div>
@@ -869,7 +922,7 @@ function setPageAccessLock(pageName, locked) {
 }
 
 function loadPageData(pageName) {
-    const gatedPages = ['schedule', 'exams', 'grades', 'evaluation', 'shortcut-api'];
+    const gatedPages = ['schedule', 'exams', 'grades', 'evaluation', 'shortcut-api', 'lab'];
     if (gatedPages.includes(pageName)) {
         if (isGuestMode) {
             setPageAccessLock(pageName, true);
@@ -905,6 +958,9 @@ function loadPageData(pageName) {
             break;
         case 'shortcut-api':
             loadShortcutApiPage();
+            break;
+        case 'lab':
+            if (typeof loadLabPage === 'function') loadLabPage();
             break;
         case 'member':
             loadMemberPage();
@@ -1019,7 +1075,7 @@ async function loadUrgentEvent() {
     const contentDiv = document.getElementById('urgent-content');
 
     if (isGuestMode) {
-        contentDiv.innerHTML = '<p style="text-align:center;color:var(--text-secondary);">绑定教务账号后可查看今日课程和考试安排</p>';
+        contentDiv.innerHTML = '<p style="text-align:center;color:var(--text-secondary);">登录教务账号后可查看今日课程和考试安排</p>';
         return;
     }
 
@@ -2175,7 +2231,7 @@ async function loadSchedule(week = null, autoFetched = false) {
     }
 }
 
-function renderScheduleWeek(schedule, panel) {
+function renderScheduleWeek(schedule, panel, courseColorMap = buildScheduleCourseColorMap(schedule)) {
     const { scheduleDays, scheduleGrid, scheduleHeader } = getSchedulePanelElements(panel);
     if (!scheduleDays || !scheduleGrid || !scheduleHeader) return;
 
@@ -2223,14 +2279,13 @@ function renderScheduleWeek(schedule, panel) {
             const top = (course.section - 1) * (sectionHeight + gap);
             const height = course.duration * sectionHeight + (course.duration - 1) * gap;
 
-            // 为课程分配颜色（基于课程名称的哈希值）
-            const colorIndex = getColorIndex(course.name);
+            const courseColor = courseColorMap.get(getScheduleCourseColorKey(course)) || 'hsl(208, 72%, 40%)';
 
             const courseData = encodeURIComponent(JSON.stringify(course));
 
             html += `
-                <div class="course-card course-card-color-${colorIndex}"
-                     style="position: absolute; top: ${top}px; height: ${height}px; left: 0; right: 0;"
+                <div class="course-card"
+                     style="position: absolute; top: ${top}px; height: ${height}px; left: 0; right: 0; background: ${courseColor};"
                      data-course="${courseData}"
                      onclick="showCourseDetail(this)">
                     <div class="course-card-name">${course.name}</div>
@@ -2251,13 +2306,14 @@ function renderScheduleWeek(schedule, panel) {
 function displaySchedule(schedule) {
     clearScheduleDinoGestureTimers();
     resetScheduleSwipeGesture();
+    const source = getScheduleDataSource(schedule);
+    const courseColorMap = buildScheduleCourseColorMap(source);
     const swipe = ensureScheduleSwipePanels();
     if (!swipe) {
-        renderScheduleWeek(schedule, document.querySelector('.schedule-week-panel'));
+        renderScheduleWeek(schedule, document.querySelector('.schedule-week-panel'), courseColorMap);
         return;
     }
 
-    const source = getScheduleDataSource(schedule);
     [
         [swipe.previous, currentWeek - 1],
         [swipe.current, currentWeek],
@@ -2268,7 +2324,7 @@ function displaySchedule(schedule) {
         panel.classList.toggle('is-swipe-adjacent', index !== 1);
         panel.classList.remove('is-swipe-target');
         panel.setAttribute('aria-hidden', index === 1 ? 'false' : 'true');
-        renderScheduleWeek(getScheduleWeekPayload(source, week), panel);
+        renderScheduleWeek(getScheduleWeekPayload(source, week), panel, courseColorMap);
     });
 
     updateScheduleDates(currentWeek);
@@ -2293,13 +2349,28 @@ function displaySchedule(schedule) {
     setScheduleSwipeTransform(0);
 }
 
-// 根据课程名称生成颜色索引
-function getColorIndex(courseName) {
-    let hash = 5381;
-    for (let i = 0; i < courseName.length; i++) {
-        hash = ((hash << 5) + hash) ^ courseName.charCodeAt(i);
-    }
-    return Math.abs(hash) % 15; // 15种颜色
+function getScheduleCourseColorKey(course = {}) {
+    const source = course || {};
+    const courseCode = String(source['课程号'] ?? source.code ?? '').trim();
+    const courseName = String(source['课程名'] ?? source.name ?? '').trim();
+    const teacher = String(source['教师'] ?? source.teacher ?? '').trim();
+    return JSON.stringify(courseCode ? [courseCode, courseName] : [courseName, teacher]);
+}
+
+function buildScheduleCourseColorMap(schedule = {}) {
+    const courseKeys = new Set();
+    Object.values(schedule || {}).forEach(weekCourses => {
+        if (!Array.isArray(weekCourses)) return;
+        weekCourses.forEach(course => courseKeys.add(getScheduleCourseColorKey(course)));
+    });
+
+    const sortedCourseKeys = Array.from(courseKeys).sort();
+    const colorMap = new Map();
+    sortedCourseKeys.forEach((courseKey, index) => {
+        const hue = (208 + (index * 360) / sortedCourseKeys.length) % 360;
+        colorMap.set(courseKey, `hsl(${hue.toFixed(3)}, 72%, 40%)`);
+    });
+    return colorMap;
 }
 
 function showCourseDetail(el) {
@@ -2696,7 +2767,11 @@ async function gradesShowSemesterPicker() {
     try {
         const resp = await fetch('/api/grades/semesters', { headers: { 'X-Device-ID': getDeviceId() } });
         const data = await resp.json();
-        if (!data.success || !data.semesters.length) {
+        if (!data.success) {
+            list.innerHTML = `<p style="color:var(--error);text-align:center;">${gradesEscape(data.message || '查询失败')}</p>`;
+            return;
+        }
+        if (!Array.isArray(data.semesters) || data.semesters.length === 0) {
             list.innerHTML = '<p style="color:var(--text-tertiary);text-align:center;">暂无学期数据</p>';
             return;
         }
@@ -2718,7 +2793,9 @@ async function gradesPickSemester(semester) {
     try {
         const resp = await fetch(`/api/grades/by_semester?semester=${encodeURIComponent(semester)}`, { headers: { 'X-Device-ID': getDeviceId() } });
         const data = await resp.json();
-        if (data.success && data.grades && data.grades.length > 0) {
+        if (!data.success) {
+            document.getElementById('grades-content').innerHTML = `<p style="text-align:center;color:var(--error);">${gradesEscape(data.message || '查询失败')}</p>`;
+        } else if (Array.isArray(data.grades) && data.grades.length > 0) {
             displayGrades(data.grades);
         } else {
             document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">该学期暂无成绩数据</p>';
@@ -2817,7 +2894,7 @@ async function gradesLoadGpa() {
         const resp = await fetch('/api/grades/gpa', { headers: { 'X-Device-ID': getDeviceId() } });
         const data = await resp.json();
         if (!data.success) {
-            document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+            document.getElementById('grades-content').innerHTML = `<p style="text-align:center;color:var(--error);">${gradesEscape(data.message || '查询失败')}</p>`;
             return;
         }
         const gpa = data.gpa || {};

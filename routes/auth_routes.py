@@ -63,6 +63,8 @@ def login():
     data = request.get_json() or {}
     username = data.get('username')
     password = data.get('password')
+    # 旧客户端没有该字段，按原行为默认执行设备绑定；新客户端只有明确取消勾选才不绑定。
+    bind_account = data.get('bind_account', True) is not False
     invitation_token = data.get('invitation_token')
 
     if not username or not password:
@@ -71,11 +73,22 @@ def login():
     success, message, _ = urp_login(username, password)
 
     if success:
-        device_id = get_device_id()
+        if bind_account:
+            device_id = get_device_id()
+            bind_user(device_id, username, password, invitation_token)
+            return jsonify({
+                'success': True,
+                'bound': True,
+                'message': '登录成功',
+                'username': username,
+            })
 
-        bind_user(device_id, username, password, invitation_token)
-
-        return jsonify({'success': True, 'message': '登录成功', 'username': username})
+        return jsonify({
+            'success': True,
+            'bound': False,
+            'message': '登录成功，本次未绑定账号；下次使用需重新登录',
+            'username': username,
+        })
     else:
         return jsonify({'success': False, 'message': message})
 

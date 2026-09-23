@@ -14,7 +14,7 @@ URP Helper Server — 基于 Flask 的大学教务系统（URP）辅助工具。
 # 激活虚拟环境（Windows）
 .venv\Scripts\activate
 
-# 运行 Flask 服务器（http://0.0.0.0:5000）
+# 运行 Flask 服务器（默认 http://0.0.0.0:5050，可用 PORT 环境变量覆盖）
 python app.py
 
 # 安装依赖

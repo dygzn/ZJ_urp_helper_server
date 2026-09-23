@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>URP教务助手</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=17">
+    <link rel="stylesheet" href="/static/css/style.css?v=19">
+    <link rel="stylesheet" href="/static/css/lab.css?v=2">
 </head>
 <body>
 
@@ -23,7 +24,10 @@
             <a href="#" class="nav-item" data-page="service-status"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M3 12h18"/></svg><span>找我做事</span></a>
             <a href="#" class="nav-item" data-page="feedback"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg><span>反馈建议</span></a>
             <a href="#" class="nav-item" data-page="shortcut-api"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 7a5 5 0 00-7.07 0L5.5 9.43a5 5 0 007.07 7.07L15 14.07"/><path d="M9 17a5 5 0 007.07 0l2.43-2.43a5 5 0 00-7.07-7.07L9 9.93"/><path d="M8 12h8"/></svg><span>快捷指令 API</span></a>
+            <a href="#" class="nav-item" data-page="lab"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3h8M10 3v7l-6 9a2 2 0 002 2h12a2 2 0 002-2l-6-9V3M8 16h8"/></svg><span>实验提交</span></a>
+            {% if member_page_enabled | default(true) %}
             <a href="#" class="nav-item" data-page="member"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg><span>会员购买</span></a>
+            {% endif %}
         </nav>
         <div class="sidebar-footer">
             <button class="rebind-btn" type="button" onclick="showRebindDialog()">换绑账号</button>
@@ -284,6 +288,23 @@
                 </div>
             </div>
 
+            <div id="page-lab" class="page">
+                <div class="page-access-gate" data-page-access-gate hidden></div>
+                <div class="lab-wrap">
+                    <div class="lab-heading"><div><h2>实验提交</h2><p class="page-section-desc">初级会员及以上可用。实验站账号使用当前绑定学号；查询只在点击按钮后开始。</p></div><span class="shortcut-api-badge">初级会员以上</span></div>
+                    <div id="lab-message" class="lab-message" role="status" aria-live="polite"></div>
+                    <section class="lab-card">
+                        <p>当前学号：<strong id="lab-student">—</strong> · <span id="lab-bound">未绑定实验站密码</span></p>
+                        <label for="lab-password">实验站密码</label><input id="lab-password" type="password" autocomplete="off" placeholder="输入密码；已绑定时可留空">
+                        <label class="lab-check"><input id="lab-save" type="checkbox"> 登录成功后将密码绑定到学号</label>
+                        <p class="lab-auto-captcha">验证码由服务器自动识别，无需手动输入。</p>
+                        <div class="lab-actions"><button id="lab-query" class="btn-primary" type="button">查询实验</button><button id="lab-unbind" class="btn-secondary" type="button">解除密码绑定</button></div>
+                    </section>
+                    <section id="lab-results" class="lab-card" hidden><label for="lab-semester">选择学期</label><select id="lab-semester"></select><p id="lab-mode" class="lab-auto-captcha"></p><div id="lab-list"></div></section>
+                    <input id="lab-file" type="file" accept=".pdf,application/pdf" hidden>
+                </div>
+            </div>
+
             <div id="page-shortcut-api" class="page">
                 <div class="page-access-gate" data-page-access-gate hidden></div>
                 <div class="shortcut-api-page-container">
@@ -324,6 +345,7 @@
                 </div>
             </div>
 
+            {% if member_page_enabled | default(true) %}
             <div id="page-member" class="page">
                 <div class="member-container">
                     <div class="member-page-head">
@@ -384,15 +406,20 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
         </div>
     </div>
 
+    <footer class="site-footer">
+        <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">苏ICP备2025179640号</a>
+    </footer>
+
     <div id="login-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="login-modal-title" data-dismissible="false">
         <div class="modal-content login-card">
-            <button class="modal-close login-close" type="button" onclick="skipBind()" aria-label="暂不绑定，继续以访客浏览">×</button>
+            <button class="modal-close login-close" type="button" onclick="skipBind()" aria-label="暂不登录，继续以访客浏览">×</button>
             <div class="login-header">
-                <h2 id="login-modal-title">绑定教务账号</h2>
-                <p class="modal-desc">绑定后即可查询课表、成绩、考试安排等教务信息。</p>
+                <h2 id="login-modal-title">登录</h2>
+                <p class="modal-desc">登录后可查询课表、成绩、考试安排等教务信息；如需在此设备保留账号，请勾选绑定。</p>
             </div>
             <form id="login-form" class="login-form" onsubmit="handleLogin(event)">
                 <div class="login-field-grid">
@@ -405,11 +432,27 @@
                         <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="请输入教务密码">
                     </div>
                 </div>
+                <div class="login-bind-option">
+                    <label class="login-bind-label" for="bind-account">
+                        <input type="checkbox" id="bind-account" name="bind_account">
+                        <span>登录后绑定此账号</span>
+                    </label>
+                    <button id="password-disclaimer-trigger" class="login-disclaimer-trigger" type="button" onclick="showPasswordDisclaimer()">查看密码保存免责申明</button>
+                </div>
                 <div class="login-actions">
-                    <button type="submit" class="btn-primary btn-full">绑定账号</button>
+                    <button type="submit" class="btn-primary btn-full">登录</button>
                 </div>
             </form>
             <div id="login-error" class="error-message"></div>
+        </div>
+    </div>
+
+    <div id="password-disclaimer-modal" class="modal password-disclaimer-modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="password-disclaimer-title">
+        <div class="modal-content password-disclaimer-card">
+            <button id="password-disclaimer-close" class="modal-close" type="button" onclick="closePasswordDisclaimer()" aria-label="关闭密码保存免责申明">×</button>
+            <h2 id="password-disclaimer-title">密码保存免责申明</h2>
+            <p class="password-disclaimer-copy">勾选后，系统会将学号、教务密码加密保存到服务器，用且仅用于此设备绑定后的自动登录与教务查询。密码按当前系统兼容格式保存，请勿在公共设备上勾选；取消勾选只验证本次登录，不保存绑定信息，下次使用需重新登录。</p>
+            <button class="btn-primary btn-full" type="button" onclick="closePasswordDisclaimer()">我已了解</button>
         </div>
     </div>
 
@@ -448,7 +491,8 @@
 
     <script src="/static/js/schedule-layout.js"></script>
     <script src="/static/js/service-status-ui.js"></script>
-    <script src="/static/js/ui-ux.js?v=1"></script>
-    <script src="/static/js/main.js?v=16"></script>
+    <script src="/static/js/ui-ux.js?v=2"></script>
+    <script src="/static/js/main.js?v=18"></script>
+    <script src="/static/js/lab.js?v=2"></script>
 </body>
 </html>

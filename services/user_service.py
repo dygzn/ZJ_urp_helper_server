@@ -15,17 +15,8 @@ def get_device_id():
 
     authorization = request.headers.get('Authorization', '')
     if authorization.strip():
-        # 延迟导入，避免微信认证服务与用户服务之间形成模块循环依赖。
-        from services.wechat_auth_service import (
-            get_unbound_device_id,
-            get_wechat_request_session,
-        )
-
-        session = get_wechat_request_session()
-        if session:
-            if session.get('device_id'):
-                return session['device_id']
-            return get_unbound_device_id(session['openid'])
+        # 小程序身份仅由 /api/wechat 专用接口解析，不能再借道网页设备接口。
+        # 即使旧 wechat_bindings 尚有记录，也不恢复设备权限。
 
         # Bearer 已明确表明请求来自小程序。无效 token 不应退回
         # User-Agent/IP 这种弱身份，否则可能意外命中其它用户的旧绑定。

@@ -16,6 +16,9 @@ LOGIN_CACHE_TTL = 900
 _auto_update_state_lock = threading.Lock()
 _auto_update_running = set()
 _auto_update_context = threading.local()
+LEGACY_GRADES_ENDPOINT_MESSAGE = (
+    '该成绩接口已停用，请使用 /api/grades/latest_summary 或 /api/grades/current'
+)
 
 
 def urp_login(username, password):
@@ -95,8 +98,130 @@ def _is_freshman(username):
     return False
 
 
+def _build_upcoming_classes(schedule, semester_start, now, period_times, current_week=1):
+    """整理今天（或下一个有课日）的全部课程，并保留倒计时信息。"""
+    if not isinstance(schedule, dict):
+        return {
+            'courses': [],
+            'label': '今日安排',
+            'date': None,
+            'current': None,
+            'next': None,
+            'next_time': None,
+        }
+
+    def week_number(value):
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return 10 ** 9
+
+    def location_of(course):
+        location = course.get('位置')
+        if location:
+            return str(location)
+        return ''.join(str(course.get(key, '') or '') for key in ('校区', '教学楼', '教室')).strip()
+
+    entries = []
+    for week_key in sorted(schedule.keys(), key=week_number):
+        week = week_number(week_key)
+        if week == 10 ** 9 or week < current_week:
+            continue
+        seen = set()
+        for course in schedule.get(week_key) or []:
+            if not isinstance(course, dict):
+                continue
+            try:
+                day = int(course.get('星期'))
+                period = int(course.get('节次'))
+                duration = max(1, int(course.get('节数', 1)))
+            except (TypeError, ValueError):
+                continue
+            if period not in period_times or day < 1 or day > 7:
+                continue
+
+            dedup_key = (week, day, period)
+            if dedup_key in seen:
+                continue
+            seen.add(dedup_key)
+
+            end_period = period + duration - 1
+            if end_period not in period_times:
+                valid_periods = [item for item in period_times if item <= end_period]
+                end_period = max(valid_periods) if valid_periods else period
+
+            days_offset = (week - 1) * 7 + (day - 1)
+            course_date = semester_start + timedelta(days=days_offset)
+            start_h, start_m = period_times[period][0]
+            end_h, end_m = period_times[end_period][1]
+            course_start = course_date.replace(hour=start_h, minute=start_m, second=0, microsecond=0)
+            course_end = course_date.replace(hour=end_h, minute=end_m, second=0, microsecond=0)
+
+            if course_end < now:
+                continue
+
+            is_current = course_start <= now <= course_end
+            start_delta = max(0, int((course_start - now).total_seconds() / 60))
+            remaining = max(0, int((course_end - now).total_seconds() / 60))
+            entries.append({
+                'type': 'class',
+                'title': str(course.get('课程名') or '课程'),
+                'location': location_of(course),
+                'time': f'{start_h:02d}:{start_m:02d}-{end_h:02d}:{end_m:02d}',
+                'date': course_date.strftime('%Y-%m-%d'),
+                'day': day,
+                'week': week,
+                'status': 'current' if is_current else 'upcoming',
+                'countdown': start_delta,
+                'remaining': remaining,
+                'start_at': course_start.isoformat(),
+                'end_at': course_end.isoformat(),
+                '_start_dt': course_start,
+                '_end_dt': course_end,
+            })
+
+    entries.sort(key=lambda item: item['_start_dt'])
+    current_entries = [item for item in entries if item['status'] == 'current']
+    current = max(current_entries, key=lambda item: item['_start_dt']) if current_entries else None
+    future_entries = [item for item in entries if item['status'] == 'upcoming']
+    next_class = future_entries[0] if future_entries else None
+
+    today = now.date()
+    today_entries = [item for item in entries if item['_start_dt'].date() == today]
+    if today_entries:
+        target_date = today
+        label = '今日安排'
+    else:
+        future_dates = sorted({item['_start_dt'].date() for item in entries if item['_start_dt'].date() > today})
+        target_date = future_dates[0] if future_dates else None
+        tomorrow = today + timedelta(days=1)
+        label = '明日安排' if target_date == tomorrow else (
+            f'{target_date.month}月{target_date.day}日安排' if target_date else '今日安排'
+        )
+
+    def public(item):
+        if not item:
+            return None
+        return {key: value for key, value in item.items() if not key.startswith('_')}
+
+    courses = [public(item) for item in entries if target_date and item['_start_dt'].date() == target_date]
+    public_next = public(next_class)
+    if public_next:
+        public_next['time_range'] = public_next['time']
+        public_next['time'] = f"{public_next['date']} {public_next['time'].split('-')[0]}"
+
+    return {
+        'courses': courses,
+        'label': label,
+        'date': target_date.isoformat() if target_date else None,
+        'current': public(current),
+        'next': public_next,
+        'next_time': next_class['_start_dt'] if next_class else None,
+    }
+
+
 def get_urgent_event(username):
-    """获取正在进行的课程和下一个最紧急的事件"""
+    """获取正在进行的课程、当天剩余课程和下一个最紧急的事件"""
     schedule_file = os.path.join('user_data', username, 'schedule.json')
     exams_file = os.path.join('user_data', username, 'exams.json')
 
@@ -128,72 +253,21 @@ def get_urgent_event(username):
             9: ((19, 0), (19, 45)), 10: ((19, 55), (20, 40)),
         }
 
-    current_class = None
-    next_class = None
-    next_class_time = None
-
+    schedule = {}
     if os.path.exists(schedule_file):
         with open(schedule_file, 'r', encoding='utf-8') as f:
             schedule = json.load(f)
 
-        for week_str in sorted(schedule.keys(), key=int):
-            week = int(week_str)
-            if week < current_week:
-                continue
-            if current_class and next_class and week > current_week:
-                break
-
-            seen = set()
-            for course in schedule[week_str]:
-                day = int(course['星期'])
-                period = int(course['节次'])
-                duration = int(course.get('节数', 1))
-
-                if period not in period_times:
-                    continue
-
-                end_period = period + duration - 1
-                if end_period not in period_times:
-                    end_period = max(p for p in period_times if p <= end_period) if any(p <= end_period for p in period_times) else period
-
-                dedup_key = (week, day, period)
-                if dedup_key in seen:
-                    continue
-                seen.add(dedup_key)
-
-                days_offset = (week - 1) * 7 + (day - 1)
-                course_date = semester_start + timedelta(days=days_offset)
-
-                start_h, start_m = period_times[period][0]
-                end_h, end_m = period_times[end_period][1]
-
-                course_start = course_date.replace(hour=start_h, minute=start_m, second=0, microsecond=0)
-                course_end   = course_date.replace(hour=end_h,   minute=end_m,   second=0, microsecond=0)
-
-                if course_start <= now <= course_end:
-                    remaining = int((course_end - now).total_seconds() / 60)
-                    if current_class is None or course_start > datetime.fromisoformat(current_class.get('_start', '2000-01-01')):
-                        current_class = {
-                            'type': 'class',
-                            'title': course['课程名'],
-                            'location': course['位置'],
-                            'time': f"{start_h:02d}:{start_m:02d}-{end_h:02d}:{end_m:02d}",
-                            'remaining': remaining,
-                            '_start': course_start.isoformat()
-                        }
-                elif course_start > now:
-                    if next_class_time is None or course_start < next_class_time:
-                        next_class_time = course_start
-                        next_class = {
-                            'type': 'class',
-                            'title': course['课程名'],
-                            'location': course['位置'],
-                            'time': course_start.strftime('%Y-%m-%d %H:%M'),
-                            'countdown': int((course_start - now).total_seconds() / 60)
-                        }
-
-    if current_class:
-        current_class.pop('_start', None)
+    upcoming_info = _build_upcoming_classes(
+        schedule,
+        semester_start,
+        now,
+        period_times,
+        current_week=current_week,
+    )
+    current_class = upcoming_info['current']
+    next_class = upcoming_info['next']
+    next_class_time = upcoming_info['next_time']
 
     next_exam = None
     next_exam_time = None
@@ -240,6 +314,9 @@ def get_urgent_event(username):
     return {
         'current': current_class,
         'next': next_event,
+        'upcoming': upcoming_info['courses'],
+        'upcoming_label': upcoming_info['label'],
+        'upcoming_date': upcoming_info['date'],
         'is_freshman': _is_freshman(username),
     }
 
@@ -413,28 +490,16 @@ def get_exams(username):
 
 
 def get_grades(username):
-    """获取成绩"""
-    from urp import URP_query
-    url = get_current_urp_url()
-    try:
-        urp_query = URP_query(url, username)
-        courses = urp_query.score_query()
-        return [{'course': c.get('课程名', ''), 'score': c.get('成绩', '')} for c in courses]
-    except Exception as e:
-        print(f"获取成绩失败: {str(e)}")
-        return []
+    """旧成绩接口的兼容函数，避免把废弃查询伪装成空成绩。"""
+    raise RuntimeError(LEGACY_GRADES_ENDPOINT_MESSAGE)
 
 
 def get_semesters(username):
     """获取所有学期列表"""
     from urp import URP_query
     url = get_current_urp_url()
-    try:
-        urp_query = URP_query(url, username)
-        return urp_query.get_semesters()
-    except Exception as e:
-        print(f"获取学期列表失败: {str(e)}")
-        return []
+    urp_query = URP_query(url, username)
+    return urp_query.get_semesters()
 
 
 def get_current_semester_grades(username):
@@ -450,13 +515,9 @@ def get_grades_by_semester(username, semester):
     """获取指定学期的及格成绩"""
     from urp import URP_query
     url = get_current_urp_url()
-    try:
-        urp_query = URP_query(url, username)
-        courses = urp_query.score_by_semester(semester)
-        return [{'course': c.get('课程名', ''), 'score': c.get('成绩', '')} for c in courses]
-    except Exception as e:
-        print(f"获取学期成绩失败: {str(e)}")
-        return []
+    urp_query = URP_query(url, username)
+    courses = urp_query.score_by_semester(semester)
+    return [{'course': c.get('课程名', ''), 'score': c.get('成绩', '')} for c in courses]
 
 
 def _format_grade_courses(courses, include_failed_fields=False):
@@ -535,37 +596,25 @@ def get_gpa(username):
     """获取学分绩点和学位绩点"""
     from urp import URP_query
     url = get_current_urp_url()
-    try:
-        urp_query = URP_query(url, username)
-        return urp_query.score_gpa()
-    except Exception as e:
-        print(f"获取绩点失败: {str(e)}")
-        return {}
+    urp_query = URP_query(url, username)
+    return urp_query.score_gpa()
 
 
 def get_exam_sessions(username):
     """获取考试成绩查询的所有学期和考试名称列表"""
     from urp import URP_query
     url = get_current_urp_url()
-    try:
-        urp_query = URP_query(url, username)
-        return urp_query.get_exam_sessions()
-    except Exception as e:
-        print(f"获取考试列表失败: {str(e)}")
-        return {'semesters': [], 'exams': []}
+    urp_query = URP_query(url, username)
+    return urp_query.get_exam_sessions()
 
 
 def get_exam_scores(username, jxzxjh, ksbh):
     """查询指定考试的成绩"""
     from urp import URP_query
     url = get_current_urp_url()
-    try:
-        urp_query = URP_query(url, username)
-        courses = urp_query.score_resit(jxzxjh, ksbh)
-        return [{'course': c.get('课程名', ''), 'credit': c.get('学分', ''), 'score': c.get('成绩', '')} for c in courses]
-    except Exception as e:
-        print(f"查询考试成绩失败: {str(e)}")
-        return []
+    urp_query = URP_query(url, username)
+    courses = urp_query.score_resit(jxzxjh, ksbh)
+    return [{'course': c.get('课程名', ''), 'credit': c.get('学分', ''), 'score': c.get('成绩', '')} for c in courses]
 
 
 def get_unevaluated_courses(username):
