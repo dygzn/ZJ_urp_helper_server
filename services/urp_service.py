@@ -98,6 +98,15 @@ def _is_freshman(username):
     return False
 
 
+def _parse_semester_start(value):
+    """解析管理员配置的学期首周星期一，非法值返回 None。"""
+    try:
+        parsed = datetime.strptime(str(value or '').strip(), '%Y-%m-%d')
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed.weekday() == 0 else None
+
+
 def _build_upcoming_classes(schedule, semester_start, now, period_times, current_week=1):
     """整理今天（或下一个有课日）的全部课程，并保留倒计时信息。"""
     if not isinstance(schedule, dict):
@@ -226,13 +235,17 @@ def get_urgent_event(username):
     exams_file = os.path.join('user_data', username, 'exams.json')
 
     config = get_config()
+    schedule_cache_stale = is_calendar_cache_stale(username, 'schedule', config)
+    exams_cache_stale = is_calendar_cache_stale(username, 'exams', config)
     semester_start_str = config.get('semester_start', '2026-03-02')
-    y, m, d = map(int, semester_start_str.split('-'))
-    semester_start = datetime(y, m, d)
+    semester_start = _parse_semester_start(semester_start_str)
     now = datetime.now().replace(microsecond=0)
 
-    days_passed = (now - semester_start).days
-    current_week = max(1, (days_passed // 7) + 1) if days_passed >= 0 else 0
+    if semester_start:
+        days_passed = (now - semester_start).days
+        current_week = max(1, (days_passed // 7) + 1) if days_passed >= 0 else 0
+    else:
+        current_week = 0
 
     # 最新一届新生（另一校区）：45分钟/节，课间10分钟，大课间（2-3、6-7）15分钟
     # 上午 08:00 起，下午 13:30 起，晚上 18:30 起
@@ -254,7 +267,7 @@ def get_urgent_event(username):
         }
 
     schedule = {}
-    if os.path.exists(schedule_file):
+    if os.path.exists(schedule_file) and not schedule_cache_stale:
         with open(schedule_file, 'r', encoding='utf-8') as f:
             schedule = json.load(f)
 
@@ -264,7 +277,14 @@ def get_urgent_event(username):
         now,
         period_times,
         current_week=current_week,
-    )
+    ) if semester_start else {
+        'courses': [],
+        'label': '今日安排',
+        'date': None,
+        'current': None,
+        'next': None,
+        'next_time': None,
+    }
     current_class = upcoming_info['current']
     next_class = upcoming_info['next']
     next_class_time = upcoming_info['next_time']
@@ -272,7 +292,7 @@ def get_urgent_event(username):
     next_exam = None
     next_exam_time = None
 
-    if os.path.exists(exams_file):
+    if semester_start and os.path.exists(exams_file) and not exams_cache_stale:
         with open(exams_file, 'r', encoding='utf-8') as f:
             exams = json.load(f)
 
@@ -318,6 +338,9 @@ def get_urgent_event(username):
         'upcoming_label': upcoming_info['label'],
         'upcoming_date': upcoming_info['date'],
         'is_freshman': _is_freshman(username),
+        'semester_start_invalid': semester_start is None,
+        'schedule_cache_stale': schedule_cache_stale,
+        'exams_cache_stale': exams_cache_stale,
     }
 
 
@@ -422,7 +445,7 @@ def _perform_auto_update(username, password):
         return False, f'自动更新失败: {str(e)}'
 
 
-def get_schedule(username, week=None):
+def get_schedule(username, week=None, config=None):
     """读取课表文件"""
     schedule_file = os.path.join('user_data', username, 'schedule.json')
 
@@ -447,10 +470,26 @@ def get_schedule(username, week=None):
         return {
             'week': None,
             'schedule': schedule_data,
-            'semester_start': get_config().get('semester_start', '2026-03-02')
+            'semester_start': (config if config is not None else get_config()).get('semester_start', '2026-03-02'),
+            'is_freshman': _is_freshman(username),
         }
     except Exception as e:
         return {'week': week, 'schedule': {}, 'message': f'读取课表失败: {str(e)}'}
+
+
+def is_calendar_cache_stale(username, kind, config=None):
+    """管理员切换学期后，阻止把旧缓存按新日期解释。"""
+    if kind not in ('schedule', 'exams'):
+        raise ValueError('未知的教务缓存类型')
+    marker = (config if config is not None else get_config()).get('semester_cache_reset_at_ns')
+    try:
+        marker_ns = int(marker)
+        if marker_ns <= 0:
+            return False
+        cache_path = os.path.join('user_data', username, f'{kind}.json')
+        return os.stat(cache_path).st_mtime_ns < marker_ns
+    except (TypeError, ValueError, OSError):
+        return False
 
 
 def get_exams(username):
@@ -476,6 +515,9 @@ def get_exams(username):
                             'week': exam.get('考试周次', ''),
                             'day': exam.get('考试星期', ''),
                             'location': exam.get('位置', ''),
+                            'campus': exam.get('校区', ''),
+                            'building': exam.get('教学楼', ''),
+                            'room': exam.get('教室', ''),
                             'seat': exam.get('座位号', '')
                         })
             return result

@@ -886,6 +886,10 @@ body {
 
 /* ==================== 课程表 ==================== */
 .schedule-container {
+    --schedule-time-width: clamp(50px, 5vw, 72px);
+    --schedule-column-gap: clamp(3px, 0.5vw, 10px);
+    --schedule-row-height: clamp(54px, calc(12.5dvh - 35px), 104px);
+    --schedule-row-gap: 6px;
     padding: 20px;
 }
 
@@ -902,7 +906,7 @@ body {
     --dino-obstacle-progress: 0;
     --dino-obstacle-shift: 140px;
     position: relative;
-    height: 82px;
+    height: clamp(60px, 9dvh, 82px);
     margin-bottom: 8px;
     overflow: hidden;
     pointer-events: none;
@@ -919,14 +923,15 @@ body {
     width: 100%;
     height: 100%;
     transform-origin: center;
+    overflow: hidden;
 }
 
 .schedule-dino-stage::after {
     content: '';
     position: absolute;
-    right: 4%;
+    right: -15px;
     bottom: 7px;
-    left: 4%;
+    left: 0;
     height: 2px;
     border-radius: 999px;
     background: repeating-linear-gradient(90deg, rgba(76, 114, 89, 0.3) 0 9px, transparent 9px 15px);
@@ -947,7 +952,8 @@ body {
     color: #34a853;
     filter: drop-shadow(0 2px 1px rgba(22, 89, 48, 0.16));
     transform-origin: 50% 100%;
-    animation: scheduleDinoRun 0.22s steps(2, end) infinite;
+    animation: scheduleDinoRun 0.32s ease-in-out infinite;
+    will-change: transform;
 }
 
 .schedule-dino-character svg {
@@ -1122,7 +1128,7 @@ body {
 }
 
 .schedule-swipe-viewport.is-settling:not(.is-dino-button-jump) .schedule-dino-character {
-    animation: scheduleDinoLand 0.36s ease-out both;
+    animation: scheduleDinoLand 0.36s cubic-bezier(0.42, 0, 0.58, 1) both;
 }
 
 .schedule-swipe-viewport.is-settling:not(.is-dino-button-jump) .schedule-dino-obstacle {
@@ -1166,8 +1172,15 @@ body {
 }
 
 @keyframes scheduleDinoButtonJump {
-    0%, 100% { transform: translateX(-50%) translateY(0); }
-    35%, 82% { transform: translateX(-50%) translateY(-32px); }
+    0% {
+        transform: translateX(-50%) translateY(0);
+        animation-timing-function: cubic-bezier(0.2, 0.65, 0.4, 1);
+    }
+    60% {
+        transform: translateX(-50%) translateY(-36px);
+        animation-timing-function: cubic-bezier(0.6, 0, 0.8, 0.35);
+    }
+    100% { transform: translateX(-50%) translateY(0); }
 }
 
 .schedule-dino-fragments,
@@ -1248,7 +1261,7 @@ body {
 }
 
 @keyframes scheduleDinoRun {
-    0%, 100% { transform: translateX(-50%) translateY(0) rotate(-1deg); }
+    0%, 100% { transform: translateX(-50%) translateY(0) rotate(0); }
     50% { transform: translateX(-50%) translateY(-2px) rotate(1deg); }
 }
 
@@ -1291,8 +1304,8 @@ body {
 }
 
 @keyframes scheduleDinoGround {
-    from { background-position-x: 0; }
-    to { background-position-x: -15px; }
+    from { transform: translate3d(0, 0, 0); }
+    to { transform: translate3d(-15px, 0, 0); }
 }
 
 @keyframes scheduleDinoCloud {
@@ -1408,8 +1421,8 @@ body {
 /* 课程表头部 */
 .schedule-header {
     display: grid;
-    grid-template-columns: 70px repeat(7, 1fr);
-    gap: 6px;
+    grid-template-columns: var(--schedule-time-width) repeat(7, minmax(0, 1fr));
+    gap: var(--schedule-column-gap);
     margin-bottom: 8px;
 }
 
@@ -1470,18 +1483,19 @@ body {
 /* 课程表网格 */
 .schedule-grid {
     display: grid;
-    grid-template-columns: 70px 1fr;
-    gap: 8px;
+    grid-template-columns: var(--schedule-time-width) minmax(0, 1fr);
+    gap: var(--schedule-column-gap);
 }
 
 .schedule-timeline {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--schedule-row-gap);
 }
 
 .timeline-item {
-    height: 76px;
+    height: var(--schedule-row-height);
+    flex: 0 0 var(--schedule-row-height);
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -1507,14 +1521,17 @@ body {
 
 .schedule-days {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 6px;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: var(--schedule-column-gap);
     position: relative;
 }
 
 .schedule-day-column {
     position: relative;
-    min-height: 660px;
+    display: grid;
+    grid-template-rows: repeat(8, var(--schedule-row-height));
+    gap: var(--schedule-row-gap);
+    min-width: 0;
 }
 
 .timeline-item-evening {
@@ -1526,12 +1543,12 @@ body {
 }
 
 .schedule-grid.has-evening .schedule-day-column {
-    min-height: 814px;
+    grid-template-rows: repeat(10, var(--schedule-row-height));
 }
 
 /* 隐藏周末 */
 .schedule-header.no-weekend {
-    grid-template-columns: 70px repeat(5, 1fr);
+    grid-template-columns: var(--schedule-time-width) repeat(5, minmax(0, 1fr));
 }
 
 .schedule-header.no-weekend .schedule-header-weekend {
@@ -1539,7 +1556,7 @@ body {
 }
 
 .no-weekend .schedule-days {
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .no-weekend .schedule-day-weekend {
@@ -1556,6 +1573,8 @@ body {
     transition: all 0.2s var(--ease);
     box-shadow: 0 1px 4px rgba(0,0,0,0.1);
     position: relative;
+    min-width: 0;
+    min-height: 0;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -1625,6 +1644,26 @@ body {
     color: var(--text-secondary);
     flex-shrink: 0;
     margin-right: 16px;
+}
+
+.calendar-export-hint {
+    color: var(--text-secondary);
+    font-size: var(--text-caption);
+    line-height: 1.6;
+    margin: 0 0 16px;
+}
+
+.calendar-export-error {
+    color: var(--error);
+    font-size: var(--text-caption);
+    margin: 0 0 12px;
+}
+
+.calendar-cache-notice {
+    color: var(--warning);
+    font-size: var(--text-caption);
+    line-height: 1.6;
+    margin: 0 0 12px;
 }
 
 /* ==================== 考试安排 ==================== */
@@ -3352,15 +3391,19 @@ body {
     }
 
     /* 课程表移动端 */
-    .schedule-container { padding: 12px; }
+    .schedule-container {
+        --schedule-row-height: clamp(48px, calc(12.5dvh - 35px), 84px);
+        --schedule-row-gap: 3px;
+        padding: 8px;
+    }
 
     .schedule-header {
-        grid-template-columns: 50px repeat(7, 1fr);
-        gap: 3px;
+        grid-template-columns: var(--schedule-time-width) repeat(7, minmax(0, 1fr));
+        gap: var(--schedule-column-gap);
     }
 
     .schedule-header.no-weekend {
-        grid-template-columns: 50px repeat(5, 1fr);
+        grid-template-columns: var(--schedule-time-width) repeat(5, minmax(0, 1fr));
     }
 
     .schedule-header-day {
@@ -3373,30 +3416,22 @@ body {
     }
 
     .schedule-grid {
-        grid-template-columns: 50px 1fr;
-        gap: 4px;
+        grid-template-columns: var(--schedule-time-width) minmax(0, 1fr);
+        gap: var(--schedule-column-gap);
     }
 
     .timeline-item {
-        height: 56px;
+        height: var(--schedule-row-height);
         padding: 2px;
     }
 
-    .schedule-timeline { gap: 3px; }
+    .schedule-timeline { gap: var(--schedule-row-gap); }
 
     .timeline-section { font-size: 14px; }
     .timeline-time-start,
     .timeline-time-end { font-size: 9px; }
 
-    .schedule-days { gap: 3px; }
-
-    .schedule-day-column {
-        min-height: 480px;
-    }
-
-    .schedule-grid.has-evening .schedule-day-column {
-        min-height: 587px;
-    }
+    .schedule-days { gap: var(--schedule-column-gap); }
 
     .course-card {
         font-size: 10px;
@@ -4792,15 +4827,6 @@ body {
     width: 100%;
 }
 
-/* 课程表底部周次控制 */
-.schedule-bottom-controls {
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    margin-top: 22px;
-}
-
 .week-select-wrap {
     display: inline-flex;
     align-items: center;
@@ -4824,29 +4850,6 @@ body {
     color: var(--text-primary);
     font-size: 14px;
     cursor: pointer;
-}
-
-.schedule-bottom-controls .current-week {
-    min-width: 64px;
-    text-align: center;
-    color: var(--text-secondary);
-    font-size: 14px;
-}
-
-@media (max-width: 680px) {
-    .schedule-bottom-controls {
-        justify-content: stretch;
-    }
-    .schedule-bottom-controls > *,
-    .schedule-bottom-controls .btn-primary,
-    .schedule-bottom-controls .btn-secondary,
-    .schedule-bottom-controls .week-select-wrap {
-        flex: 1 1 calc(50% - 8px);
-    }
-    .schedule-bottom-controls .current-week {
-        flex-basis: 100%;
-        order: -1;
-    }
 }
 
 /* 会员页面：克制版套餐卡片 */
@@ -6762,16 +6765,11 @@ body.ui-locked {
     line-height: 1.5;
 }
 
-.schedule-week-controls,
-.schedule-data-actions {
+.schedule-week-controls {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 10px;
-}
-
-.schedule-data-actions {
-    flex-wrap: wrap;
 }
 
 .schedule-week-controls .current-week {
@@ -7026,18 +7024,6 @@ body.ui-locked {
         width: 100%;
     }
 
-    .schedule-bottom-controls {
-        display: flex;
-        flex-direction: column;
-        align-items: stretch;
-        gap: 10px;
-    }
-
-    .schedule-bottom-controls > * {
-        flex: none;
-        width: 100%;
-    }
-
     .schedule-week-controls {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -7066,21 +7052,6 @@ body.ui-locked {
         width: 100%;
     }
 
-    .schedule-data-actions {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        width: 100%;
-        gap: 8px;
-    }
-
-    .schedule-data-actions button {
-        width: 100%;
-    }
-
-    .schedule-data-actions button:last-child {
-        grid-column: 1 / -1;
-    }
-
     #page-exams .action-bar,
     #page-evaluation .action-bar {
         display: grid;
@@ -7091,6 +7062,10 @@ body.ui-locked {
     #page-exams .action-bar button,
     #page-evaluation .action-bar button {
         width: 100%;
+    }
+
+    #page-exams .action-bar button:last-child {
+        grid-column: 1 / -1;
     }
 
     .grades-card-grid {
@@ -7166,4 +7141,345 @@ body.ui-locked {
     height: var(--touch-target);
     min-height: var(--touch-target);
     padding: 0;
+}
+
+/* 课表操作由底部上滑手势展开；考试操作固定在列表下方。 */
+.exams-page-head {
+    padding-bottom: 20px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--divider);
+}
+
+.exams-page-intro {
+    min-width: 0;
+}
+
+.exams-page-intro h2 {
+    margin: 0 0 5px;
+    font-size: 25px;
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+.exams-page-intro .page-section-desc {
+    margin: 0;
+}
+
+.exams-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-top: 20px;
+    margin-top: 22px;
+    border-top: 1px solid var(--divider);
+}
+
+.exams-actions button {
+    width: auto;
+    height: 40px;
+    padding-inline: 14px;
+    font-size: 14px;
+}
+
+.schedule-actions-pull {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    position: fixed;
+    z-index: 90;
+    left: 50%;
+    bottom: 0;
+    width: min(320px, calc(100vw - 24px));
+    height: 68px;
+    overflow: hidden;
+    pointer-events: none;
+    transform: translate3d(-50%, 100%, 0);
+    transition: transform 0.18s var(--ease);
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 600;
+    background: linear-gradient(180deg, rgba(0, 122, 255, 0.03), rgba(0, 122, 255, 0.09));
+    border-radius: 0 0 12px 12px;
+}
+
+.schedule-actions-pull.is-pulling {
+    border-top: 1px solid var(--divider);
+    transition: none;
+}
+
+.schedule-actions-pull-track {
+    display: block;
+    width: 110px;
+    height: 3px;
+    overflow: hidden;
+    border-radius: 3px;
+    background: rgba(0, 122, 255, 0.16);
+}
+
+.schedule-actions-pull-fill {
+    display: block;
+    width: 0;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--accent);
+}
+
+.schedule-actions {
+    display: none;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 16px;
+}
+
+.schedule-actions.is-open {
+    display: grid;
+    padding-top: 20px;
+    margin-top: 16px;
+    border-top: 1px solid var(--divider);
+}
+
+.schedule-actions.is-open > * {
+    animation: scheduleActionsAppear 0.24s var(--ease) both;
+}
+
+@keyframes scheduleActionsAppear {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.schedule-actions-heading {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: var(--text-primary);
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.schedule-actions-close {
+    padding: 6px 10px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--accent);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.schedule-actions-close:hover {
+    background: rgba(0, 122, 255, 0.08);
+}
+
+.schedule-week-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    min-height: 108px;
+    padding: 14px;
+    border: 1px solid var(--divider);
+    border-radius: 12px;
+    background: var(--bg-secondary);
+}
+
+.schedule-week-caption {
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.schedule-week-toolbar .schedule-week-controls {
+    justify-content: flex-end;
+}
+
+.schedule-week-toolbar .schedule-week-controls button {
+    height: 38px;
+    padding-inline: 14px;
+    border-color: var(--divider);
+    background: var(--card-bg);
+    font-size: 14px;
+}
+
+.schedule-week-toolbar .week-select-wrap {
+    background: var(--card-bg);
+}
+
+.schedule-actions .schedule-data-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 14px;
+    border: 1px solid var(--divider);
+    border-radius: 12px;
+    background: var(--bg-secondary);
+}
+
+.schedule-actions .schedule-data-actions button {
+    width: 100%;
+    min-width: 0;
+    height: 40px;
+    padding-inline: 8px;
+    font-size: 14px;
+}
+
+.schedule-actions .schedule-data-actions button:last-child {
+    grid-column: 1 / -1;
+}
+
+.schedule-container,
+.exams-container {
+    min-width: 0;
+}
+
+.exams-content {
+    min-height: 120px;
+}
+
+.exam-group:last-child {
+    margin-bottom: 0;
+}
+
+.exam-group-content {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.exam-group-content .exam-card {
+    min-width: 0;
+    height: 100%;
+    margin: 0;
+    border: 1px solid var(--divider);
+    border-left: 4px solid var(--accent);
+    background: var(--card-bg);
+    box-shadow: 0 3px 12px rgba(15, 23, 42, 0.04);
+}
+
+.exam-group-content .exam-course,
+.exam-group-content .exam-info-item span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.exam-group-content .exam-card.exam-urgent { border-left-color: var(--error); }
+.exam-group-content .exam-card.exam-soon { border-left-color: var(--warning); }
+
+.content-wrapper:has(> #page-schedule.active) {
+    width: 100%;
+    max-width: none;
+    padding-inline: clamp(8px, 2vw, 32px);
+}
+
+#page-schedule .schedule-container {
+    width: 100%;
+    padding: clamp(8px, 1vw, 20px);
+}
+
+@media (min-width: 769px) {
+    #page-schedule .course-card-name {
+        font-size: clamp(12px, 0.9vw, 16px);
+    }
+
+    #page-schedule .course-card-location {
+        font-size: clamp(11px, 0.75vw, 13px);
+    }
+}
+
+@media (min-width: 1100px) {
+    .content-wrapper:has(> #page-exams.active) {
+        max-width: 1240px;
+    }
+
+    #page-exams .exams-container {
+        padding: 28px 30px;
+    }
+}
+
+@media (max-width: 980px) {
+    .schedule-actions {
+        grid-template-columns: 1fr;
+    }
+
+    .schedule-actions-heading {
+        grid-column: 1;
+    }
+
+    .schedule-week-toolbar {
+        min-height: 66px;
+    }
+}
+
+@media (max-width: 768px) {
+    .content-wrapper:has(> #page-schedule.active) {
+        padding-inline: 6px;
+    }
+
+    .exams-page-head {
+        padding-bottom: 16px;
+        margin-bottom: 16px;
+    }
+
+    .exams-page-intro h2 {
+        font-size: 21px;
+    }
+
+    .exams-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        width: 100%;
+        gap: 8px;
+    }
+
+    .exams-actions button {
+        width: 100%;
+        min-width: 0;
+        height: 44px;
+        padding-inline: 8px;
+        white-space: normal;
+    }
+
+    .exams-actions button:last-child {
+        grid-column: 1 / -1;
+    }
+
+    .schedule-actions {
+        gap: 10px;
+    }
+
+    .schedule-actions.is-open {
+        padding-top: 14px;
+        margin-top: 12px;
+    }
+
+    .schedule-week-toolbar {
+        padding: 10px;
+        min-height: 64px;
+    }
+
+    .schedule-week-caption {
+        display: none;
+    }
+
+    .schedule-week-toolbar .schedule-week-controls {
+        width: 100%;
+    }
+
+    .schedule-actions .schedule-data-actions button {
+        min-height: 44px;
+        white-space: normal;
+    }
+
+    .exam-group-content {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
 }

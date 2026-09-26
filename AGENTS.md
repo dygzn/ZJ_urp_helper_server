@@ -121,6 +121,14 @@ urp/             # URP 底层模块（从 URP.py 拆分）
 - `templates/admin.html` + `static/js/admin.js` — 管理员后台
 - 设备 ID 存 localStorage，通过 `X-Device-ID` header 传递
 
+前端视觉规范见根目录 [DESIGN.md](DESIGN.md)，该文件复制自 VoltAgent/awesome-design-md 的 Apple 规范（许可证见 `docs/awesome-design-md-LICENSE`）。新页面复用 `static/css/apple-theme.css` 的颜色、按钮、卡片和焦点规则；视觉修改不得改变现有交互、数据展示和接口行为。
+
+前端操作约定：
+- 主导航和后台栏目切换同级页面，当前项需有明确的选中状态。
+- 页内查询结果或临时视图的返回入口放在内容左上方、结果标题上方，文案写明返回目的地；返回时恢复上级视图及键盘焦点。
+- 弹窗右上角使用“关闭”，表单中放弃编辑使用“取消”；可关闭弹窗支持 Escape 和遮罩，需强制完成的流程遵守现有例外。
+- “查询”获取结果，“刷新”重新读取当前显示，“更新”向教务系统重新获取数据；不要用这些词指向同一个操作。
+
 ## API Response Convention
 
 ```python

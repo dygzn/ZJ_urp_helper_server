@@ -9,7 +9,7 @@ from auth import require_login, require_bindding, require_member, require_grade_
 from database import get_db
 from services.config_service import get_config
 from services.urp_service import (
-    get_urgent_event, get_schedule, get_exams,
+    get_urgent_event, get_schedule, get_exams, is_calendar_cache_stale,
     get_unevaluated_courses, do_evaluation, start_auto_update,
     check_login_status, get_semesters, get_grades_by_semester,
     get_failed_grades, get_gpa, get_current_semester_grades,
@@ -38,8 +38,10 @@ def api_urgent_event(user):
 def api_schedule(user):
     week = request.args.get('week', type=int)
     try:
-        schedule = get_schedule(user['username'], week)
-        return jsonify({'success': True, 'data': schedule})
+        config = get_config()
+        schedule = get_schedule(user['username'], week, config)
+        schedule['cache_stale'] = is_calendar_cache_stale(user['username'], 'schedule', config)
+        return jsonify({'success': True, 'data': schedule, 'account': user['username']})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
@@ -87,7 +89,14 @@ def api_historical_schedule(user):
 def api_exams(user):
     try:
         exams = get_exams(user['username'])
-        return jsonify({'success': True, 'exams': exams})
+        config = get_config()
+        return jsonify({
+            'success': True,
+            'exams': exams,
+            'account': user['username'],
+            'semester_start': config.get('semester_start', ''),
+            'cache_stale': is_calendar_cache_stale(user['username'], 'exams', config),
+        })
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 

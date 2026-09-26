@@ -111,7 +111,13 @@ let shortcutApiPlainKey = '';
 let shortcutApiHasKey = false;
 let isCheckingLoginStatus = false;
 let cachedSchedule = null;
+let cachedExams = null;
 let semesterStart = null;   // 学期第1周星期一的日期
+let academicCacheUsername = null;
+let academicCacheGeneration = 0;
+let calendarExportKind = null;
+let calendarExportData = null;
+let calendarExportAccount = '';
 let isGuestMode = false;    // 访客模式（未绑定账号）
 
 // ==================== 标题栏广告位 ====================
@@ -121,8 +127,26 @@ const boundUsernameStorageKey = 'urp_bound_username';
 let headerAdImpressionTracked = false;
 
 function rememberBoundUsername(username) {
+    const normalized = String(username || '').trim();
+    if (academicCacheUsername !== normalized) {
+        academicCacheGeneration++;
+        if (calendarExportKind) closeCalendarExport();
+        cachedSchedule = null;
+        cachedExams = null;
+        semesterStart = null;
+        otherMajorScheduleData = null;
+        calendarExportData = null;
+        calendarExportAccount = '';
+        academicCacheUsername = normalized;
+        if (typeof document.querySelectorAll === 'function') {
+            document.querySelectorAll('.schedule-week-panel .schedule-days').forEach(el => { el.innerHTML = ''; });
+            document.querySelectorAll('[data-schedule-date]').forEach(el => { el.textContent = ''; });
+            document.querySelectorAll('.schedule-day-today').forEach(el => el.classList.remove('schedule-day-today'));
+            const examsContent = document.getElementById('exams-content');
+            if (examsContent) examsContent.innerHTML = '<div class="loading">加载中...</div>';
+        }
+    }
     try {
-        const normalized = String(username || '').trim();
         if (normalized) {
             localStorage.setItem(boundUsernameStorageKey, normalized);
         } else {
@@ -543,6 +567,7 @@ async function checkLoginStatus() {
 
 // ==================== API请求：检查绑定状态 ====================
 async function checkBindStatus() {
+    const generation = academicCacheGeneration;
     try {
         const response = await fetch('/api/check_bind', {
             headers: {
@@ -551,6 +576,7 @@ async function checkBindStatus() {
         });
         const data = await response.json();
 
+        if (generation !== academicCacheGeneration) return;
         if (data.rebind_notifications && data.rebind_notifications.length > 0) {
             showRebindNotifications(data.rebind_notifications);
         }
@@ -567,6 +593,7 @@ async function checkBindStatus() {
             switchPage(lastPage);
             loadAndShowAnnouncements();
         } else {
+            currentUsername = null;
             rememberBoundUsername(null);
             showLoginModal();
         }
@@ -618,6 +645,7 @@ function closePasswordDisclaimer() {
 
 function skipBind() {
     isGuestMode = true;
+    currentUsername = null;
     rememberBoundUsername(null);
     hideLoginModal();
     document.getElementById('sidebar-username').textContent = '访客';
@@ -844,6 +872,11 @@ function switchPage(pageName) {
             || document.getElementById('page-home');
     }
 
+    if (pageName !== 'schedule') {
+        hideScheduleActions(false);
+        resetQueuedScheduleSwipe();
+    }
+
     // 隐藏所有页面
     const pages = document.querySelectorAll('.page');
     pages.forEach(page => page.classList.remove('active'));
@@ -936,7 +969,7 @@ function loadPageData(pageName) {
             break;
         case 'schedule':
             // 课程表页面自动加载
-            loadSchedule();
+            refreshScheduleDisplay();
             break;
         case 'exams':
             loadExams();
@@ -1069,6 +1102,7 @@ async function loadServiceStatus() {
 
 // ==================== 首页：加载紧急事件 ====================
 async function loadUrgentEvent() {
+    const generation = academicCacheGeneration;
     // 后台检查登录状态（不阻塞日程加载）
     checkLoginStatus();
 
@@ -1088,10 +1122,23 @@ async function loadUrgentEvent() {
             }
         });
         const data = await response.json();
+        if (generation !== academicCacheGeneration) return;
 
         if (data.success && data.event) {
             updateScheduleTimeline(data.event.is_freshman);
             displayUrgentEvent(data.event);
+            const staleParts = [];
+            if (data.event.schedule_cache_stale) staleParts.push('更新课程表');
+            if (data.event.exams_cache_stale) staleParts.push('更新考试安排');
+            if (data.event.semester_start_invalid) staleParts.push('联系管理员校正学期起始日期');
+            if (staleParts.length) {
+                const notice = document.createElement('p');
+                notice.className = 'calendar-cache-notice';
+                notice.textContent = data.event.semester_start_invalid
+                    ? '后台学期起始日期无效，请联系管理员校正后再查看或导出日程。'
+                    : `后台已切换学期，请到对应页面${staleParts.join('、')}后查看日程。`;
+                contentDiv.prepend(notice);
+            }
         } else if (data.success) {
             updateScheduleTimeline(data.is_freshman);
             contentDiv.innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">今天没有课程和考试，好好休息吧~</p>';
@@ -1099,6 +1146,7 @@ async function loadUrgentEvent() {
             contentDiv.innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">今天没有课程和考试，好好休息吧~</p>';
         }
     } catch (error) {
+        if (generation !== academicCacheGeneration) return;
         console.error('加载紧急事件失败:', error);
         contentDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
     }
@@ -1162,7 +1210,7 @@ function displayUrgentEvent(eventData) {
     const next = eventData.next;
 
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
+    const todayStr = getCalendarChinaToday(now);
 
     function parseDateStr(timeStr) {
         return timeStr ? timeStr.split(' ')[0] : null;
@@ -1178,11 +1226,11 @@ function displayUrgentEvent(eventData) {
         const datePart = parseDateStr(timeStr);
         if (!datePart) return timeStr;
         const startTime = getStartTime(timeStr);
-        const eventDate = new Date(datePart + 'T00:00:00');
-        const todayDate = new Date(todayStr + 'T00:00:00');
+        const eventDate = new Date(datePart + 'T00:00:00Z');
+        const todayDate = new Date(todayStr + 'T00:00:00Z');
         const diffDays = Math.round((eventDate - todayDate) / 86400000);
         const dayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-        const dayName = dayNames[eventDate.getDay()];
+        const dayName = dayNames[eventDate.getUTCDay()];
 
         if (diffDays === 0) return `今天 ${startTime}`;
         if (diffDays === 1) return `明天 ${startTime}`;
@@ -1202,9 +1250,9 @@ function displayUrgentEvent(eventData) {
 
     // 今天没课或课程已结束时，显示关怀语
     if (noMoreToday) {
-        const dow = now.getDay();
+        const dow = new Date(`${todayStr}T00:00:00Z`).getUTCDay();
         const nextDiffDays = nextDateStr
-            ? Math.round((new Date(nextDateStr + 'T00:00:00') - new Date(todayStr + 'T00:00:00')) / 86400000)
+            ? (Date.parse(`${nextDateStr}T00:00:00Z`) - Date.parse(`${todayStr}T00:00:00Z`)) / 86400000
             : 999;
         let restMsg;
         if (dow === 5 && nextDiffDays >= 3) {
@@ -1316,6 +1364,8 @@ const SCHEDULE_MIN_WEEK = 1;
 const SCHEDULE_MAX_WEEK = 25;
 const scheduleSwipeGesture = {
     pointerId: null,
+    pointerType: null,
+    swipe: null,
     startX: 0,
     startY: 0,
     lastX: 0,
@@ -1340,6 +1390,17 @@ let scheduleDinoCrashTimer = null;
 let suppressScheduleSwipeClick = false;
 let scheduleSwipeFrame = null;
 let scheduleSwipePendingEvent = null;
+let scheduleQueuedSwipe = 0;
+const scheduleQueuedPointer = {
+    pointerId: null,
+    startX: 0,
+    startY: 0,
+    lastX: 0,
+    startTime: 0,
+    width: 1,
+    cancelled: false,
+    captured: false,
+};
 
 function getScheduleSwipeElements() {
     const viewport = document.getElementById('schedule-content');
@@ -1452,6 +1513,7 @@ function finishScheduleDinoCrash(swipe = getScheduleSwipeElements()) {
         swipe.dinoLane.style.setProperty('--dino-obstacle-progress', '0');
         swipe.dinoLane.style.setProperty('--dino-obstacle-shift', '140px');
         swipe.dinoLane.style.setProperty('--dino-fireball-distance', '240px');
+        swipe.dinoLane.style.setProperty('--dino-drag-lift', '0px');
         swipe.dinoLane.dataset.blocked = 'false';
     }
     setScheduleSwipeTransform(0);
@@ -1501,6 +1563,8 @@ function resetScheduleSwipeGesture() {
     scheduleSwipeFrame = null;
     scheduleSwipePendingEvent = null;
     scheduleSwipeGesture.pointerId = null;
+    scheduleSwipeGesture.pointerType = null;
+    scheduleSwipeGesture.swipe = null;
     scheduleSwipeGesture.startX = 0;
     scheduleSwipeGesture.startY = 0;
     scheduleSwipeGesture.lastX = 0;
@@ -1554,12 +1618,14 @@ function finishScheduleSwipeTransition() {
         swipe.dinoLane.style.setProperty('--dino-obstacle-progress', '0');
         swipe.dinoLane.style.setProperty('--dino-obstacle-shift', '140px');
         swipe.dinoLane.style.setProperty('--dino-fireball-distance', '240px');
+        swipe.dinoLane.style.setProperty('--dino-drag-lift', '0px');
         swipe.dinoLane.dataset.blocked = 'false';
     }
 
     if (!transition.shouldChange) {
         swipe.panels.forEach(panel => panel.classList.remove('is-swipe-target'));
         setScheduleSwipeTransform(0);
+        flushQueuedScheduleSwipe();
         return;
     }
 
@@ -1574,6 +1640,7 @@ function finishScheduleSwipeTransition() {
     } else {
         loadSchedule(currentWeek);
     }
+    flushQueuedScheduleSwipe();
 }
 
 function animateScheduleSwipeTo(result, width, dinoReleaseAction = 'idle') {
@@ -1624,13 +1691,113 @@ function animateScheduleSwipeTo(result, width, dinoReleaseAction = 'idle') {
     scheduleSwipeTransitionTimer = window.setTimeout(finishScheduleSwipeTransition, 460);
 }
 
+function flushQueuedScheduleSwipe() {
+    if (!scheduleQueuedSwipe || scheduleSwipeTransition || scheduleSwipeGesture.pointerId !== null
+        || scheduleQueuedPointer.pointerId !== null) return;
+    const direction = Math.sign(scheduleQueuedSwipe);
+    scheduleQueuedSwipe -= direction;
+    window.requestAnimationFrame(() => {
+        if (scheduleSwipeTransition || scheduleSwipeGesture.pointerId !== null
+            || scheduleQueuedPointer.pointerId !== null) {
+            scheduleQueuedSwipe += direction;
+            return;
+        }
+        changeWeek(direction, true);
+    });
+}
+
+function resetQueuedScheduleSwipe() {
+    if (scheduleQueuedPointer.captured) {
+        const swipe = getScheduleSwipeElements();
+        if (swipe && typeof swipe.viewport.releasePointerCapture === 'function') {
+            try {
+                swipe.viewport.releasePointerCapture(scheduleQueuedPointer.pointerId);
+            } catch (error) {
+                // 页面切换时指针可能已释放。
+            }
+        }
+    }
+    scheduleQueuedPointer.pointerId = null;
+    scheduleQueuedPointer.captured = false;
+    scheduleQueuedSwipe = 0;
+}
+
+function handleQueuedSchedulePointerMove(event) {
+    if (event.pointerId !== scheduleQueuedPointer.pointerId) return false;
+    scheduleQueuedPointer.lastX = event.clientX;
+    const deltaX = event.clientX - scheduleQueuedPointer.startX;
+    const deltaY = event.clientY - scheduleQueuedPointer.startY;
+    if (Math.abs(deltaY) > 8 && Math.abs(deltaY) > Math.abs(deltaX)) {
+        scheduleQueuedPointer.cancelled = true;
+    } else if (!scheduleQueuedPointer.cancelled && Math.abs(deltaX) > 8) {
+        if (!scheduleQueuedPointer.captured) {
+            const swipe = getScheduleSwipeElements();
+            if (swipe && typeof swipe.viewport.setPointerCapture === 'function') {
+                swipe.viewport.setPointerCapture(event.pointerId);
+                scheduleQueuedPointer.captured = true;
+            }
+        }
+        if (event.cancelable) event.preventDefault();
+    }
+    return true;
+}
+
+function handleQueuedSchedulePointerEnd(event, cancelled = false) {
+    if (event.pointerId !== scheduleQueuedPointer.pointerId) return false;
+    const swipe = getScheduleSwipeElements();
+    if (scheduleQueuedPointer.captured && swipe && typeof swipe.viewport.releasePointerCapture === 'function') {
+        try {
+            swipe.viewport.releasePointerCapture(event.pointerId);
+        } catch (error) {
+            // 浏览器可能已释放指针。
+        }
+    }
+    const deltaX = (typeof event.clientX === 'number' ? event.clientX : scheduleQueuedPointer.lastX)
+        - scheduleQueuedPointer.startX;
+    const duration = Date.now() - scheduleQueuedPointer.startTime;
+    const baseWeek = Math.min(SCHEDULE_MAX_WEEK, Math.max(SCHEDULE_MIN_WEEK,
+        (scheduleSwipeTransition?.week ?? currentWeek) + scheduleQueuedSwipe));
+    const result = cancelled || scheduleQueuedPointer.cancelled
+        ? { shouldChange: false }
+        : resolveScheduleSwipe({
+            deltaX,
+            duration,
+            viewportWidth: scheduleQueuedPointer.width,
+            currentWeek: baseWeek,
+            minWeek: SCHEDULE_MIN_WEEK,
+            maxWeek: SCHEDULE_MAX_WEEK,
+        });
+    scheduleQueuedPointer.pointerId = null;
+    scheduleQueuedPointer.captured = false;
+    if (result.shouldChange) {
+        scheduleQueuedSwipe += result.direction;
+        suppressScheduleSwipeClick = true;
+        flushQueuedScheduleSwipe();
+    }
+    return true;
+}
+
 function handleSchedulePointerDown(event) {
     const swipe = getScheduleSwipeElements();
-    if (!swipe || scheduleSwipeTransition || scheduleSwipeGesture.pointerId !== null) return;
+    if (!swipe || scheduleSwipeGesture.pointerId !== null || scheduleQueuedPointer.pointerId !== null) return;
     if (event.pointerType === 'mouse' && event.button !== 0) return;
     if (event.target.closest && event.target.closest('button, select, a, input, textarea')) return;
 
+    if (scheduleSwipeTransition) {
+        scheduleQueuedPointer.pointerId = event.pointerId;
+        scheduleQueuedPointer.startX = event.clientX;
+        scheduleQueuedPointer.startY = event.clientY;
+        scheduleQueuedPointer.lastX = event.clientX;
+        scheduleQueuedPointer.startTime = Date.now();
+        scheduleQueuedPointer.width = getScheduleSwipeWidth(swipe.viewport);
+        scheduleQueuedPointer.cancelled = false;
+        scheduleQueuedPointer.captured = false;
+        return;
+    }
+
     scheduleSwipeGesture.pointerId = event.pointerId;
+    scheduleSwipeGesture.pointerType = event.pointerType;
+    scheduleSwipeGesture.swipe = swipe;
     scheduleSwipeGesture.startX = event.clientX;
     scheduleSwipeGesture.startY = event.clientY;
     scheduleSwipeGesture.lastX = event.clientX;
@@ -1661,11 +1828,13 @@ function handleSchedulePointerDown(event) {
         swipe.dinoLane.style.setProperty('--dino-obstacle-progress', '0');
         swipe.dinoLane.style.setProperty('--dino-obstacle-shift', '140px');
         swipe.dinoLane.style.setProperty('--dino-fireball-distance', '240px');
+        swipe.dinoLane.style.setProperty('--dino-drag-lift', '0px');
         swipe.dinoLane.dataset.blocked = 'false';
     }
 }
 
 function handleSchedulePointerMove(event) {
+    if (handleQueuedSchedulePointerMove(event)) return;
     if (event.pointerId !== scheduleSwipeGesture.pointerId) return;
     if (scheduleSwipeGesture.dragging && event.cancelable) event.preventDefault();
     scheduleSwipePendingEvent = event;
@@ -1679,7 +1848,7 @@ function handleSchedulePointerMove(event) {
 }
 
 function renderSchedulePointerMove(event) {
-    const swipe = getScheduleSwipeElements();
+    const swipe = scheduleSwipeGesture.swipe || getScheduleSwipeElements();
     if (!swipe || event.pointerId !== scheduleSwipeGesture.pointerId || scheduleSwipeTransition) return;
 
     if (scheduleSwipeGesture.crashed) {
@@ -1714,10 +1883,6 @@ function renderSchedulePointerMove(event) {
     if (event.cancelable) event.preventDefault();
 
     const offset = applyScheduleSwipeResistance(deltaX);
-    const direction = deltaX < 0 ? 1 : -1;
-    const progress = Math.min(Math.abs(offset) / scheduleSwipeGesture.width, 1);
-    swipe.track.style.setProperty('--schedule-swipe-direction', String(direction));
-    swipe.track.style.setProperty('--schedule-swipe-progress', progress.toFixed(3));
     const dinoCue = resolveScheduleDinoCue({
         deltaX,
         viewportWidth: scheduleSwipeGesture.width,
@@ -1726,24 +1891,23 @@ function renderSchedulePointerMove(event) {
         maxWeek: SCHEDULE_MAX_WEEK,
     });
     if (swipe.dinoLane) {
-        swipe.dinoLane.dataset.direction = dinoCue.direction < 0 ? 'previous' : 'next';
-        swipe.dinoLane.dataset.blocked = String(dinoCue.blocked);
+        const dinoDirection = dinoCue.direction < 0 ? 'previous' : 'next';
+        const blocked = String(dinoCue.blocked);
+        if (swipe.dinoLane.dataset.direction !== dinoDirection) swipe.dinoLane.dataset.direction = dinoDirection;
+        if (swipe.dinoLane.dataset.blocked !== blocked) swipe.dinoLane.dataset.blocked = blocked;
         const obstacleShift = dinoCue.blocked
             ? Math.max(24, (1 - dinoCue.obstacleProgress) * 140)
             : (1 - dinoCue.obstacleProgress) * 140;
         // 同一位移决定起跳和落地；暂停、反向拖动也保持安全间距。
-        const lift = dinoCue.blocked ? 0 : 32 * Math.min(1,
-            Math.max(0, (40 - obstacleShift) / 30),
-            Math.max(0, (obstacleShift + 100) / 30));
+        const lift = resolveScheduleDinoLift(obstacleShift, dinoCue.blocked);
         swipe.dinoLane.style.setProperty('--dino-drag-lift', `${-lift}px`);
         scheduleSwipeGesture.airborne = lift > 0;
-        if (scheduleSwipeGesture.airborne) {
+        if (scheduleSwipeGesture.airborne && scheduleSwipeGesture.pointerType === 'mouse') {
             armScheduleDinoHoldTimer();
         } else if (scheduleDinoHoldTimer !== null) {
             window.clearTimeout(scheduleDinoHoldTimer);
             scheduleDinoHoldTimer = null;
         }
-        swipe.dinoLane.style.setProperty('--dino-obstacle-progress', String(dinoCue.obstacleProgress));
         swipe.dinoLane.style.setProperty('--dino-obstacle-shift', `${obstacleShift}px`);
         swipe.dinoLane.style.setProperty('--dino-fireball-distance', `${100 + obstacleShift}px`);
     }
@@ -1752,6 +1916,7 @@ function renderSchedulePointerMove(event) {
 }
 
 function handleSchedulePointerEnd(event, cancelled = false) {
+    if (handleQueuedSchedulePointerEnd(event, cancelled)) return;
     if (event.pointerId === scheduleSwipeGesture.pointerId && scheduleSwipePendingEvent) {
         window.cancelAnimationFrame(scheduleSwipeFrame);
         scheduleSwipeFrame = null;
@@ -1759,7 +1924,7 @@ function handleSchedulePointerEnd(event, cancelled = false) {
         scheduleSwipePendingEvent = null;
         renderSchedulePointerMove(pending);
     }
-    const swipe = getScheduleSwipeElements();
+    const swipe = scheduleSwipeGesture.swipe || getScheduleSwipeElements();
     if (!swipe || event.pointerId !== scheduleSwipeGesture.pointerId) return;
 
     if (scheduleSwipeGesture.crashed) {
@@ -1816,10 +1981,7 @@ function handleSchedulePointerEnd(event, cancelled = false) {
         crossedObstacle,
         shouldChange: result.shouldChange,
     });
-    // 快扫会跨过整个起跳区间，松手后补播完整越障动作。
-    if (result.shouldChange && duration < 200) {
-        swipe.viewport.classList.add('has-dino-obstacle', 'is-dino-jumping', 'is-dino-button-jump');
-    }
+    // 松手后从拖动时的高度落地，避免快扫时回到地面重播起跳。
     animateScheduleSwipeTo(result, width, dinoReleaseAction);
 }
 
@@ -1842,13 +2004,179 @@ function initScheduleSwipe() {
     swipe.viewport.addEventListener('click', handleScheduleSwipeClick, true);
 }
 
+const scheduleActionReveal = {
+    distance: 0,
+    touchId: null,
+    touchStartX: 0,
+    touchStartY: 0,
+    lastTouchY: 0,
+    trackingTouch: false,
+    horizontalTouch: false,
+    wheelTimer: null,
+};
+
+function isScheduleAtPageBottom() {
+    if (typeof window === 'undefined' || !document.documentElement) return false;
+    return (window.scrollY || window.pageYOffset || 0) + window.innerHeight
+        >= document.documentElement.scrollHeight - 4;
+}
+
+function resetScheduleActionPull() {
+    const pull = document.getElementById('schedule-actions-pull');
+    scheduleActionReveal.distance = 0;
+    if (scheduleActionReveal.wheelTimer !== null && typeof window !== 'undefined') {
+        window.clearTimeout(scheduleActionReveal.wheelTimer);
+        scheduleActionReveal.wheelTimer = null;
+    }
+    if (!pull) return;
+    pull.style.transform = '';
+    const fill = pull.querySelector('.schedule-actions-pull-fill');
+    if (fill) fill.style.width = '0%';
+    pull.classList.remove('is-pulling', 'is-ready');
+    const label = pull.querySelector('.schedule-actions-pull-label');
+    if (label) label.textContent = '继续上滑，展开课表操作';
+}
+
+function updateScheduleActionPull(distance) {
+    const pull = document.getElementById('schedule-actions-pull');
+    const panel = document.getElementById('schedule-actions');
+    if (!pull || !panel || panel.classList.contains('is-open')) return;
+    scheduleActionReveal.distance = Math.max(0, distance);
+    const state = resolveScheduleActionPull(scheduleActionReveal.distance);
+    if (state.shouldOpen) {
+        showScheduleActions();
+        return;
+    }
+    pull.style.transform = `translate3d(-50%, ${68 - state.offset}px, 0)`;
+    const fill = pull.querySelector('.schedule-actions-pull-fill');
+    if (fill) fill.style.width = `${Math.round(state.progress * 100)}%`;
+    pull.classList.toggle('is-pulling', state.offset > 0);
+    const label = pull.querySelector('.schedule-actions-pull-label');
+    if (label) label.textContent = state.progress >= 0.8 ? '再向上滑一点' : '继续上滑，展开课表操作';
+}
+
+function showScheduleActions() {
+    const panel = document.getElementById('schedule-actions');
+    if (!panel || !panel.classList || panel.classList.contains('is-open')) return;
+    resetScheduleActionPull();
+    panel.classList.add('is-open');
+    panel.removeAttribute('inert');
+    panel.setAttribute('aria-hidden', 'false');
+    const scrollToActions = () => {
+        if (panel.classList.contains('is-open') && typeof panel.scrollIntoView === 'function') {
+            panel.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }
+    };
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+        window.requestAnimationFrame(scrollToActions);
+    } else {
+        scrollToActions();
+    }
+}
+
+function hideScheduleActions(focusTimetable = true) {
+    const panel = document.getElementById('schedule-actions');
+    if (!panel || !panel.classList) return;
+    if (focusTimetable && typeof panel.contains === 'function' && panel.contains(document.activeElement)) {
+        const timetable = document.getElementById('schedule-content');
+        if (timetable && typeof timetable.focus === 'function') timetable.focus();
+    }
+    panel.classList.remove('is-open');
+    panel.setAttribute('inert', '');
+    panel.setAttribute('aria-hidden', 'true');
+    resetScheduleActionPull();
+}
+
+function scheduleActionTouch(event) {
+    return Array.from(event.touches || []).find(touch => touch.identifier === scheduleActionReveal.touchId);
+}
+
+function handleScheduleActionTouchStart(event) {
+    const panel = document.getElementById('schedule-actions');
+    const touch = event.touches && event.touches[0];
+    if (!panel || panel.classList.contains('is-open') || !touch || event.touches.length !== 1) return;
+    scheduleActionReveal.touchId = touch.identifier;
+    scheduleActionReveal.touchStartX = touch.clientX;
+    scheduleActionReveal.touchStartY = touch.clientY;
+    scheduleActionReveal.lastTouchY = touch.clientY;
+    scheduleActionReveal.trackingTouch = isScheduleAtPageBottom();
+    scheduleActionReveal.horizontalTouch = false;
+}
+
+function handleScheduleActionTouchMove(event) {
+    const panel = document.getElementById('schedule-actions');
+    const touch = scheduleActionTouch(event);
+    if (!panel || panel.classList.contains('is-open') || !touch || scheduleActionReveal.horizontalTouch) return;
+    const deltaX = touch.clientX - scheduleActionReveal.touchStartX;
+    const deltaY = touch.clientY - scheduleActionReveal.touchStartY;
+    if (Math.abs(deltaX) > 10 && Math.abs(deltaX) > Math.abs(deltaY)) {
+        scheduleActionReveal.horizontalTouch = true;
+        resetScheduleActionPull();
+        return;
+    }
+    if (!scheduleActionReveal.trackingTouch) {
+        scheduleActionReveal.lastTouchY = touch.clientY;
+        if (!isScheduleAtPageBottom()) return;
+        scheduleActionReveal.trackingTouch = true;
+        return;
+    }
+    const step = scheduleActionReveal.lastTouchY - touch.clientY;
+    scheduleActionReveal.lastTouchY = touch.clientY;
+    updateScheduleActionPull(Math.max(0, scheduleActionReveal.distance + step));
+}
+
+function handleScheduleActionTouchEnd(event) {
+    if (scheduleActionReveal.touchId === null || scheduleActionTouch(event)) return;
+    scheduleActionReveal.touchId = null;
+    scheduleActionReveal.trackingTouch = false;
+    scheduleActionReveal.horizontalTouch = false;
+    resetScheduleActionPull();
+}
+
+function handleScheduleActionWheel(event) {
+    const panel = document.getElementById('schedule-actions');
+    if (!panel || panel.classList.contains('is-open') || event.deltaY <= 0 || !isScheduleAtPageBottom()) return;
+    if (event.cancelable) event.preventDefault();
+    const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
+    updateScheduleActionPull(scheduleActionReveal.distance + Math.min(event.deltaY * unit, 90));
+    if (scheduleActionReveal.wheelTimer !== null) window.clearTimeout(scheduleActionReveal.wheelTimer);
+    if (!panel.classList.contains('is-open')) {
+        scheduleActionReveal.wheelTimer = window.setTimeout(resetScheduleActionPull, 700);
+    }
+}
+
+function handleScheduleActionKeyDown(event) {
+    const page = document.getElementById('page-schedule');
+    const panel = document.getElementById('schedule-actions');
+    if (!page || !page.classList.contains('active') || !panel
+        || panel.classList.contains('is-open') || !isScheduleAtPageBottom()) return;
+    if (event.key !== 'PageDown' && event.key !== 'ArrowDown') return;
+    if (event.cancelable) event.preventDefault();
+    updateScheduleActionPull(scheduleActionReveal.distance + (event.key === 'PageDown' ? 90 : 45));
+}
+
+function initScheduleActions() {
+    const page = document.getElementById('page-schedule');
+    const panel = document.getElementById('schedule-actions');
+    if (!page || !panel || page.dataset.scheduleActionsReady === 'true') return;
+    page.dataset.scheduleActionsReady = 'true';
+    page.addEventListener('touchstart', handleScheduleActionTouchStart, { passive: true });
+    page.addEventListener('touchmove', handleScheduleActionTouchMove, { passive: true });
+    page.addEventListener('touchend', handleScheduleActionTouchEnd);
+    page.addEventListener('touchcancel', handleScheduleActionTouchEnd);
+    page.addEventListener('wheel', handleScheduleActionWheel, { passive: false });
+    document.addEventListener('keydown', handleScheduleActionKeyDown);
+}
+
 if (typeof document !== 'undefined'
     && typeof document.addEventListener === 'function'
     && typeof document.getElementById === 'function') {
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initScheduleSwipe, { once: true });
+        document.addEventListener('DOMContentLoaded', initScheduleActions, { once: true });
     } else {
         initScheduleSwipe();
+        initScheduleActions();
     }
 }
 
@@ -1949,6 +2277,7 @@ async function loadOtherMajorSchedule() {
     const scheduleMsg = document.getElementById('schedule-message');
     scheduleMsg.style.display = 'block';
     scheduleMsg.textContent = '加载中...';
+    scheduleMsg.classList.remove('schedule-message-detail');
 
     try {
         const resp = await fetch(`/api/schedule/other_major?grade=${encodeURIComponent(grade)}&major=${encodeURIComponent(major)}&class_num=${encodeURIComponent(class_num)}`, {
@@ -1963,7 +2292,17 @@ async function loadOtherMajorSchedule() {
         if (data.data.semester_start && !semesterStart) {
             semesterStart = new Date(data.data.semester_start);
         }
-        scheduleMsg.innerHTML = `${grade}级 专业${major} ${class_num}班（仅课程名与时间）&emsp;<button class="btn-secondary btn-sm" onclick="backToMySchedule()">返回我的课表</button>`;
+        const backButton = document.createElement('button');
+        backButton.type = 'button';
+        backButton.className = 'in-page-back schedule-back-btn';
+        backButton.textContent = '← 返回我的课表';
+        backButton.addEventListener('click', backToMySchedule);
+        const scheduleTitle = document.createElement('span');
+        scheduleTitle.className = 'schedule-message-title';
+        scheduleTitle.textContent = `${grade}级 专业${major} ${class_num}班（仅课程名与时间）`;
+        scheduleMsg.replaceChildren(backButton, scheduleTitle);
+        scheduleMsg.classList.add('schedule-message-detail');
+        scheduleMsg.style.display = '';
         displaySchedule({ [currentWeek]: otherMajorScheduleData[String(currentWeek)] || [] });
     } catch (e) {
         scheduleMsg.textContent = '加载失败，请重试';
@@ -2041,16 +2380,15 @@ function renderHistoricalSchedule(courses) {
 
 function backToMySchedule() {
     otherMajorScheduleData = null;
-    document.getElementById('schedule-message').style.display = 'none';
-    if (cachedSchedule) {
-        displaySchedule({ [currentWeek]: cachedSchedule[String(currentWeek)] || [] });
-    } else {
-        loadSchedule(currentWeek);
-    }
+    const scheduleMsg = document.getElementById('schedule-message');
+    scheduleMsg.style.display = 'none';
+    scheduleMsg.classList.remove('schedule-message-detail');
+    refreshScheduleDisplay();
 }
 
 // 更新课程表数据（从服务器获取最新数据）
 async function updateScheduleData(event) {
+    const generation = academicCacheGeneration;
     const btn = event?.currentTarget || event?.target || document.getElementById('update-schedule-btn');
     if (!btn) return;
     const originalText = btn.textContent;
@@ -2066,6 +2404,7 @@ async function updateScheduleData(event) {
             }
         });
         const data = await response.json();
+        if (generation !== academicCacheGeneration) return;
 
         if (data.success) {
             showUiToast('课程表更新成功', 'success');
@@ -2076,6 +2415,7 @@ async function updateScheduleData(event) {
             showUiToast(data.message || '更新失败', 'error');
         }
     } catch (error) {
+        if (generation !== academicCacheGeneration) return;
         console.error('更新课程表失败:', error);
         showUiToast('更新课程表失败，学校可能暂未开放查询', 'error');
     } finally {
@@ -2094,6 +2434,8 @@ function resetScheduleDisplay() {
         const { scheduleDays, scheduleGrid, scheduleHeader } = getSchedulePanelElements(panel);
         if (!scheduleDays || !scheduleGrid || !scheduleHeader) return;
         scheduleDays.innerHTML = '';
+        panel.querySelectorAll('[data-schedule-date]').forEach(el => { el.textContent = ''; });
+        panel.querySelectorAll('.schedule-day-today').forEach(el => el.classList.remove('schedule-day-today'));
         scheduleGrid.classList.remove('has-evening');
         setScheduleWeekendVisibility(false, scheduleGrid, scheduleHeader);
     });
@@ -2115,21 +2457,28 @@ function resetScheduleDisplay() {
             swipe.dinoLane.style.setProperty('--dino-obstacle-progress', '0');
             swipe.dinoLane.style.setProperty('--dino-obstacle-shift', '140px');
             swipe.dinoLane.style.setProperty('--dino-fireball-distance', '240px');
+        swipe.dinoLane.style.setProperty('--dino-drag-lift', '0px');
             swipe.dinoLane.dataset.blocked = 'false';
         }
         setScheduleSwipeTransform(0);
     }
 }
 
+function refreshScheduleDisplay() {
+    cachedSchedule = null;
+    return loadSchedule();
+}
+
 async function loadSchedule(week = null, autoFetched = false) {
+    let generation = academicCacheGeneration;
     const messageDiv = document.getElementById('schedule-message');
 
     // 根据学期开始日期算出实际当前周
     function calcActualWeek() {
-        if (!semesterStart) return null;
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const diffDays = Math.floor((today - semesterStart) / (1000 * 60 * 60 * 24));
+        const activeStart = currentSemesterStartValue();
+        if (!activeStart) return null;
+        const today = getCalendarChinaToday();
+        const diffDays = (Date.parse(`${today}T00:00:00Z`) - Date.parse(`${activeStart}T00:00:00Z`)) / 86400000;
         if (diffDays < 0) return 1;
         return Math.min(Math.floor(diffDays / 7) + 1, 25);
     }
@@ -2161,6 +2510,9 @@ async function loadSchedule(week = null, autoFetched = false) {
         if (Object.keys(weekData).length > 0) {
             hideMessage();
             displaySchedule(weekData);
+            if (!currentSemesterStartValue()) {
+                showMessage('学期起始日期待核对，请管理员在后台设置后刷新显示。');
+            }
         } else {
             resetScheduleDisplay();
             showMessage(`第${w}周没有课程`);
@@ -2181,10 +2533,27 @@ async function loadSchedule(week = null, autoFetched = false) {
             }
         });
         const data = await response.json();
+        if (generation !== academicCacheGeneration) return;
+
+        if (data.success && data.account && data.account !== currentUsername) {
+            currentUsername = data.account;
+            rememberBoundUsername(currentUsername);
+            generation = academicCacheGeneration;
+            document.getElementById('sidebar-username').textContent = currentUsername;
+        }
+        if (data.success && data.data?.cache_stale) {
+            resetScheduleDisplay();
+            showMessage('后台已切换学期，请点击“更新课程表”获取本学期课程后再查看或导出。', true);
+            return;
+        }
 
         if (data.success && data.data) {
             const schedule = data.data.schedule || {};
             const hasData = Object.keys(schedule).length > 0;
+
+            if (typeof data.data.is_freshman === 'boolean') {
+                userIsFreshman = data.data.is_freshman;
+            }
 
             if (data.data.semester_start) {
                 semesterStart = new Date(data.data.semester_start + 'T00:00:00');
@@ -2207,6 +2576,7 @@ async function loadSchedule(week = null, autoFetched = false) {
                         headers: { 'X-Device-ID': getDeviceId() }
                     });
                     const updateData = await updateResp.json();
+                    if (generation !== academicCacheGeneration) return;
                     if (updateData.success) {
                         loadSchedule(week, true);
                         return;
@@ -2214,6 +2584,7 @@ async function loadSchedule(week = null, autoFetched = false) {
                         showMessage(updateData.message || '获取课表失败', true);
                     }
                 } catch (e) {
+                    if (generation !== academicCacheGeneration) return;
                     showMessage('获取课表失败，学校可能暂未开放查询', true);
                 }
             } else {
@@ -2225,6 +2596,7 @@ async function loadSchedule(week = null, autoFetched = false) {
             showMessage(data.message || '暂无课程数据');
         }
     } catch (error) {
+        if (generation !== academicCacheGeneration) return;
         console.error('加载课程表失败:', error);
         resetScheduleDisplay();
         showMessage('加载失败，请检查网络连接', true);
@@ -2252,17 +2624,12 @@ function renderScheduleWeek(schedule, panel, courseColorMap = buildScheduleCours
                 const location = course['位置'] || '';
 
                 if (dayNum && section) {
-                    if (section >= 9) hasEvening = true;
+                    if (section + duration - 1 >= 9) hasEvening = true;
                     daysCourses[dayNum].push(buildScheduleCourseCardData(course, dayNum));
                 }
             });
         }
     });
-
-    // 检测是否是手机端
-    const isMobile = window.innerWidth <= 768;
-    const sectionHeight = isMobile ? 56 : 76;
-    const gap = isMobile ? 3 : 6;
 
     // 检测周末是否有课
     const hasWeekend = daysCourses[6].length > 0 || daysCourses[7].length > 0;
@@ -2275,9 +2642,7 @@ function renderScheduleWeek(schedule, panel, courseColorMap = buildScheduleCours
 
         const courses = daysCourses[day];
         courses.forEach((course, index) => {
-            // 计算卡片位置和高度
-            const top = (course.section - 1) * (sectionHeight + gap);
-            const height = course.duration * sectionHeight + (course.duration - 1) * gap;
+            const positionStyle = scheduleCourseGridPlacement(course.section, course.duration);
 
             const courseColor = courseColorMap.get(getScheduleCourseColorKey(course)) || 'hsl(208, 72%, 40%)';
 
@@ -2285,11 +2650,12 @@ function renderScheduleWeek(schedule, panel, courseColorMap = buildScheduleCours
 
             html += `
                 <div class="course-card"
-                     style="position: absolute; top: ${top}px; height: ${height}px; left: 0; right: 0; background: ${courseColor};"
+                     style="${positionStyle} background: ${courseColor};"
                      data-course="${courseData}"
+                     data-day="${day}"
                      onclick="showCourseDetail(this)">
-                    <div class="course-card-name">${course.name}</div>
-                    ${course.location ? `<div class="course-card-location">${course.location}</div>` : ''}
+                    <div class="course-card-name">${escapeScheduleHtml(course.name)}</div>
+                    ${course.location ? `<div class="course-card-location">${escapeScheduleHtml(course.location)}</div>` : ''}
                 </div>
             `;
         });
@@ -2344,6 +2710,7 @@ function displaySchedule(schedule) {
         swipe.dinoLane.style.setProperty('--dino-obstacle-progress', '0');
         swipe.dinoLane.style.setProperty('--dino-obstacle-shift', '140px');
         swipe.dinoLane.style.setProperty('--dino-fireball-distance', '240px');
+        swipe.dinoLane.style.setProperty('--dino-drag-lift', '0px');
         swipe.dinoLane.dataset.blocked = 'false';
     }
     setScheduleSwipeTransform(0);
@@ -2376,9 +2743,18 @@ function buildScheduleCourseColorMap(schedule = {}) {
 function showCourseDetail(el) {
     const course = JSON.parse(decodeURIComponent(el.dataset.course));
     const modal = document.getElementById('course-detail-modal');
+    const week = Number.parseInt(el.closest('.schedule-week-panel')?.dataset.week, 10) || currentWeek;
+    const date = getCalendarDate(currentSemesterStartValue(), week, el.dataset.day);
+    const times = userIsFreshman ? PERIOD_TIMES_FRESHMAN : PERIOD_TIMES_DEFAULT;
+    const clock = getCalendarPeriodTime(course.section, course.duration, times);
 
     document.getElementById('course-detail-name').textContent = course.name;
-    document.getElementById('course-detail-body').innerHTML = buildScheduleCourseDetailHtml(course);
+    document.getElementById('course-detail-body').innerHTML = buildScheduleCourseDetailHtml({
+        ...course,
+        week,
+        date: date || '学期起始日期待核对',
+        clockTime: clock ? `${clock.start}–${clock.end}` : '',
+    });
 
     openUiModal(modal);
 }
@@ -2442,9 +2818,8 @@ function updateScheduleDates(week) {
         select.value = week;
     }
 
-    if (!semesterStart) return;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const activeStart = currentSemesterStartValue();
+    const today = getCalendarChinaToday();
 
     const swipe = ensureScheduleSwipePanels();
     const panels = swipe?.panels || [document.querySelector('.schedule-week-panel')].filter(Boolean);
@@ -2457,16 +2832,20 @@ function updateScheduleDates(week) {
             const dayEl = panel.querySelector(`[data-schedule-day="${day}"]`);
             if (!dateEl) continue;
 
-            const date = new Date(semesterStart);
-            date.setDate(date.getDate() + (panelWeek - 1) * 7 + (day - 1));
-
-            const m = date.getMonth() + 1;
-            const d = date.getDate();
+            if (!activeStart) {
+                dateEl.textContent = '';
+                if (dayEl) dayEl.classList.remove('schedule-day-today');
+                continue;
+            }
+            const date = getCalendarDate(activeStart, panelWeek, day);
+            const [, month, dayOfMonth] = date.split('-');
+            const m = Number(month);
+            const d = Number(dayOfMonth);
             dateEl.textContent = `${m}月${d}日`;
 
             // 高亮今天
             if (dayEl) {
-                dayEl.classList.toggle('schedule-day-today', date.getTime() === today.getTime());
+                dayEl.classList.toggle('schedule-day-today', date === today);
             }
         }
     });
@@ -2485,6 +2864,7 @@ function jumpToWeek(week) {
 // ==================== 考试安排相关 ====================
 // 更新考试安排数据（从服务器获取最新数据）
 async function updateExamsData(event) {
+    const generation = academicCacheGeneration;
     const btn = event?.currentTarget || event?.target || document.getElementById('update-exams-btn');
     if (!btn) return;
     const originalText = btn.textContent;
@@ -2500,15 +2880,18 @@ async function updateExamsData(event) {
             }
         });
         const data = await response.json();
+        if (generation !== academicCacheGeneration) return;
 
         if (data.success) {
             showUiToast('考试安排更新成功', 'success');
+            cachedExams = null;
             // 重新加载考试安排
             loadExams();
         } else {
             showUiToast(data.message || '更新失败', 'error');
         }
     } catch (error) {
+        if (generation !== academicCacheGeneration) return;
         console.error('更新考试安排失败:', error);
         showUiToast('更新考试安排失败，学校可能暂未开放查询', 'error');
     } finally {
@@ -2518,7 +2901,9 @@ async function updateExamsData(event) {
 }
 
 async function loadExams(autoFetched = false) {
+    let generation = academicCacheGeneration;
     const contentDiv = document.getElementById('exams-content');
+    cachedExams = null;
     contentDiv.innerHTML = '<div class="loading">加载中</div>';
 
     try {
@@ -2528,8 +2913,24 @@ async function loadExams(autoFetched = false) {
             }
         });
         const data = await response.json();
+        if (generation !== academicCacheGeneration) return;
 
+        if (data.success && data.account && data.account !== currentUsername) {
+            currentUsername = data.account;
+            rememberBoundUsername(currentUsername);
+            generation = academicCacheGeneration;
+            document.getElementById('sidebar-username').textContent = currentUsername;
+        }
+        if (data.success && data.cache_stale) {
+            contentDiv.innerHTML = '<p style="text-align:center;color:var(--warning);">后台已切换学期，请点击“更新考试安排”获取本学期考试后再查看或导出。</p>';
+            return;
+        }
+
+        if (data.success && data.semester_start) {
+            semesterStart = new Date(`${data.semester_start}T00:00:00`);
+        }
         if (data.success && data.exams && data.exams.length > 0) {
+            cachedExams = data.exams;
             displayExams(data.exams);
         } else if (!autoFetched) {
             // 没有缓存数据，自动从教务系统获取
@@ -2540,6 +2941,7 @@ async function loadExams(autoFetched = false) {
                     headers: { 'X-Device-ID': getDeviceId() }
                 });
                 const updateData = await updateResp.json();
+                if (generation !== academicCacheGeneration) return;
                 if (updateData.success) {
                     loadExams(true);
                     return;
@@ -2547,12 +2949,14 @@ async function loadExams(autoFetched = false) {
                     contentDiv.innerHTML = `<p style="text-align:center;color:var(--error);">${updateData.message || '获取考试安排失败'}</p>`;
                 }
             } catch (e) {
+                if (generation !== academicCacheGeneration) return;
                 contentDiv.innerHTML = '<p style="text-align:center;color:var(--error);">获取考试安排失败，学校可能暂未开放查询</p>';
             }
         } else {
             contentDiv.innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">暂无考试安排</p>';
         }
     } catch (error) {
+        if (generation !== academicCacheGeneration) return;
         console.error('加载考试安排失败:', error);
         contentDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
     }
@@ -2560,51 +2964,36 @@ async function loadExams(autoFetched = false) {
 
 function displayExams(exams) {
     const contentDiv = document.getElementById('exams-content');
-
-    // 按考试名分组
-    const examGroups = {};
+    const examGroups = new Map();
     exams.forEach(exam => {
         const examName = exam.exam_name || '其他考试';
-        if (!examGroups[examName]) {
-            examGroups[examName] = [];
-        }
-        examGroups[examName].push(exam);
+        if (!examGroups.has(examName)) examGroups.set(examName, []);
+        examGroups.get(examName).push(exam);
     });
-
     let html = '';
-
-    // 遍历每个考试分组
-    Object.keys(examGroups).forEach(examName => {
-        const examList = examGroups[examName];
-
+    examGroups.forEach((examList, examName) => {
         html += `
             <div class="exam-group">
-                <div class="exam-group-title">${examName}</div>
+                <div class="exam-group-title">${escapeScheduleHtml(examName)}</div>
                 <div class="exam-group-content">
         `;
-
-        // 显示该考试下的所有课程
         examList.forEach(exam => {
-            // 构建完整的考试时间信息
-            let timeInfo = '';
-            if (exam.week && exam.day) {
-                const dayNames = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日'];
-                const dayName = dayNames[parseInt(exam.day)] || `星期${exam.day}`;
-                timeInfo = `第${exam.week}周 ${dayName} ${exam.time}`;
-            } else {
-                timeInfo = exam.time;
-            }
-
-            // 计算倒计时和紧急程度
+            const date = getCalendarDate(currentSemesterStartValue(), exam.week, exam.day);
+            const dayNames = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+            const dayName = dayNames[Number(exam.day)] || `星期${exam.day || '待定'}`;
+            const weekText = exam.week ? `第${exam.week}周 ${dayName}` : dayName;
+            const location = exam.location || [exam.campus, exam.building, exam.room].filter(Boolean).join('');
+            const row = (label, value) => value
+                ? `<div class="exam-info-item"><strong>${label}：</strong><span>${escapeScheduleHtml(value)}</span></div>`
+                : '';
             let urgencyClass = 'exam-normal';
             let countdownHtml = '';
-            if (exam.date) {
-                const examDate = new Date(exam.date);
-                const now = new Date();
-                const diffDays = Math.ceil((examDate - now) / (1000 * 60 * 60 * 24));
+            if (date) {
+                const today = getCalendarChinaToday();
+                const diffDays = (Date.parse(`${date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86400000;
                 if (diffDays <= 3 && diffDays >= 0) {
                     urgencyClass = 'exam-urgent';
-                    countdownHtml = `<div class="exam-countdown" style="color:var(--error);">${diffDays}天后考试</div>`;
+                    countdownHtml = `<div class="exam-countdown" style="color:var(--error);">${diffDays === 0 ? '今天考试' : `${diffDays}天后考试`}</div>`;
                 } else if (diffDays <= 7 && diffDays > 3) {
                     urgencyClass = 'exam-soon';
                     countdownHtml = `<div class="exam-countdown" style="color:var(--warning);">${diffDays}天后考试</div>`;
@@ -2615,17 +3004,15 @@ function displayExams(exams) {
 
             html += `
                 <div class="exam-card ${urgencyClass}">
-                    <div class="exam-course">${exam.course}</div>
+                    <div class="exam-course">${escapeScheduleHtml(exam.course || '未命名课程')}</div>
                     <div class="exam-info">
-                        <div class="exam-info-item">
-                            <strong>考试时间:</strong> ${timeInfo}
-                        </div>
-                        <div class="exam-info-item">
-                            <strong>考场:</strong> ${exam.location}
-                        </div>
-                        <div class="exam-info-item">
-                            <strong>座位号:</strong> ${exam.seat}
-                        </div>
+                        ${row('日期', date ? `${date}（${weekText}）` : `学期起始日期待核对（${weekText}）`)}
+                        ${row('时间', exam.time)}
+                        ${row('考场', location)}
+                        ${row('校区', exam.campus)}
+                        ${row('教学楼', exam.building)}
+                        ${row('教室', exam.room)}
+                        ${row('座位号', exam.seat)}
                     </div>
                     ${countdownHtml}
                 </div>
@@ -2641,18 +3028,199 @@ function displayExams(exams) {
     contentDiv.innerHTML = html;
 }
 
+function currentSemesterStartValue() {
+    if (!(semesterStart instanceof Date) || Number.isNaN(semesterStart.getTime())) return '';
+    const year = semesterStart.getFullYear();
+    const month = String(semesterStart.getMonth() + 1).padStart(2, '0');
+    const day = String(semesterStart.getDate()).padStart(2, '0');
+    return getCurrentCalendarSemesterStart(`${year}-${month}-${day}`) || '';
+}
+
+async function openCalendarExport(kind) {
+    if (kind !== 'schedule' && kind !== 'exams' && kind !== 'all') return;
+    let generation = academicCacheGeneration;
+    try {
+        const endpoints = kind === 'all' ? ['/api/schedule', '/api/exams']
+            : [kind === 'schedule' ? '/api/schedule' : '/api/exams'];
+        const replies = await Promise.all(endpoints.map(async url => {
+            const response = await fetch(url, { headers: { 'X-Device-ID': getDeviceId() } });
+            return { url, response, payload: await response.json() };
+        }));
+        if (generation !== academicCacheGeneration) return;
+        for (const { response, payload } of replies) {
+            if (!response.ok || !payload.success) throw new Error(payload.message || '读取日程数据失败');
+        }
+        const schedulePayload = replies.find(reply => reply.url === '/api/schedule')?.payload;
+        const examPayload = replies.find(reply => reply.url === '/api/exams')?.payload;
+        if (schedulePayload?.account && examPayload?.account && schedulePayload.account !== examPayload.account) {
+            throw new Error('课表与考试不属于同一账号，请重新登录后重试。');
+        }
+        const account = String(schedulePayload?.account || examPayload?.account || currentUsername || '').trim();
+        if (account && account !== currentUsername) {
+            currentUsername = account;
+            rememberBoundUsername(account);
+            generation = academicCacheGeneration;
+            document.getElementById('sidebar-username').textContent = account;
+        }
+        const scheduleStale = !!schedulePayload?.data?.cache_stale;
+        const examStale = !!examPayload?.cache_stale;
+        if (kind === 'schedule' && scheduleStale) {
+            throw new Error('后台已切换学期，请先更新课程表再导出。');
+        }
+        if (kind === 'exams' && examStale) {
+            throw new Error('后台已切换学期，请先更新考试安排再导出。');
+        }
+        const scheduleSource = schedulePayload?.data?.schedule;
+        const examSource = examPayload?.exams;
+        const scheduleStart = schedulePayload?.data?.semester_start;
+        const examStart = examPayload?.semester_start;
+        const hasSchedule = !!scheduleSource && Object.values(scheduleSource)
+            .some(courses => Array.isArray(courses) && courses.length);
+        const hasExams = Array.isArray(examSource) && examSource.length > 0;
+        const useSchedule = kind !== 'exams' && hasSchedule && !scheduleStale;
+        const useExams = kind !== 'schedule' && hasExams && !examStale;
+        if (!useSchedule && !useExams) {
+            if (scheduleStale || examStale) {
+                throw new Error('后台已切换学期，请先更新课程表或考试安排后再导出。');
+            }
+            throw new Error('暂无可导出的课程或考试安排');
+        }
+        if (scheduleStart && examStart && scheduleStart !== examStart) {
+            throw new Error('课表与考试的学期日期不一致，请重试。');
+        }
+        const source = kind === 'all' ? {
+            schedule: useSchedule ? scheduleSource : {},
+            exams: useExams ? examSource : [],
+        }
+            : kind === 'schedule' ? scheduleSource : examSource;
+        const start = useSchedule ? scheduleStart : examStart;
+        semesterStart = start ? new Date(`${start}T00:00:00`) : null;
+        if (typeof schedulePayload?.data?.is_freshman === 'boolean') {
+            userIsFreshman = schedulePayload.data.is_freshman;
+        }
+        if (schedulePayload) cachedSchedule = scheduleStale ? null : scheduleSource;
+        if (examPayload) cachedExams = examStale ? null : examSource;
+
+        calendarExportKind = kind;
+        calendarExportData = source;
+        calendarExportAccount = account;
+        document.getElementById('calendar-export-title').textContent = useSchedule && useExams
+            ? '导出课表与考试到日历'
+            : useSchedule ? '导出课程表到日历' : '导出考试安排到日历';
+        const description = kind === 'schedule'
+            ? '将全部已缓存的上课时段分别写入日历，并附上教师、地点和课程详情。'
+            : kind === 'exams'
+                ? '将全部已缓存的考试写入日历，并附上考场、座位号等详情。'
+                : useSchedule && useExams
+                    ? '将课程和考试写入同一个日历文件，并附上教师、教室、考场和座位号等详情。'
+                    : useSchedule
+                        ? `当前仅有可导出的课表，将导出课程详情。${examStale ? '考试安排需更新后才能导出。' : ''}`
+                        : `当前仅有可导出的考试安排，将导出考场、座位号等详情。${scheduleStale ? '课程表需更新后才能导出。' : ''}`;
+        const currentStart = currentSemesterStartValue();
+        document.getElementById('calendar-export-description').textContent = currentStart
+            ? description
+            : `${description} 后台学期日期已过期或未设置，请联系管理员校正；本次导出也可手动输入实际首周星期一。`;
+        document.getElementById('calendar-export-start').value = currentStart;
+        const error = document.getElementById('calendar-export-error');
+        error.textContent = '';
+        error.hidden = true;
+        openUiModal(document.getElementById('calendar-export-modal'), { initialFocusSelector: '#calendar-export-start' });
+    } catch (error) {
+        if (generation !== academicCacheGeneration) return;
+        showUiToast(error.message || '读取日程数据失败', 'error');
+    }
+}
+
+function closeCalendarExport() {
+    closeUiModal(document.getElementById('calendar-export-modal'));
+    calendarExportKind = null;
+    calendarExportData = null;
+    calendarExportAccount = '';
+}
+
+function downloadCalendarExport(event) {
+    event.preventDefault();
+    const start = document.getElementById('calendar-export-start').value;
+    const error = document.getElementById('calendar-export-error');
+    const showError = message => {
+        error.textContent = message;
+        error.hidden = false;
+    };
+    if (!getCalendarDate(start, 1, 1)) {
+        showError('请选择有效的学期首周星期一。');
+        return;
+    }
+    const combinedSchedule = calendarExportKind === 'all'
+        && Object.values(calendarExportData.schedule || {}).some(courses => Array.isArray(courses) && courses.length);
+    const combinedExams = calendarExportKind === 'all' && calendarExportData.exams?.length > 0;
+    const name = calendarExportKind === 'schedule' || (combinedSchedule && !combinedExams) ? '课程表'
+        : calendarExportKind === 'exams' || (combinedExams && !combinedSchedule) ? '考试安排' : '课表与考试';
+    const periodTimes = userIsFreshman ? PERIOD_TIMES_FRESHMAN : PERIOD_TIMES_DEFAULT;
+    let result;
+    if (calendarExportKind === 'schedule') {
+        result = buildScheduleCalendarEvents(calendarExportData, start, periodTimes);
+    } else if (calendarExportKind === 'exams') {
+        result = buildExamCalendarEvents(calendarExportData, start);
+    } else {
+        const courses = buildScheduleCalendarEvents(calendarExportData.schedule, start, periodTimes);
+        const exams = buildExamCalendarEvents(calendarExportData.exams, start);
+        result = {
+            events: [...courses.events, ...exams.events]
+                .sort((a, b) => `${a.date}${a.start}${a.summary}`.localeCompare(`${b.date}${b.start}${b.summary}`)),
+            skipped: courses.skipped + exams.skipped,
+        };
+    }
+    if (!result.events.length) {
+        showError('没有可导出的日程，请检查记录中的日期、节次或时间。');
+        return;
+    }
+
+    const ics = serializeCalendar(result.events, name, new Date(), calendarExportAccount);
+    const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${name}-${start}.ics`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    closeCalendarExport();
+    const skipped = result.skipped ? `，另有 ${result.skipped} 条时间不完整的记录未导出` : '';
+    showUiToast(`已生成 ${result.events.length} 条日程${skipped}`, 'success');
+}
+
 // ==================== 成绩查询相关 ====================
 
-function gradesBackToMenu() {
-    document.getElementById('grades-menu').style.display = '';
+let gradesReturnFocus = null;
+
+function gradesBackToMenu({ restoreFocus = true } = {}) {
+    const menu = document.getElementById('grades-menu');
+    menu.style.display = '';
     document.getElementById('grades-result').style.display = 'none';
+    const pageTitle = document.getElementById('grades-page-title');
+    if (pageTitle) pageTitle.hidden = false;
+
+    const focusTarget = gradesReturnFocus;
+    gradesReturnFocus = null;
+    if (restoreFocus && focusTarget?.isConnected !== false) {
+        focusUiElement(focusTarget);
+    }
 }
 
 function gradesShowResult(title) {
-    document.getElementById('grades-menu').style.display = 'none';
-    document.getElementById('grades-result').style.display = '';
+    const menu = document.getElementById('grades-menu');
+    const activeElement = document.activeElement;
+    gradesReturnFocus = menu.contains?.(activeElement)
+        ? activeElement : menu.querySelector?.('.grade-action-btn') || null;
+    menu.style.display = 'none';
+    const pageTitle = document.getElementById('grades-page-title');
+    if (pageTitle) pageTitle.hidden = true;
+    const result = document.getElementById('grades-result');
+    result.style.display = '';
     document.getElementById('grades-result-title').textContent = title;
     document.getElementById('grades-content').innerHTML = '<div class="loading">加载中</div>';
+    result.scrollIntoView?.({ block: 'start' });
+    focusUiElement(document.getElementById('grades-back-btn'));
 }
 
 function gradesEscape(value) {
@@ -3004,7 +3572,7 @@ function closeExamPicker() {
 
 // 切换到成绩页时不自动加载，等用户点击功能按钮
 function loadGrades() {
-    gradesBackToMenu();
+    gradesBackToMenu({ restoreFocus: false });
 }
 
 function displayGrades(grades) {

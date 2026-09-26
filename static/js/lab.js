@@ -23,7 +23,15 @@
         return `已查询到 ${data.items.length} ${kind}`;
     }
 
+    function conversionFor(filename) {
+        const name = filename.toLowerCase();
+        if (/\.docx?$/.test(name)) return ['Word', 'https://www.ilovepdf.com/zh-cn/word_to_pdf'];
+        if (/\.(jpe?g|png)$/.test(name)) return ['图片', 'https://www.ilovepdf.com/zh-cn/jpg_to_pdf'];
+        return null;
+    }
+
     function render(data) {
+        el('lab-convert').hidden = true;
         const byCourse = data.mode === '按课程';
         el('lab-mode').textContent = byCourse ? '按课程展示原站可提交的实验任务' : '按原站实验项目展示';
         const term = el('lab-semester');
@@ -55,6 +63,7 @@
                 if (!item[kind]) button.title = '实验站未提供此报告入口';
                 button.addEventListener('click', () => {
                     pending = { itemId: item.id, kind };
+                    el('lab-convert').hidden = true;
                     el('lab-file').click();
                 });
                 controls.append(button);
@@ -67,6 +76,7 @@
 
     async function loadLabPage() {
         el('lab-results').hidden = true;
+        el('lab-convert').hidden = true;
         pending = null;
         message('正在检查会员和实验站密码状态…');
         try {
@@ -83,6 +93,7 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+        el('lab-convert-reselect').addEventListener('click', () => el('lab-file').click());
         el('lab-query').addEventListener('click', async () => {
             const button = el('lab-query');
             button.disabled = true;
@@ -126,6 +137,15 @@
             const file = event.target.files[0];
             event.target.value = '';
             if (!file || !pending) return;
+            const conversion = conversionFor(file.name);
+            if (conversion) {
+                el('lab-convert-text').textContent = `所选${conversion[0]}文件不能直接提交。转换需由你自行将文件上传至第三方 iLovePDF；下载 PDF 后返回此页重新选择。`;
+                el('lab-convert-link').href = conversion[1];
+                el('lab-convert').hidden = false;
+                message('请先将文件转换为 PDF，转换后再提交');
+                return;
+            }
+            el('lab-convert').hidden = true;
             if (!file.name.toLowerCase().endsWith('.pdf') || file.size > 20 * 1024 * 1024) {
                 message('仅支持 20MB 以内的 PDF 文件', true); return;
             }

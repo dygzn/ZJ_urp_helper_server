@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>{{ (ad.detail_title or ad.title) if ad.enabled else '暂无活动' }} - URP教务助手</title><link rel="stylesheet" href="/static/css/ad-template.css?v=1"></head>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>{{ (ad.detail_title or ad.title) if ad.enabled else '暂无活动' }} - URP教务助手</title><link rel="stylesheet" href="/static/css/ad-template.css?v=1"><link rel="stylesheet" href="/static/css/apple-theme.css?v=5"></head>
 <body class="campaign-body"><main class="campaign-page" data-ad-copy-root>
 <nav class="campaign-nav"><a href="/">← 返回教务助手</a><span>推广</span></nav>
 {% if ad.enabled %}
@@ -11,5 +11,5 @@
 {% if ad.contact %}<div><small>联系信息</small><p class="campaign-contact">{{ ad.contact }}</p><button type="button" data-copy-value="{{ ad.contact }}"><span data-copy-label>复制联系信息</span></button><p data-copy-feedback aria-live="polite"></p></div>{% endif %}
 {% if ad.button_url %}<a class="campaign-button" href="{{ ad.button_url }}" target="_blank" rel="noopener noreferrer">{{ ad.button_text or '了解更多' }} ↗</a>{% endif %}
 </footer>{% endif %}</div></article>
-{% else %}<article class="campaign-card campaign-content"><h1>暂无活动</h1><p>当前没有正在展示的广告。</p><a href="/">返回首页</a></article>{% endif %}
+{% else %}<article class="campaign-card campaign-content"><h1>暂无活动</h1><p>当前没有正在展示的广告。</p><a href="/">返回教务助手</a></article>{% endif %}
 </main><script src="/static/js/service-status-ui.js"></script><script src="/static/js/ad-detail.js?v=3"></script></body></html>

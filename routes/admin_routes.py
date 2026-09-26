@@ -3,6 +3,7 @@
 """
 from collections import defaultdict
 from datetime import datetime, timedelta
+import time
 from flask import Blueprint, request, jsonify, render_template
 from database import get_db, get_database_config, test_database_config, migrate_sqlite_to_current_database
 from auth import require_admin
@@ -410,6 +411,8 @@ def admin_set_semester_start():
     except ValueError:
         return jsonify({'success': False, 'message': '日期格式错误，应为 YYYY-MM-DD'})
     config = get_config()
+    if config.get('semester_start') != date_str:
+        config['semester_cache_reset_at_ns'] = time.time_ns()
     config['semester_start'] = date_str
     save_config(config)
     return jsonify({'success': True, 'message': f'学期起始日期已设置为: {date_str}'})

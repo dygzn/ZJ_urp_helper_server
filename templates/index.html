@@ -4,10 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>URP教务助手</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=19">
+    <link rel="stylesheet" href="/static/css/style.css?v=25">
     <link rel="stylesheet" href="/static/css/lab.css?v=2">
+    <link rel="stylesheet" href="/static/css/apple-theme.css?v=5">
 </head>
-<body>
+<body class="urp-app">
 
     <div id="sidebar" class="sidebar">
         <div class="sidebar-header">
@@ -76,7 +77,7 @@
                 <div class="page-access-gate" data-page-access-gate hidden></div>
                 <div class="schedule-container">
                     <div id="schedule-message" class="schedule-message" style="display:none;"></div>
-                    <div id="schedule-content" class="schedule-content schedule-swipe-viewport" aria-label="课程表周次切换区域">
+                    <div id="schedule-content" class="schedule-content schedule-swipe-viewport" aria-label="课程表周次切换区域" tabindex="-1">
                         <div class="schedule-dino-lane" aria-hidden="true" data-direction="next" data-obstacle="cactus-single">
                             <span class="schedule-dino-stage">
                                 <span class="schedule-dino-cloud schedule-dino-cloud-a"></span>
@@ -124,28 +125,55 @@
                             <section class="schedule-week-panel" data-schedule-panel="next" aria-hidden="true"></section>
                         </div>
                     </div>
-                    <div class="action-bar schedule-bottom-controls">
-                        <div class="schedule-week-controls">
-                            <button class="btn-secondary" type="button" onclick="changeWeek(-1, true)">上一周</button>
-                            <label class="week-select-wrap" for="week-select"><span>周次</span><select id="week-select" onchange="changeWeek(parseInt(this.value,10)-currentWeek)"></select></label>
-                            <button class="btn-secondary" type="button" onclick="changeWeek(1, true)">下一周</button>
+                    <div id="schedule-actions-pull" class="schedule-actions-pull" aria-hidden="true">
+                        <span class="schedule-actions-pull-label">继续上滑，展开课表操作</span>
+                        <span class="schedule-actions-pull-track"><span class="schedule-actions-pull-fill"></span></span>
+                    </div>
+                    <div id="schedule-actions" class="schedule-actions" inert aria-hidden="true">
+                        <div class="schedule-actions-heading">
+                            <span>课表操作</span>
+                            <button class="schedule-actions-close" type="button" onclick="hideScheduleActions()">收起</button>
+                        </div>
+                        <div class="schedule-week-toolbar">
+                            <span class="schedule-week-caption">按周查看</span>
+                            <div class="schedule-week-controls">
+                                <button class="btn-secondary" type="button" onclick="changeWeek(-1, true)">上一周</button>
+                                <label class="week-select-wrap" for="week-select"><span>周次</span><select id="week-select" onchange="changeWeek(parseInt(this.value,10)-currentWeek)"></select></label>
+                                <button class="btn-secondary" type="button" onclick="changeWeek(1, true)">下一周</button>
+                            </div>
                         </div>
                         <div class="schedule-data-actions">
-                            <button class="btn-primary" type="button" onclick="loadSchedule()">刷新显示</button>
                             <button id="update-schedule-btn" class="btn-primary" type="button" onclick="updateScheduleData(event)">更新课程表</button>
+                            <button class="btn-secondary" type="button" onclick="openCalendarExport('all')">导出课表/考试</button>
                             <button class="btn-secondary" type="button" onclick="showHistoricalSchedule()">历年课表查询</button>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div id="page-exams" class="page"><div class="page-access-gate" data-page-access-gate hidden></div><div class="exams-container"><h2>考试安排</h2><p class="page-section-desc">展示已缓存的考试安排，也可以重新从教务系统获取。</p><div id="exams-content" class="exams-content"><div class="loading">加载中...</div></div><div class="action-bar"><button class="btn-primary" type="button" onclick="loadExams()">刷新显示</button><button id="update-exams-btn" class="btn-primary" type="button" onclick="updateExamsData(event)">更新考试安排</button></div></div></div>
+            <div id="page-exams" class="page">
+                <div class="page-access-gate" data-page-access-gate hidden></div>
+                <div class="exams-container">
+                    <div class="exams-page-head">
+                        <div class="exams-page-intro">
+                            <h2>考试安排</h2>
+                            <p class="page-section-desc">展示已缓存的考试安排，也可以重新从教务系统获取。</p>
+                        </div>
+                    </div>
+                    <div id="exams-content" class="exams-content"><div class="loading">加载中...</div></div>
+                    <div class="action-bar exams-actions">
+                        <button id="update-exams-btn" class="btn-primary" type="button" onclick="updateExamsData(event)">更新考试安排</button>
+                        <button class="btn-secondary" type="button" onclick="openCalendarExport('all')">导出课表/考试</button>
+                        <button class="btn-secondary" type="button" onclick="loadExams()">刷新显示</button>
+                    </div>
+                </div>
+            </div>
 
             <div id="page-grades" class="page">
                 <div class="page-access-gate" data-page-access-gate hidden></div>
                 <div class="grades-container grades-dashboard">
                     <div class="grades-dashboard-main">
-                        <h2>成绩查询</h2>
+                        <h2 id="grades-page-title">成绩查询</h2>
                         <div id="grades-menu" class="grades-menu grades-card-grid">
                             <button class="grade-action-btn grade-action-btn-summary" type="button" onclick="gradesLoadLatestSummary()">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-7"/></svg>
@@ -179,7 +207,7 @@
                             </button>
                         </div>
                         <div id="grades-result" class="grades-result" style="display:none;">
-                            <div class="grades-result-header"><button class="grades-back-btn" type="button" onclick="gradesBackToMenu()">返回</button><h3 id="grades-result-title"></h3></div>
+                            <div class="grades-result-header"><button id="grades-back-btn" class="in-page-back grades-back-btn" type="button" onclick="gradesBackToMenu()">← 返回查询选项</button><h2 id="grades-result-title"></h2></div>
                             <div id="grades-content" class="grades-content"></div>
                         </div>
                     </div>
@@ -301,7 +329,11 @@
                         <div class="lab-actions"><button id="lab-query" class="btn-primary" type="button">查询实验</button><button id="lab-unbind" class="btn-secondary" type="button">解除密码绑定</button></div>
                     </section>
                     <section id="lab-results" class="lab-card" hidden><label for="lab-semester">选择学期</label><select id="lab-semester"></select><p id="lab-mode" class="lab-auto-captcha"></p><div id="lab-list"></div></section>
-                    <input id="lab-file" type="file" accept=".pdf,application/pdf" hidden>
+                    <input id="lab-file" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" hidden>
+                    <aside id="lab-convert" class="lab-card" hidden>
+                        <p id="lab-convert-text" class="lab-auto-captcha"></p>
+                        <div class="lab-actions"><a id="lab-convert-link" href="#" target="_blank" rel="noopener noreferrer">前往转换为 PDF</a><button id="lab-convert-reselect" class="btn-secondary" type="button">重新选择 PDF</button></div>
+                    </aside>
                 </div>
             </div>
 
@@ -470,6 +502,20 @@
 
     <div id="course-detail-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="course-detail-name"><div class="modal-content"><button class="modal-close" type="button" onclick="closeCourseDetail()" aria-label="关闭">×</button><h2 id="course-detail-name">课程详情</h2><div id="course-detail-body" class="course-detail-body"></div></div></div>
 
+    <div id="calendar-export-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="calendar-export-title">
+        <div class="modal-content calendar-export-modal-content">
+            <button class="modal-close" type="button" onclick="closeCalendarExport()" aria-label="关闭">×</button>
+            <h2 id="calendar-export-title">导出日历</h2>
+            <p id="calendar-export-description" class="modal-desc"></p>
+            <form onsubmit="downloadCalendarExport(event)">
+                <div class="form-group"><label for="calendar-export-start">学期首周的星期一</label><input id="calendar-export-start" type="date" required></div>
+                <p class="calendar-export-hint">请核对日期，尤其是新学期。课程和考试按北京时间写入 .ics 文件，可导入手机、Google 或 Outlook 日历。</p>
+                <p id="calendar-export-error" class="calendar-export-error" role="alert" hidden></p>
+                <button class="btn-primary btn-full" type="submit">下载 .ics 文件</button>
+            </form>
+        </div>
+    </div>
+
     <div id="other-major-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="other-major-modal-title"><div class="modal-content"><button class="modal-close" type="button" onclick="closeOtherMajorModal()" aria-label="关闭">×</button><h2 id="other-major-modal-title">其它专业课程</h2><div id="other-major-modal-body" class="other-major-modal-body"></div></div></div>
 
     <div id="historical-schedule-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="historical-schedule-modal-title"><div class="modal-content historical-schedule-modal-content"><button class="modal-close" type="button" onclick="closeHistoricalSchedule()" aria-label="关闭">×</button><h2 id="historical-schedule-modal-title">历年课表查询</h2><p class="modal-desc">选择学期后展示该学期全部课程</p><label class="historical-schedule-select-wrap" for="historical-semester-select"><span>学年学期</span><select id="historical-semester-select" onchange="loadHistoricalSchedule(this.value)"></select></label><div id="historical-schedule-body" class="historical-schedule-body"><div class="loading">加载中...</div></div></div></div>
@@ -489,10 +535,11 @@
 
     <div id="overlay" class="overlay" onclick="handleOverlayClick(event)"></div>
 
-    <script src="/static/js/schedule-layout.js"></script>
+    <script src="/static/js/schedule-layout.js?v=5"></script>
+    <script src="/static/js/calendar-export.js?v=1"></script>
     <script src="/static/js/service-status-ui.js"></script>
     <script src="/static/js/ui-ux.js?v=2"></script>
-    <script src="/static/js/main.js?v=18"></script>
+    <script src="/static/js/main.js?v=26"></script>
     <script src="/static/js/lab.js?v=2"></script>
 </body>
 </html>

@@ -33,6 +33,22 @@ function resolveScheduleSwipe({
     return { shouldChange: true, direction, week: nextWeek };
 }
 
+function resolveScheduleActionPull(distance, threshold = 170) {
+    const pull = Math.max(0, Number(distance) || 0);
+    const limit = Math.max(1, Number(threshold) || 170);
+    return {
+        offset: Math.round(68 * (1 - Math.exp(-pull / 76))),
+        progress: Math.min(pull / limit, 1),
+        shouldOpen: pull >= limit,
+    };
+}
+
+function scheduleCourseGridPlacement(section, duration) {
+    const start = Math.max(1, Math.trunc(Number(section) || 1));
+    const span = Math.max(1, Math.trunc(Number(duration) || 1));
+    return `grid-row: ${start} / span ${span}; grid-column: 1;`;
+}
+
 function resolveScheduleButtonSwipe({
     delta,
     currentWeek,
@@ -92,6 +108,15 @@ function resolveScheduleDinoCue({
         crossedObstacle: !blocked && progress >= 0.55,
         targetWeek,
     };
+}
+
+// 平滑起落的速度，同时保留越障所需的高度；反向拖动走同一条轨迹。
+function resolveScheduleDinoLift(obstacleShift, blocked = false) {
+    if (blocked) return 0;
+    const progress = Math.max(0, Math.min(1,
+        (40 - obstacleShift) / 30,
+        (obstacleShift + 100) / 30));
+    return 32 * progress * progress * (3 - 2 * progress);
 }
 
 function pickScheduleDinoObstacle(randomValue = Math.random()) {
@@ -162,7 +187,8 @@ function buildScheduleCourseDetailHtml(course = {}) {
         row('考试类型', course.examType),
         row('修读方式', course.studyMode),
         row('选课状态', course.selectionStatus),
-        `<div class="course-detail-row"><span class="course-detail-label">时间</span><span>${escapeScheduleHtml(course.day)} 第${section}-${endSection}节</span></div>`,
+        row('日期', course.date),
+        `<div class="course-detail-row"><span class="course-detail-label">时间</span><span>${course.week ? `第${escapeScheduleHtml(course.week)}周 ` : ''}${escapeScheduleHtml(course.day)} 第${section}-${endSection}节${course.clockTime ? `（${escapeScheduleHtml(course.clockTime)}）` : ''}</span></div>`,
         row('地点', course.location),
         row('校区', course.campus),
         row('教学楼', course.building),
@@ -248,6 +274,7 @@ if (typeof module !== 'undefined' && module.exports) {
         resolveScheduleSwipe,
         resolveScheduleButtonSwipe,
         resolveScheduleDinoCue,
+        resolveScheduleDinoLift,
         resolveScheduleDinoRelease,
         shouldCrashScheduleDino,
         pickScheduleDinoObstacle,
