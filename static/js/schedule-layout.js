@@ -36,9 +36,10 @@ function resolveScheduleSwipe({
 function resolveScheduleActionPull(distance, threshold = 170) {
     const pull = Math.max(0, Number(distance) || 0);
     const limit = Math.max(1, Number(threshold) || 170);
+    const progress = Math.min(pull / limit, 1);
     return {
-        offset: Math.round(68 * (1 - Math.exp(-pull / 76))),
-        progress: Math.min(pull / limit, 1),
+        offset: Math.round(68 * progress),
+        progress,
         shouldOpen: pull >= limit,
     };
 }

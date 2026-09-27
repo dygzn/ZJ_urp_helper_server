@@ -623,7 +623,7 @@ async function checkBindStatus() {
             let lastPage = urlPage || localStorage.getItem('current_page') || 'home';
             if (lastPage === 'tools') lastPage = 'home';
             switchPage(lastPage);
-            loadAndShowAnnouncements();
+            loadAnnouncementIndicator();
         } else {
             const wasTemporary = Boolean(temporarySessionExpiresAt);
             setTemporarySession(null);
@@ -690,7 +690,7 @@ function skipBind() {
     hideLoginModal();
     document.getElementById('sidebar-username').textContent = '访客';
     switchPage('home');
-    loadAndShowAnnouncements();
+    loadAnnouncementIndicator();
 }
 
 async function handleLogin(event) {
@@ -746,6 +746,7 @@ async function handleLogin(event) {
                     ? urpUi.normalizePageName(storedPage, availablePages, 'home')
                     : (availablePages.includes(storedPage) ? storedPage : 'home');
                 switchPage(currentPage);
+                loadAnnouncementIndicator();
                 if (data.temporary) showUiToast(data.message || '已登录，本次输入的密码不会保存。登录失效后请重新输入。', 'info');
             } else {
                 currentUsername = null;
@@ -753,7 +754,7 @@ async function handleLogin(event) {
                 isGuestMode = true;
                 document.getElementById('sidebar-username').textContent = '访客';
                 switchPage('home');
-                loadAndShowAnnouncements();
+                loadAnnouncementIndicator();
                 showUiToast(data.message || '登录成功，本次未绑定账号；下次使用需重新登录', 'info');
             }
         } else {
@@ -901,7 +902,7 @@ function getAvailablePageNames() {
 
     return [
         'home', 'schedule', 'exams', 'grades', 'evaluation',
-        'announcements', 'service-status', 'feedback', 'shortcut-api', 'member',
+        'service-status', 'feedback', 'shortcut-api', 'member',
     ].filter(pageName => document.getElementById(`page-${pageName}`));
 }
 
@@ -940,7 +941,6 @@ function switchPage(pageName) {
         'exams': '考试安排',
         'grades': '成绩查询',
         'evaluation': '教学评估',
-        'announcements': '系统公告',
         'service-status': '找我做事',
         'feedback': '反馈建议',
         'shortcut-api': '快捷指令 API',
@@ -1032,9 +1032,6 @@ function loadPageData(pageName) {
             break;
         case 'evaluation':
             document.getElementById('evaluation-result').innerHTML = '';
-            break;
-        case 'announcements':
-            loadAnnouncementsList();
             break;
         case 'service-status':
             loadServiceStatus();
@@ -2059,6 +2056,7 @@ function initScheduleSwipe() {
 
 const scheduleActionReveal = {
     distance: 0,
+    touchDirection: null,
     touchId: null,
     touchStartX: 0,
     touchStartY: 0,
@@ -2082,7 +2080,6 @@ function resetScheduleActionPull() {
         scheduleActionReveal.wheelTimer = null;
     }
     if (!pull) return;
-    pull.style.transform = '';
     const fill = pull.querySelector('.schedule-actions-pull-fill');
     if (fill) fill.style.width = '0%';
     pull.classList.remove('is-pulling', 'is-ready');
@@ -2090,22 +2087,34 @@ function resetScheduleActionPull() {
     if (label) label.textContent = '继续上滑，展开课表操作';
 }
 
-function updateScheduleActionPull(distance) {
+function updateScheduleActionPull(distance, direction = 'up', commit = true) {
     const pull = document.getElementById('schedule-actions-pull');
     const panel = document.getElementById('schedule-actions');
-    if (!pull || !panel || panel.classList.contains('is-open')) return;
-    scheduleActionReveal.distance = Math.max(0, distance);
-    const state = resolveScheduleActionPull(scheduleActionReveal.distance);
-    if (state.shouldOpen) {
-        showScheduleActions();
+    if (!pull || !panel || (direction === 'up' && panel.classList.contains('is-open'))
+        || (direction === 'down' && !panel.classList.contains('is-open'))) return;
+    if (distance <= 0) {
+        resetScheduleActionPull();
         return;
     }
-    pull.style.transform = `translate3d(-50%, ${68 - state.offset}px, 0)`;
+    scheduleActionReveal.distance = Math.max(0, distance);
+    const state = resolveScheduleActionPull(scheduleActionReveal.distance, direction === 'down' ? 28 : 170);
+    if (state.shouldOpen && commit) {
+        if (direction === 'down') hideScheduleActions(true, true);
+        else showScheduleActions();
+        return;
+    }
     const fill = pull.querySelector('.schedule-actions-pull-fill');
     if (fill) fill.style.width = `${Math.round(state.progress * 100)}%`;
-    pull.classList.toggle('is-pulling', state.offset > 0);
+    // 明显滑动后才提示；回退时留一点余量，避免临界距离附近闪烁。
+    const showHint = direction === 'up'
+        && (distance >= 80 || (pull.classList.contains('is-pulling') && distance >= 64));
+    pull.classList.toggle('is-pulling', showHint);
     const label = pull.querySelector('.schedule-actions-pull-label');
-    if (label) label.textContent = state.progress >= 0.8 ? '再向上滑一点' : '继续上滑，展开课表操作';
+    if (label) label.textContent = direction === 'down'
+        ? (state.shouldOpen ? '松手收起课表操作'
+            : state.progress >= 0.8 ? '再向下滑一点' : '继续下滑，收起课表操作')
+        : (state.shouldOpen ? '松手展开课表操作'
+            : state.progress >= 0.8 ? '再向上滑一点' : '继续上滑，展开课表操作');
 }
 
 function showScheduleActions() {
@@ -2115,9 +2124,12 @@ function showScheduleActions() {
     panel.classList.add('is-open');
     panel.removeAttribute('inert');
     panel.setAttribute('aria-hidden', 'false');
+    scheduleActionReveal.fitViewport?.();
     const scrollToActions = () => {
         if (panel.classList.contains('is-open') && typeof panel.scrollIntoView === 'function') {
-            panel.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            const reducedMotion = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+                && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            panel.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'end' });
         }
     };
     if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
@@ -2127,17 +2139,20 @@ function showScheduleActions() {
     }
 }
 
-function hideScheduleActions(focusTimetable = true) {
+function hideScheduleActions(focusTimetable = true, preventScroll = false) {
     const panel = document.getElementById('schedule-actions');
     if (!panel || !panel.classList) return;
     if (focusTimetable && typeof panel.contains === 'function' && panel.contains(document.activeElement)) {
         const timetable = document.getElementById('schedule-content');
-        if (timetable && typeof timetable.focus === 'function') timetable.focus();
+        if (timetable && typeof timetable.focus === 'function') {
+            timetable.focus(preventScroll ? { preventScroll: true } : undefined);
+        }
     }
     panel.classList.remove('is-open');
     panel.setAttribute('inert', '');
     panel.setAttribute('aria-hidden', 'true');
     resetScheduleActionPull();
+    scheduleActionReveal.fitViewport?.();
 }
 
 function scheduleActionTouch(event) {
@@ -2147,19 +2162,23 @@ function scheduleActionTouch(event) {
 function handleScheduleActionTouchStart(event) {
     const panel = document.getElementById('schedule-actions');
     const touch = event.touches && event.touches[0];
-    if (!panel || panel.classList.contains('is-open') || !touch || event.touches.length !== 1) return;
+    if (!panel || !touch || event.touches.length !== 1) return;
+    const isOpen = panel.classList.contains('is-open');
+    if (event.target?.closest?.('input, select, textarea')) return;
+    resetScheduleActionPull();
     scheduleActionReveal.touchId = touch.identifier;
     scheduleActionReveal.touchStartX = touch.clientX;
     scheduleActionReveal.touchStartY = touch.clientY;
     scheduleActionReveal.lastTouchY = touch.clientY;
-    scheduleActionReveal.trackingTouch = isScheduleAtPageBottom();
+    scheduleActionReveal.touchDirection = isOpen ? 'down' : 'up';
+    scheduleActionReveal.trackingTouch = isOpen || isScheduleAtPageBottom();
     scheduleActionReveal.horizontalTouch = false;
 }
 
 function handleScheduleActionTouchMove(event) {
     const panel = document.getElementById('schedule-actions');
     const touch = scheduleActionTouch(event);
-    if (!panel || panel.classList.contains('is-open') || !touch || scheduleActionReveal.horizontalTouch) return;
+    if (!panel || !touch || scheduleActionReveal.horizontalTouch) return;
     const deltaX = touch.clientX - scheduleActionReveal.touchStartX;
     const deltaY = touch.clientY - scheduleActionReveal.touchStartY;
     if (Math.abs(deltaX) > 10 && Math.abs(deltaX) > Math.abs(deltaY)) {
@@ -2173,28 +2192,50 @@ function handleScheduleActionTouchMove(event) {
         scheduleActionReveal.trackingTouch = true;
         return;
     }
-    const step = scheduleActionReveal.lastTouchY - touch.clientY;
+    const step = (scheduleActionReveal.lastTouchY - touch.clientY)
+        * (scheduleActionReveal.touchDirection === 'down' ? -1 : 1);
     scheduleActionReveal.lastTouchY = touch.clientY;
-    updateScheduleActionPull(Math.max(0, scheduleActionReveal.distance + step));
+    const direction = scheduleActionReveal.touchDirection;
+    updateScheduleActionPull(scheduleActionReveal.distance + step, direction, direction === 'down');
+    if (direction === 'down' && !panel.classList.contains('is-open')) {
+        scheduleActionReveal.touchId = null;
+        scheduleActionReveal.touchDirection = null;
+        scheduleActionReveal.trackingTouch = false;
+    }
 }
 
 function handleScheduleActionTouchEnd(event) {
     if (scheduleActionReveal.touchId === null || scheduleActionTouch(event)) return;
+    const direction = scheduleActionReveal.touchDirection;
+    const distance = scheduleActionReveal.distance;
     scheduleActionReveal.touchId = null;
+    scheduleActionReveal.touchDirection = null;
     scheduleActionReveal.trackingTouch = false;
     scheduleActionReveal.horizontalTouch = false;
     resetScheduleActionPull();
+    if (event.type !== 'touchcancel' && direction && distance >= (direction === 'down' ? 28 : 170)) {
+        if (direction === 'down') hideScheduleActions(true, true);
+        else showScheduleActions();
+    }
 }
 
 function handleScheduleActionWheel(event) {
     const panel = document.getElementById('schedule-actions');
-    if (!panel || panel.classList.contains('is-open') || event.deltaY <= 0 || !isScheduleAtPageBottom()) return;
+    if (!panel) return;
+    const isOpen = panel.classList.contains('is-open');
+    const direction = isOpen ? 'down' : 'up';
+    if (event.target?.closest?.('input, select, textarea')) return;
+    if ((isOpen && event.deltaY >= 0)
+        || (!isOpen && (event.deltaY <= 0 || !isScheduleAtPageBottom()))) {
+        if (scheduleActionReveal.distance > 0) resetScheduleActionPull();
+        return;
+    }
     if (event.cancelable) event.preventDefault();
     const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
-    updateScheduleActionPull(scheduleActionReveal.distance + Math.min(event.deltaY * unit, 90));
+    updateScheduleActionPull(scheduleActionReveal.distance + Math.min(Math.abs(event.deltaY * unit), 90), direction);
     if (scheduleActionReveal.wheelTimer !== null) window.clearTimeout(scheduleActionReveal.wheelTimer);
-    if (!panel.classList.contains('is-open')) {
-        scheduleActionReveal.wheelTimer = window.setTimeout(resetScheduleActionPull, 700);
+    if (scheduleActionReveal.distance > 0) {
+        scheduleActionReveal.wheelTimer = window.setTimeout(resetScheduleActionPull, 240);
     }
 }
 
@@ -2205,7 +2246,7 @@ function handleScheduleActionKeyDown(event) {
         || panel.classList.contains('is-open') || !isScheduleAtPageBottom()) return;
     if (event.key !== 'PageDown' && event.key !== 'ArrowDown') return;
     if (event.cancelable) event.preventDefault();
-    updateScheduleActionPull(scheduleActionReveal.distance + (event.key === 'PageDown' ? 90 : 45));
+    showScheduleActions();
 }
 
 function initScheduleActions() {
@@ -2219,6 +2260,59 @@ function initScheduleActions() {
     page.addEventListener('touchcancel', handleScheduleActionTouchEnd);
     page.addEventListener('wheel', handleScheduleActionWheel, { passive: false });
     document.addEventListener('keydown', handleScheduleActionKeyDown);
+    initScheduleViewportSizing(page);
+}
+
+// 根据实际页头、周次栏和操作区的高度分配课表空间，兼容手机地址栏伸缩。
+function initScheduleViewportSizing(page) {
+    if (typeof window.ResizeObserver !== 'function' || typeof page.querySelector !== 'function') return;
+    const container = page.querySelector('.schedule-container');
+    const wrapper = page.parentElement;
+    const header = document.querySelector('.header');
+    const footer = document.querySelector('.site-footer');
+    if (!container || !wrapper) return;
+    let frame = null;
+    const spacing = element => {
+        const css = window.getComputedStyle(element);
+        return ['paddingTop', 'paddingBottom', 'borderTopWidth', 'borderBottomWidth']
+            .reduce((sum, name) => sum + (parseFloat(css[name]) || 0), 0);
+    };
+    const outerHeight = element => {
+        if (!element || !element.getClientRects().length) return 0;
+        const css = window.getComputedStyle(element);
+        return element.getBoundingClientRect().height
+            + (parseFloat(css.marginTop) || 0) + (parseFloat(css.marginBottom) || 0);
+    };
+    const fit = () => {
+        frame = null;
+        if (!page.classList.contains('active')) return;
+        const rows = page.querySelector('.schedule-grid.has-evening') ? 10 : 8;
+        const gap = parseFloat(window.getComputedStyle(container).getPropertyValue('--schedule-row-gap')) || 0;
+        // 页脚的 auto 外边距用于短页面贴底，不计入实际占用高度。
+        const footerHeight = footer ? footer.getBoundingClientRect().height : 0;
+        const fixedHeight = outerHeight(header) + footerHeight + spacing(wrapper) + spacing(container)
+            + ['.schedule-message', '.schedule-week-toolbar', '.schedule-actions-pull', '.schedule-actions']
+                .reduce((sum, selector) => sum + outerHeight(page.querySelector(selector)), 0)
+            + outerHeight(page.querySelector('.schedule-dino-lane'))
+            + Math.max(0, ...Array.from(page.querySelectorAll('.schedule-header'), outerHeight));
+        const viewportHeight = window.visualViewport?.height || window.innerHeight;
+        const rowHeight = Math.max(40, Math.min(104,
+            Math.floor((viewportHeight - fixedHeight - (rows - 1) * gap) / rows)));
+        const value = `${rowHeight}px`;
+        if (container.style.getPropertyValue('--schedule-row-height') !== value) {
+            container.style.setProperty('--schedule-row-height', value);
+        }
+    };
+    const scheduleFit = () => {
+        if (frame === null) frame = window.requestAnimationFrame(fit);
+    };
+    const observer = new window.ResizeObserver(scheduleFit);
+    scheduleActionReveal.fitViewport = fit;
+    [page, header, footer, ...page.querySelectorAll('.schedule-week-toolbar, .schedule-message, .schedule-actions')]
+        .filter(Boolean).forEach(element => observer.observe(element));
+    window.addEventListener('resize', scheduleFit, { passive: true });
+    window.visualViewport?.addEventListener('resize', scheduleFit, { passive: true });
+    scheduleFit();
 }
 
 if (typeof document !== 'undefined'
@@ -3854,130 +3948,134 @@ async function oneClickEvaluation() {
 
 
 // ==================== 公告功能 ====================
-let currentPopupAnnouncementId = null;
+let announcementItems = [];
+let announcementDialogIndex = 0;
+const locallyReadAnnouncementIds = new Set();
 
-// 加载并显示未读公告弹窗
-async function loadAndShowAnnouncements() {
+function updateAnnouncementIndicator(items = announcementItems) {
+    const trigger = document.getElementById('announcement-trigger');
+    if (!trigger) return;
+    const unreadCount = items.filter(item => !item.is_read).length;
+    trigger.classList.toggle('has-unread', unreadCount > 0);
+    trigger.setAttribute('aria-label', unreadCount > 0
+        ? `系统公告，${unreadCount} 条未读`
+        : '系统公告，无未读公告');
+}
+
+function rememberAnnouncements(items) {
+    announcementItems = items.map(item => ({
+        ...item,
+        is_read: item.is_read || locallyReadAnnouncementIds.has(item.id),
+    })).sort((a, b) => (Date.parse(b.create_time) || 0) - (Date.parse(a.create_time) || 0));
+    updateAnnouncementIndicator();
+    return announcementItems;
+}
+
+async function loadAnnouncementIndicator() {
     try {
         const response = await fetch('/api/announcements', {
-            headers: {
-                'X-Device-ID': getDeviceId()
-            }
+            headers: { 'X-Device-ID': getDeviceId() },
         });
         const data = await response.json();
+        if (data.success) rememberAnnouncements(data.announcements || []);
+    } catch (error) {
+        console.error('更新公告提示失败:', error);
+    }
+}
 
-        if (data.success && data.announcements && data.announcements.length > 0) {
-            // 找到第一个未标记为"不再显示"的公告
-            const unreadAnnouncement = data.announcements.find(ann => !ann.never_show);
+async function openAnnouncementDialog() {
+    const modal = document.getElementById('announcement-dialog');
+    if (!modal) return;
+    openUiModal(modal, { initialFocusSelector: '#announcement-dialog-close' });
+    await loadAnnouncementsForDialog();
+}
 
-            if (unreadAnnouncement) {
-                showAnnouncementPopup(unreadAnnouncement);
-            }
+function closeAnnouncementDialog() {
+    closeUiModal(document.getElementById('announcement-dialog'));
+}
+
+async function loadAnnouncementsForDialog() {
+    const status = document.getElementById('announcement-dialog-status');
+    const article = document.getElementById('announcement-dialog-article');
+    const retry = document.getElementById('announcement-retry');
+    const previous = document.getElementById('announcement-previous');
+    const next = document.getElementById('announcement-next');
+    if (!status || !article || !retry || !previous || !next) return;
+
+    status.hidden = false;
+    status.textContent = '加载中...';
+    article.hidden = true;
+    retry.hidden = true;
+    previous.disabled = true;
+    next.disabled = true;
+
+    try {
+        const response = await fetch('/api/announcements', {
+            headers: { 'X-Device-ID': getDeviceId() },
+        });
+        const data = await response.json();
+        if (!data.success) throw new Error(data.message || '公告加载失败');
+        const items = rememberAnnouncements(data.announcements || []);
+        if (items.length === 0) {
+            status.textContent = '暂无公告';
+            return;
         }
+        await showAnnouncementAt(0);
     } catch (error) {
         console.error('加载公告失败:', error);
+        status.textContent = '公告加载失败，请重试';
+        retry.hidden = false;
     }
 }
 
-// 显示公告弹窗
-function showAnnouncementPopup(announcement) {
-    currentPopupAnnouncementId = announcement.id;
+async function showAnnouncementAt(index) {
+    if (index < 0 || index >= announcementItems.length) return;
+    announcementDialogIndex = index;
+    const item = announcementItems[index];
+    const date = new Date(item.create_time);
+    const time = document.getElementById('announcement-dialog-time');
+    const status = document.getElementById('announcement-dialog-status');
+    const article = document.getElementById('announcement-dialog-article');
+    const scroll = document.getElementById('announcement-dialog-scroll');
 
-    document.getElementById('announcement-popup-title').textContent = announcement.title;
-    document.getElementById('announcement-popup-content').innerHTML = announcement.content.replace(/\n/g, '<br>');
-    document.getElementById('never-show-checkbox').checked = false;
-
-    const modal = document.getElementById('announcement-popup');
-    openUiModal(modal);
+    status.hidden = true;
+    article.hidden = false;
+    time.textContent = Number.isNaN(date.getTime()) ? '' : date.toLocaleString('zh-CN');
+    document.getElementById('announcement-dialog-title').textContent = String(item.title || '');
+    document.getElementById('announcement-dialog-content').textContent = String(item.content || '');
+    document.getElementById('announcement-dialog-position').textContent = `${index + 1} / ${announcementItems.length}`;
+    document.getElementById('announcement-previous').disabled = index === 0;
+    document.getElementById('announcement-next').disabled = index === announcementItems.length - 1;
+    if (scroll) scroll.scrollTop = 0;
+    await markAnnouncementRead(item);
 }
 
-// 关闭公告弹窗
-async function closeAnnouncementPopup() {
-    const neverShow = document.getElementById('never-show-checkbox')?.checked === true;
-
-    // 标记为已读
-    if (currentPopupAnnouncementId) {
-        try {
-            await fetch(`/api/announcements/${currentPopupAnnouncementId}/read`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Device-ID': getDeviceId()
-                },
-                body: JSON.stringify({
-                    never_show: neverShow
-                })
-            });
-        } catch (error) {
-            console.error('标记公告已读失败:', error);
-        }
-    }
-
-    const modal = document.getElementById('announcement-popup');
-    closeUiModal(modal);
-
-    currentPopupAnnouncementId = null;
+function showPreviousAnnouncement() {
+    return showAnnouncementAt(announcementDialogIndex - 1);
 }
 
-// 加载公告列表页面
-async function loadAnnouncementsList() {
-    const contentDiv = document.getElementById('announcements-list-content');
-    contentDiv.innerHTML = '<div class="loading">加载中...</div>';
+function showNextAnnouncement() {
+    return showAnnouncementAt(announcementDialogIndex + 1);
+}
 
+async function markAnnouncementRead(item) {
+    if (item.is_read) return;
     try {
-        const response = await fetch('/api/announcements', {
-            headers: {
-                'X-Device-ID': getDeviceId()
-            }
+        const response = await fetch(`/api/announcements/${item.id}/read`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Device-ID': getDeviceId() },
+            body: JSON.stringify({ never_show: false }),
         });
         const data = await response.json();
-
-        if (data.success) {
-            if (data.announcements && data.announcements.length > 0) {
-                displayAnnouncementsList(data.announcements);
-            } else {
-                contentDiv.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">&#128276;</div>
-                        <div class="empty-state-text">暂无公告</div>
-                    </div>
-                `;
-            }
-        } else {
-            renderRetryState(contentDiv, data.message || '公告加载失败', loadAnnouncementsList);
-        }
+        if (!data.success) throw new Error(data.message || '标记已读失败');
+        locallyReadAnnouncementIds.add(item.id);
+        announcementItems.forEach(announcement => {
+            if (announcement.id === item.id) announcement.is_read = true;
+        });
+        updateAnnouncementIndicator();
     } catch (error) {
-        console.error('加载公告列表失败:', error);
-        renderRetryState(contentDiv, '公告加载失败，请重试', loadAnnouncementsList);
+        console.error('标记公告已读失败:', error);
     }
-}
-
-// 显示公告列表
-function displayAnnouncementsList(announcements) {
-    const contentDiv = document.getElementById('announcements-list-content');
-
-    let html = '';
-    announcements.forEach(ann => {
-        const createTime = new Date(ann.create_time).toLocaleString('zh-CN');
-        const readBadge = ann.is_read ? '<span class="read-badge">已读</span>' : '<span class="unread-badge">未读</span>';
-
-        html += `
-            <div class="announcement-item ${ann.is_read ? 'read' : 'unread'}">
-                <div class="announcement-item-header">
-                    <h3>${ann.title}</h3>
-                    ${readBadge}
-                </div>
-                <div class="announcement-item-content">
-                    ${ann.content.replace(/\n/g, '<br>')}
-                </div>
-                <div class="announcement-item-footer">
-                    <span class="announcement-item-time">${createTime}</span>
-                </div>
-            </div>
-        `;
-    });
-
-    contentDiv.innerHTML = html;
 }
 
 // ==================== 反馈建议 ====================

@@ -7143,7 +7143,7 @@ body.ui-locked {
     padding: 0;
 }
 
-/* 课表操作由底部上滑手势展开；考试操作固定在列表下方。 */
+/* 课表操作由底部上滑展开、在操作区下滑收起；考试操作固定在列表下方。 */
 .exams-page-head {
     padding-bottom: 20px;
     margin-bottom: 20px;
@@ -7188,26 +7188,23 @@ body.ui-locked {
     align-items: center;
     justify-content: center;
     gap: 7px;
-    position: fixed;
-    z-index: 90;
-    left: 50%;
-    bottom: 0;
-    width: min(320px, calc(100vw - 24px));
-    height: 68px;
+    width: min(320px, 100%);
+    height: 56px;
+    margin-inline: auto;
     overflow: hidden;
     pointer-events: none;
-    transform: translate3d(-50%, 100%, 0);
-    transition: transform 0.18s var(--ease);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.14s var(--ease), visibility 0s 0.14s;
     color: var(--text-secondary);
     font-size: 13px;
     font-weight: 600;
-    background: linear-gradient(180deg, rgba(0, 122, 255, 0.03), rgba(0, 122, 255, 0.09));
-    border-radius: 0 0 12px 12px;
 }
 
 .schedule-actions-pull.is-pulling {
-    border-top: 1px solid var(--divider);
-    transition: none;
+    opacity: 1;
+    visibility: visible;
+    transition-delay: 0s;
 }
 
 .schedule-actions-pull-track {

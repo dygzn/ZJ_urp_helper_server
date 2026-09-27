@@ -16,6 +16,9 @@
     --ui-font: system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
+/* 让浏览器边缘与回弹区域沿用页面画布色。 */
+html.urp-root { background-color: var(--ui-canvas); }
+
 body.urp-app,
 body.urp-admin,
 body.campaign-body {
@@ -139,7 +142,24 @@ body.urp-admin :is(input, select, textarea):focus {
 }
 
 /* Student workspace */
+body.urp-app .main-content {
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+}
+
+body.urp-app .site-footer {
+    position: static;
+    flex-shrink: 0;
+    margin-top: auto;
+    padding: 8px 16px max(8px, env(safe-area-inset-bottom));
+    background: transparent;
+    line-height: 1.5;
+    z-index: auto;
+}
+
 body.urp-app .header {
+    flex-shrink: 0;
     min-height: 70px;
     padding: 8px clamp(16px, 3vw, 40px);
     background: rgb(255 255 255 / 96%);
@@ -179,6 +199,16 @@ body.urp-app .sidebar {
     background: var(--ui-surface);
     box-shadow: 12px 0 36px rgb(24 38 56 / 12%);
     backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    visibility: hidden;
+    pointer-events: none;
+    transition: left var(--duration) var(--ease), visibility 0s var(--duration);
+}
+
+body.urp-app .sidebar.active {
+    visibility: visible;
+    pointer-events: auto;
+    transition-delay: 0s;
 }
 
 body.urp-app .sidebar-header {
@@ -251,7 +281,7 @@ body.urp-app .rebind-btn:hover {
 body.urp-app .content-wrapper {
     width: min(100%, 1160px);
     max-width: 1160px;
-    padding: clamp(24px, 4vw, 46px) clamp(16px, 3.3vw, 40px) 88px;
+    padding: clamp(24px, 4vw, 46px) clamp(16px, 3.3vw, 40px) 24px;
 }
 
 body.urp-app .page h2 {
@@ -645,7 +675,7 @@ body.campaign-body .campaign-actions button:hover { background: var(--ui-accent-
 @media (max-width: 768px) {
     body.urp-app .header { min-height: 60px; padding: 8px 14px; }
     body.urp-app .sidebar { --sidebar-width: min(266px, calc(100vw - 32px)); }
-    body.urp-app .content-wrapper { padding: 22px 14px 70px; }
+    body.urp-app .content-wrapper { padding: 22px 14px 24px; }
     .home-welcome { padding: 25px 20px; margin-bottom: 0; }
     body.urp-app .urgent-card { margin-bottom: 18px; }
     body.urp-app .home-welcome h2 { font-size: clamp(29px, 7vw, 39px); }
@@ -680,4 +710,135 @@ body.campaign-body .campaign-actions button:hover { background: var(--ui-accent-
 
 @media (prefers-reduced-transparency: reduce) {
     body.urp-app .header { background: var(--ui-surface); backdrop-filter: none; }
+}
+
+/* 公告入口与阅读弹窗 */
+body.urp-app .announcement-trigger {
+    position: relative;
+    display: grid;
+    place-items: center;
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    margin-left: auto;
+    padding: 10px;
+    border: 1px solid var(--ui-line);
+    border-radius: var(--ui-radius-sm);
+    background: var(--ui-surface);
+    color: var(--ui-ink);
+    cursor: pointer;
+}
+body.urp-app .announcement-trigger:hover,
+body.urp-app .announcement-trigger:focus-visible { border-color: #a9bbd2; background: var(--ui-accent-soft); }
+body.urp-app .announcement-trigger svg { display: block; width: 23px; height: 23px; }
+body.urp-app .announcement-unread-dot {
+    position: absolute;
+    top: 7px;
+    right: 7px;
+    width: 10px;
+    height: 10px;
+    border: 2px solid var(--ui-surface);
+    border-radius: 50%;
+    background: var(--ui-accent);
+    display: none;
+}
+body.urp-app .announcement-trigger.has-unread .announcement-unread-dot { display: block; }
+body.urp-app .login-status-indicator { margin-left: 8px; }
+
+body.urp-app #announcement-dialog { padding: 12px; background: rgb(24 38 56 / 48%); backdrop-filter: none; }
+body.urp-app .announcement-dialog-card {
+    display: flex;
+    flex-direction: column;
+    width: min(100%, 640px);
+    max-width: 640px;
+    min-height: min(280px, calc(100dvh - 24px));
+    max-height: calc(100dvh - 24px);
+    padding: 28px 30px 20px;
+    overflow: hidden;
+}
+body.urp-app .announcement-dialog-card > h2 { margin: 0 54px 18px 0; padding-bottom: 18px; border-bottom: 1px solid var(--ui-line); font-size: 20px; }
+body.urp-app .announcement-dialog-card .modal-close { width: 44px; height: 44px; border-radius: var(--ui-radius-sm); }
+body.urp-app .announcement-dialog-scroll { flex: 1; min-height: 0; max-height: min(52dvh, 440px); overflow-y: auto; overscroll-behavior: contain; }
+body.urp-app .announcement-dialog-status { padding: 38px 0; color: var(--ui-muted); font-size: 14px; text-align: center; }
+body.urp-app .announcement-dialog-status[hidden],
+body.urp-app .announcement-retry[hidden],
+body.urp-app #announcement-dialog-article[hidden] { display: none; }
+body.urp-app .announcement-retry { display: block; margin: -20px auto 24px; }
+body.urp-app .announcement-dialog-meta { display: flex; align-items: center; justify-content: space-between; gap: 16px; color: var(--ui-subtle); font-size: 12px; }
+body.urp-app #announcement-dialog-title { margin: 18px 0 16px; color: var(--ui-ink); font-size: clamp(21px, 3vw, 26px); line-height: 1.35; overflow-wrap: anywhere; }
+body.urp-app #announcement-dialog-content { color: var(--ui-ink); font-size: 15px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
+body.urp-app .announcement-dialog-footer { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--ui-line); }
+body.urp-app .announcement-dialog-footer button { width: 100%; }
+body.urp-app .announcement-dialog-footer button:disabled { opacity: .48; cursor: not-allowed; }
+
+@media (max-width: 768px) {
+    body.urp-app .header { grid-template-columns: var(--touch-target) minmax(0, 1fr) var(--touch-target) auto; grid-template-areas: "menu title announcement status" "ad ad ad ad"; }
+    body.urp-app .announcement-trigger { grid-area: announcement; margin: 0; }
+    body.urp-app .login-status-indicator { margin-left: 0; }
+}
+
+@media (max-width: 520px) {
+    body.urp-app .announcement-dialog-card { padding: 22px 20px 18px; }
+    body.urp-app .announcement-dialog-card > h2 { margin-bottom: 16px; }
+    body.urp-app .announcement-dialog-footer { gap: 8px; }
+}
+
+/* 课表按可用屏幕高度排布，周次导航常驻，低频操作按需展开。 */
+body.urp-app .main-content:has(#page-schedule.active) { min-height: 100dvh; }
+body.urp-app .content-wrapper:has(> #page-schedule.active) {
+    width: 100%;
+    max-width: none;
+    padding: 8px clamp(6px, 2vw, 24px);
+}
+body.urp-app #page-schedule .schedule-container { padding: 8px; --schedule-row-gap: 3px; }
+body.urp-app #page-schedule .schedule-dino-lane { height: clamp(52px, 7dvh, 72px); }
+body.urp-app #page-schedule .timeline-item { padding: 2px; }
+body.urp-app #page-schedule .timeline-section { font-size: 13px; line-height: 1; margin-bottom: 1px; }
+body.urp-app #page-schedule :is(.timeline-time-start, .timeline-time-end) { font-size: 9px; line-height: 1.1; }
+body.urp-app #page-schedule .schedule-week-toolbar {
+    min-height: 44px;
+    padding: 8px 0 0;
+    margin-top: 8px;
+    border: 0;
+    border-top: 1px solid var(--ui-line);
+    border-radius: 0;
+    background: var(--ui-surface);
+}
+body.urp-app #page-schedule .schedule-week-controls {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: min(100%, 440px);
+    gap: 8px;
+}
+body.urp-app #page-schedule .schedule-week-controls :is(button, select, .week-select-wrap) {
+    min-width: 0;
+    min-height: 44px;
+    height: 44px;
+    width: 100%;
+}
+body.urp-app #page-schedule .schedule-week-controls button { padding-inline: 6px; }
+body.urp-app #page-schedule .schedule-week-controls .week-select-wrap { padding: 0 6px; }
+body.urp-app #page-schedule .schedule-actions-pull { height: 32px; gap: 3px; font-size: 12px; }
+body.urp-app #page-schedule .schedule-container:has(.schedule-actions.is-open) .schedule-actions-pull { display: none; }
+body.urp-app #page-schedule .schedule-actions {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+    scroll-margin-bottom: 8px;
+}
+body.urp-app #page-schedule .schedule-actions.is-open { margin-top: 6px; padding-top: 6px; }
+body.urp-app #page-schedule .schedule-actions-heading { font-size: 14px; }
+body.urp-app #page-schedule .schedule-data-actions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding: 0;
+    gap: 6px;
+    border: 0;
+    background: transparent;
+}
+body.urp-app #page-schedule .schedule-data-actions button {
+    grid-column: auto;
+    min-height: 44px;
+    height: auto;
+    padding: 6px;
+    font-size: 13px;
+    white-space: normal;
 }
