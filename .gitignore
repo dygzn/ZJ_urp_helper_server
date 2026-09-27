@@ -31,8 +31,7 @@ Thumbs.db
 /.worktrees/
 /AGENTS.md
 /DESIGN.md
-/docs/*
-!/docs/awesome-design-md-LICENSE
+/docs/
 /scripts/
 /tests/
 
