@@ -16,6 +16,7 @@ from urp.login import (
     recover_vpn_session,
     start_vpn_keepalive,
 )
+from services.temporary_session_service import user_data_file
 
 # 共享请求头（评教相关）
 _EVAL_HEADERS_BASE = {
@@ -35,7 +36,7 @@ class URP_query:
         self.url = url
         self.account = account
         self.x = requests.session()
-        with open(f'user_data/{self.account}/cookie.json', 'r', encoding='utf-8') as f:
+        with open(user_data_file(self.account, 'cookie.json'), 'r', encoding='utf-8') as f:
             self.x.cookies.update(json.load(f))
         if _is_vpn_url(self.url):
             shared_vpn_cookies = load_shared_vpn_cookies()
@@ -488,7 +489,7 @@ class URP_query:
                 })
 
         schedule_data = {str(week): courses for week, courses in schedule_by_week.items()}
-        user_dir = os.path.join('user_data', self.account)
+        user_dir = os.path.dirname(user_data_file(self.account, 'schedule.json'))
         os.makedirs(user_dir, exist_ok=True)
         with open(os.path.join(user_dir, 'schedule.json'), 'w', encoding='utf-8') as f:
             json.dump(schedule_data, f, ensure_ascii=False, indent=2)
@@ -810,7 +811,7 @@ class URP_query:
             week = exam['考试周次']
             exams_by_week.setdefault(week, []).append(exam)
 
-        with open(f'user_data/{self.account}/exams.json', 'w', encoding='utf-8') as f:
+        with open(user_data_file(self.account, 'exams.json'), 'w', encoding='utf-8') as f:
             json.dump(exams_by_week, f, ensure_ascii=False, indent=2)
 
         return exams_by_week

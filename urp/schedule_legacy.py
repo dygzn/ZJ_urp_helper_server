@@ -5,6 +5,7 @@ import os
 from collections import defaultdict
 
 from bs4 import BeautifulSoup
+from services.temporary_session_service import user_data_file
 
 
 def schedule_cx_legacy(query):
@@ -84,7 +85,7 @@ def schedule_cx_legacy(query):
 
     schedule_data = {str(k): v for k, v in schedule_by_week.items()}
 
-    user_dir = os.path.join('user_data', query.account)
+    user_dir = os.path.dirname(user_data_file(query.account, 'schedule.json'))
     os.makedirs(user_dir, exist_ok=True)
     with open(os.path.join(user_dir, 'schedule.json'), 'w', encoding='utf-8') as f:
         json.dump(schedule_data, f, ensure_ascii=False, indent=2)

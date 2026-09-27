@@ -1,0 +1,683 @@
+/* URP workspace: a quiet, high contrast interface for repeated daily use.
+   Native CSS keeps the existing Flask templates and JavaScript interactions intact. */
+:root {
+    --ui-canvas: #f3f6fa;
+    --ui-surface: #ffffff;
+    --ui-surface-soft: #f8fafc;
+    --ui-ink: #182638;
+    --ui-muted: #526276;
+    --ui-subtle: #65768a;
+    --ui-line: #dce4ed;
+    --ui-accent: #2055a2;
+    --ui-accent-hover: #173e7b;
+    --ui-accent-soft: #e9f0fb;
+    --ui-radius: 14px;
+    --ui-radius-sm: 9px;
+    --ui-font: system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+body.urp-app,
+body.urp-admin,
+body.campaign-body {
+    --accent: var(--ui-accent);
+    --accent-hover: var(--ui-accent-hover);
+    --accent-light: var(--ui-accent-soft);
+    --bg-primary: var(--ui-canvas);
+    --bg-secondary: var(--ui-surface-soft);
+    --bg-tertiary: #e9eef4;
+    --bg-card: var(--ui-surface);
+    --card-bg: var(--ui-surface);
+    --text-primary: var(--ui-ink);
+    --text-secondary: var(--ui-muted);
+    --text-tertiary: var(--ui-subtle);
+    --border: var(--ui-line);
+    --divider: var(--ui-line);
+    --card-radius: var(--ui-radius);
+    --radius-sm: var(--ui-radius-sm);
+    --radius-md: var(--ui-radius);
+    --radius-lg: var(--ui-radius);
+    --font: var(--ui-font);
+    --font-stack: var(--ui-font);
+    --card-shadow: none;
+    --card-shadow-hover: 0 12px 28px rgb(22 53 91 / 8%);
+    --shadow-sm: none;
+    --shadow-md: none;
+    --shadow-lg: none;
+    background: var(--ui-canvas);
+    color: var(--ui-ink);
+    font-family: var(--ui-font);
+}
+
+body.urp-app :is(h1, h2, h3),
+body.urp-admin :is(h1, h2, h3),
+body.campaign-body h1 {
+    color: var(--ui-ink);
+    letter-spacing: -0.035em;
+}
+
+body.urp-app :is(button, input, select, textarea),
+body.urp-admin :is(button, input, select, textarea),
+body.campaign-body button {
+    font-family: inherit;
+}
+
+body.urp-app :where(button, a, input, select, textarea):focus-visible,
+body.urp-admin :where(button, a, input, select, textarea):focus-visible,
+body.campaign-body :where(button, a, input, select, textarea):focus-visible {
+    outline: 3px solid var(--ui-accent);
+    outline-offset: 3px;
+}
+
+body.urp-app :is(.btn-primary, .btn-secondary),
+body.urp-admin :is(.btn-primary, .btn-secondary, .login-btn) {
+    min-height: 44px;
+    width: auto;
+    padding: 10px 18px;
+    border-radius: var(--ui-radius-sm);
+    font-size: 14px;
+    font-weight: 650;
+    line-height: 1.35;
+    white-space: nowrap;
+    box-shadow: none;
+}
+
+body.urp-app .btn-full,
+body.urp-admin .btn-full,
+body.urp-admin .login-btn {
+    width: 100%;
+}
+
+body.urp-app .btn-primary,
+body.urp-admin :is(.btn-primary, .login-btn) {
+    background: var(--ui-accent);
+    color: #fff;
+    border: 1px solid var(--ui-accent);
+}
+
+body.urp-app .btn-primary:hover:not(:disabled),
+body.urp-admin :is(.btn-primary, .login-btn):hover:not(:disabled) {
+    background: var(--ui-accent-hover);
+    border-color: var(--ui-accent-hover);
+}
+
+body.urp-app .btn-secondary,
+body.urp-admin .btn-secondary {
+    background: var(--ui-surface);
+    color: var(--ui-accent);
+    border: 1px solid #a9bbd2;
+}
+
+body.urp-app .btn-secondary:hover:not(:disabled),
+body.urp-admin .btn-secondary:hover:not(:disabled) {
+    background: var(--ui-accent-soft);
+    border-color: var(--ui-accent);
+}
+
+body.urp-app :is(.btn-primary, .btn-secondary):active:not(:disabled),
+body.urp-admin :is(.btn-primary, .btn-secondary, .login-btn):active:not(:disabled) {
+    transform: scale(.98);
+}
+
+body.urp-app :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea),
+body.urp-admin :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+    border-color: #afbed0;
+    border-radius: var(--ui-radius-sm);
+    background-color: var(--ui-surface);
+    color: var(--ui-ink);
+}
+
+body.urp-app :is(input, textarea)::placeholder,
+body.urp-admin :is(input, textarea)::placeholder {
+    color: #63768b;
+    opacity: 1;
+}
+
+body.urp-app :is(input, select, textarea):focus,
+body.urp-admin :is(input, select, textarea):focus {
+    border-color: var(--ui-accent);
+    box-shadow: 0 0 0 3px rgb(32 85 162 / 14%);
+}
+
+/* Student workspace */
+body.urp-app .header {
+    min-height: 70px;
+    padding: 8px clamp(16px, 3vw, 40px);
+    background: rgb(255 255 255 / 96%);
+    border-bottom: 1px solid var(--ui-line);
+    box-shadow: none;
+    backdrop-filter: blur(12px);
+}
+
+body.urp-app #page-title {
+    font-size: 19px;
+    font-weight: 750;
+    letter-spacing: -.03em;
+}
+
+body.urp-app .menu-btn {
+    width: 42px;
+    height: 42px;
+    margin-right: 14px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--ui-line);
+    border-radius: var(--ui-radius-sm);
+    background: var(--ui-surface);
+}
+
+body.urp-app .menu-btn:hover {
+    background: var(--ui-accent-soft);
+    border-color: #adc4e4;
+}
+
+body.urp-app .sidebar {
+    --sidebar-width: 266px;
+    height: 100dvh;
+    border: 0;
+    border-right: 1px solid var(--ui-line);
+    border-radius: 0;
+    background: var(--ui-surface);
+    box-shadow: 12px 0 36px rgb(24 38 56 / 12%);
+    backdrop-filter: none;
+}
+
+body.urp-app .sidebar-header {
+    min-height: 76px;
+    padding: 20px 18px 18px 22px;
+    border-bottom: 1px solid var(--ui-line);
+}
+
+body.urp-app .sidebar-header h2 {
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -.04em;
+}
+
+body.urp-app .sidebar-nav {
+    padding: 12px;
+}
+
+body.urp-app .nav-item {
+    min-height: 44px;
+    margin: 2px 0;
+    padding: 10px 12px;
+    border-radius: var(--ui-radius-sm);
+    color: var(--ui-muted);
+    font-weight: 600;
+}
+
+body.urp-app .nav-item .nav-icon {
+    stroke: currentColor;
+}
+
+body.urp-app .nav-item:hover {
+    background: var(--ui-surface-soft);
+    color: var(--ui-ink);
+}
+
+body.urp-app .nav-item.active,
+body.urp-app .nav-item[aria-current="page"] {
+    background: var(--ui-accent-soft);
+    color: var(--ui-accent);
+    box-shadow: inset 3px 0 var(--ui-accent);
+}
+
+body.urp-app .nav-item.active .nav-icon {
+    stroke: currentColor;
+}
+
+body.urp-app .sidebar-footer {
+    padding: 16px;
+    border-top: 1px solid var(--ui-line);
+}
+
+body.urp-app .user-info {
+    color: var(--ui-muted);
+    font-size: 12px;
+}
+
+body.urp-app .rebind-btn {
+    min-height: 40px;
+    border-color: var(--ui-line);
+    border-radius: var(--ui-radius-sm);
+    color: var(--ui-muted);
+}
+
+body.urp-app .rebind-btn:hover {
+    background: var(--ui-surface-soft);
+    color: var(--ui-ink);
+}
+
+body.urp-app .content-wrapper {
+    width: min(100%, 1160px);
+    max-width: 1160px;
+    padding: clamp(24px, 4vw, 46px) clamp(16px, 3.3vw, 40px) 88px;
+}
+
+body.urp-app .page h2 {
+    font-weight: 750;
+    line-height: 1.2;
+}
+
+body.urp-app .page-section-desc {
+    color: var(--ui-muted);
+}
+
+body.urp-app .page.active {
+    animation: ui-enter .22s ease-out both;
+}
+
+@keyframes ui-enter {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.home-welcome {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(310px, .95fr);
+    min-height: 320px;
+    gap: clamp(24px, 4vw, 60px);
+    align-items: center;
+    padding: clamp(26px, 4vw, 52px);
+    margin-bottom: 0;
+    border: 1px solid #cbd9eb;
+    border-radius: var(--ui-radius);
+    background: linear-gradient(110deg, #eaf1fa 0%, #f7faff 68%, #fff 100%);
+}
+
+.home-welcome-copy {
+    max-width: 530px;
+}
+
+.home-eyebrow {
+    display: block;
+    margin-bottom: 22px;
+    color: var(--ui-accent);
+    font-size: 12px;
+    font-weight: 750;
+    letter-spacing: .08em;
+}
+
+body.urp-app .home-welcome h2 {
+    max-width: 11ch;
+    margin: 0 0 20px;
+    font-size: clamp(31px, 3.3vw, 48px);
+    line-height: 1.14;
+    letter-spacing: -.055em;
+}
+
+.home-welcome-copy p {
+    max-width: 35ch;
+    color: var(--ui-muted);
+    font-size: 15px;
+    line-height: 1.75;
+}
+
+.home-shortcuts {
+    display: grid;
+    gap: 8px;
+}
+
+.home-shortcuts button {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 3px 14px;
+    align-items: center;
+    min-height: 76px;
+    padding: 13px 18px;
+    border: 1px solid var(--ui-line);
+    border-radius: var(--ui-radius-sm);
+    background: var(--ui-surface);
+    color: var(--ui-ink);
+    text-align: left;
+    cursor: pointer;
+    transition: border-color .2s, transform .2s, box-shadow .2s;
+}
+
+.home-shortcuts button:hover {
+    border-color: #91b2de;
+    box-shadow: 0 10px 24px rgb(32 85 162 / 8%);
+    transform: translateY(-2px);
+}
+
+.home-shortcuts button:active { transform: scale(.98); }
+.home-shortcuts button span:first-child { color: var(--ui-subtle); font-size: 11px; font-weight: 650; }
+.home-shortcuts button strong { grid-column: 1; font-size: 16px; font-weight: 700; }
+.home-shortcuts button span:last-child { grid-column: 2; grid-row: 1 / span 2; color: var(--ui-accent); font-size: 21px; }
+
+body.urp-app .urgent-card {
+    margin-bottom: 26px;
+    padding: clamp(22px, 3vw, 30px);
+    border: 1px solid var(--ui-line);
+    border-radius: var(--ui-radius);
+    background: var(--ui-surface);
+    box-shadow: none;
+}
+
+body.urp-app .urgent-header {
+    margin-bottom: 18px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--ui-line);
+}
+
+body.urp-app .urgent-header h2 { margin: 0; font-size: 19px; }
+body.urp-app .urgent-header .refresh-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    width: auto;
+    min-width: 90px;
+    height: 44px;
+    padding: 0 12px;
+    border: 1px solid var(--ui-line);
+    border-radius: var(--ui-radius-sm);
+    background: var(--ui-surface);
+    color: var(--ui-accent);
+    font-size: 13px;
+    box-shadow: none;
+}
+body.urp-app .urgent-content { min-height: 130px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; gap: 14px; }
+body.urp-app .urgent-content > :only-child,
+body.urp-app .urgent-content > .rest-message { grid-column: 1 / -1; }
+body.urp-app .event-card { padding: 20px; text-align: left; border: 1px solid var(--ui-line); border-radius: var(--ui-radius-sm); background: var(--ui-surface-soft); }
+body.urp-app .event-card-current { border-left: 3px solid var(--ui-accent); }
+body.urp-app .event-time-label { color: var(--ui-accent); }
+
+body.urp-app :is(.schedule-container, .exams-container, .evaluation-container, .announcements-container, .feedback-container, .member-container, .grades-container, .lab-card, .shortcut-api-page-container),
+body.urp-app :is(.service-intro-card, .service-status-card, .service-offer-card, .service-process-step),
+body.urp-app :is(.page-access-gate, .eval-notice, .feedback-new-box) {
+    border: 1px solid var(--ui-line);
+    border-radius: var(--ui-radius);
+    background-color: var(--ui-surface);
+    box-shadow: none;
+}
+
+body.urp-app .grades-dashboard { max-width: none; grid-template-columns: minmax(0, 1fr); }
+body.urp-app .grades-container.grades-dashboard { padding: 0; border: 0; background: transparent; box-shadow: none; }
+body.urp-app .grades-dashboard-main h2 { margin-bottom: 22px; }
+body.urp-app .grades-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+body.urp-app .grades-card-grid .grade-action-btn {
+    min-height: 142px;
+    padding: 22px;
+    border: 1px solid var(--ui-line);
+    border-radius: var(--ui-radius);
+    background: var(--ui-surface);
+    box-shadow: none;
+    text-align: left;
+}
+body.urp-app .grades-card-grid .grade-action-btn:hover { border-color: #91b2de; background: var(--ui-surface-soft); box-shadow: 0 10px 24px rgb(32 85 162 / 7%); }
+body.urp-app .grades-card-grid .grade-action-btn svg { stroke: var(--ui-accent); }
+body.urp-app .grades-card-grid .grade-action-label { color: var(--ui-ink); }
+body.urp-app .grades-card-grid .grade-action-desc { color: var(--ui-muted); }
+body.urp-app .in-page-back { color: var(--ui-accent); }
+body.urp-app .grades-result { margin-top: 0; }
+body.urp-app .grades-result-header { display: grid; justify-items: start; gap: 6px; margin-bottom: 22px; }
+
+body.urp-app :is(.event-card, .exam-card, .announcement-card, .member-plan-card, .feedback-item, .modal-content, .service-contact-popover) {
+    border-radius: var(--ui-radius);
+    box-shadow: none;
+}
+
+body.urp-app .modal-content,
+body.urp-admin .modal-content { border: 1px solid var(--ui-line); border-radius: var(--ui-radius); box-shadow: 0 24px 65px rgb(24 38 56 / 17%); }
+body.urp-app .loading,
+body.urp-admin .loading { color: var(--ui-muted); }
+
+/* Student account sign-in */
+body.urp-app #login-modal { align-items: center; padding: 16px; background: rgb(24 38 56 / 54%); }
+body.urp-app #login-modal .login-card {
+    display: grid;
+    grid-template-columns: minmax(0, .88fr) minmax(0, 1.12fr);
+    width: min(100%, 760px);
+    max-width: 760px;
+    max-height: min(90dvh, 720px);
+    padding: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    border-color: var(--ui-line);
+    border-radius: var(--ui-radius);
+    background: var(--ui-surface);
+}
+body.urp-app #login-modal .login-intro {
+    display: flex;
+    flex-direction: column;
+    min-height: 460px;
+    padding: 32px;
+    border-right: 1px solid var(--ui-line);
+    background: var(--ui-accent-soft);
+}
+body.urp-app #login-modal .login-brand { color: var(--ui-accent); font-size: 14px; font-weight: 750; letter-spacing: -.02em; }
+body.urp-app #login-modal .login-intro-copy { margin-top: auto; }
+body.urp-app #login-modal .login-intro h2 {
+    max-width: 12ch;
+    margin: 0;
+    color: var(--ui-ink);
+    font-size: 30px;
+    font-weight: 760;
+    line-height: 1.32;
+    letter-spacing: -.04em;
+}
+body.urp-app #login-modal .login-intro .modal-desc { margin: 12px 0 0; color: var(--ui-muted); font-size: 14px; line-height: 1.75; }
+body.urp-app #login-modal .login-form-panel { display: flex; flex-direction: column; justify-content: center; min-width: 0; padding: 58px 32px 28px; }
+body.urp-app #login-modal .login-form-title { margin: 0 0 18px; color: var(--ui-ink); font-size: 19px; font-weight: 750; letter-spacing: -.03em; }
+body.urp-app #login-modal .login-form { gap: 14px; }
+body.urp-app #login-modal .login-field-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+body.urp-app #login-modal .form-group label { display: block; margin-bottom: 8px; color: var(--ui-ink); font-size: 13px; font-weight: 700; }
+body.urp-app #login-modal .form-group input {
+    width: 100%;
+    height: 48px;
+    padding: 0 14px;
+    border: 1px solid #afbed0;
+    border-radius: var(--ui-radius-sm);
+    background: var(--ui-surface);
+    color: var(--ui-ink);
+    font-size: 15px;
+    box-shadow: none;
+}
+body.urp-app #login-modal .form-group input::placeholder { color: var(--ui-subtle); }
+body.urp-app #login-modal .form-group input:focus { border-color: var(--ui-accent); box-shadow: 0 0 0 3px rgb(32 85 162 / 12%); }
+body.urp-app #login-modal .login-bind-option {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 56px;
+    padding: 6px 15px;
+    border: 1px solid var(--ui-line);
+    border-radius: var(--ui-radius-sm);
+    background: var(--ui-surface-soft);
+}
+body.urp-app #login-modal .login-bind-label { align-items: center; flex: 0 0 auto; gap: 8px; width: auto; min-height: 44px; color: var(--ui-ink); font-size: 13px; font-weight: 650; white-space: nowrap; }
+body.urp-app #login-modal .login-bind-label input[type="checkbox"] { flex: 0 0 19px; width: 19px; height: 19px; min-height: 19px; margin: 0; accent-color: var(--ui-accent); }
+body.urp-app #login-modal .login-disclaimer-trigger { display: inline-flex; align-items: center; flex: 0 0 auto; min-height: 44px; margin: 0; color: var(--ui-accent); font-size: 13px; font-weight: 650; white-space: nowrap; }
+body.urp-app #login-modal .login-disclaimer-trigger:hover { color: var(--ui-accent-hover); }
+body.urp-app #login-modal .login-session-note { margin: -8px 0 0; color: var(--ui-muted); font-size: 12px; line-height: 1.35; }
+body.urp-app #login-modal .login-actions { padding: 0; }
+body.urp-app #login-modal .login-actions .btn-primary { min-height: 48px; height: auto; border-radius: var(--ui-radius-sm); font-size: 15px; font-weight: 700; }
+body.urp-app #login-modal .login-close {
+    z-index: 1;
+    top: 18px;
+    right: 18px;
+    width: auto;
+    min-width: 88px;
+    min-height: 44px;
+    padding: 0 12px;
+    border: 1px solid var(--ui-line);
+    border-radius: var(--ui-radius-sm);
+    background: var(--ui-surface);
+    color: var(--ui-muted);
+    font-size: 13px;
+    font-weight: 650;
+    line-height: 1;
+}
+body.urp-app #login-modal .login-close:hover { border-color: #a9bbd2; background: var(--ui-surface-soft); color: var(--ui-ink); }
+body.urp-app #login-modal #login-error { margin: 0; padding: 10px 12px; border: 1px solid #e7bfc2; border-radius: var(--ui-radius-sm); background: #fff5f5; color: #932d35; font-size: 13px; line-height: 1.5; }
+body.urp-app #login-modal #login-error:empty { display: none; }
+
+@media (max-width: 640px) {
+    body.urp-app #login-modal { padding: 8px; }
+    body.urp-app #login-modal .login-card { grid-template-columns: minmax(0, 1fr); width: min(100%, 420px); max-height: calc(100dvh - 16px); }
+    body.urp-app #login-modal .login-intro { min-height: 0; padding: 16px 18px 14px; border-right: 0; border-bottom: 1px solid var(--ui-line); }
+    body.urp-app #login-modal .login-brand { font-size: 13px; }
+    body.urp-app #login-modal .login-intro-copy { margin-top: 20px; }
+    body.urp-app #login-modal .login-intro h2 { max-width: none; font-size: 23px; line-height: 1.3; white-space: nowrap; }
+    body.urp-app #login-modal .login-intro .modal-desc { margin-top: 4px; font-size: 13px; line-height: 1.4; white-space: nowrap; }
+    body.urp-app #login-modal .login-form-panel { padding: 14px 18px 16px; }
+    body.urp-app #login-modal .login-form-title { display: none; }
+    body.urp-app #login-modal .login-form { gap: 10px; }
+    body.urp-app #login-modal .login-field-grid { gap: 9px; }
+    body.urp-app #login-modal .form-group label { margin-bottom: 4px; font-size: 12px; line-height: 1.3; }
+    body.urp-app #login-modal .form-group input { height: 44px; font-size: 16px; }
+    body.urp-app #login-modal .login-bind-option { gap: 5px; min-height: 52px; padding: 4px 10px; }
+    body.urp-app #login-modal .login-bind-label { gap: 7px; }
+    body.urp-app #login-modal .login-actions .btn-primary { min-height: 44px; }
+    body.urp-app #login-modal .login-close { top: 12px; right: 12px; }
+}
+
+@media (max-width: 640px) and (max-height: 540px) {
+    body.urp-app #login-modal .login-intro { padding-bottom: 10px; }
+    body.urp-app #login-modal .login-intro-copy { margin-top: 14px; }
+    body.urp-app #login-modal .login-intro .modal-desc { display: none; }
+    body.urp-app #login-modal .login-form-panel { padding-top: 10px; padding-bottom: 12px; }
+    body.urp-app #login-modal .login-form { gap: 8px; }
+}
+
+/* Admin workspace */
+body.urp-admin::before { content: none; }
+body.urp-admin .admin-panel { padding: 0 0 70px; }
+body.urp-admin .admin-header {
+    position: relative;
+    top: auto;
+    width: 100%;
+    max-width: none;
+    height: auto;
+    min-height: 94px;
+    margin: 0;
+    padding: 18px max(26px, calc((100vw - 1360px) / 2));
+    border: 0;
+    border-bottom: 1px solid var(--ui-line);
+    border-radius: 0;
+    background: var(--ui-surface);
+    box-shadow: none;
+    backdrop-filter: none;
+}
+
+body.urp-admin .admin-kicker { color: var(--ui-accent); font-size: 11px; letter-spacing: .08em; }
+body.urp-admin .admin-header h1 { font-size: 20px; font-weight: 750; }
+body.urp-admin .admin-live-pill { background: var(--ui-accent-soft); color: var(--ui-accent); border-radius: var(--ui-radius-sm); }
+body.urp-admin .admin-live-pill::before { background: var(--ui-accent); box-shadow: none; }
+body.urp-admin .logout-btn { min-height: 38px; border: 1px solid var(--ui-line); border-radius: var(--ui-radius-sm); background: var(--ui-surface); color: var(--ui-ink); }
+body.urp-admin .admin-content { display: grid; grid-template-columns: 212px minmax(0, 1fr); align-items: start; gap: 28px; max-width: 1360px; padding: 32px 26px; }
+body.urp-admin .tabs {
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 24px;
+    width: 100%;
+    max-height: calc(100dvh - 48px);
+    overflow-y: auto;
+    gap: 3px;
+    margin: 0;
+    padding: 8px;
+    border: 1px solid var(--ui-line);
+    border-radius: var(--ui-radius);
+    background: var(--ui-surface);
+    box-shadow: none;
+    backdrop-filter: none;
+    scrollbar-width: thin;
+}
+
+body.urp-admin .tab-btn {
+    flex: 0 0 auto;
+    width: 100%;
+    min-height: 43px;
+    padding: 10px 13px;
+    border-radius: var(--ui-radius-sm);
+    color: var(--ui-muted);
+    font-weight: 600;
+    text-align: left;
+}
+
+body.urp-admin .tab-btn:hover { background: var(--ui-surface-soft); color: var(--ui-ink); }
+body.urp-admin .tab-btn.active { background: var(--ui-accent-soft); color: var(--ui-accent); box-shadow: inset 3px 0 var(--ui-accent); font-weight: 700; }
+body.urp-admin .tab-content.active { grid-column: 2; min-width: 0; min-height: 400px; padding: clamp(20px, 2.6vw, 32px); border: 1px solid var(--ui-line); border-radius: var(--ui-radius); background: var(--ui-surface); box-shadow: none; }
+body.urp-admin .section-header { padding-bottom: 18px; border-bottom: 1px solid var(--ui-line); }
+body.urp-admin .section-header h2 { font-size: 23px; font-weight: 750; }
+body.urp-admin .section-header h2::before { content: none; }
+body.urp-admin .config-desc { color: var(--ui-muted); }
+body.urp-admin :is(.config-section, .users-list, .member-table-wrap, .monitor-table-wrap, .request-card, .announcement-card, .commission-summary-card, .ud-card, .ud-section, .member-form-card, .ad-preview-box) {
+    border: 1px solid var(--ui-line);
+    border-radius: var(--ui-radius);
+    background: var(--ui-surface);
+    box-shadow: none;
+}
+body.urp-admin :is(.users-table, .member-table, .monitor-table) th { background: var(--ui-surface-soft); color: var(--ui-muted); }
+
+body.urp-admin .admin-login { min-height: 100dvh; padding: 24px; background: linear-gradient(135deg, #eaf1fa, #f8fbff); }
+body.urp-admin .login-box { max-width: 440px; width: 100%; padding: clamp(30px, 5vw, 48px); border: 1px solid var(--ui-line); border-radius: var(--ui-radius); box-shadow: 0 18px 55px rgb(24 38 56 / 8%); text-align: left; }
+body.urp-admin .login-kicker { color: var(--ui-accent); font-size: 12px; font-weight: 750; letter-spacing: .07em; }
+body.urp-admin .login-box h1 { margin: 14px 0 10px; font-size: 30px; font-weight: 780; }
+body.urp-admin .login-desc { color: var(--ui-muted); line-height: 1.7; }
+body.urp-admin .login-box .form-group label { color: var(--ui-ink); }
+
+/* Campaign detail uses the same type, color and shape system. */
+body.campaign-body .campaign-page { max-width: 980px; padding: clamp(22px, 4vw, 48px) 18px 80px; }
+body.campaign-body .campaign-nav { padding-bottom: 20px; border-bottom: 1px solid var(--ui-line); color: var(--ui-muted); }
+body.campaign-body .campaign-nav a { color: var(--ui-accent); font-weight: 650; }
+body.campaign-body .campaign-label { color: var(--ui-accent); }
+body.campaign-body .campaign-card { border: 1px solid var(--ui-line); border-radius: var(--ui-radius); background: var(--ui-surface); box-shadow: none; }
+body.campaign-body .campaign-content { padding: clamp(24px, 5vw, 56px); }
+body.campaign-body .campaign-content h1 { max-width: 20ch; font-size: clamp(30px, 4vw, 48px); line-height: 1.16; }
+body.campaign-body .campaign-summary,
+body.campaign-body .campaign-actions small { color: var(--ui-muted); }
+body.campaign-body .campaign-button,
+body.campaign-body .campaign-actions button { min-height: 44px; border-radius: var(--ui-radius-sm); background: var(--ui-accent); color: #fff; font-weight: 650; }
+body.campaign-body .campaign-button:hover,
+body.campaign-body .campaign-actions button:hover { background: var(--ui-accent-hover); }
+
+@media (max-width: 900px) {
+    .home-welcome { grid-template-columns: 1fr; gap: 30px; min-height: 0; }
+    body.urp-app .home-welcome h2 { max-width: 18ch; }
+    .home-shortcuts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .home-shortcuts button { min-height: 108px; }
+    body.urp-admin .admin-content { grid-template-columns: 180px minmax(0, 1fr); gap: 16px; padding-inline: 18px; }
+}
+
+@media (max-width: 768px) {
+    body.urp-app .header { min-height: 60px; padding: 8px 14px; }
+    body.urp-app .sidebar { --sidebar-width: min(266px, calc(100vw - 32px)); }
+    body.urp-app .content-wrapper { padding: 22px 14px 70px; }
+    .home-welcome { padding: 25px 20px; margin-bottom: 0; }
+    body.urp-app .urgent-card { margin-bottom: 18px; }
+    body.urp-app .home-welcome h2 { font-size: clamp(29px, 7vw, 39px); }
+    .home-shortcuts { grid-template-columns: 1fr; }
+    .home-shortcuts button { min-height: 70px; }
+    body.urp-app .urgent-content { grid-template-columns: 1fr; }
+    body.urp-app .grades-card-grid { gap: 9px; }
+    body.urp-app .grades-card-grid .grade-action-btn { min-height: 132px; padding: 16px; }
+    body.urp-admin .admin-header { min-height: 70px; padding: 12px 16px; }
+    body.urp-admin .admin-content { display: block; padding: 14px; }
+    body.urp-admin .tabs { display: none; }
+    body.urp-admin .admin-mobile-nav { display: flex; margin-bottom: 14px; }
+    body.urp-admin .tab-content.active { padding: 18px; }
+}
+
+@media (max-width: 520px) {
+    body.urp-app .home-welcome h2 { max-width: 12ch; }
+    body.urp-app .grades-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+    body.urp-app .grades-card-grid .grade-action-btn { min-width: 0; min-height: 122px; padding: 14px 12px; gap: 5px; }
+    body.urp-app .urgent-header { gap: 10px; }
+    body.urp-app .urgent-header h2 { font-size: 18px; }
+    body.urp-admin .admin-live-pill { display: none; }
+    body.urp-admin .admin-header h1 { font-size: 15px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body.urp-app .page.active,
+    body.urp-admin .tab-content.active { animation: none; }
+    .home-shortcuts button { transition: none; }
+    .home-shortcuts button:hover { transform: none; }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+    body.urp-app .header { background: var(--ui-surface); backdrop-filter: none; }
+}

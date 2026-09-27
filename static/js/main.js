@@ -119,6 +119,30 @@ let calendarExportKind = null;
 let calendarExportData = null;
 let calendarExportAccount = '';
 let isGuestMode = false;    // 访客模式（未绑定账号）
+let temporarySessionExpiresAt = null;
+let temporarySessionTimer = null;
+let temporaryReloginPromptShown = false;
+
+function setTemporarySession(expiresAt) {
+    if (temporarySessionTimer) clearTimeout(temporarySessionTimer);
+    temporarySessionTimer = null;
+    temporarySessionExpiresAt = expiresAt ? Number(expiresAt) * 1000 : null;
+    if (!temporarySessionExpiresAt) return;
+    const remaining = temporarySessionExpiresAt - Date.now();
+    if (remaining <= 0) {
+        window.location.reload();
+        return;
+    }
+    temporarySessionTimer = setTimeout(() => window.location.reload(), remaining + 50);
+}
+
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible'
+        && temporarySessionExpiresAt
+        && Date.now() >= temporarySessionExpiresAt) {
+        window.location.reload();
+    }
+});
 
 // ==================== 标题栏广告位 ====================
 const headerAdNeverShowKey = 'urp_header_ad_never_show';
@@ -147,7 +171,7 @@ function rememberBoundUsername(username) {
         }
     }
     try {
-        if (normalized) {
+        if (normalized && !temporarySessionExpiresAt) {
             localStorage.setItem(boundUsernameStorageKey, normalized);
         } else {
             localStorage.removeItem(boundUsernameStorageKey);
@@ -555,6 +579,11 @@ async function checkLoginStatus() {
             // 登录失效或未登录
             statusDot.className = 'status-dot status-offline';
             statusText.textContent = 'Offline';
+            if (data.requires_relogin && !temporaryReloginPromptShown) {
+                temporaryReloginPromptShown = true;
+                document.getElementById('login-error').textContent = data.message;
+                showLoginModal();
+            }
         }
     } catch (error) {
         console.error('检查登录状态失败:', error);
@@ -582,10 +611,13 @@ async function checkBindStatus() {
         }
 
         if (data.success && data.bound) {
+            setTemporarySession(data.temporary ? data.expires_at : null);
             currentUsername = data.username;
             rememberBoundUsername(currentUsername);
-            document.getElementById('sidebar-username').textContent = currentUsername;
-            ensureOwnInvitationTokenInUrl();
+            isGuestMode = false;
+            document.getElementById('sidebar-username').textContent = data.temporary
+                ? `${currentUsername} · 临时` : currentUsername;
+            if (!data.temporary) ensureOwnInvitationTokenInUrl();
 
             const urlPage = new URLSearchParams(window.location.search).get('page');
             let lastPage = urlPage || localStorage.getItem('current_page') || 'home';
@@ -593,8 +625,16 @@ async function checkBindStatus() {
             switchPage(lastPage);
             loadAndShowAnnouncements();
         } else {
+            const wasTemporary = Boolean(temporarySessionExpiresAt);
+            setTemporarySession(null);
             currentUsername = null;
             rememberBoundUsername(null);
+            isGuestMode = true;
+            document.getElementById('sidebar-username').textContent = '未登录';
+            if (wasTemporary) {
+                window.location.reload();
+                return;
+            }
             showLoginModal();
         }
     } catch (error) {
@@ -684,22 +724,29 @@ async function handleLogin(event) {
         const data = await response.json();
 
         if (data.success) {
+            document.getElementById('password').value = '';
+            temporaryReloginPromptShown = false;
             const isBound = data.bound !== false;
             hideLoginModal();
 
-            if (isBound) {
+            if (isBound || data.temporary) {
+                setTemporarySession(data.temporary ? data.expires_at : null);
                 currentUsername = data.username;
                 rememberBoundUsername(currentUsername);
                 isGuestMode = false;
-                clearPendingInvitationToken();
-                ensureOwnInvitationTokenInUrl();
-                document.getElementById('sidebar-username').textContent = currentUsername;
+                if (isBound) {
+                    clearPendingInvitationToken();
+                    ensureOwnInvitationTokenInUrl();
+                }
+                document.getElementById('sidebar-username').textContent = data.temporary
+                    ? `${currentUsername} · 临时` : currentUsername;
                 const availablePages = getAvailablePageNames();
                 const storedPage = localStorage.getItem('current_page') || 'home';
                 const currentPage = urpUi
                     ? urpUi.normalizePageName(storedPage, availablePages, 'home')
                     : (availablePages.includes(storedPage) ? storedPage : 'home');
                 switchPage(currentPage);
+                if (data.temporary) showUiToast(data.message || '已登录，本次输入的密码不会保存。登录失效后请重新输入。', 'info');
             } else {
                 currentUsername = null;
                 rememberBoundUsername(null);
@@ -923,6 +970,12 @@ function switchPage(pageName) {
 
     // 加载对应页面的数据
     loadPageData(pageName);
+}
+
+function openHomeShortcut(pageName) {
+    switchPage(pageName);
+    const title = document.getElementById('page-title');
+    if (title && typeof title.focus === 'function') title.focus();
 }
 
 function setPageAccessLock(pageName, locked) {
@@ -4619,7 +4672,7 @@ async function loadMemberOrders() {
                 const expireMin = Math.ceil(order.expire_seconds / 60);
                 linksHtml += `
                     <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;flex-wrap:wrap;gap:8px;">
-                        <span>${typeMap[order.member_type]} ¥${order.amount} — <span style="color:var(--error);">剩余${expireMin}分钟</span></span>
+                        <span>${typeMap[order.member_type]} ¥${order.amount} · <span style="color:var(--error);">剩余${expireMin}分钟</span></span>
                         <a href="${order.active_pay_url}" class="btn-primary" style="font-size:13px;padding:6px 16px;text-decoration:none;">立即支付</a>
                     </div>`;
             }

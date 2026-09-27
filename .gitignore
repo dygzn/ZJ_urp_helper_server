@@ -1,20 +1,43 @@
+# Local runtime configuration and user data
+/data/
 /user_data/
-/data/urp_helper.db
-/data/admin_key.txt
-/data/last_*
-/data/*.log
-CLAUD.md
-.claude
-# Python缓存
+vpn_cookie.json
+.env
+.env.*
+
+# Python and local tooling
 __pycache__/
 *.py[cod]
-.venv
-# IDE
+.venv/
+.pytest_cache/
+.coverage*
+htmlcov/
+.ruff_cache/
+.mypy_cache/
 .idea/
 .vscode/
-.worktrees/
 *.code-workspace
+
+# Generated logs and OS files
+*.log
+*.pid
+.DS_Store
+Thumbs.db
+
+# Local development and generated artifacts
+/.claude/
+/.playwright-cli/
+/.superpowers/
+/.worktrees/
+/AGENTS.md
+/DESIGN.md
+/docs/*
+!/docs/awesome-design-md-LICENSE
+/scripts/
+/tests/
+
+# Legacy local-only files
+CLAUD.md
 claude.md
-vpn_cookie.json
-test/
+/test/
 备忘录.txt

@@ -10,6 +10,7 @@ from services.logging_service import init_logging
 from services.config_service import get_admin_key, get_config
 from services.ad_service import EVENT_COLUMNS, record_ad_event
 from services.ad_config_service import get_ad_config
+from services.temporary_session_service import start_temporary_session_cleanup
 from routes.auth_routes import auth_bp
 from routes.data_routes import data_bp
 from routes.admin_routes import admin_bp
@@ -39,6 +40,10 @@ def initialize_database():
 
 # 初始化数据库
 initialize_database()
+
+@app.before_request
+def ensure_temporary_session_cleanup():
+    start_temporary_session_cleanup()
 
 # 注册日志钩子
 init_logging(app)

@@ -9,6 +9,7 @@ import time
 from datetime import datetime, timedelta
 from database import get_db
 from services.config_service import get_config, get_current_urp_url
+from services.temporary_session_service import current_temporary_session, user_data_file
 
 # 登录状态验证缓存：{username: timestamp}，15分钟内只验证一次
 _login_cache = {}
@@ -21,7 +22,7 @@ LEGACY_GRADES_ENDPOINT_MESSAGE = (
 )
 
 
-def urp_login(username, password):
+def urp_login(username, password, persist_cookies=True):
     """
     登录URP教务系统
     返回: (success: bool, message: str, cookies: dict)
@@ -29,7 +30,7 @@ def urp_login(username, password):
     from urp import URP_login
     url = get_current_urp_url()
     try:
-        urp = URP_login(url, username, password)
+        urp = URP_login(url, username, password, persist_cookies=persist_cookies)
         success, message, cookies = urp.login()
         return success, message, cookies
     except Exception as e:
@@ -37,45 +38,44 @@ def urp_login(username, password):
 
 
 def check_login_status(username, password, cookies):
-    """
-    检查登录状态，如果未登录则重新登录
-    返回: (is_logged_in: bool, cookies: dict)
-    """
+    """检查教务登录状态；临时会话只使用自己的十分钟文件目录。"""
     now = time.time()
     url = get_current_urp_url()
+    temporary = current_temporary_session(username)
 
     from urp import URP_login
     from urp.login import _is_vpn_url
 
-    if not _is_vpn_url(url) and username in _login_cache and now - _login_cache[username] < LOGIN_CACHE_TTL:
-        cookie_file = f'user_data/{username}/cookie.json'
+    cookie_file = user_data_file(username, 'cookie.json')
+    if not temporary and not _is_vpn_url(url) and username in _login_cache and now - _login_cache[username] < LOGIN_CACHE_TTL:
         if os.path.exists(cookie_file):
             return True, {}
 
-    urp = URP_login(url, username, password)
+    urp = URP_login(url, username, password, cookie_path=cookie_file)
+    if urp.is_logined():
+        if not temporary:
+            _login_cache[username] = now
+        return True, urp.x.cookies.get_dict()
 
-    is_logged_in = urp.is_logined()
+    # 临时模式只有 Cookie；失效后等待用户重新输入密码，不尝试自动登录。
+    if temporary:
+        return False, {}
 
-    if is_logged_in is True:
-        _login_cache[username] = now
-        current_cookies = urp.x.cookies.get_dict()
-        return True, current_cookies
-    else:
+    if not temporary:
         _login_cache.pop(username, None)
-        cookie_file = f'user_data/{username}/cookie.json'
-        if os.path.exists(cookie_file):
-            os.remove(cookie_file)
+    if os.path.exists(cookie_file):
+        os.remove(cookie_file)
 
-        try:
-            success, _, new_cookies = urp.login()
-            if success:
+    try:
+        success, _, new_cookies = urp.login()
+        if success:
+            if not temporary:
                 _login_cache[username] = now
-                return True, new_cookies or urp.x.cookies.get_dict()
-            else:
-                return False, {}
-        except Exception as e:
-            print(f"重新登录失败: {str(e)}")
-            return False, {}
+            return True, new_cookies or urp.x.cookies.get_dict()
+        return False, {}
+    except Exception as exc:
+        print(f"重新登录失败: {str(exc)}")
+        return False, {}
 
 
 def _get_freshman_year():
@@ -231,8 +231,8 @@ def _build_upcoming_classes(schedule, semester_start, now, period_times, current
 
 def get_urgent_event(username):
     """获取正在进行的课程、当天剩余课程和下一个最紧急的事件"""
-    schedule_file = os.path.join('user_data', username, 'schedule.json')
-    exams_file = os.path.join('user_data', username, 'exams.json')
+    schedule_file = user_data_file(username, 'schedule.json')
+    exams_file = user_data_file(username, 'exams.json')
 
     config = get_config()
     schedule_cache_stale = is_calendar_cache_stale(username, 'schedule', config)
@@ -447,7 +447,7 @@ def _perform_auto_update(username, password):
 
 def get_schedule(username, week=None, config=None):
     """读取课表文件"""
-    schedule_file = os.path.join('user_data', username, 'schedule.json')
+    schedule_file = user_data_file(username, 'schedule.json')
 
     if not os.path.exists(schedule_file):
         return {
@@ -486,7 +486,7 @@ def is_calendar_cache_stale(username, kind, config=None):
         marker_ns = int(marker)
         if marker_ns <= 0:
             return False
-        cache_path = os.path.join('user_data', username, f'{kind}.json')
+        cache_path = user_data_file(username, f'{kind}.json')
         return os.stat(cache_path).st_mtime_ns < marker_ns
     except (TypeError, ValueError, OSError):
         return False
@@ -494,7 +494,7 @@ def is_calendar_cache_stale(username, kind, config=None):
 
 def get_exams(username):
     """读取考试安排文件"""
-    exams_file = os.path.join('user_data', username, 'exams.json')
+    exams_file = user_data_file(username, 'exams.json')
 
     if not os.path.exists(exams_file):
         return []

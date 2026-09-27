@@ -22,6 +22,12 @@ _states_lock = threading.RLock()
 _logger = logging.getLogger(__name__)
 
 
+def forget_temporary_lab_session(username, device_id):
+    """临时登录结束时，仅清掉这次设备的实验站会话。"""
+    with _states_lock:
+        _states.pop((username, device_id), None)
+
+
 class LabError(Exception):
     pass
 

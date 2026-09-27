@@ -1,6 +1,5 @@
 // ==================== 全局变量 ====================
 let adminKey = null;  // 管理员密钥
-let currentRequestId = null;  // 当前审批的请求ID
 const adminUi = typeof URPUI !== 'undefined' ? URPUI : null;
 const adminModalState = {
     activeModal: null,
@@ -105,13 +104,20 @@ document.addEventListener('keydown', adminHandleKeydown);
 
 // ==================== 页面初始化 ====================
 document.addEventListener('DOMContentLoaded', function() {
-    const sectionSelect = document.getElementById('admin-section-select');
-    document.querySelectorAll('.tabs .tab-btn').forEach(button => {
-        const option = document.createElement('option');
-        option.value = button.dataset.tab;
-        option.textContent = button.textContent.trim();
-        option.selected = button.classList.contains('active');
-        sectionSelect.appendChild(option);
+    document.querySelector('.tabs')?.addEventListener('keydown', event => {
+        if (!event.target.classList.contains('tab-btn')) return;
+        const buttons = Array.from(event.currentTarget.querySelectorAll('.tab-btn'));
+        const index = buttons.indexOf(event.target);
+        let nextIndex;
+        if (event.key === 'ArrowRight' || event.key === 'ArrowDown') nextIndex = (index + 1) % buttons.length;
+        else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') nextIndex = (index - 1 + buttons.length) % buttons.length;
+        else if (event.key === 'Home') nextIndex = 0;
+        else if (event.key === 'End') nextIndex = buttons.length - 1;
+        else return;
+        event.preventDefault();
+        const next = buttons[nextIndex];
+        switchTab(next.dataset.tab);
+        next.focus({preventScroll: true});
     });
     // 检查是否已登录（从sessionStorage获取）
     const savedKey = sessionStorage.getItem('admin_key');
@@ -131,9 +137,9 @@ async function handleAdminLogin(event) {
 
     errorDiv.textContent = '';
 
-    // 验证密钥（通过尝试获取待审批列表）
+    // 使用只读监控接口验证管理员密钥
     try {
-        const response = await fetch('/api/admin/pending_requests', {
+        const response = await fetch('/api/admin/monitor/online', {
             headers: {
                 'Admin-Key': key
             }
@@ -169,8 +175,6 @@ function adminLogout() {
 
 // ==================== 标签页切换 ====================
 function switchTab(tabName) {
-    const sectionSelect = document.getElementById('admin-section-select');
-    if (sectionSelect) sectionSelect.value = tabName;
     const tabBtns = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
     if (adminUi && typeof adminUi.syncTabAriaState === 'function') {
@@ -188,9 +192,7 @@ function switchTab(tabName) {
     }
 
     // 加载对应数据
-    if (tabName === 'pending') {
-        loadPendingRequests();
-    } else if (tabName === 'users') {
+    if (tabName === 'users') {
         loadUsers();
     } else if (tabName === 'wechat') {
         loadWechatBindings();
@@ -312,227 +314,6 @@ async function saveAdminServiceStatus(event) {
         console.error('保存个人状态失败:', error);
         message.className = 'hint-message config-inline-status-error';
         message.textContent = error.message || '状态保存失败';
-    }
-}
-
-// ==================== 加载待审批请求 ====================
-async function loadPendingRequests() {
-    const listDiv = document.getElementById('pending-list');
-    listDiv.innerHTML = '<div class="loading">加载中</div>';
-
-    try {
-        const response = await fetch('/api/admin/pending_requests', {
-            headers: {
-                'Admin-Key': adminKey
-            }
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            if (data.requests && data.requests.length > 0) {
-                displayPendingRequests(data.requests);
-            } else {
-                listDiv.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">
-                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
-                        </div>
-                        <div class="empty-state-text">暂无待审批请求</div>
-                    </div>
-                `;
-            }
-        } else {
-            listDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
-        }
-    } catch (error) {
-        console.error('加载待审批请求失败:', error);
-        listDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
-    }
-}
-
-function displayPendingRequests(requests) {
-    const listDiv = document.getElementById('pending-list');
-
-    let html = '';
-    requests.forEach(req => {
-        const time = new Date(req.time).toLocaleString('zh-CN');
-
-        html += `
-            <div class="request-card">
-                <div class="request-header">
-                    <span class="request-id">ID: ${req.id.substring(0, 8)}</span>
-                    <span class="request-time">${time}</span>
-                </div>
-                <div class="request-info">
-                    <div class="info-row">
-                        <span class="info-label">设备ID:</span>
-                        <span class="info-value device-id">${req.device_id.substring(0, 16)}...</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">原账号:</span>
-                        <span class="info-value">${req.old_username}</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">新账号:</span>
-                        <span class="info-value">${req.new_username}</span>
-                    </div>
-                </div>
-                <div class="request-reason">
-                    <strong>换绑原因:</strong> ${req.reason}
-                </div>
-                <div class="request-actions">
-                    <button class="approve-btn" onclick="showApproveModal('${req.id}', ${JSON.stringify(req).replace(/"/g, '&quot;')})">批准</button>
-                    <button class="reject-btn" onclick="rejectRequest('${req.id}')">拒绝</button>
-                </div>
-            </div>
-        `;
-    });
-
-    listDiv.innerHTML = html;
-}
-
-// ==================== 审批弹窗 ====================
-function showApproveModal(requestId, request) {
-    currentRequestId = requestId;
-
-    const modal = document.getElementById('approve-modal');
-    const detailsDiv = document.getElementById('approve-details');
-
-    // 显示请求详情
-    detailsDiv.innerHTML = `
-        <div class="detail-row">
-            <span class="detail-label">原账号:</span>
-            <span class="detail-value">${request.old_username}</span>
-        </div>
-        <div class="detail-row">
-            <span class="detail-label">新账号:</span>
-            <span class="detail-value">${request.new_username}</span>
-        </div>
-        <div class="detail-row">
-            <span class="detail-label">换绑原因:</span>
-            <span class="detail-value">${request.reason}</span>
-        </div>
-    `;
-
-    adminOpenModal(modal);
-}
-
-function closeApproveModal() {
-    const modal = document.getElementById('approve-modal');
-    adminCloseModal(modal);
-
-    currentRequestId = null;
-}
-
-// 处理批准
-async function handleApprove() {
-    if (!currentRequestId) {
-        showAdminToast('请求ID丢失', 'error');
-        return;
-    }
-
-    if (!confirm('确定要批准这个换绑请求吗？批准后该设备将解绑，用户需要重新登录。')) {
-        return;
-    }
-
-    try {
-        const response = await fetch('/api/admin/approve_rebind', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Admin-Key': adminKey
-            },
-            body: JSON.stringify({
-                request_id: currentRequestId,
-                approved: true
-            })
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            showAdminToast(data.message || '换绑请求已批准', 'success');
-            closeApproveModal();
-            loadPendingRequests();
-        } else {
-            showAdminToast(data.message || '操作失败', 'error');
-        }
-    } catch (error) {
-        console.error('批准失败:', error);
-        showAdminToast('网络错误，请重试', 'error');
-    }
-}
-
-// 处理拒绝
-async function handleReject() {
-    if (!currentRequestId) {
-        showAdminToast('请求ID丢失', 'error');
-        return;
-    }
-
-    if (!confirm('确定要拒绝这个换绑请求吗？')) {
-        return;
-    }
-
-    try {
-        const response = await fetch('/api/admin/approve_rebind', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Admin-Key': adminKey
-            },
-            body: JSON.stringify({
-                request_id: currentRequestId,
-                approved: false
-            })
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            showAdminToast('换绑请求已拒绝', 'success');
-            closeApproveModal();
-            loadPendingRequests();
-        } else {
-            showAdminToast(data.message || '操作失败', 'error');
-        }
-    } catch (error) {
-        console.error('拒绝失败:', error);
-        showAdminToast('网络错误，请重试', 'error');
-    }
-}
-
-// 直接拒绝（不打开弹窗）
-async function rejectRequest(requestId) {
-    if (!confirm('确定要拒绝这个换绑请求吗？')) {
-        return;
-    }
-
-    try {
-        const response = await fetch('/api/admin/approve_rebind', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Admin-Key': adminKey
-            },
-            body: JSON.stringify({
-                request_id: requestId,
-                approved: false
-            })
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            showAdminToast('换绑请求已拒绝', 'success');
-            loadPendingRequests();
-        } else {
-            showAdminToast(data.message || '操作失败', 'error');
-        }
-    } catch (error) {
-        console.error('拒绝失败:', error);
-        showAdminToast('网络错误，请重试', 'error');
     }
 }
 
@@ -812,21 +593,21 @@ function renderUserDashboard() {
         html += `<svg class="ud-line-svg" viewBox="0 0 ${svgW} ${svgH}">
             <defs>
                 <linearGradient id="lg" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="#007AFF" stop-opacity="0.2"/>
-                    <stop offset="100%" stop-color="#007AFF" stop-opacity="0"/>
+                    <stop offset="0%" stop-color="#2055a2" stop-opacity="0.18"/>
+                    <stop offset="100%" stop-color="#2055a2" stop-opacity="0"/>
                 </linearGradient>
             </defs>
             <polygon points="${area}" fill="url(#lg)"/>
-            <polyline points="${line}" fill="none" stroke="#007AFF" stroke-width="2" stroke-linejoin="round"/>
-            ${pts.map(p => `<circle cx="${p.x}" cy="${p.y}" r="3.5" fill="#007AFF"/>`).join('')}
-            ${pts.map((p, i) => i % 2 === 0 ? `<text x="${p.x}" y="${svgH - 6}" text-anchor="middle" fill="#AEAEB2" font-size="12">${p.date}</text>` : '').join('')}
-            ${pts.map(p => `<text x="${p.x}" y="${p.y - 8}" text-anchor="middle" fill="#6E6E73" font-size="12">${p.val}</text>`).join('')}
+            <polyline points="${line}" fill="none" stroke="#2055a2" stroke-width="2" stroke-linejoin="round"/>
+            ${pts.map(p => `<circle cx="${p.x}" cy="${p.y}" r="3.5" fill="#2055a2"/>`).join('')}
+            ${pts.map((p, i) => i % 2 === 0 ? `<text x="${p.x}" y="${svgH - 6}" text-anchor="middle" fill="#65768a" font-size="12">${p.date}</text>` : '').join('')}
+            ${pts.map(p => `<text x="${p.x}" y="${p.y - 8}" text-anchor="middle" fill="#526276" font-size="12">${p.val}</text>`).join('')}
         </svg>`;
     }
     html += `</div>`;
 
     // ── 用户构成 ──
-    const pieColors = ['#007AFF','#34C759','#FF9500','#FF375F','#5E5CE6','#BF5AF2','#64D2FF','#FFD60A'];
+    const pieColors = ['#2055a2','#3b69ac','#527bb5','#688dbe','#7da0c7','#92b1d0','#a7c2d9','#bdd2e3'];
 
     // 年级汇总
     const yearMap = {};

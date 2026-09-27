@@ -17,6 +17,7 @@ from services.urp_service import (
     get_exam_sessions, get_exam_scores, LEGACY_GRADES_ENDPOINT_MESSAGE
 )
 from services.config_service import get_current_urp_url
+from services.temporary_session_service import current_temporary_session
 
 data_bp = Blueprint('data', __name__)
 
@@ -25,7 +26,8 @@ data_bp = Blueprint('data', __name__)
 @require_bindding
 def api_urgent_event(user):
     try:
-        start_auto_update(user['username'], user['password'])
+        if not current_temporary_session(user['username']):
+            start_auto_update(user['username'], user['password'])
 
         event = get_urgent_event(user['username'])
         return jsonify({'success': True, 'event': event})

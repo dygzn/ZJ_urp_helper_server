@@ -10,7 +10,6 @@ from auth import require_admin
 from services.config_service import get_config, save_config
 from services.ad_config_service import get_ad_config, validate_ad_config
 
-from services.user_service import unbind_user
 from services.member_service import ensure_invitation_earnings, _money, _money_string
 from services.ad_service import get_ad_click_stats
 from services.online_service import get_online_snapshot
@@ -144,64 +143,6 @@ def admin_invitation_debug():
         })
     except Exception as e:
         return jsonify({'success': False, 'message': f'????????: {str(e)}'})
-
-
-@admin_bp.route('/api/admin/pending_requests', methods=['GET'])
-@require_admin
-def admin_pending_requests():
-    with get_db() as conn:
-        rows = conn.execute('''
-            SELECT * FROM pending_requests
-            WHERE status = 'pending'
-            ORDER BY request_time DESC
-        ''').fetchall()
-
-        pending_list = []
-        for row in rows:
-            pending_list.append({
-                'id': row['request_id'],
-                'device_id': row['device_id'],
-                'old_username': row['old_username'],
-                'new_username': row['new_username'],
-                'reason': row['reason'],
-                'time': row['request_time'],
-                'status': row['status']
-            })
-
-    return jsonify({'success': True, 'requests': pending_list})
-
-
-@admin_bp.route('/api/admin/approve_rebind', methods=['POST'])
-@require_admin
-def admin_approve_rebind():
-    data = request.get_json()
-    request_id = data.get('request_id')
-    approved = data.get('approved', False)
-
-    with get_db() as conn:
-        row = conn.execute(
-            'SELECT * FROM pending_requests WHERE request_id = ?',
-            (request_id,)
-        ).fetchone()
-
-        if not row:
-            return jsonify({'success': False, 'message': '请求不存在'})
-
-        if approved:
-            unbind_user(row['device_id'], conn=conn)
-            conn.execute(
-                'UPDATE pending_requests SET status = ? WHERE request_id = ?',
-                ('approved', request_id)
-            )
-            message = '换绑请求已批准，用户需要重新登录绑定新账号'
-        else:
-            conn.execute(
-                'UPDATE pending_requests SET status = ? WHERE request_id = ?',
-                ('rejected', request_id)
-            )
-            message = '换绑请求已拒绝'
-
-    return jsonify({'success': True, 'message': message})
 
 
 @admin_bp.route('/api/admin/users', methods=['GET'])

@@ -68,6 +68,10 @@ class OnlineUserTracker:
             'users': users,
         }
 
+    def forget(self, device_id):
+        with self._lock:
+            self._users.pop(device_id, None)
+
 
 online_tracker = OnlineUserTracker()
 

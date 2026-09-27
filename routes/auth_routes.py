@@ -6,6 +6,9 @@ from database import get_db
 from services.user_service import get_device_id, get_user_by_device, bind_user
 from services.urp_service import urp_login, check_login_status
 from services.config_service import get_current_urp_url
+from services.temporary_session_service import (
+    delete_temporary_session, save_temporary_session, user_data_file,
+)
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -30,7 +33,14 @@ def check_bind():
             })
 
     if user:
-        resp = {'success': True, 'bound': True, 'username': user['username']}
+        resp = {
+            'success': True,
+            'bound': True,
+            'username': user['username'],
+            'temporary': user.get('temporary', False),
+        }
+        if user.get('temporary'):
+            resp['expires_at'] = user['expires_at']
     else:
         resp = {'success': True, 'bound': False}
 
@@ -70,12 +80,18 @@ def login():
     if not username or not password:
         return jsonify({'success': False, 'message': '用户名和密码不能为空'})
 
-    success, message, _ = urp_login(username, password)
+    if not bind_account:
+        device_header = (request.headers.get('X-Device-ID') or '').strip()
+        if not device_header or len(device_header) > 128:
+            return jsonify({'success': False, 'message': '登录准备失败，请刷新页面后重试'}), 400
+
+    success, message, cookies = urp_login(username, password, persist_cookies=bind_account)
 
     if success:
         if bind_account:
             device_id = get_device_id()
             bind_user(device_id, username, password, invitation_token)
+            delete_temporary_session(device_id)
             return jsonify({
                 'success': True,
                 'bound': True,
@@ -83,10 +99,13 @@ def login():
                 'username': username,
             })
 
+        expires_at = save_temporary_session(get_device_id(), username, cookies)
         return jsonify({
             'success': True,
             'bound': False,
-            'message': '登录成功，本次未绑定账号；下次使用需重新登录',
+            'temporary': True,
+            'expires_at': expires_at,
+            'message': '已登录，本次输入的密码不会保存。登录失效后请重新输入。',
             'username': username,
         })
     else:
@@ -100,6 +119,10 @@ def request_rebind():
 
     if not current_user:
         return jsonify({'success': False, 'message': '设备未绑定账号'})
+
+    if current_user.get('temporary'):
+        delete_temporary_session(device_id)
+        return jsonify({'success': True, 'message': '已退出本次登录，请重新登录'})
 
     with get_db() as conn:
         conn.execute('DELETE FROM users WHERE device_id = ?', (device_id,))
@@ -129,12 +152,20 @@ def api_check_login_status():
     url = get_current_urp_url()
 
     try:
-        urp = URP_login(url, username, password)
+        urp = URP_login(url, username, password, cookie_path=user_data_file(username, 'cookie.json'))
         is_logged_in = urp.is_logined()
 
         if is_logged_in is True:
             return jsonify({'success': True, 'logged_in': True, 'username': username, 'message': '登录状态正常'})
         else:
+            if user.get('temporary'):
+                return jsonify({
+                    'success': True,
+                    'logged_in': False,
+                    'requires_relogin': True,
+                    'username': username,
+                    'message': '登录已失效，请重新输入学号和密码。',
+                })
             success, message, _ = urp.login()
             if success:
                 return jsonify({'success': True, 'logged_in': True, 'username': username, 'message': '重新登录成功'})

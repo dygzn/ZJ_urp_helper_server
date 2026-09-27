@@ -406,100 +406,6 @@ body {
     align-items: center;
 }
 
-/* ==================== Pending Requests ==================== */
-.pending-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.request-card {
-    background: var(--bg-card);
-    padding: 20px;
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-sm);
-    border-left: 3px solid var(--warning);
-    transition: box-shadow 0.2s var(--transition);
-}
-
-.request-card:hover { box-shadow: var(--shadow-md); }
-
-.request-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-}
-
-.request-id {
-    font-size: 12px;
-    color: var(--text-tertiary);
-    font-family: 'SF Mono', 'Menlo', monospace;
-}
-
-.request-time {
-    font-size: 12px;
-    color: var(--text-tertiary);
-}
-
-.request-info { margin-bottom: 12px; }
-
-.info-row {
-    display: flex;
-    margin-bottom: 6px;
-    font-size: 14px;
-}
-
-.info-label {
-    min-width: 80px;
-    color: var(--text-secondary);
-    font-weight: 500;
-}
-
-.info-value { color: var(--text-primary); }
-
-.request-reason {
-    background: var(--bg-secondary);
-    padding: 10px 12px;
-    border-radius: var(--radius-sm);
-    margin-bottom: 14px;
-    font-size: 14px;
-    color: var(--text-secondary);
-}
-
-.request-actions {
-    display: flex;
-    gap: 8px;
-}
-
-.approve-btn,
-.reject-btn {
-    flex: 1;
-    padding: 10px;
-    border: none;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 500;
-    transition: all 0.2s var(--transition);
-}
-
-.approve-btn {
-    background: var(--success);
-    color: #fff;
-}
-
-.approve-btn:hover { background: var(--success-hover); }
-.approve-btn:active { transform: scale(0.98); }
-
-.reject-btn {
-    background: var(--error);
-    color: #fff;
-}
-
-.reject-btn:hover { background: var(--error-hover); }
-.reject-btn:active { transform: scale(0.98); }
-
 /* ==================== Search & Users ==================== */
 .search-container {
     background: var(--bg-card);
@@ -721,29 +627,6 @@ body {
     margin-bottom: 16px;
     line-height: 1.5;
 }
-
-.approve-details {
-    background: var(--bg-secondary);
-    padding: 14px;
-    border-radius: var(--radius-sm);
-    margin-bottom: 16px;
-}
-
-.detail-row {
-    display: flex;
-    margin-bottom: 8px;
-    font-size: 14px;
-}
-
-.detail-row:last-child { margin-bottom: 0; }
-
-.detail-label {
-    min-width: 80px;
-    color: var(--text-secondary);
-    font-weight: 500;
-}
-
-.detail-value { color: var(--text-primary); }
 
 .button-group {
     display: flex;
@@ -2128,7 +2011,6 @@ body::before {
 }
 
 .users-list,
-.pending-list,
 .announcements-list,
 .feedback-list,
 .members-list,
@@ -2143,7 +2025,6 @@ body::before {
 .monitor-table-wrap,
 .config-section,
 .ud-section,
-.request-card,
 .announcement-card,
 .commission-summary-card {
     border: 1px solid rgba(0,0,0,0.07);
@@ -2302,14 +2183,12 @@ body::before {
     }
 }
 
-.request-card,
 .announcement-card {
     border-left-width: 0;
     position: relative;
     overflow: hidden;
 }
 
-.request-card::before,
 .announcement-card::before {
     content: "";
     position: absolute;
@@ -2322,16 +2201,13 @@ body::before {
     background: var(--accent);
 }
 
-.announcement-header,
-.request-header {
+.announcement-header {
     align-items: flex-start;
     gap: 12px;
 }
 
 .announcement-content,
-.request-reason,
 .feedback-reply-original,
-.approve-details,
 .current-url-display,
 .url-option {
     border: 1px solid rgba(0,0,0,0.06);
@@ -3149,8 +3025,6 @@ body.admin-ui-locked {
     }
 
     .section-actions,
-    .request-header,
-    .request-actions,
     .announcement-header,
     .feedback-header,
     .ud-section-header,
@@ -3182,7 +3056,6 @@ body.admin-ui-locked {
     .ad-stats-row-metrics { flex: 1 1 100%; }
     .current-url-display,
     .url-option,
-    .request-card,
     .announcement-card,
     .feedback-list,
     .hint-message { overflow-wrap: anywhere; }

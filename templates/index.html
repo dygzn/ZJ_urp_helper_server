@@ -6,7 +6,7 @@
     <title>URP教务助手</title>
     <link rel="stylesheet" href="/static/css/style.css?v=25">
     <link rel="stylesheet" href="/static/css/lab.css?v=2">
-    <link rel="stylesheet" href="/static/css/apple-theme.css?v=5">
+    <link rel="stylesheet" href="/static/css/taste-theme.css?v=6">
 </head>
 <body class="urp-app">
 
@@ -39,7 +39,7 @@
     <div id="main-content" class="main-content">
         <header class="header">
             <button id="menu-trigger" class="menu-btn" type="button" onclick="openSidebar()" aria-label="打开导航菜单" aria-controls="sidebar" aria-expanded="false"><span></span><span></span><span></span></button>
-            <h1 id="page-title">首页</h1>
+            <h1 id="page-title" tabindex="-1">首页</h1>
             {% if ad.enabled %}
             <div id="header-ad-slot" class="header-ad-slot" aria-label="广告位" hidden>
                 <div id="header-ad-card" class="header-ad-card">
@@ -71,6 +71,18 @@
                     <div class="urgent-header"><h2>接下来最紧急的事情</h2><button class="refresh-btn" type="button" onclick="refreshUrgentEvent()" aria-label="刷新紧急事项"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg><span>刷新</span></button></div>
                     <div id="urgent-content" class="urgent-content"><div class="loading">加载中...</div></div>
                 </div>
+                <section class="home-welcome" aria-labelledby="home-welcome-title">
+                    <div class="home-welcome-copy">
+                        <span class="home-eyebrow">URP · 教务工作台</span>
+                        <h2 id="home-welcome-title">把这一学期，安排得明明白白。</h2>
+                        <p>课程、考试和成绩集中查看。从这里开始，找到今天最需要处理的事。</p>
+                    </div>
+                    <div class="home-shortcuts" aria-label="常用查询">
+                        <button type="button" onclick="openHomeShortcut('schedule')"><span>01 / 课程表</span><strong>查看本周课程</strong><span aria-hidden="true">↗</span></button>
+                        <button type="button" onclick="openHomeShortcut('exams')"><span>02 / 考试安排</span><strong>查看考试时间</strong><span aria-hidden="true">↗</span></button>
+                        <button type="button" onclick="openHomeShortcut('grades')"><span>03 / 成绩查询</span><strong>查询学习成果</strong><span aria-hidden="true">↗</span></button>
+                    </div>
+                </section>
             </div>
 
             <div id="page-schedule" class="page">
@@ -322,7 +334,7 @@
                     <div class="lab-heading"><div><h2>实验提交</h2><p class="page-section-desc">初级会员及以上可用。实验站账号使用当前绑定学号；查询只在点击按钮后开始。</p></div><span class="shortcut-api-badge">初级会员以上</span></div>
                     <div id="lab-message" class="lab-message" role="status" aria-live="polite"></div>
                     <section class="lab-card">
-                        <p>当前学号：<strong id="lab-student">—</strong> · <span id="lab-bound">未绑定实验站密码</span></p>
+                        <p>当前学号：<strong id="lab-student">待获取</strong> · <span id="lab-bound">未绑定实验站密码</span></p>
                         <label for="lab-password">实验站密码</label><input id="lab-password" type="password" autocomplete="off" placeholder="输入密码；已绑定时可留空">
                         <label class="lab-check"><input id="lab-save" type="checkbox"> 登录成功后将密码绑定到学号</label>
                         <p class="lab-auto-captcha">验证码由服务器自动识别，无需手动输入。</p>
@@ -448,42 +460,49 @@
 
     <div id="login-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="login-modal-title" data-dismissible="false">
         <div class="modal-content login-card">
-            <button class="modal-close login-close" type="button" onclick="skipBind()" aria-label="暂不登录，继续以访客浏览">×</button>
-            <div class="login-header">
-                <h2 id="login-modal-title">登录</h2>
-                <p class="modal-desc">登录后可查询课表、成绩、考试安排等教务信息；如需在此设备保留账号，请勾选绑定。</p>
+            <button class="modal-close login-close" type="button" onclick="skipBind()" aria-label="暂不登录，以访客身份浏览">访客浏览</button>
+            <div class="login-intro">
+                <span class="login-brand">URP 教务助手</span>
+                <div class="login-intro-copy">
+                    <h2 id="login-modal-title">登录教务账号</h2>
+                    <p class="modal-desc">查询课表、成绩和考试安排</p>
+                </div>
             </div>
-            <form id="login-form" class="login-form" onsubmit="handleLogin(event)">
-                <div class="login-field-grid">
-                    <div class="form-group">
-                        <label for="username">学号</label>
-                        <input type="text" id="username" name="username" required autocomplete="username" placeholder="请输入学号">
+            <div class="login-form-panel">
+                <h3 class="login-form-title">账号信息</h3>
+                <form id="login-form" class="login-form" onsubmit="handleLogin(event)">
+                    <div class="login-field-grid">
+                        <div class="form-group">
+                            <label for="username">学号</label>
+                            <input type="text" id="username" name="username" required autocomplete="username" placeholder="请输入学号">
+                        </div>
+                        <div class="form-group">
+                            <label for="password">教务密码</label>
+                            <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="请输入教务密码">
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="password">教务密码</label>
-                        <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="请输入教务密码">
+                    <div class="login-bind-option">
+                        <label class="login-bind-label" for="bind-account">
+                            <input type="checkbox" id="bind-account" name="bind_account" aria-labelledby="disclaimer-consent-text password-disclaimer-trigger">
+                            <span id="disclaimer-consent-text">我已阅读并同意</span>
+                        </label>
+                        <a id="password-disclaimer-trigger" class="login-disclaimer-trigger" href="#password-disclaimer-modal" onclick="showPasswordDisclaimer(); return false;">免责声明</a>
                     </div>
-                </div>
-                <div class="login-bind-option">
-                    <label class="login-bind-label" for="bind-account">
-                        <input type="checkbox" id="bind-account" name="bind_account">
-                        <span>登录后绑定此账号</span>
-                    </label>
-                    <button id="password-disclaimer-trigger" class="login-disclaimer-trigger" type="button" onclick="showPasswordDisclaimer()">查看密码保存免责申明</button>
-                </div>
-                <div class="login-actions">
-                    <button type="submit" class="btn-primary btn-full">登录</button>
-                </div>
-            </form>
-            <div id="login-error" class="error-message"></div>
+                    <p class="login-session-note">未勾选时，本次输入的密码不会保存；登录失效后需重新输入。</p>
+                    <div id="login-error" class="error-message" role="alert"></div>
+                    <div class="login-actions">
+                        <button type="submit" class="btn-primary btn-full">登录教务账号</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 
     <div id="password-disclaimer-modal" class="modal password-disclaimer-modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="password-disclaimer-title">
         <div class="modal-content password-disclaimer-card">
-            <button id="password-disclaimer-close" class="modal-close" type="button" onclick="closePasswordDisclaimer()" aria-label="关闭密码保存免责申明">×</button>
-            <h2 id="password-disclaimer-title">密码保存免责申明</h2>
-            <p class="password-disclaimer-copy">勾选后，系统会将学号、教务密码加密保存到服务器，用且仅用于此设备绑定后的自动登录与教务查询。密码按当前系统兼容格式保存，请勿在公共设备上勾选；取消勾选只验证本次登录，不保存绑定信息，下次使用需重新登录。</p>
+            <button id="password-disclaimer-close" class="modal-close" type="button" onclick="closePasswordDisclaimer()" aria-label="关闭密码保存免责声明">×</button>
+            <h2 id="password-disclaimer-title">密码保存免责声明</h2>
+            <p class="password-disclaimer-copy">勾选后，网站会保存学号和教务密码，方便下次直接使用。密码会以原样保存在服务器上，请勿在公共设备上勾选，也不要与其他服务共用密码。未勾选时，本次输入的密码不会保存；网站会暂时保留这次登录所需的信息，并自动清除。登录失效后需重新输入学号和密码。</p>
             <button class="btn-primary btn-full" type="button" onclick="closePasswordDisclaimer()">我已了解</button>
         </div>
     </div>
@@ -539,7 +558,7 @@
     <script src="/static/js/calendar-export.js?v=1"></script>
     <script src="/static/js/service-status-ui.js"></script>
     <script src="/static/js/ui-ux.js?v=2"></script>
-    <script src="/static/js/main.js?v=26"></script>
+    <script src="/static/js/main.js?v=32"></script>
     <script src="/static/js/lab.js?v=2"></script>
 </body>
 </html>

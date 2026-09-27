@@ -705,6 +705,42 @@ def _create_binding_archive_tables(conn, db_type):
         archived_at VARCHAR(32) NOT NULL,
         result_json {text_type} NOT NULL
     ){suffix}''')
+    conn.execute(f'''CREATE TABLE IF NOT EXISTS temporary_sessions (
+        device_id VARCHAR(255) PRIMARY KEY,
+        session_id VARCHAR(32) NOT NULL,
+        username VARCHAR(64) NOT NULL,
+        expires_at BIGINT NOT NULL
+    ){suffix}''')
+
+
+def _migrate_temporary_sessions(conn, db_type):
+    """旧临时会话表曾保存明文密码，升级时移除这一列。"""
+    try:
+        conn.execute('SELECT password FROM temporary_sessions WHERE 1 = 0')
+    except Exception as exc:
+        message = str(exc).lower()
+        if 'no such column' in message or 'unknown column' in message:
+            _exec_ignore(conn, 'CREATE INDEX idx_temporary_sessions_expires ON temporary_sessions(expires_at)')
+            return
+        raise
+
+    if db_type == 'mysql':
+        conn.execute("UPDATE temporary_sessions SET password = ''")
+        conn.execute('ALTER TABLE temporary_sessions DROP COLUMN password')
+    else:
+        # 通过重建表兼容不支持 DROP COLUMN 的旧版 SQLite。
+        conn.execute('''CREATE TABLE temporary_sessions_without_password (
+            device_id VARCHAR(255) PRIMARY KEY,
+            session_id VARCHAR(32) NOT NULL,
+            username VARCHAR(64) NOT NULL,
+            expires_at BIGINT NOT NULL
+        )''')
+        conn.execute('''INSERT INTO temporary_sessions_without_password
+            (device_id, session_id, username, expires_at)
+            SELECT device_id, session_id, username, expires_at FROM temporary_sessions''')
+        conn.execute('DROP TABLE temporary_sessions')
+        conn.execute('ALTER TABLE temporary_sessions_without_password RENAME TO temporary_sessions')
+    _exec_ignore(conn, 'CREATE INDEX idx_temporary_sessions_expires ON temporary_sessions(expires_at)')
 
 
 def _migrate_plural_user_accounts(conn):
@@ -731,6 +767,7 @@ def init_db(config_override=None):
         # 先创建快捷指令密钥表，避免其它历史表初始化失败时遗漏新表。
         _create_api_keys_table(conn, db_config['type'])
         _create_binding_archive_tables(conn, db_config['type'])
+        _migrate_temporary_sessions(conn, db_config['type'])
         _migrate_plural_user_accounts(conn)
         if db_config['type'] == 'mysql':
             _create_schema_mysql(conn)

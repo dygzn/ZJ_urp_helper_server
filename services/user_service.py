@@ -3,8 +3,9 @@
 """
 import hashlib
 from datetime import datetime
-from flask import request
+from flask import g, has_request_context, request
 from database import get_db
+from services.temporary_session_service import get_temporary_session
 
 
 def get_device_id():
@@ -34,6 +35,19 @@ def get_user_by_device(device_id):
 
     ``users`` 只负责证明设备绑定关系；账号密码始终来自 ``user_account``。
     """
+    temporary = get_temporary_session(device_id)
+    if temporary:
+        if has_request_context():
+            g.temporary_session = temporary
+        return {
+            'device_id': device_id,
+            'username': temporary['username'],
+            'password': None,
+            'temporary': True,
+            'expires_at': temporary['expires_at'],
+        }
+    if has_request_context():
+        g.temporary_session = None
     with get_db() as conn:
         row = conn.execute(
             '''SELECT b.device_id, b.username, b.bind_time,

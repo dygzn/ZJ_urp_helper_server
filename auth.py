@@ -11,6 +11,12 @@ from services.urp_service import check_login_status, _login_cache
 from services.wechat_auth_service import get_wechat_request_session
 
 
+def _expired_login_response(user):
+    message = ('登录已失效，请重新输入学号和密码。'
+               if user.get('temporary') else '登录已失效，请重新绑定')
+    return jsonify({'success': False, 'message': message})
+
+
 def require_admin(f):
     """管理员权限装饰器"""
     @wraps(f)
@@ -54,7 +60,7 @@ def require_login(f):
         is_logged_in, _ = check_login_status(username, password, {})
 
         if not is_logged_in:
-            return jsonify({'success': False, 'message': '登录已失效，请重新绑定'})
+            return _expired_login_response(user)
 
         try:
             return f(user=user, *args, **kwargs)
@@ -62,7 +68,7 @@ def require_login(f):
             _login_cache.pop(username, None)
             is_logged_in, _ = check_login_status(username, password, {})
             if not is_logged_in:
-                return jsonify({'success': False, 'message': '登录已失效，请重新绑定'})
+                return _expired_login_response(user)
             try:
                 return f(user=user, *args, **kwargs)
             except Exception:
@@ -157,7 +163,7 @@ def require_grade_login(level='basic'):
 
             is_logged_in, _ = check_login_status(username, password, {})
             if not is_logged_in:
-                return jsonify({'success': False, 'message': '登录已失效，请重新绑定'})
+                return _expired_login_response(user)
 
             try:
                 return f(user=user, *args, **kwargs)
@@ -165,7 +171,7 @@ def require_grade_login(level='basic'):
                 _login_cache.pop(username, None)
                 is_logged_in, _ = check_login_status(username, password, {})
                 if not is_logged_in:
-                    return jsonify({'success': False, 'message': '登录已失效，请重新绑定'})
+                    return _expired_login_response(user)
                 try:
                     return f(user=user, *args, **kwargs)
                 except Exception:
@@ -206,7 +212,7 @@ def require_member_login(level='basic'):
 
             is_logged_in, _ = check_login_status(username, password, {})
             if not is_logged_in:
-                return jsonify({'success': False, 'message': '登录已失效，请重新绑定'})
+                return _expired_login_response(user)
 
             try:
                 return f(user=user, *args, **kwargs)
@@ -214,7 +220,7 @@ def require_member_login(level='basic'):
                 _login_cache.pop(username, None)
                 is_logged_in, _ = check_login_status(username, password, {})
                 if not is_logged_in:
-                    return jsonify({'success': False, 'message': '登录已失效，请重新绑定'})
+                    return _expired_login_response(user)
                 try:
                     return f(user=user, *args, **kwargs)
                 except Exception:

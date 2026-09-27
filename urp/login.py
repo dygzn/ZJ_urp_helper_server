@@ -370,10 +370,12 @@ def recover_vpn_session(session, url=VPN_KEEPALIVE_URL):
 
 
 class URP_login:
-    def __init__(self, url, account, password):
+    def __init__(self, url, account, password, cookie_path=None, persist_cookies=True):
         self.url = url.rstrip('/')
         self.account = account
         self.password = password
+        self.cookie_path = cookie_path or f'user_data/{account}/cookie.json'
+        self.persist_cookies = persist_cookies
         self.x = requests.session()
         self.x.verify = False
         self.x.headers.update({
@@ -386,9 +388,10 @@ class URP_login:
         return f"{self.url}/{path.lstrip('/')}" if path else f'{self.url}/'
 
     def _save_cookies(self):
-        cookie_dir = f'user_data/{self.account}'
-        os.makedirs(cookie_dir, exist_ok=True)
-        with open(f'{cookie_dir}/cookie.json', 'w', encoding='utf-8') as f:
+        if not self.persist_cookies:
+            return
+        os.makedirs(os.path.dirname(self.cookie_path), exist_ok=True)
+        with open(self.cookie_path, 'w', encoding='utf-8') as f:
             json.dump(self.x.cookies.get_dict(), f, ensure_ascii=False, indent=4)
 
     def _requires_vpn_auth(self):
@@ -450,14 +453,22 @@ class URP_login:
 
     def _get_login_page(self):
         headers = {'Referer': VPN_PORTAL_PAGE} if self._requires_vpn_auth() else {}
-        resp = self.x.get(self._url(), headers=headers, timeout=20)
-        resp.encoding = 'gbk'
-        _save_debug_file('last_jiaowu_login.html', resp.text)
-        if is_vpn_failure_response(resp):
-            raise VPNUnavailableError(
-                _vpn_unavailable_message(_html_hint(resp))
-            )
-        return resp.url, _parse_login_form(resp.text)
+        for _ in range(2):
+            resp = self.x.get(self._url(), headers=headers, timeout=20)
+            resp.encoding = 'gbk'
+            _save_debug_file('last_jiaowu_login.html', resp.text)
+            if is_vpn_failure_response(resp):
+                raise VPNUnavailableError(
+                    _vpn_unavailable_message(_html_hint(resp))
+                )
+            try:
+                return resp.url, _parse_login_form(resp.text)
+            except RuntimeError:
+                continue
+        title = _page_title(resp.text) or '无标题'
+        raise RuntimeError(
+            f'教务登录页连续两次未返回登录表单（HTTP {resp.status_code}，页面：{title[:40]}）'
+        )
 
     def _read_captcha(self, ocr, allow_vpn_retry=True):
         resp = self.x.get(
@@ -509,7 +520,7 @@ class URP_login:
             form_url, parser = self._get_login_page()
             ocr = ddddocr.DdddOcr(show_ad=False)
             last_response = None
-            for _ in range(MAX_CAPTCHA_ATTEMPTS):
+            for attempt in range(MAX_CAPTCHA_ATTEMPTS):
                 captcha_text = self._read_captcha(ocr)
                 if not captcha_text:
                     continue
@@ -519,8 +530,9 @@ class URP_login:
                     if self._requires_vpn_auth():
                         save_shared_vpn_cookies(self.x.cookies.get_dict())
                     return True, '登录成功', self.x.cookies.get_dict()
-                form_url, parser = self._get_login_page()
-                time.sleep(0.5)
+                if attempt + 1 < MAX_CAPTCHA_ATTEMPTS:
+                    form_url, parser = self._get_login_page()
+                    time.sleep(0.5)
             if last_response is not None:
                 return False, f'登录失败，最后页面: {_html_hint(last_response)}', None
             return False, '登录失败，验证码识别为空', None
@@ -532,8 +544,14 @@ class URP_login:
             return False, f'登录异常: {error}', None
 
     def is_logined(self):
+        def relogin_if_possible():
+            if not self.password:
+                return False
+            success, _, _ = self.login()
+            return success
+
         check_url = self._url('menu/top.jsp')
-        cookie_file = f'user_data/{self.account}/cookie.json'
+        cookie_file = self.cookie_path
         if not os.path.exists(cookie_file):
             return False
         try:
@@ -544,17 +562,18 @@ class URP_login:
                 shared_vpn_cookies = self._load_shared_vpn_cookies()
                 start_vpn_keepalive()
                 if not shared_vpn_cookies or not vpn_session_alive(self.x, self._url()):
-                    success, _, _ = self.login()
-                    return success
+                    if self.password:
+                        return relogin_if_possible()
+                    try:
+                        recover_vpn_session(self.x, self._url())
+                    except VPNUnavailableError:
+                        return False
         except Exception:
-            success, _, _ = self.login()
-            return success
+            return relogin_if_possible()
         try:
             r = self.x.get(check_url, timeout=5, verify=False).text
         except Exception:
-            success, _, _ = self.login()
-            return success
+            return relogin_if_possible()
         if self.account in r:
             return True
-        success, _, _ = self.login()
-        return success
+        return relogin_if_possible()
