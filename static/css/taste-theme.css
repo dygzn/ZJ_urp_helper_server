@@ -11,10 +11,80 @@
     --ui-accent: #2055a2;
     --ui-accent-hover: #173e7b;
     --ui-accent-soft: #e9f0fb;
+    --ui-exam-ink: #8d232c;
+    --ui-exam-surface: #fff1f2;
     --ui-radius: 14px;
     --ui-radius-sm: 9px;
     --ui-font: system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
 }
+
+/* 课程和考试共享周视图；重叠时并排保留所有可点击事件。 */
+.schedule-week-panel.is-swipe-adjacent {
+    /* 相邻周继续绘制以供横向滑动，只由当前周决定轨道的布局高度。 */
+    height: 0;
+    min-height: 0;
+    overflow: visible;
+}
+
+.schedule-day-column > .course-card {
+    border: 0;
+    font-family: inherit;
+    text-align: left;
+    width: calc((100% + 2px) / var(--schedule-event-lanes, 1) - 2px);
+    margin-left: calc((100% + 2px) / var(--schedule-event-lanes, 1) * var(--schedule-event-lane, 0));
+}
+
+.schedule-day-column > .schedule-exam-card {
+    background: var(--ui-exam-surface);
+    color: var(--ui-exam-ink);
+    border: 1px solid currentColor;
+    box-shadow: none;
+    justify-content: flex-start;
+    padding: 6px 4px;
+}
+
+.schedule-exam-label { margin-top: auto; font-size: 9px; font-weight: 400; flex-shrink: 0; color: var(--ui-muted); }
+.schedule-exam-time { display: flex; flex-wrap: wrap; font-size: 11px; font-weight: 650; line-height: 1.3; flex-shrink: 0; }
+.schedule-exam-time > span { white-space: nowrap; }
+.schedule-exam-card .course-card-name,
+.schedule-exam-card .course-card-location {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+.schedule-exam-card .course-card-name { -webkit-line-clamp: 3; }
+.schedule-exam-card .course-card-location { opacity: 1; -webkit-line-clamp: 3; }
+@media (max-width: 520px) {
+    .schedule-day-column > .schedule-exam-card { padding: 4px 2px; }
+    .schedule-exam-time { flex-direction: column; font-size: 10px; }
+    .schedule-exam-time > span:nth-child(2) { display: none; }
+    .schedule-exam-label { display: none; }
+}
+.schedule-unplaced-exams { margin-top: 12px; }
+.schedule-unplaced-note { margin: 0 0 8px; font-size: 12px; color: var(--ui-muted); }
+.schedule-unplaced-exam {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    width: 100%;
+    min-height: 44px;
+    margin-top: 6px;
+    padding: 10px 12px;
+    border: 1px solid var(--ui-line);
+    border-radius: var(--ui-radius-sm);
+    background: var(--ui-exam-surface);
+    color: var(--ui-exam-ink);
+    font: inherit;
+    font-size: 13px;
+    text-align: left;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+}
+.schedule-unplaced-exam small { flex-basis: 100%; font-size: 12px; color: var(--ui-muted); }
+.schedule-unplaced-exam strong { flex-basis: 100%; font-size: 14px; }
+.schedule-exam-summary-time { flex-basis: 100%; font-weight: 650; }
+.schedule-exam-summary-location { flex-basis: 100%; }
 
 /* 让浏览器边缘与回弹区域沿用页面画布色。 */
 html.urp-root { background-color: var(--ui-canvas); }
@@ -151,7 +221,7 @@ body.urp-app .main-content {
 body.urp-app .site-footer {
     position: static;
     flex-shrink: 0;
-    margin-top: auto;
+    margin-top: 0;
     padding: 8px 16px max(8px, env(safe-area-inset-bottom));
     background: transparent;
     line-height: 1.5;
@@ -191,8 +261,12 @@ body.urp-app .menu-btn:hover {
 }
 
 body.urp-app .sidebar {
-    --sidebar-width: 266px;
+    left: 0;
+    width: max-content;
+    max-width: calc(100vw - 32px);
     height: 100dvh;
+    max-height: 100dvh;
+    transform: translateX(-100%);
     border: 0;
     border-right: 1px solid var(--ui-line);
     border-radius: 0;
@@ -202,35 +276,42 @@ body.urp-app .sidebar {
     -webkit-backdrop-filter: none;
     visibility: hidden;
     pointer-events: none;
-    transition: left var(--duration) var(--ease), visibility 0s var(--duration);
+    transition: transform var(--duration) var(--ease), visibility 0s var(--duration);
 }
 
 body.urp-app .sidebar.active {
+    transform: translateX(0);
     visibility: visible;
     pointer-events: auto;
     transition-delay: 0s;
 }
 
 body.urp-app .sidebar-header {
-    min-height: 76px;
-    padding: 20px 18px 18px 22px;
+    min-height: 60px;
+    flex-shrink: 0;
+    gap: 8px;
+    padding: 8px 12px;
     border-bottom: 1px solid var(--ui-line);
 }
 
 body.urp-app .sidebar-header h2 {
-    font-size: 18px;
+    white-space: nowrap;
+    font-size: 16px;
     font-weight: 800;
     letter-spacing: -.04em;
 }
 
 body.urp-app .sidebar-nav {
-    padding: 12px;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 6px 8px;
 }
 
 body.urp-app .nav-item {
     min-height: 44px;
-    margin: 2px 0;
-    padding: 10px 12px;
+    margin: 0;
+    padding: 8px 10px;
+    white-space: nowrap;
     border-radius: var(--ui-radius-sm);
     color: var(--ui-muted);
     font-weight: 600;
@@ -257,11 +338,14 @@ body.urp-app .nav-item.active .nav-icon {
 }
 
 body.urp-app .sidebar-footer {
-    padding: 16px;
+    flex-shrink: 0;
+    padding: 10px 12px max(10px, env(safe-area-inset-bottom));
     border-top: 1px solid var(--ui-line);
 }
 
 body.urp-app .user-info {
+    margin: 8px 0 0;
+    overflow-wrap: anywhere;
     color: var(--ui-muted);
     font-size: 12px;
 }
@@ -408,6 +492,7 @@ body.urp-app .urgent-header .refresh-btn {
 }
 body.urp-app .urgent-content { min-height: 130px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; gap: 14px; }
 body.urp-app .urgent-content > :only-child,
+body.urp-app .urgent-content > .event-card:only-of-type,
 body.urp-app .urgent-content > .rest-message { grid-column: 1 / -1; }
 body.urp-app .event-card { padding: 20px; text-align: left; border: 1px solid var(--ui-line); border-radius: var(--ui-radius-sm); background: var(--ui-surface-soft); }
 body.urp-app .event-card-current { border-left: 3px solid var(--ui-accent); }
@@ -674,7 +759,6 @@ body.campaign-body .campaign-actions button:hover { background: var(--ui-accent-
 
 @media (max-width: 768px) {
     body.urp-app .header { min-height: 60px; padding: 8px 14px; }
-    body.urp-app .sidebar { --sidebar-width: min(266px, calc(100vw - 32px)); }
     body.urp-app .content-wrapper { padding: 22px 14px 24px; }
     .home-welcome { padding: 25px 20px; margin-bottom: 0; }
     body.urp-app .urgent-card { margin-bottom: 18px; }
@@ -802,9 +886,10 @@ body.urp-app #page-schedule .schedule-week-toolbar {
     border: 0;
     border-top: 1px solid var(--ui-line);
     border-radius: 0;
-    background: var(--ui-surface);
+    background: transparent;
 }
 body.urp-app #page-schedule .schedule-week-controls {
+    position: relative;
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     width: min(100%, 440px);
@@ -817,8 +902,67 @@ body.urp-app #page-schedule .schedule-week-controls :is(button, select, .week-se
     width: 100%;
 }
 body.urp-app #page-schedule .schedule-week-controls button { padding-inline: 6px; }
-body.urp-app #page-schedule .schedule-week-controls .week-select-wrap { padding: 0 6px; }
-body.urp-app #page-schedule .schedule-actions-pull { height: 32px; gap: 3px; font-size: 12px; }
+body.urp-app #page-schedule .schedule-gesture-help {
+    min-height: 22px;
+    grid-column: 1 / -1;
+    margin: 0;
+    color: var(--ui-subtle);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.5;
+    text-align: center;
+}
+body.urp-app #page-schedule .schedule-container:has(.schedule-actions.is-open) .schedule-gesture-help {
+    visibility: hidden;
+}
+body.urp-app #page-schedule .schedule-week-controls :is(button, .week-select-wrap) {
+    background: var(--ui-surface-soft);
+    border: 1px solid var(--ui-line);
+    border-radius: var(--ui-radius-sm);
+    box-shadow: none;
+}
+body.urp-app #page-schedule .schedule-week-controls .week-select-wrap {
+    position: relative;
+    padding: 0 6px;
+}
+body.urp-app #page-schedule .week-select-wrap::after {
+    content: "";
+    position: absolute;
+    right: 12px;
+    top: 17px;
+    width: 6px;
+    height: 6px;
+    border-right: 1.5px solid var(--ui-subtle);
+    border-bottom: 1.5px solid var(--ui-subtle);
+    transform: rotate(45deg);
+    pointer-events: none;
+}
+body.urp-app #page-schedule .week-select-wrap select {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    padding: 0 22px 0 4px;
+    box-shadow: none;
+}
+body.urp-app #page-schedule .week-select-wrap:has(select:focus-visible) {
+    outline: 3px solid var(--ui-accent);
+    outline-offset: 3px;
+}
+body.urp-app #page-schedule .week-select-wrap select:focus-visible { outline: none; }
+body.urp-app #page-schedule .schedule-actions-pull {
+    position: absolute;
+    inset: auto 0 0;
+    width: 100%;
+    height: 22px;
+    gap: 1px;
+    font-size: 12px;
+    line-height: 18px;
+}
+body.urp-app #page-schedule .schedule-week-controls:has(.schedule-actions-pull.is-pulling) .schedule-gesture-help {
+    visibility: hidden;
+}
 body.urp-app #page-schedule .schedule-container:has(.schedule-actions.is-open) .schedule-actions-pull { display: none; }
 body.urp-app #page-schedule .schedule-actions {
     grid-template-columns: minmax(0, 1fr);
@@ -828,7 +972,7 @@ body.urp-app #page-schedule .schedule-actions {
 body.urp-app #page-schedule .schedule-actions.is-open { margin-top: 6px; padding-top: 6px; }
 body.urp-app #page-schedule .schedule-actions-heading { font-size: 14px; }
 body.urp-app #page-schedule .schedule-data-actions {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     padding: 0;
     gap: 6px;
     border: 0;
@@ -841,4 +985,153 @@ body.urp-app #page-schedule .schedule-data-actions button {
     padding: 6px;
     font-size: 13px;
     white-space: normal;
+}
+@media (max-width: 520px) {
+    body.urp-app #page-schedule .schedule-data-actions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+/* 考试列表保留日程上下文，列表独立滚动。 */
+body.urp-app #exams-modal { padding: 24px; }
+body.urp-app #exams-modal .exams-dialog {
+    display: flex;
+    flex-direction: column;
+    width: min(100%, 760px);
+    max-width: 760px;
+    max-height: min(85dvh, 820px);
+    padding: 0;
+    overflow: hidden;
+    animation: exams-dialog-in 260ms cubic-bezier(.22,.72,.18,1);
+}
+body.urp-app .exams-dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--ui-line);
+    flex-shrink: 0;
+}
+body.urp-app .exams-dialog-header h2 { margin: 0; }
+body.urp-app .exams-dialog-header button { min-height: 44px; }
+body.urp-app #exams-modal .exams-content {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    padding: 20px;
+    scrollbar-gutter: stable;
+}
+body.urp-app #exams-modal .exam-group-content { grid-template-columns: minmax(0, 1fr); }
+body.urp-app #exams-modal .exams-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    flex-shrink: 0;
+    gap: 8px;
+    margin: 0;
+    padding: 12px 20px max(12px, env(safe-area-inset-bottom));
+}
+body.urp-app #exams-modal .exams-actions button {
+    grid-column: auto;
+    width: 100%;
+    height: auto;
+    min-height: 44px;
+    padding: 8px;
+    white-space: normal;
+}
+@keyframes exams-dialog-in {
+    from { opacity: 0; transform: translateY(18px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@media (max-width: 768px) {
+    body.urp-app #exams-modal { align-items: flex-end; padding: 0; }
+    body.urp-app #exams-modal .exams-dialog {
+        width: 100%;
+        max-height: calc(90dvh - env(safe-area-inset-top));
+        border-radius: 18px 18px 0 0;
+        animation-name: exams-sheet-in;
+    }
+    body.urp-app .exams-dialog-header { padding: 12px 16px; }
+    body.urp-app #exams-modal .exams-content { padding: 16px; }
+    body.urp-app #exams-modal .exams-actions { padding-inline: 12px; }
+}
+@keyframes exams-sheet-in {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+    body.urp-app #exams-modal .exams-dialog { animation: none; }
+}
+
+/* 日程页在一屏内分配空间；只有操作区开合改变课表可用高度。 */
+html:has(#page-schedule.active), body.urp-app:has(#page-schedule.active) {
+    overflow: hidden;
+    overscroll-behavior: none;
+}
+body.urp-app .main-content:has(#page-schedule.active) {
+    position: fixed;
+    inset: 0;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+}
+body.urp-app .main-content:has(#page-schedule.active) > .site-footer { display: none; }
+body.urp-app .content-wrapper:has(> #page-schedule.active) {
+    flex: 1;
+    min-height: 0;
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+    overflow: hidden;
+}
+body.urp-app #page-schedule.active,
+body.urp-app #page-schedule .schedule-container {
+    height: 100%;
+    min-height: 0;
+}
+body.urp-app #page-schedule .schedule-container,
+body.urp-app #page-schedule .schedule-swipe-viewport,
+body.urp-app #page-schedule .schedule-week-panel {
+    display: flex;
+    flex-direction: column;
+}
+body.urp-app #page-schedule .schedule-swipe-viewport {
+    flex: 1;
+    min-height: 0;
+    touch-action: pan-y pinch-zoom;
+}
+body.urp-app #page-schedule :is(.schedule-week-toolbar, .schedule-actions-reveal, .schedule-message, .schedule-header, .schedule-dino-lane) { flex-shrink: 0; }
+body.urp-app #page-schedule .schedule-dino-lane { height: 44px; }
+body.urp-app #page-schedule .schedule-swipe-track {
+    flex: 1;
+    min-height: 0;
+    height: auto !important;
+}
+body.urp-app #page-schedule .schedule-week-panel { height: 100%; min-height: 0; }
+body.urp-app #page-schedule .schedule-grid {
+    --schedule-visible-rows: 8;
+    flex: 1;
+    min-height: 0;
+}
+body.urp-app #page-schedule .schedule-grid.has-evening { --schedule-visible-rows: 10; }
+body.urp-app #page-schedule :is(.schedule-timeline, .schedule-day-column) {
+    display: grid;
+    grid-template-rows: repeat(var(--schedule-visible-rows), minmax(0, 1fr));
+    min-height: 0;
+}
+body.urp-app #page-schedule :is(.schedule-days, .course-card) { min-height: 0; }
+body.urp-app #page-schedule .schedule-grid.no-weekend .schedule-day-weekend { display: none; }
+body.urp-app #page-schedule .timeline-item { height: auto; min-height: 0; overflow: hidden; }
+body.urp-app #page-schedule .schedule-unplaced-exams {
+    max-height: 20%;
+    flex-shrink: 0;
+    overflow-y: auto;
+    touch-action: pan-y;
+    overscroll-behavior: contain;
+}
+body.urp-app #page-schedule .schedule-actions.is-open > * { animation: none; }
+body.urp-app #page-schedule .schedule-container:has(.schedule-actions.is-open) .schedule-gesture-help { display: none; }
+@media (max-height: 650px) {
+    body.urp-app #page-schedule .schedule-dino-lane { height: 28px; margin-bottom: 4px; }
+    body.urp-app #page-schedule .schedule-data-actions { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    body.urp-app #page-schedule .schedule-data-actions button { font-size: 11px; padding: 4px 2px; }
+    body.urp-app #page-schedule .timeline-time-end { display: none; }
 }

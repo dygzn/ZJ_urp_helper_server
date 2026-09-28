@@ -453,6 +453,7 @@ def get_schedule(username, week=None, config=None):
         return {
             'week': week,
             'schedule': {},
+            'is_freshman': _is_freshman(username),
             'message': '课表文件不存在，请先生成课表'
         }
 

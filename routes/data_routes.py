@@ -43,6 +43,10 @@ def api_schedule(user):
         config = get_config()
         schedule = get_schedule(user['username'], week, config)
         schedule['cache_stale'] = is_calendar_cache_stale(user['username'], 'schedule', config)
+        exams = get_exams(user['username'])
+        schedule['exams'] = [exam for exam in exams if week is None or str(exam.get('week')) == str(week)]
+        schedule['exams_cache_stale'] = is_calendar_cache_stale(user['username'], 'exams', config)
+        schedule['semester_start'] = config.get('semester_start', '')
         return jsonify({'success': True, 'data': schedule, 'account': user['username']})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})

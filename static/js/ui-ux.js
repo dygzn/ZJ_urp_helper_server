@@ -11,8 +11,8 @@
 }(typeof globalThis !== 'undefined' ? globalThis : this, function createUrpUi() {
     const guestAccessCopy = {
         schedule: {
-            title: '课表查询需要登录教务账号',
-            description: '登录后即可查看课程安排，并保留当前页面操作。',
+            title: '日程查询需要登录教务账号',
+            description: '登录后即可查看课程和考试安排，并保留当前页面操作。',
             button: '立即登录',
         },
         exams: {

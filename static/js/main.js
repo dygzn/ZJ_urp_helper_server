@@ -112,6 +112,8 @@ let shortcutApiHasKey = false;
 let isCheckingLoginStatus = false;
 let cachedSchedule = null;
 let cachedExams = null;
+let cachedScheduleExams = [];
+let scheduleExamsStale = false;
 let semesterStart = null;   // 学期第1周星期一的日期
 let academicCacheUsername = null;
 let academicCacheGeneration = 0;
@@ -157,6 +159,8 @@ function rememberBoundUsername(username) {
         if (calendarExportKind) closeCalendarExport();
         cachedSchedule = null;
         cachedExams = null;
+        cachedScheduleExams = [];
+        scheduleExamsStale = false;
         semesterStart = null;
         otherMajorScheduleData = null;
         calendarExportData = null;
@@ -164,6 +168,7 @@ function rememberBoundUsername(username) {
         academicCacheUsername = normalized;
         if (typeof document.querySelectorAll === 'function') {
             document.querySelectorAll('.schedule-week-panel .schedule-days').forEach(el => { el.innerHTML = ''; });
+            document.querySelectorAll('.schedule-unplaced-exams').forEach(el => { el.innerHTML = ''; el.hidden = true; });
             document.querySelectorAll('[data-schedule-date]').forEach(el => { el.textContent = ''; });
             document.querySelectorAll('.schedule-day-today').forEach(el => el.classList.remove('schedule-day-today'));
             const examsContent = document.getElementById('exams-content');
@@ -906,7 +911,11 @@ function getAvailablePageNames() {
     ].filter(pageName => document.getElementById(`page-${pageName}`));
 }
 
-function switchPage(pageName) {
+function switchPage(pageName, { scheduleWeek = null } = {}) {
+    if (pageName === 'exams') {
+        openScheduleExams();
+        return;
+    }
     let targetPage = document.getElementById(`page-${pageName}`);
     if (!targetPage) {
         pageName = 'home';
@@ -937,7 +946,7 @@ function switchPage(pageName) {
     // 更新页面标题
     const titles = {
         'home': '首页',
-        'schedule': '课程表',
+        'schedule': '日程表',
         'exams': '考试安排',
         'grades': '成绩查询',
         'evaluation': '教学评估',
@@ -951,8 +960,9 @@ function switchPage(pageName) {
 
     // 更新导航项激活状态
     const navItems = document.querySelectorAll('.nav-item');
+    const selectedNavPage = pageName === 'exams' ? 'schedule' : pageName;
     navItems.forEach(nav => {
-        if (nav.getAttribute('data-page') === pageName) {
+        if (nav.getAttribute('data-page') === selectedNavPage) {
             nav.classList.add('active');
             if (typeof nav.setAttribute === 'function') {
                 nav.setAttribute('aria-current', 'page');
@@ -969,13 +979,28 @@ function switchPage(pageName) {
     localStorage.setItem('current_page', pageName);
 
     // 加载对应页面的数据
-    loadPageData(pageName);
+    loadPageData(pageName, { scheduleWeek });
 }
 
 function openHomeShortcut(pageName) {
+    if (pageName === 'exams') {
+        openScheduleExams();
+        return;
+    }
     switchPage(pageName);
     const title = document.getElementById('page-title');
     if (title && typeof title.focus === 'function') title.focus();
+}
+
+function openScheduleExams() {
+    if (isGuestMode) {
+        showLoginModal();
+        return;
+    }
+    const modal = document.getElementById('exams-modal');
+    openUiModal(modal, { initialFocusSelector: '#exams-close-btn' });
+    document.getElementById('exams-content').scrollTop = 0;
+    loadExams();
 }
 
 function setPageAccessLock(pageName, locked) {
@@ -1007,7 +1032,7 @@ function setPageAccessLock(pageName, locked) {
     }
 }
 
-function loadPageData(pageName) {
+function loadPageData(pageName, { scheduleWeek = null } = {}) {
     const gatedPages = ['schedule', 'exams', 'grades', 'evaluation', 'shortcut-api', 'lab'];
     if (gatedPages.includes(pageName)) {
         if (isGuestMode) {
@@ -1022,7 +1047,7 @@ function loadPageData(pageName) {
             break;
         case 'schedule':
             // 课程表页面自动加载
-            refreshScheduleDisplay();
+            refreshScheduleDisplay(scheduleWeek);
             break;
         case 'exams':
             loadExams();
@@ -1434,6 +1459,7 @@ const scheduleSwipeGesture = {
 };
 let scheduleSwipeTransition = null;
 let scheduleSwipeTransitionTimer = null;
+let scheduleHeightAnimation = null;
 let scheduleDinoHoldTimer = null;
 let scheduleDinoAirborneTimer = null;
 let scheduleDinoCrashTimer = null;
@@ -1515,6 +1541,27 @@ function setScheduleSwipeTransform(offset, { animate = false } = {}) {
 
     swipe.track.classList.toggle('is-animating', animate);
     swipe.track.style.transform = `translate3d(calc(-33.333333% + ${offset}px), 0, 0)`;
+}
+
+function animateScheduleHeight(track, fromHeight, toHeight, hold = false) {
+    scheduleHeightAnimation?.cancel();
+    scheduleHeightAnimation = null;
+    if (!track?.animate || !Number.isFinite(fromHeight) || !Number.isFinite(toHeight)
+        || fromHeight <= 0 || toHeight <= 0 || Math.abs(fromHeight - toHeight) < 1
+        || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+
+    const animation = track.animate([
+        { height: `${fromHeight}px` }, { height: `${toHeight}px` },
+    ], {
+        duration: 360,
+        easing: 'cubic-bezier(0.22, 0.72, 0.18, 1)',
+        // 横向滑动完成前保持目标高度；重新渲染后恢复自然布局。
+        fill: hold ? 'forwards' : 'none',
+    });
+    scheduleHeightAnimation = animation;
+    animation.onfinish = () => {
+        if (!hold && scheduleHeightAnimation === animation) scheduleHeightAnimation = null;
+    };
 }
 
 function applyScheduleSwipeResistance(deltaX) {
@@ -1700,6 +1747,10 @@ function animateScheduleSwipeTo(result, width, dinoReleaseAction = 'idle') {
     const targetPanel = result.direction > 0 ? swipe.next : swipe.previous;
     swipe.panels.forEach(panel => panel.classList.remove('is-swipe-target'));
     if (result.shouldChange && targetPanel) targetPanel.classList.add('is-swipe-target');
+    if (result.shouldChange && targetPanel) {
+        animateScheduleHeight(swipe.track, swipe.track.getBoundingClientRect?.().height,
+            targetPanel.scrollHeight, true);
+    }
 
     const transition = {
         shouldChange: result.shouldChange,
@@ -2061,16 +2112,9 @@ const scheduleActionReveal = {
     touchStartX: 0,
     touchStartY: 0,
     lastTouchY: 0,
-    trackingTouch: false,
     horizontalTouch: false,
     wheelTimer: null,
 };
-
-function isScheduleAtPageBottom() {
-    if (typeof window === 'undefined' || !document.documentElement) return false;
-    return (window.scrollY || window.pageYOffset || 0) + window.innerHeight
-        >= document.documentElement.scrollHeight - 4;
-}
 
 function resetScheduleActionPull() {
     const pull = document.getElementById('schedule-actions-pull');
@@ -2084,7 +2128,7 @@ function resetScheduleActionPull() {
     if (fill) fill.style.width = '0%';
     pull.classList.remove('is-pulling', 'is-ready');
     const label = pull.querySelector('.schedule-actions-pull-label');
-    if (label) label.textContent = '继续上滑，展开课表操作';
+    if (label) label.textContent = '继续上滑，展开日程表操作';
 }
 
 function updateScheduleActionPull(distance, direction = 'up', commit = true) {
@@ -2097,46 +2141,33 @@ function updateScheduleActionPull(distance, direction = 'up', commit = true) {
         return;
     }
     scheduleActionReveal.distance = Math.max(0, distance);
-    const state = resolveScheduleActionPull(scheduleActionReveal.distance, direction === 'down' ? 28 : 170);
+    const state = resolveScheduleActionPull(scheduleActionReveal.distance, direction === 'down' ? 28 : 220);
     if (state.shouldOpen && commit) {
         if (direction === 'down') hideScheduleActions(true, true);
         else showScheduleActions();
         return;
     }
     const fill = pull.querySelector('.schedule-actions-pull-fill');
-    if (fill) fill.style.width = `${Math.round(state.progress * 100)}%`;
+    if (fill) fill.style.width = `${Math.floor(state.progress * 100)}%`;
     // 明显滑动后才提示；回退时留一点余量，避免临界距离附近闪烁。
     const showHint = direction === 'up'
         && (distance >= 80 || (pull.classList.contains('is-pulling') && distance >= 64));
     pull.classList.toggle('is-pulling', showHint);
     const label = pull.querySelector('.schedule-actions-pull-label');
     if (label) label.textContent = direction === 'down'
-        ? (state.shouldOpen ? '松手收起课表操作'
-            : state.progress >= 0.8 ? '再向下滑一点' : '继续下滑，收起课表操作')
-        : (state.shouldOpen ? '松手展开课表操作'
-            : state.progress >= 0.8 ? '再向上滑一点' : '继续上滑，展开课表操作');
+        ? (state.shouldOpen ? '松手收起日程表操作'
+            : state.progress >= 0.8 ? '再向下滑一点' : '继续下滑，收起日程表操作')
+        : (state.shouldOpen ? '松手展开日程表操作'
+            : state.progress >= 0.8 ? '再向上滑一点' : '继续上滑，展开日程表操作');
 }
 
 function showScheduleActions() {
     const panel = document.getElementById('schedule-actions');
-    if (!panel || !panel.classList || panel.classList.contains('is-open')) return;
+    if (!panel || panel.classList.contains('is-open')) return;
     resetScheduleActionPull();
     panel.classList.add('is-open');
     panel.removeAttribute('inert');
     panel.setAttribute('aria-hidden', 'false');
-    scheduleActionReveal.fitViewport?.();
-    const scrollToActions = () => {
-        if (panel.classList.contains('is-open') && typeof panel.scrollIntoView === 'function') {
-            const reducedMotion = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
-                && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-            panel.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'end' });
-        }
-    };
-    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
-        window.requestAnimationFrame(scrollToActions);
-    } else {
-        scrollToActions();
-    }
 }
 
 function hideScheduleActions(focusTimetable = true, preventScroll = false) {
@@ -2152,7 +2183,6 @@ function hideScheduleActions(focusTimetable = true, preventScroll = false) {
     panel.setAttribute('inert', '');
     panel.setAttribute('aria-hidden', 'true');
     resetScheduleActionPull();
-    scheduleActionReveal.fitViewport?.();
 }
 
 function scheduleActionTouch(event) {
@@ -2162,16 +2192,20 @@ function scheduleActionTouch(event) {
 function handleScheduleActionTouchStart(event) {
     const panel = document.getElementById('schedule-actions');
     const touch = event.touches && event.touches[0];
-    if (!panel || !touch || event.touches.length !== 1) return;
+    if (!panel || !touch) return;
+    if (event.touches.length !== 1) {
+        scheduleActionReveal.touchId = null;
+        resetScheduleActionPull();
+        return;
+    }
     const isOpen = panel.classList.contains('is-open');
-    if (event.target?.closest?.('input, select, textarea')) return;
+    if (event.target?.closest?.('input, select, textarea, .schedule-unplaced-exams')) return;
     resetScheduleActionPull();
     scheduleActionReveal.touchId = touch.identifier;
     scheduleActionReveal.touchStartX = touch.clientX;
     scheduleActionReveal.touchStartY = touch.clientY;
     scheduleActionReveal.lastTouchY = touch.clientY;
     scheduleActionReveal.touchDirection = isOpen ? 'down' : 'up';
-    scheduleActionReveal.trackingTouch = isOpen || isScheduleAtPageBottom();
     scheduleActionReveal.horizontalTouch = false;
 }
 
@@ -2186,21 +2220,16 @@ function handleScheduleActionTouchMove(event) {
         resetScheduleActionPull();
         return;
     }
-    if (!scheduleActionReveal.trackingTouch) {
-        scheduleActionReveal.lastTouchY = touch.clientY;
-        if (!isScheduleAtPageBottom()) return;
-        scheduleActionReveal.trackingTouch = true;
-        return;
-    }
     const step = (scheduleActionReveal.lastTouchY - touch.clientY)
         * (scheduleActionReveal.touchDirection === 'down' ? -1 : 1);
     scheduleActionReveal.lastTouchY = touch.clientY;
     const direction = scheduleActionReveal.touchDirection;
-    updateScheduleActionPull(scheduleActionReveal.distance + step, direction, direction === 'down');
+    const distance = Math.max(0, scheduleActionReveal.distance + step);
+    if (event.cancelable) event.preventDefault();
+    updateScheduleActionPull(distance, direction, direction === 'down');
     if (direction === 'down' && !panel.classList.contains('is-open')) {
         scheduleActionReveal.touchId = null;
         scheduleActionReveal.touchDirection = null;
-        scheduleActionReveal.trackingTouch = false;
     }
 }
 
@@ -2210,10 +2239,9 @@ function handleScheduleActionTouchEnd(event) {
     const distance = scheduleActionReveal.distance;
     scheduleActionReveal.touchId = null;
     scheduleActionReveal.touchDirection = null;
-    scheduleActionReveal.trackingTouch = false;
     scheduleActionReveal.horizontalTouch = false;
     resetScheduleActionPull();
-    if (event.type !== 'touchcancel' && direction && distance >= (direction === 'down' ? 28 : 170)) {
+    if (event.type !== 'touchcancel' && direction && distance >= (direction === 'down' ? 28 : 220)) {
         if (direction === 'down') hideScheduleActions(true, true);
         else showScheduleActions();
     }
@@ -2224,26 +2252,30 @@ function handleScheduleActionWheel(event) {
     if (!panel) return;
     const isOpen = panel.classList.contains('is-open');
     const direction = isOpen ? 'down' : 'up';
-    if (event.target?.closest?.('input, select, textarea')) return;
+    if (event.target?.closest?.('input, select, textarea, .schedule-unplaced-exams')) return;
     if ((isOpen && event.deltaY >= 0)
-        || (!isOpen && (event.deltaY <= 0 || !isScheduleAtPageBottom()))) {
+        || (!isOpen && (event.deltaY <= 0))) {
         if (scheduleActionReveal.distance > 0) resetScheduleActionPull();
         return;
     }
     if (event.cancelable) event.preventDefault();
     const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
-    updateScheduleActionPull(scheduleActionReveal.distance + Math.min(Math.abs(event.deltaY * unit), 90), direction);
+    updateScheduleActionPull(scheduleActionReveal.distance + Math.min(Math.abs(event.deltaY * unit), 60), direction, direction === 'down');
     if (scheduleActionReveal.wheelTimer !== null) window.clearTimeout(scheduleActionReveal.wheelTimer);
     if (scheduleActionReveal.distance > 0) {
-        scheduleActionReveal.wheelTimer = window.setTimeout(resetScheduleActionPull, 240);
+        scheduleActionReveal.wheelTimer = window.setTimeout(() => {
+            if (scheduleActionReveal.distance >= 220) showScheduleActions();
+            else resetScheduleActionPull();
+        }, 240);
     }
 }
 
 function handleScheduleActionKeyDown(event) {
+    if (event.target?.closest?.('input, select, textarea, .schedule-unplaced-exams')) return;
     const page = document.getElementById('page-schedule');
     const panel = document.getElementById('schedule-actions');
     if (!page || !page.classList.contains('active') || !panel
-        || panel.classList.contains('is-open') || !isScheduleAtPageBottom()) return;
+        || panel.classList.contains('is-open')) return;
     if (event.key !== 'PageDown' && event.key !== 'ArrowDown') return;
     if (event.cancelable) event.preventDefault();
     showScheduleActions();
@@ -2255,65 +2287,13 @@ function initScheduleActions() {
     if (!page || !panel || page.dataset.scheduleActionsReady === 'true') return;
     page.dataset.scheduleActionsReady = 'true';
     page.addEventListener('touchstart', handleScheduleActionTouchStart, { passive: true });
-    page.addEventListener('touchmove', handleScheduleActionTouchMove, { passive: true });
+    page.addEventListener('touchmove', handleScheduleActionTouchMove, { passive: false });
     page.addEventListener('touchend', handleScheduleActionTouchEnd);
     page.addEventListener('touchcancel', handleScheduleActionTouchEnd);
     page.addEventListener('wheel', handleScheduleActionWheel, { passive: false });
     document.addEventListener('keydown', handleScheduleActionKeyDown);
-    initScheduleViewportSizing(page);
 }
 
-// 根据实际页头、周次栏和操作区的高度分配课表空间，兼容手机地址栏伸缩。
-function initScheduleViewportSizing(page) {
-    if (typeof window.ResizeObserver !== 'function' || typeof page.querySelector !== 'function') return;
-    const container = page.querySelector('.schedule-container');
-    const wrapper = page.parentElement;
-    const header = document.querySelector('.header');
-    const footer = document.querySelector('.site-footer');
-    if (!container || !wrapper) return;
-    let frame = null;
-    const spacing = element => {
-        const css = window.getComputedStyle(element);
-        return ['paddingTop', 'paddingBottom', 'borderTopWidth', 'borderBottomWidth']
-            .reduce((sum, name) => sum + (parseFloat(css[name]) || 0), 0);
-    };
-    const outerHeight = element => {
-        if (!element || !element.getClientRects().length) return 0;
-        const css = window.getComputedStyle(element);
-        return element.getBoundingClientRect().height
-            + (parseFloat(css.marginTop) || 0) + (parseFloat(css.marginBottom) || 0);
-    };
-    const fit = () => {
-        frame = null;
-        if (!page.classList.contains('active')) return;
-        const rows = page.querySelector('.schedule-grid.has-evening') ? 10 : 8;
-        const gap = parseFloat(window.getComputedStyle(container).getPropertyValue('--schedule-row-gap')) || 0;
-        // 页脚的 auto 外边距用于短页面贴底，不计入实际占用高度。
-        const footerHeight = footer ? footer.getBoundingClientRect().height : 0;
-        const fixedHeight = outerHeight(header) + footerHeight + spacing(wrapper) + spacing(container)
-            + ['.schedule-message', '.schedule-week-toolbar', '.schedule-actions-pull', '.schedule-actions']
-                .reduce((sum, selector) => sum + outerHeight(page.querySelector(selector)), 0)
-            + outerHeight(page.querySelector('.schedule-dino-lane'))
-            + Math.max(0, ...Array.from(page.querySelectorAll('.schedule-header'), outerHeight));
-        const viewportHeight = window.visualViewport?.height || window.innerHeight;
-        const rowHeight = Math.max(40, Math.min(104,
-            Math.floor((viewportHeight - fixedHeight - (rows - 1) * gap) / rows)));
-        const value = `${rowHeight}px`;
-        if (container.style.getPropertyValue('--schedule-row-height') !== value) {
-            container.style.setProperty('--schedule-row-height', value);
-        }
-    };
-    const scheduleFit = () => {
-        if (frame === null) frame = window.requestAnimationFrame(fit);
-    };
-    const observer = new window.ResizeObserver(scheduleFit);
-    scheduleActionReveal.fitViewport = fit;
-    [page, header, footer, ...page.querySelectorAll('.schedule-week-toolbar, .schedule-message, .schedule-actions')]
-        .filter(Boolean).forEach(element => observer.observe(element));
-    window.addEventListener('resize', scheduleFit, { passive: true });
-    window.visualViewport?.addEventListener('resize', scheduleFit, { passive: true });
-    scheduleFit();
-}
 
 if (typeof document !== 'undefined'
     && typeof document.addEventListener === 'function'
@@ -2572,6 +2552,8 @@ async function updateScheduleData(event) {
 }
 
 function resetScheduleDisplay() {
+    scheduleHeightAnimation?.cancel();
+    scheduleHeightAnimation = null;
     clearScheduleDinoGestureTimers();
     resetScheduleSwipeGesture();
     const swipe = ensureScheduleSwipePanels();
@@ -2581,6 +2563,8 @@ function resetScheduleDisplay() {
         const { scheduleDays, scheduleGrid, scheduleHeader } = getSchedulePanelElements(panel);
         if (!scheduleDays || !scheduleGrid || !scheduleHeader) return;
         scheduleDays.innerHTML = '';
+        const unplaced = panel.querySelector('.schedule-unplaced-exams');
+        if (unplaced) { unplaced.innerHTML = ''; unplaced.hidden = true; }
         panel.querySelectorAll('[data-schedule-date]').forEach(el => { el.textContent = ''; });
         panel.querySelectorAll('.schedule-day-today').forEach(el => el.classList.remove('schedule-day-today'));
         scheduleGrid.classList.remove('has-evening');
@@ -2611,13 +2595,14 @@ function resetScheduleDisplay() {
     }
 }
 
-function refreshScheduleDisplay() {
+function refreshScheduleDisplay(week = null) {
     cachedSchedule = null;
-    return loadSchedule();
+    return loadSchedule(week);
 }
 
 async function loadSchedule(week = null, autoFetched = false) {
     let generation = academicCacheGeneration;
+    const useActualWeek = week === null;
     const messageDiv = document.getElementById('schedule-message');
 
     // 根据学期开始日期算出实际当前周
@@ -2654,15 +2639,18 @@ async function loadSchedule(week = null, autoFetched = false) {
 
         const weekStr = String(w);
         const weekData = allSchedule[weekStr] ? { [weekStr]: allSchedule[weekStr] } : {};
-        if (Object.keys(weekData).length > 0) {
+        const hasExams = cachedScheduleExams.some(exam => Number(exam.week) === Number(w));
+        if (Object.keys(weekData).length > 0 || hasExams) {
             hideMessage();
             displaySchedule(weekData);
             if (!currentSemesterStartValue()) {
                 showMessage('学期起始日期待核对，请管理员在后台设置后刷新显示。');
+            } else if (scheduleExamsStale) {
+                showMessage('考试缓存属于旧学期，请到“考试安排”更新后查看。');
             }
         } else {
-            resetScheduleDisplay();
-            showMessage(`第${w}周没有课程`);
+            displaySchedule({});
+            showMessage(`第${w}周没有课程或考试${scheduleExamsStale ? '；考试缓存属于旧学期，请到“考试安排”更新。' : ''}`);
         }
     }
 
@@ -2697,6 +2685,8 @@ async function loadSchedule(week = null, autoFetched = false) {
         if (data.success && data.data) {
             const schedule = data.data.schedule || {};
             const hasData = Object.keys(schedule).length > 0;
+            scheduleExamsStale = !!data.data.exams_cache_stale;
+            cachedScheduleExams = !scheduleExamsStale && Array.isArray(data.data.exams) ? data.data.exams : [];
 
             if (typeof data.data.is_freshman === 'boolean') {
                 userIsFreshman = data.data.is_freshman;
@@ -2705,12 +2695,12 @@ async function loadSchedule(week = null, autoFetched = false) {
             if (data.data.semester_start) {
                 semesterStart = new Date(data.data.semester_start + 'T00:00:00');
                 // API 返回后重新算一次，覆盖之前的降级值
-                if (week === currentWeek) {
+                if (useActualWeek) {
                     week = calcActualWeek() ?? week;
                 }
             }
 
-            if (hasData) {
+            if (hasData || cachedScheduleExams.length > 0) {
                 cachedSchedule = schedule;
                 renderFromCache(schedule, week);
             } else if (!autoFetched) {
@@ -2753,64 +2743,74 @@ async function loadSchedule(week = null, autoFetched = false) {
 function renderScheduleWeek(schedule, panel, courseColorMap = buildScheduleCourseColorMap(schedule)) {
     const { scheduleDays, scheduleGrid, scheduleHeader } = getSchedulePanelElements(panel);
     if (!scheduleDays || !scheduleGrid || !scheduleHeader) return;
-
-    // 为每个星期创建课程列表
-    const daysCourses = {
-        1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: []
-    };
-
+    const daysCourses = { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [] };
     let hasEvening = false;
-
-    // 遍历所有周次的课程
     Object.values(schedule).forEach(weekCourses => {
-        if (Array.isArray(weekCourses)) {
-            weekCourses.forEach(course => {
-                const dayNum = parseInt(course['星期']);
-                const section = parseInt(course['节次']);
-                const duration = parseInt(course['节数']) || 1;
-                const location = course['位置'] || '';
-
-                if (dayNum && section) {
-                    if (section + duration - 1 >= 9) hasEvening = true;
-                    daysCourses[dayNum].push(buildScheduleCourseCardData(course, dayNum));
-                }
-            });
-        }
+        if (!Array.isArray(weekCourses)) return;
+        weekCourses.forEach(course => {
+            const day = Number(course['星期']);
+            const section = Number.parseInt(course['节次'], 10);
+            const duration = Number.parseInt(course['节数'], 10) || 1;
+            if (!daysCourses[day] || section < 1 || !Number.isInteger(section)) return;
+            if (section + duration - 1 >= 9) hasEvening = true;
+            daysCourses[day].push(buildScheduleCourseCardData(course, day));
+        });
     });
 
-    // 检测周末是否有课
-    const hasWeekend = daysCourses[6].length > 0 || daysCourses[7].length > 0;
+    const week = Number(panel.dataset.week) || currentWeek;
+    const times = userIsFreshman ? PERIOD_TIMES_FRESHMAN : PERIOD_TIMES_DEFAULT;
+    const weekExams = otherMajorScheduleData ? [] : cachedScheduleExams
+        .filter(exam => Number(exam.week) === week)
+        .map(exam => buildScheduleExamCardData(exam, times));
+    const unplacedExams = [];
+    weekExams.forEach(exam => {
+        if (!exam.section || !daysCourses[exam.dayNumber]) {
+            unplacedExams.push(exam);
+            return;
+        }
+        if (exam.section + exam.duration - 1 >= 9) hasEvening = true;
+        daysCourses[exam.dayNumber].push(exam);
+    });
+    const hasWeekend = daysCourses[6].length > 0 || daysCourses[7].length > 0
+        || weekExams.some(exam => exam.dayNumber >= 6 && exam.dayNumber <= 7);
 
-    // 生成课程卡片HTML
     let html = '';
     for (let day = 1; day <= 7; day++) {
-        const weekendClass = day >= 6 ? ' schedule-day-weekend' : '';
-        html += `<div class="schedule-day-column${weekendClass}">`;
-
-        const courses = daysCourses[day];
-        courses.forEach((course, index) => {
-            const positionStyle = scheduleCourseGridPlacement(course.section, course.duration);
-
-            const courseColor = courseColorMap.get(getScheduleCourseColorKey(course)) || 'hsl(208, 72%, 40%)';
-
-            const courseData = encodeURIComponent(JSON.stringify(course));
-
-            html += `
-                <div class="course-card"
-                     style="${positionStyle} background: ${courseColor};"
-                     data-course="${courseData}"
-                     data-day="${day}"
-                     onclick="showCourseDetail(this)">
-                    <div class="course-card-name">${escapeScheduleHtml(course.name)}</div>
-                    ${course.location ? `<div class="course-card-location">${escapeScheduleHtml(course.location)}</div>` : ''}
-                </div>
-            `;
+        html += `<div class="schedule-day-column${day >= 6 ? ' schedule-day-weekend' : ''}">`;
+        buildScheduleDayCardLayout(daysCourses[day]).forEach(course => {
+            if (course.kind === 'exam' && course.lanes > 1) {
+                unplacedExams.push({ ...course, note: '同一时段还有其他安排，请核对实际时间' });
+            }
+            const position = scheduleCourseGridPlacement(course.section, course.duration)
+                + ` --schedule-event-lanes: ${course.lanes}; --schedule-event-lane: ${course.lane};`;
+            const isExam = course.kind === 'exam';
+            const color = courseColorMap.get(getScheduleCourseColorKey(course)) || 'hsl(208, 72%, 40%)';
+            const data = encodeURIComponent(JSON.stringify(course));
+            html += `<button type="button" class="course-card${isExam ? ' schedule-exam-card' : ''}"
+                style="${position}${isExam ? '' : ` background: ${color};`}"
+                title="${escapeScheduleHtml(`${course.name}${isExam ? ` · 考试 · ${course.time}` : ''}${course.location ? ` · ${course.location}` : ''}`)}"
+                data-course="${data}" data-day="${day}" tabindex="${panel.getAttribute?.('aria-hidden') === 'true' ? -1 : 0}" onclick="showCourseDetail(this)">
+                <span class="course-card-name">${escapeScheduleHtml(course.name)}</span>
+                ${isExam ? `<span class="schedule-exam-time" aria-label="${escapeScheduleHtml(course.time)}"><span>${escapeScheduleHtml(course.time.split('-')[0])}</span><span aria-hidden="true">-</span><span>${escapeScheduleHtml(course.time.split('-')[1])}</span></span>` : ''}
+                ${course.location ? `<span class="course-card-location">${escapeScheduleHtml(course.location)}</span>` : ''}
+                ${isExam ? '<span class="schedule-exam-label">考试</span>' : ''}
+            </button>`;
         });
-
         html += '</div>';
     }
-
     scheduleDays.innerHTML = html;
+    const unplaced = panel.querySelector('.schedule-unplaced-exams');
+    if (unplaced) {
+        unplaced.hidden = weekExams.length === 0;
+        unplaced.innerHTML = weekExams.length ? '<p class="schedule-unplaced-note">本周考试</p>'
+            + weekExams.map(exam => {
+                const extra = unplacedExams.find(item => item.name === exam.name && item.dayNumber === exam.dayNumber
+                    && item.time === exam.time && item.location === exam.location);
+                const note = extra ? extra.note || '时间待定或不在上课时段内' : '';
+                const date = getCalendarDate(currentSemesterStartValue(), week, exam.dayNumber);
+                return `<button type="button" class="schedule-unplaced-exam" data-course="${encodeURIComponent(JSON.stringify(exam))}" data-day="${exam.dayNumber}" tabindex="${panel.getAttribute?.('aria-hidden') === 'true' ? -1 : 0}" onclick="showCourseDetail(this)"><strong>${escapeScheduleHtml(exam.name)}</strong><span class="schedule-exam-summary-time">${date ? `${escapeScheduleHtml(date)} ` : ''}${escapeScheduleHtml(exam.day)} ${escapeScheduleHtml(exam.time)}</span><span class="schedule-exam-summary-location">${escapeScheduleHtml(exam.location || '考试位置待定')}</span>${note ? `<small>${escapeScheduleHtml(note)}</small>` : ''}</button>`;
+            }).join('') : '';
+    }
     scheduleGrid.classList.toggle('has-evening', hasEvening);
     setScheduleWeekendVisibility(hasWeekend, scheduleGrid, scheduleHeader);
     updateScheduleTimeline(userIsFreshman, panel);
@@ -2827,6 +2827,11 @@ function displaySchedule(schedule) {
         return;
     }
 
+    const hadWeek = !!swipe.current.dataset.week;
+    const previousHeight = swipe.track.getBoundingClientRect?.().height;
+    scheduleHeightAnimation?.cancel();
+    scheduleHeightAnimation = null;
+
     [
         [swipe.previous, currentWeek - 1],
         [swipe.current, currentWeek],
@@ -2841,6 +2846,9 @@ function displaySchedule(schedule) {
     });
 
     updateScheduleDates(currentWeek);
+    if (hadWeek) {
+        animateScheduleHeight(swipe.track, previousHeight, swipe.track.getBoundingClientRect?.().height);
+    }
     swipe.track.classList.remove('is-dragging', 'is-animating', 'is-changing');
     swipe.viewport.classList.remove(
         'is-swiping',
@@ -2892,6 +2900,14 @@ function showCourseDetail(el) {
     const modal = document.getElementById('course-detail-modal');
     const week = Number.parseInt(el.closest('.schedule-week-panel')?.dataset.week, 10) || currentWeek;
     const date = getCalendarDate(currentSemesterStartValue(), week, el.dataset.day);
+    if (course.kind === 'exam') {
+        document.getElementById('course-detail-name').textContent = `${course.name}（考试）`;
+        document.getElementById('course-detail-body').innerHTML = buildScheduleExamDetailHtml({
+            ...course, week, date: date || '学期起始日期或考试日期待核对',
+        });
+        openUiModal(modal);
+        return;
+    }
     const times = userIsFreshman ? PERIOD_TIMES_FRESHMAN : PERIOD_TIMES_DEFAULT;
     const clock = getCalendarPeriodTime(course.section, course.duration, times);
 
@@ -3031,6 +3047,7 @@ async function updateExamsData(event) {
 
         if (data.success) {
             showUiToast('考试安排更新成功', 'success');
+            cachedSchedule = null;
             cachedExams = null;
             // 重新加载考试安排
             loadExams();
@@ -3069,6 +3086,8 @@ async function loadExams(autoFetched = false) {
             document.getElementById('sidebar-username').textContent = currentUsername;
         }
         if (data.success && data.cache_stale) {
+            cachedScheduleExams = [];
+            scheduleExamsStale = true;
             contentDiv.innerHTML = '<p style="text-align:center;color:var(--warning);">后台已切换学期，请点击“更新考试安排”获取本学期考试后再查看或导出。</p>';
             return;
         }
@@ -3078,6 +3097,8 @@ async function loadExams(autoFetched = false) {
         }
         if (data.success && data.exams && data.exams.length > 0) {
             cachedExams = data.exams;
+            cachedScheduleExams = data.exams;
+            scheduleExamsStale = false;
             displayExams(data.exams);
         } else if (!autoFetched) {
             // 没有缓存数据，自动从教务系统获取
@@ -3100,6 +3121,8 @@ async function loadExams(autoFetched = false) {
                 contentDiv.innerHTML = '<p style="text-align:center;color:var(--error);">获取考试安排失败，学校可能暂未开放查询</p>';
             }
         } else {
+            cachedScheduleExams = [];
+            scheduleExamsStale = false;
             contentDiv.innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">暂无考试安排</p>';
         }
     } catch (error) {
@@ -3271,6 +3294,9 @@ async function openCalendarExport(kind) {
         const error = document.getElementById('calendar-export-error');
         error.textContent = '';
         error.hidden = true;
+        if (uiModalState.activeModal?.id === 'exams-modal') {
+            closeUiModal(uiModalState.activeModal);
+        }
         openUiModal(document.getElementById('calendar-export-modal'), { initialFocusSelector: '#calendar-export-start' });
     } catch (error) {
         if (generation !== academicCacheGeneration) return;

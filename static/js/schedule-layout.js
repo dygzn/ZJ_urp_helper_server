@@ -162,6 +162,71 @@ function buildScheduleCourseCardData(course, day) {
     };
 }
 
+// 考试使用真实钟点，网格只借用与其相交的节次行，不将考试时间换成上课时间。
+function buildScheduleExamCardData(exam, periodTimes) {
+    const time = parseCalendarExamTime(exam.time);
+    const sections = [];
+    if (time) {
+        const start = parseCalendarClock(time.start);
+        const end = parseCalendarClock(time.end);
+        periodTimes.forEach((period, index) => {
+            if (start < parseCalendarClock(period.end) && end > parseCalendarClock(period.start)) {
+                sections.push(index + 1);
+            }
+        });
+    }
+    const dayNumber = Number(exam.day);
+    const days = ['', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'];
+    return {
+        kind: 'exam', name: String(exam.course || '未命名考试'),
+        examName: String(exam.exam_name || '考试'), week: Number(exam.week),
+        day: days[dayNumber] || '星期待定', dayNumber,
+        time: time ? `${time.start}-${time.end}` : String(exam.time || '时间待定'),
+        section: sections[0] || null,
+        duration: sections.length ? sections.at(-1) - sections[0] + 1 : 0,
+        location: String(exam.location || [exam.campus, exam.building, exam.room].filter(Boolean).join('')),
+        campus: String(exam.campus ?? ''), building: String(exam.building ?? ''),
+        room: String(exam.room ?? ''), seat: String(exam.seat ?? ''),
+    };
+}
+
+function buildScheduleDayCardLayout(cards) {
+    const sorted = cards.slice().sort((a, b) => a.section - b.section || b.duration - a.duration);
+    let group = [];
+    let groupEnd = 0;
+    const result = [];
+    const flush = () => {
+        const laneEnds = [];
+        const placed = group.map(card => {
+            let lane = laneEnds.findIndex(end => end <= card.section);
+            if (lane < 0) lane = laneEnds.length;
+            laneEnds[lane] = card.section + card.duration;
+            return { ...card, lane };
+        });
+        result.push(...placed.map(card => ({ ...card, lanes: laneEnds.length })));
+        group = [];
+    };
+    for (const card of sorted) {
+        if (group.length && card.section >= groupEnd) flush();
+        if (!group.length) groupEnd = 0;
+        group.push(card);
+        groupEnd = Math.max(groupEnd, card.section + card.duration);
+    }
+    flush();
+    return result;
+}
+
+function buildScheduleExamDetailHtml(exam = {}) {
+    const rows = [
+        ['日期', exam.date], ['时间', exam.time], ['考试位置', exam.location],
+        ['周次', `第${exam.week}周 ${exam.day}`], ['考试名', exam.examName],
+        ['校区', exam.campus], ['教学楼', exam.building], ['教室', exam.room], ['座位号', exam.seat],
+    ];
+    return rows.filter(([, value]) => value !== null && value !== undefined && value !== '')
+        .map(([label, value]) => `<div class="course-detail-row"><span class="course-detail-label">${escapeScheduleHtml(label)}</span><span>${escapeScheduleHtml(value)}</span></div>`)
+        .join('\n');
+}
+
 function escapeScheduleHtml(value) {
     return String(value ?? '')
         .replace(/&/g, '&amp;')
