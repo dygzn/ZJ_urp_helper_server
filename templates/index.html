@@ -2,21 +2,22 @@
 <html lang="zh-CN" class="urp-root">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#f3f6fa">
     <title>URP教务助手</title>
     <link rel="stylesheet" href="/static/css/style.css?v=27">
     <link rel="stylesheet" href="/static/css/lab.css?v=2">
-    <link rel="stylesheet" href="/static/css/taste-theme.css?v=28">
+    <link rel="stylesheet" href="/static/css/taste-theme.css?v=38">
 </head>
 <body class="urp-app">
 
-    <div id="sidebar" class="sidebar">
+    <div id="sidebar" class="sidebar" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="sidebar-title">
         <div class="sidebar-header">
-            <h2>URP教务助手</h2>
-            <button class="close-btn" type="button" onclick="closeSidebar()" aria-label="关闭导航菜单">×</button>
+            <h2 id="sidebar-title"><span class="tablet-only">URP教务助手</span><span class="mobile-only">更多功能</span></h2>
+            <button class="close-btn" type="button" onclick="closeSidebar()" aria-label="关闭导航菜单"><span class="tablet-only" aria-hidden="true">×</span><span class="mobile-only">关闭</span></button>
         </div>
         <nav class="sidebar-nav">
+            <div id="mobile-announcement-slot" class="mobile-only mobile-announcement-slot"></div>
             <a href="#" class="nav-item active" data-page="home" aria-current="page"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg><span>首页</span></a>
             <a href="#" class="nav-item" data-page="schedule"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="9" y1="4" x2="9" y2="2"/><line x1="15" y1="4" x2="15" y2="2"/></svg><span>日程表</span></a>
             <a href="#" class="nav-item" data-page="grades"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span>成绩查询</span></a>
@@ -30,6 +31,7 @@
             {% endif %}
         </nav>
         <div class="sidebar-footer">
+            <div id="mobile-account-status" class="mobile-only mobile-account-status"><span>教务连接</span></div>
             <button class="rebind-btn" type="button" onclick="showRebindDialog()">换绑账号</button>
             <p class="user-info">当前用户: <span id="sidebar-username">未登录</span></p>
         </div>
@@ -37,6 +39,10 @@
 
     <div id="main-content" class="main-content">
         <header class="header">
+            <a class="desktop-only desktop-brand" href="#" onclick="event.preventDefault();openHomeShortcut('home')">URP教务助手</a>
+            <div id="desktop-navigation" class="desktop-only"></div>
+            <details id="desktop-nav-more" class="desktop-only desktop-menu"><summary>更多</summary><div class="desktop-menu-items"></div></details>
+            <button class="desktop-only desktop-account btn-secondary" type="button" onclick="showRebindDialog()">账号</button>
             <button id="menu-trigger" class="menu-btn" type="button" onclick="openSidebar()" aria-label="打开导航菜单" aria-controls="sidebar" aria-expanded="false"><span></span><span></span><span></span></button>
             <h1 id="page-title" tabindex="-1">首页</h1>
             {% if ad.enabled %}
@@ -61,27 +67,38 @@
                 <button id="header-ad-restore" class="header-ad-restore" type="button" data-ad-action="restore" hidden>广告已隐藏 · 恢复展示</button>
             </div>
             {% endif %}
-            <button id="announcement-trigger" class="announcement-trigger" type="button" onclick="openAnnouncementDialog()" aria-label="系统公告" aria-haspopup="dialog" aria-controls="announcement-dialog" title="系统公告"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a3 3 0 0 1 0 6"/><path d="M10 8v11a1 1 0 0 1 -1 1h-1a1 1 0 0 1 -1 -1v-5"/><path d="M12 8h0l4.524 -3.77a.9 .9 0 0 1 1.476 .692v12.156a.9 .9 0 0 1 -1.476 .692l-4.524 -3.77h-8a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1h8"/></svg><span class="announcement-unread-dot" aria-hidden="true"></span></button>
+            <button id="announcement-trigger" class="announcement-trigger" type="button" onclick="openAnnouncementDialog()" aria-label="系统公告" aria-haspopup="dialog" aria-controls="announcement-dialog" title="系统公告"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a3 3 0 0 1 0 6"/><path d="M10 8v11a1 1 0 0 1 -1 1h-1a1 1 0 0 1 -1 -1v-5"/><path d="M12 8h0l4.524 -3.77a.9 .9 0 0 1 1.476 .692v12.156a.9 .9 0 0 1 -1.476 .692l-4.524 -3.77h-8a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1h8"/></svg><span class="mobile-only announcement-label">系统公告</span><span id="mobile-announcement-count" class="mobile-only mobile-announcement-count" aria-hidden="true"></span><span class="announcement-unread-dot" aria-hidden="true"></span></button>
             <div id="login-status-indicator" class="login-status-indicator" role="status" aria-live="polite"><span class="status-dot status-checking"></span><span class="status-text">检查中</span></div>
         </header>
 
         <div class="content-wrapper">
             <div id="page-home" class="page active">
-                <div class="urgent-card">
-                    <div class="urgent-header"><h2>接下来最紧急的事情</h2><button class="refresh-btn" type="button" onclick="refreshUrgentEvent()" aria-label="刷新紧急事项"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg><span>刷新</span></button></div>
-                    <div id="urgent-content" class="urgent-content"><div class="loading">加载中...</div></div>
-                </div>
+                <svg class="home-icon-definitions" aria-hidden="true" focusable="false"><defs>
+                    <symbol id="home-icon-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="9" y1="4" x2="9" y2="2"/><line x1="15" y1="4" x2="15" y2="2"/></symbol>
+                    <symbol id="home-icon-grades" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></symbol>
+                    <symbol id="home-icon-evaluation" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></symbol>
+                    <symbol id="home-icon-lab" viewBox="0 0 24 24"><path d="M8 3h8M10 3v7l-6 9a2 2 0 002 2h12a2 2 0 002-2l-6-9V3M8 16h8"/></symbol>
+                    <symbol id="home-icon-exam" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M9 15l2 2 4-5"/></symbol>
+                    <symbol id="home-icon-warning" viewBox="0 0 24 24"><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/><path d="M12 9v4M12 17h.01"/></symbol>
+                </defs></svg>
+                <div class="home-heading"><div><span class="home-heading-kicker">教务助手</span><h2 id="home-page-heading">你好，欢迎使用</h2><p class="home-heading-description">上课时间、考试安排和常用查询，都在这里。</p></div><time id="home-today-date"></time></div>
+                <section class="urgent-card" aria-labelledby="home-next-title">
+                    <div class="urgent-header"><h2 id="home-next-title">接下来</h2><button class="refresh-btn" type="button" onclick="refreshUrgentEvent()" aria-label="刷新课程和考试安排"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg><span>刷新</span></button></div>
+                    <div id="urgent-content" class="urgent-content"><div class="loading">正在读取课程和考试安排…</div></div>
+                </section>
                 <section class="home-welcome" aria-labelledby="home-welcome-title">
-                    <div class="home-welcome-copy">
-                        <span class="home-eyebrow">URP · 教务工作台</span>
-                        <h2 id="home-welcome-title">把这一学期，安排得明明白白。</h2>
-                        <p>课程、考试和成绩集中查看。从这里开始，找到今天最需要处理的事。</p>
+                    <div class="home-welcome-copy"><h2 id="home-welcome-title">常用功能</h2></div>
+                    <div class="home-shortcuts" aria-label="常用教务功能">
+                        <button type="button" onclick="openHomeShortcut('schedule')"><span class="home-shortcut-icon"><svg class="home-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#home-icon-calendar"/></svg></span><span class="home-shortcut-copy"><strong>看课表</strong><span>本周课程与教室</span></span></button>
+                        <button type="button" onclick="openHomeShortcut('exams')"><span class="home-shortcut-icon"><svg class="home-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#home-icon-exam"/></svg></span><span class="home-shortcut-copy"><strong>查考试</strong><span>时间、考场与座位</span></span></button>
+                        <button type="button" onclick="openHomeShortcut('grades')"><span class="home-shortcut-icon"><svg class="home-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#home-icon-grades"/></svg></span><span class="home-shortcut-copy"><strong>查成绩</strong><span>成绩、学分与绩点</span></span></button>
+                        <button type="button" onclick="openHomeShortcut('evaluation')"><span class="home-shortcut-icon"><svg class="home-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#home-icon-evaluation"/></svg></span><span class="home-shortcut-copy"><strong>去评教</strong><span>查看并完成教学评估</span></span></button>
                     </div>
-                    <div class="home-shortcuts" aria-label="常用查询">
-                        <button type="button" onclick="openHomeShortcut('schedule')"><span>01 / 日程表</span><strong>查看本周日程</strong><span aria-hidden="true">↗</span></button>
-                        <button type="button" onclick="openHomeShortcut('exams')"><span>02 / 考试安排</span><strong>查看考试时间</strong><span aria-hidden="true">↗</span></button>
-                        <button type="button" onclick="openHomeShortcut('grades')"><span>03 / 成绩查询</span><strong>查询学习成果</strong><span aria-hidden="true">↗</span></button>
-                    </div>
+                    <div class="home-secondary-shortcuts"><button type="button" onclick="openHomeShortcut('lab')"><span class="home-shortcut-icon"><svg class="home-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#home-icon-lab"/></svg></span><span class="home-shortcut-copy"><strong>实验助手</strong><span>实验任务查询与报告管理</span></span><span class="home-shortcut-arrow" aria-hidden="true">→</span></button></div>
+                </section>
+                <section class="home-agenda" aria-labelledby="home-agenda-title">
+                    <div class="home-agenda-heading"><h2 id="home-agenda-title">今日安排</h2><button class="home-agenda-link" type="button" onclick="openHomeShortcut('schedule')">完整课表 <span aria-hidden="true">→</span></button></div>
+                    <div id="home-agenda-content"><div class="loading">正在读取课程安排…</div></div>
                 </section>
             </div>
 
@@ -90,32 +107,6 @@
                 <div class="schedule-container">
                     <div id="schedule-message" class="schedule-message" style="display:none;"></div>
                     <div id="schedule-content" class="schedule-content schedule-swipe-viewport" aria-label="日程表周次切换区域" tabindex="-1">
-                        <div class="schedule-dino-lane" aria-hidden="true" data-direction="next" data-obstacle="cactus-single">
-                            <span class="schedule-dino-stage">
-                                <span class="schedule-dino-cloud schedule-dino-cloud-a"></span>
-                                <span class="schedule-dino-cloud schedule-dino-cloud-b"></span>
-                                <span class="schedule-dino-character">
-                                    <svg viewBox="0 0 48 56" role="presentation" focusable="false">
-                                        <path fill="#268343" d="M25 38h8v11h5v4H27l-3-11z"/>
-                                        <path fill="currentColor" d="M23 7Q23 2 29 2h9q8 0 8 8v8q0 5-6 5H30v5q5 5 4 11-1 7-10 7h-4Q8 44 4 34L1 25q7 7 14 6l7-10z"/>
-                                        <path fill="#a5dc85" d="M29 25q-7 5-8 11t6 7q6-2 5-8z"/>
-                                        <path fill="currentColor" d="M15 39h10l-3 10h6v4H16l-2-5z"/>
-                                        <path d="M31 29h5v4" fill="none" stroke="#268343" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
-                                        <path d="M27 7q3-2 7-1" fill="none" stroke="#81cf79" stroke-width="2.5" stroke-linecap="round"/>
-                                        <ellipse cx="35" cy="11" rx="3.4" ry="4" fill="var(--dino-eye, #fff)"/>
-                                        <ellipse cx="36" cy="11.5" rx="1.6" ry="2.3" fill="#193c29"/>
-                                        <circle cx="36.5" cy="10.5" r="0.6" fill="#fff"/>
-                                        <circle cx="42" cy="14" r="1" fill="#268343"/>
-                                        <path d="M33 19h9" fill="none" stroke="#246c3b" stroke-width="1.8" stroke-linecap="round"/>
-                                    </svg>
-                                </span>
-                                <span class="schedule-dino-fireball"></span>
-                                <span class="schedule-dino-dust"><i></i><i></i><i></i></span>
-                                <span class="schedule-dino-obstacle"><i></i><b></b></span>
-                                <span class="schedule-dino-fragments"><i></i><i></i><i></i><i></i></span>
-                                <span class="schedule-dino-dizzy"><i></i><i></i><i></i></span>
-                            </span>
-                        </div>
                         <div id="schedule-swipe-track" class="schedule-swipe-track">
                             <section class="schedule-week-panel" data-schedule-panel="previous" aria-hidden="true"></section>
                             <section class="schedule-week-panel is-current" data-schedule-panel="current" aria-hidden="false">
@@ -140,19 +131,25 @@
                             <section class="schedule-week-panel" data-schedule-panel="next" aria-hidden="true"></section>
                         </div>
                     </div>
+                    <div class="schedule-toolbar">
                     <div class="schedule-week-toolbar">
-                        <span class="schedule-week-caption">按周查看</span>
+                        <div class="schedule-week-caption"><span>按周查看</span><span id="schedule-desktop-range" class="desktop-only">学期日期待确认</span><span id="schedule-mobile-range" class="schedule-mobile-only">学期日期待确认</span></div>
                         <div class="schedule-week-controls">
                             <button class="btn-secondary" type="button" onclick="changeWeek(-1, true)">上一周</button>
                             <label class="week-select-wrap" for="week-select"><span>周次</span><select id="week-select" onchange="changeWeek(parseInt(this.value,10)-currentWeek)"></select></label>
                             <button class="btn-secondary" type="button" onclick="changeWeek(1, true)">下一周</button>
+                            <button id="schedule-this-week" class="desktop-only btn-secondary" type="button" onclick="returnToCurrentScheduleWeek()">回到本周</button>
                             <p class="schedule-gesture-help">上滑显示更多按钮，下滑收起</p>
                     <div id="schedule-actions-pull" class="schedule-actions-pull" aria-hidden="true">
                         <span class="schedule-actions-pull-label">继续上滑，展开日程表操作</span>
                         <span class="schedule-actions-pull-track"><span class="schedule-actions-pull-fill"></span></span>
                     </div>
                         </div>
+                        <div id="schedule-mobile-actions" class="schedule-mobile-only">
+                            <button id="schedule-mobile-more" class="btn-secondary" type="button" aria-label="日程表更多操作" aria-controls="schedule-actions" aria-expanded="false" onclick="toggleScheduleActions()"><span aria-hidden="true">···</span></button>
+                        </div>
                     </div>
+                    <div id="schedule-mobile-gesture" class="schedule-mobile-only"></div>
                     <div id="schedule-actions-reveal" class="schedule-actions-reveal">
                     <div id="schedule-actions" class="schedule-actions" inert aria-hidden="true">
                         <div class="schedule-actions-heading">
@@ -160,11 +157,13 @@
                             <button class="schedule-actions-close" type="button" onclick="hideScheduleActions()">收起</button>
                         </div>
                         <div class="schedule-data-actions">
+                            <details id="schedule-more" class="desktop-only desktop-menu"><summary>更多</summary><div class="desktop-menu-items"></div></details>
                             <button id="update-schedule-btn" class="btn-primary" type="button" onclick="updateScheduleData(event)">更新课程表</button>
                             <button id="schedule-exams-btn" class="btn-secondary" type="button" onclick="openScheduleExams()">考试安排</button>
                             <button class="btn-secondary" type="button" onclick="openCalendarExport('all')">导出课表/考试</button>
                             <button class="btn-secondary" type="button" onclick="showHistoricalSchedule()">历年课表查询</button>
                         </div>
+                    </div>
                     </div>
                     </div>
                 </div>
@@ -444,6 +443,13 @@
         </footer>
     </div>
 
+    <nav id="mobile-bottom-nav" class="mobile-bottom-nav" aria-label="主导航">
+        <a href="#" class="nav-item mobile-nav-item active" aria-current="page" data-page="home"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg><span>首页</span></a>
+        <a href="#" class="nav-item mobile-nav-item" data-page="schedule"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="9" y1="4" x2="9" y2="2"/><line x1="15" y1="4" x2="15" y2="2"/></svg><span>日程表</span></a>
+        <a href="#" class="nav-item mobile-nav-item" data-page="grades" aria-label="成绩查询"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span>成绩</span></a>
+        <button id="mobile-nav-more" class="mobile-nav-item mobile-nav-more" type="button" onclick="openSidebar()" aria-label="更多功能与账号" aria-controls="sidebar" aria-haspopup="dialog" aria-expanded="false"><span class="mobile-more-icon" aria-hidden="true">···</span><span class="mobile-more-unread-dot" aria-hidden="true"></span><span>更多</span></button>
+    </nav>
+
     <div id="login-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="login-modal-title" data-dismissible="false">
         <div class="modal-content login-card">
             <button class="modal-close login-close" type="button" onclick="skipBind()" aria-label="暂不登录，以访客身份浏览">访客浏览</button>
@@ -559,7 +565,7 @@
     <script src="/static/js/calendar-export.js?v=1"></script>
     <script src="/static/js/service-status-ui.js"></script>
     <script src="/static/js/ui-ux.js?v=3"></script>
-    <script src="/static/js/main.js?v=49"></script>
+    <script src="/static/js/main.js?v=57"></script>
     <script src="/static/js/lab.js?v=2"></script>
 </body>
 </html>

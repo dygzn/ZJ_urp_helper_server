@@ -363,8 +363,8 @@ body.urp-app .rebind-btn:hover {
 }
 
 body.urp-app .content-wrapper {
-    width: min(100%, 1160px);
-    max-width: 1160px;
+    width: min(100%, 1400px);
+    max-width: 1400px;
     padding: clamp(24px, 4vw, 46px) clamp(16px, 3.3vw, 40px) 24px;
 }
 
@@ -856,9 +856,38 @@ body.urp-app .announcement-dialog-footer button { width: 100%; }
 body.urp-app .announcement-dialog-footer button:disabled { opacity: .48; cursor: not-allowed; }
 
 @media (max-width: 768px) {
-    body.urp-app .header { grid-template-columns: var(--touch-target) minmax(0, 1fr) var(--touch-target) auto; grid-template-areas: "menu title announcement status" "ad ad ad ad"; }
-    body.urp-app .announcement-trigger { grid-area: announcement; margin: 0; }
-    body.urp-app .login-status-indicator { margin-left: 0; }
+    /* 手机没有独立标题栏；推广保留正常内容位置。 */
+    body.urp-app .header {
+        display: none;
+        min-height: 0;
+        padding: 0;
+        position: static;
+        border: 0;
+        background: var(--ui-canvas);
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+    }
+    body.urp-app .header:has(.header-ad-slot:not([hidden])) {
+        display: block;
+        padding: max(16px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) 0 max(14px, env(safe-area-inset-left));
+    }
+    body.urp-app .header :is(#page-title, .menu-btn) { display: none; }
+    body.urp-app .login-status-indicator {
+        min-height: 24px;
+        margin: 0;
+        padding: 0;
+        gap: 5px;
+        background: transparent;
+        color: var(--ui-muted);
+        font-size: 12px;
+        line-height: 24px;
+    }
+    body.urp-app .login-status-indicator .status-dot { width: 6px; height: 6px; box-shadow: none; }
+    body.urp-app .header-ad-slot {
+        grid-area: auto;
+        grid-column: 1 / -1;
+        margin: 0;
+    }
 }
 
 @media (max-width: 520px) {
@@ -875,7 +904,7 @@ body.urp-app .content-wrapper:has(> #page-schedule.active) {
     padding: 8px clamp(6px, 2vw, 24px);
 }
 body.urp-app #page-schedule .schedule-container { padding: 8px; --schedule-row-gap: 3px; }
-body.urp-app #page-schedule .schedule-dino-lane { height: clamp(52px, 7dvh, 72px); }
+body.urp-app .schedule-mobile-only { display: none; }
 body.urp-app #page-schedule .timeline-item { padding: 2px; }
 body.urp-app #page-schedule .timeline-section { font-size: 13px; line-height: 1; margin-bottom: 1px; }
 body.urp-app #page-schedule :is(.timeline-time-start, .timeline-time-end) { font-size: 9px; line-height: 1.1; }
@@ -1098,8 +1127,7 @@ body.urp-app #page-schedule .schedule-swipe-viewport {
     min-height: 0;
     touch-action: pan-y pinch-zoom;
 }
-body.urp-app #page-schedule :is(.schedule-week-toolbar, .schedule-actions-reveal, .schedule-message, .schedule-header, .schedule-dino-lane) { flex-shrink: 0; }
-body.urp-app #page-schedule .schedule-dino-lane { height: 44px; }
+body.urp-app #page-schedule :is(.schedule-week-toolbar, .schedule-actions-reveal, .schedule-message, .schedule-header) { flex-shrink: 0; }
 body.urp-app #page-schedule .schedule-swipe-track {
     flex: 1;
     min-height: 0;
@@ -1130,8 +1158,571 @@ body.urp-app #page-schedule .schedule-unplaced-exams {
 body.urp-app #page-schedule .schedule-actions.is-open > * { animation: none; }
 body.urp-app #page-schedule .schedule-container:has(.schedule-actions.is-open) .schedule-gesture-help { display: none; }
 @media (max-height: 650px) {
-    body.urp-app #page-schedule .schedule-dino-lane { height: 28px; margin-bottom: 4px; }
     body.urp-app #page-schedule .schedule-data-actions { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     body.urp-app #page-schedule .schedule-data-actions button { font-size: 11px; padding: 4px 2px; }
     body.urp-app #page-schedule .timeline-time-end { display: none; }
+}
+
+/* 深色课程底色上的辅助文字保持实色，确保小字号也清晰。 */
+body.urp-app .course-card-location,
+body.urp-app .course-card-sections { opacity: 1; }
+
+/* 桌面工作台与触屏布局分开：导航和操作常驻，内容按任务排列。 */
+.desktop-only { display: none; }
+.schedule-toolbar { display: contents; }
+.home-query-error { grid-column: 1 / -1; color: var(--error); padding: 20px 0; line-height: 1.7; }
+.home-events-loading { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.home-events-loading > span { min-height: 132px; border-radius: var(--ui-radius-sm); background: var(--ui-surface-soft); border: 1px solid var(--ui-line); }
+.home-events-loading > p { grid-column: 1 / -1; color: var(--ui-muted); font-size: 13px; }
+@media (min-width: 1100px) {
+    body.urp-app .sidebar { display: none; }
+    body.urp-app .menu-btn, body.urp-app #page-title { display: none; }
+    body.urp-app .main-content { margin-left: 0; }
+    body.urp-app .main-content:has(#page-schedule.active) { left: 0; margin-left: 0; }
+    body.urp-app .header { padding-inline: max(24px, calc((100vw - 1240px) / 2)); gap: 10px; backdrop-filter: none; min-height: 66px; }
+    body.urp-app .content-wrapper { width: 100%; max-width: 1160px; padding: 24px 28px; }
+    body.urp-app .desktop-only { display: block; }
+
+    body.urp-app #page-home.active {
+        display: grid;
+        grid-template-columns: minmax(0, 1.65fr) minmax(310px, 1fr);
+        gap: 20px;
+        align-items: start;
+    }
+    body.urp-app .desktop-home-heading { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 0 0 4px; }
+    body.urp-app .desktop-home-heading > div > span { font-size: 12px; color: var(--ui-accent); font-weight: 650; }
+    body.urp-app #home-today-date { color: var(--ui-muted); font-size: 14px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    body.urp-app .desktop-home-heading h2 { margin: 8px 0 10px; font-size: 30px; letter-spacing: -.03em; }
+    body.urp-app .desktop-home-heading p { color: var(--ui-muted); font-size: 14px; }
+    body.urp-app #page-home .urgent-card { grid-column: 1 / -1; margin: 0; padding: 22px 24px; }
+    body.urp-app .urgent-header { gap: 12px; }
+    body.urp-app .urgent-header h2 { font-size: 17px; }
+    body.urp-app .urgent-content { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; min-height: 130px; }
+    body.urp-app .event-card {
+        position: relative;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        column-gap: 20px;
+        padding: 22px 24px;
+        background: var(--ui-surface-soft);
+        border: 0;
+        border-left: 3px solid #b4c3d6;
+        border-radius: 0 9px 9px 0;
+    }
+    body.urp-app .event-card > * { grid-column: 1; }
+    body.urp-app .event-card .event-type { grid-row: 1; }
+    body.urp-app .event-card .event-title { grid-row: 2; }
+    body.urp-app .event-card .event-location { grid-row: 3; color: var(--ui-muted); }
+    body.urp-app .event-card :is(.event-time, .event-time-label) { grid-row: 4; }
+    body.urp-app .event-card .countdown { grid-column: 2; grid-row: 2; margin: 0; color: var(--ui-accent); align-self: center; }
+    body.urp-app .event-card .countdown-label { grid-column: 2; grid-row: 3; text-align: right; color: var(--ui-muted); }
+    body.urp-app .event-card .countdown { white-space: nowrap; font-variant-numeric: tabular-nums; }
+    body.urp-app .event-card .event-seat { grid-row: 5; color: var(--ui-muted); font-size: 13px; margin-top: 6px; padding: 0; background: none; }
+    body.urp-app .event-card :is(.event-title, .event-location, .event-time-label) { overflow-wrap: anywhere; }
+    body.urp-app .event-card-current { border-left-color: var(--ui-accent); background: #f0f5fc; }
+    body.urp-app .event-type { font-size: 12px; color: var(--ui-muted); margin-bottom: 12px; }
+    body.urp-app .event-title { font-size: 23px; line-height: 1.4; margin-bottom: 8px; }
+    body.urp-app .event-location { display: block; padding: 0; margin: 0 0 8px; background: none; font-size: 14px; }
+    body.urp-app .event-time { color: var(--ui-muted); font-size: 13px; }
+    body.urp-app .event-time-label { font-size: 19px; margin-top: 12px; }
+    body.urp-app .countdown { display: inline-block; font-size: 24px; margin: 16px 8px 0 0; }
+    body.urp-app .countdown-label { display: inline-block; font-size: 12px; }
+    body.urp-app .rest-message { text-align: left; padding: 16px 0; }
+    body.urp-app .home-welcome {
+        display: block;
+        min-height: 0;
+        padding: 22px;
+        border: 1px solid var(--ui-line);
+        background: var(--ui-surface);
+    }
+    body.urp-app .home-welcome :is(.home-eyebrow, .mobile-welcome-title) { display: none; }
+    body.urp-app .home-welcome h2 { max-width: none; font-size: 17px; margin: 0 0 10px; }
+    body.urp-app .home-welcome p { font-size: 13px; line-height: 1.7; margin: 0 0 20px; }
+    body.urp-app .home-shortcuts { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+    body.urp-app .home-shortcuts button { min-height: 64px; padding: 10px 14px; background: var(--ui-surface-soft); }
+    body.urp-app .home-shortcuts button:hover { transform: none; box-shadow: none; background: var(--ui-accent-soft); }
+    body.urp-app .home-shortcuts button strong { font-size: 15px; }
+    body.urp-app .home-secondary-shortcuts { display: grid; grid-template-columns: 1fr 1fr; margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--ui-line); gap: 12px; }
+    body.urp-app .home-secondary-shortcuts button { display: flex; align-items: center; justify-content: space-between; min-height: 44px; border: 0; border-radius: var(--ui-radius-sm); background: transparent; color: var(--ui-muted); font: inherit; font-size: 13px; cursor: pointer; }
+    body.urp-app .home-secondary-shortcuts button:hover { color: var(--ui-accent); background: var(--ui-accent-soft); }
+    body.urp-app .home-agenda { padding: 22px 24px; background: var(--ui-surface); border: 1px solid var(--ui-line); border-radius: var(--ui-radius); min-width: 0; }
+    body.urp-app .home-agenda-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    body.urp-app .home-agenda-heading h2 { font-size: 17px; margin: 0; }
+    body.urp-app .home-agenda-link { min-height: 44px; padding: 0 8px; font: inherit; font-size: 13px; color: var(--ui-accent); border: 0; border-radius: var(--ui-radius-sm); background: transparent; cursor: pointer; white-space: nowrap; }
+    body.urp-app .home-agenda-link:hover { background: var(--ui-accent-soft); }
+    body.urp-app .home-agenda-list { list-style: none; margin: 0; padding: 0; }
+    body.urp-app .home-agenda-item { display: grid; grid-template-columns: 108px minmax(0, 1fr) auto; align-items: center; gap: 18px; min-height: 76px; padding: 14px 0; border-top: 1px solid var(--ui-line); }
+    body.urp-app .home-agenda-item time { font-size: 13px; color: var(--ui-muted); font-variant-numeric: tabular-nums; }
+    body.urp-app .home-agenda-item > div { display: grid; gap: 5px; overflow-wrap: anywhere; }
+    body.urp-app .home-agenda-item strong { font-size: 15px; line-height: 1.5; }
+    body.urp-app .home-agenda-item > div > span { font-size: 13px; color: var(--ui-muted); line-height: 1.5; }
+    body.urp-app .home-agenda-status { font-size: 12px; color: var(--ui-muted); white-space: nowrap; }
+    body.urp-app .home-agenda-item.is-current :is(time, .home-agenda-status) { color: var(--ui-accent); font-weight: 650; }
+    body.urp-app .home-agenda-empty { padding: 28px 0; color: var(--ui-muted); font-size: 14px; }
+    body.urp-app .home-agenda-empty strong { color: var(--ui-ink); font-size: 16px; }
+    body.urp-app .home-agenda-empty p { margin: 10px 0 18px; line-height: 1.7; }
+
+    body.urp-app .content-wrapper:has(> #page-schedule.active) { padding: 18px 24px; max-width: 1240px; width: 100%; max-height: 780px; }
+    body.urp-app #page-schedule .schedule-container {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: auto auto minmax(0, 1fr);
+        grid-template-areas: "toolbar" "message" "table";
+        padding: 0 16px 16px;
+        --schedule-row-gap: 0px;
+        --schedule-column-gap: 0px;
+        --schedule-time-width: 70px;
+    }
+    body.urp-app #page-schedule .schedule-toolbar { grid-area: toolbar; display: grid; grid-template-columns: minmax(150px, 1fr) auto minmax(170px, 1fr); align-items: center; gap: 16px; padding: 16px 0; position: relative; z-index: 5; }
+    body.urp-app #page-schedule .schedule-week-toolbar {
+        display: contents;
+    }
+    body.urp-app #page-schedule .schedule-week-caption { display: grid; gap: 6px; grid-column: 1; grid-row: 1; min-width: 0; }
+    body.urp-app #page-schedule .schedule-week-caption > span:first-child { display: block; color: var(--ui-ink); font-size: 17px; font-weight: 700; }
+    body.urp-app #page-schedule #schedule-desktop-range { font-size: 12px; font-weight: 500; color: var(--ui-muted); }
+    body.urp-app #page-schedule .schedule-week-controls { width: auto; grid-column: 2; grid-row: 1; grid-template-columns: 72px 120px 72px 96px; gap: 6px; }
+    body.urp-app #page-schedule .week-select-wrap > span { display: none; }
+    body.urp-app #page-schedule :is(.schedule-gesture-help, .schedule-actions-pull, .schedule-actions-heading) { display: none; }
+    body.urp-app #page-schedule .schedule-actions-reveal { grid-column: 3; grid-row: 1; justify-self: end; padding: 0; z-index: 5; }
+    body.urp-app #page-schedule .schedule-actions,
+    body.urp-app #page-schedule .schedule-actions.is-open {
+        display: block;
+        height: auto;
+        max-height: none;
+        visibility: visible;
+        opacity: 1;
+        overflow: visible;
+        transform: none;
+        pointer-events: auto;
+        padding: 0;
+        margin: 0;
+        border: 0;
+    }
+    body.urp-app #page-schedule .schedule-data-actions { display: flex; gap: 6px; }
+    body.urp-app #page-schedule .schedule-data-actions button { width: auto; white-space: nowrap; padding: 8px 10px; font-size: 12px; }
+    body.urp-app #page-schedule .schedule-message { grid-area: message; }
+    body.urp-app #page-schedule .schedule-swipe-viewport { grid-area: table; border-top: 1px solid var(--ui-line); border-radius: 0; }
+    body.urp-app #page-schedule .schedule-header { gap: 0; margin: 0; padding: 0; min-height: 54px; }
+    body.urp-app #page-schedule .schedule-header-day { border-radius: 0; background: var(--ui-surface-soft); border-left: 1px solid var(--ui-line); padding: 8px; color: var(--ui-muted); }
+    body.urp-app #page-schedule .schedule-header-day.schedule-day-today { background: var(--ui-accent-soft); box-shadow: inset 0 3px var(--ui-accent); color: var(--ui-accent); }
+    body.urp-app #page-schedule .schedule-day-today .schedule-day-date { color: var(--ui-accent); }
+    body.urp-app #page-schedule .schedule-day-name { font-size: 13px; }
+    body.urp-app #page-schedule .schedule-day-date { font-size: 12px; margin-top: 4px; }
+    body.urp-app #page-schedule .schedule-grid { border-bottom: 1px solid var(--ui-line); }
+    body.urp-app #page-schedule .timeline-item { border-radius: 0; border-top: 1px solid var(--ui-line); background: var(--ui-surface-soft); gap: 3px; }
+    body.urp-app #page-schedule .timeline-section { font-size: 12px; color: var(--ui-muted); }
+    body.urp-app #page-schedule :is(.timeline-time-start, .timeline-time-end) { font-size: 10px; color: var(--ui-subtle); }
+    body.urp-app #page-schedule .schedule-day-column {
+        border-left: 1px solid var(--ui-line);
+        background: repeating-linear-gradient(to bottom, var(--ui-line) 0 1px, transparent 1px calc(100% / var(--schedule-visible-rows)));
+    }
+    body.urp-app #page-schedule .schedule-day-column.schedule-column-today { background-color: #f5f8fd; }
+    body.urp-app #page-schedule .course-card:not(.schedule-exam-card) {
+        background: color-mix(in srgb, var(--course-color, #2055a2) 23%, white) !important;
+        color: var(--ui-ink);
+        border-left: 3px solid var(--course-color, #2055a2);
+    }
+    body.urp-app #page-schedule .course-card {
+        width: calc((100% - 8px) / var(--schedule-event-lanes, 1) - 3px);
+        margin: 4px 0 4px calc(5px + (100% - 8px) / var(--schedule-event-lanes, 1) * var(--schedule-event-lane, 0));
+        border-radius: 6px;
+        padding: 10px;
+        justify-content: flex-start;
+        box-shadow: none;
+        container-type: size;
+        container-name: schedule-event;
+    }
+    body.urp-app #page-schedule .course-card:hover { transform: none; outline: 1px solid currentColor; outline-offset: -1px; }
+    body.urp-app #page-schedule .course-card-name { font-size: 16px; line-height: 1.45; }
+    body.urp-app #page-schedule .course-card-location { font-size: 13px; line-height: 1.4; }
+    body.urp-app #page-schedule .course-card-period { margin-top: auto; padding-top: 5px; font-size: 11px; line-height: 1.4; font-variant-numeric: tabular-nums; }
+    body.urp-app #page-schedule .course-card.is-single-period .course-card-period { display: none; }
+    body.urp-app #page-schedule .course-card-name { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; flex-shrink: 0; }
+    body.urp-app #page-schedule .course-card-location { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; flex-shrink: 0; }
+}
+@container schedule-event (max-height: 108px) {
+    body.urp-app #page-schedule .course-card-name { font-size: 14px; line-height: 1.3; -webkit-line-clamp: 2; }
+    body.urp-app #page-schedule .course-card-location { font-size: 12px; -webkit-line-clamp: 1; }
+    body.urp-app #page-schedule .course-card-period { display: none; }
+    body.urp-app #page-schedule .schedule-exam-label { display: none; }
+}
+@container schedule-event (max-width: 110px) {
+    body.urp-app #page-schedule .course-card-name { font-size: 12px; line-height: 1.3; -webkit-line-clamp: 2; }
+    body.urp-app #page-schedule .schedule-exam-card .course-card-name { -webkit-line-clamp: 1; }
+    body.urp-app #page-schedule .course-card-location { font-size: 11px; -webkit-line-clamp: 1; }
+    body.urp-app #page-schedule .schedule-exam-time { font-size: 10px; }
+    body.urp-app #page-schedule .course-card-period { display: none; }
+}
+@media (min-width: 1100px) and (max-height: 760px) {
+    body.urp-app #page-schedule .course-card { padding: 6px 8px; }
+    body.urp-app #page-schedule .course-card-name { font-size: 14px; line-height: 1.3; }
+    body.urp-app #page-schedule .course-card-period { display: none; }
+}
+
+/* 登录提示显示时，不让桌面网格或移动端 flex 规则重新显示课表。 */
+body.urp-app #page-schedule.is-access-locked .schedule-container { display: none; }
+
+@media (min-width: 1100px) {
+    body.urp-app .desktop-brand { color: var(--ui-ink); text-decoration: none; font-size: 17px; font-weight: 750; white-space: nowrap; margin-right: 16px; }
+    body.urp-app #desktop-navigation .sidebar-nav { display: flex; gap: 4px; padding: 0; overflow: visible; }
+    body.urp-app #desktop-navigation .nav-item { flex-shrink: 0; margin: 0; padding: 12px 14px; width: auto; font-size: 14px; }
+    body.urp-app #desktop-navigation .nav-icon { display: none; }
+    body.urp-app #desktop-navigation .nav-item.active { box-shadow: inset 0 -2px var(--ui-accent); }
+    body.urp-app .desktop-account { margin-left: auto; order: 2; }
+    body.urp-app .announcement-trigger { margin-left: 4px; order: 3; }
+    body.urp-app .login-status-indicator { order: 4; }
+    body.urp-app .desktop-menu { position: relative; }
+    body.urp-app .desktop-menu summary { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 14px; border: 1px solid var(--ui-line); border-radius: 9px; cursor: pointer; font-size: 14px; color: var(--ui-muted); background: var(--ui-surface); list-style: none; }
+    body.urp-app .desktop-menu summary::-webkit-details-marker { display: none; }
+    body.urp-app .desktop-menu summary::after { content: "⌄"; }
+    body.urp-app .desktop-menu summary:focus-visible { outline: 3px solid var(--ui-accent); outline-offset: 3px; }
+    body.urp-app .desktop-menu[open] > summary { background: var(--ui-accent-soft); color: var(--ui-accent); }
+    body.urp-app .desktop-menu-items { position: absolute; right: 0; top: calc(100% + 6px); min-width: 192px; padding: 6px; background: white; border: 1px solid var(--ui-line); border-radius: 10px; box-shadow: 0 12px 32px rgb(24 38 56 / 14%); z-index: 100; }
+    body.urp-app .desktop-menu-items :is(.nav-item, button) { display: flex; width: 100% !important; margin: 0; justify-content: flex-start; border: 0; text-align: left; background: transparent; padding: 12px !important; }
+    body.urp-app .desktop-menu-items :is(.nav-item, button):hover { background: var(--ui-accent-soft); }
+    body.urp-app #desktop-nav-more:has(.nav-item.active) > summary { color: var(--ui-accent); border-color: var(--ui-accent); }
+    body.urp-app #schedule-more summary { color: var(--ui-accent); }
+    body.urp-app .home-welcome-copy > p { display: none; }
+    body.urp-app .home-welcome h2 { margin-bottom: 16px; }
+    body.urp-app .desktop-home-heading h2 { font-size: 28px; }
+    body.urp-app .event-card { column-gap: 12px; padding: 20px; }
+    body.urp-app .event-title { font-size: 21px; }
+}
+
+/* 手机底部主导航与「更多」面板；桌面继续使用原有导航。 */
+.mobile-bottom-nav, .mobile-only { display: none; }
+@media (max-width: 768px) {
+    body.urp-app {
+        --mobile-nav-height: calc(64px + env(safe-area-inset-bottom));
+        padding-bottom: var(--mobile-nav-height);
+    }
+    body.urp-app .mobile-only { display: inline; }
+    body.urp-app .tablet-only { display: none; }
+    body.urp-app .main-content { min-height: calc(100dvh - var(--mobile-nav-height)); }
+    body.urp-app .content-wrapper {
+        padding-top: max(16px, env(safe-area-inset-top));
+        padding-left: max(14px, env(safe-area-inset-left));
+        padding-right: max(14px, env(safe-area-inset-right));
+    }
+    body.urp-app .main-content:has(.header-ad-slot:not([hidden])) .content-wrapper { padding-top: 8px; }
+    body.urp-app .mobile-bottom-nav {
+        position: fixed;
+        inset: auto 0 0;
+        z-index: 100;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        height: var(--mobile-nav-height);
+        padding: 5px max(8px, env(safe-area-inset-right)) calc(5px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+        border-top: 1px solid var(--ui-line);
+        background: var(--ui-surface);
+    }
+    body.urp-app .mobile-bottom-nav .mobile-nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        min-width: 0;
+        min-height: 44px;
+        margin: 0 4px;
+        padding: 4px;
+        border: 0;
+        border-radius: var(--ui-radius-sm);
+        background: transparent;
+        color: var(--ui-muted);
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 17px;
+        text-decoration: none;
+        box-shadow: none;
+        cursor: pointer;
+    }
+    body.urp-app .mobile-bottom-nav .nav-icon { width: 22px; height: 22px; margin: 0; }
+    body.urp-app .mobile-nav-more { position: relative; }
+    body.urp-app .mobile-more-icon { height: 22px; font-size: 28px; font-weight: 750; line-height: 17px; }
+    body.urp-app .mobile-bottom-nav .mobile-nav-item.active {
+        color: var(--ui-accent);
+        background: var(--ui-accent-soft);
+        font-weight: 750;
+    }
+    body.urp-app .mobile-bottom-nav .mobile-nav-item:hover { background: var(--ui-accent-soft); }
+    body.urp-app .mobile-bottom-nav .mobile-nav-item:active { background: var(--ui-accent-soft); }
+    body.urp-app .mobile-bottom-nav .mobile-nav-item:focus-visible { outline-offset: -3px; }
+    body.urp-app .sidebar {
+        top: auto;
+        bottom: 0;
+        width: 100%;
+        max-width: none;
+        height: auto;
+        max-height: min(80dvh, 640px);
+        transform: translateY(100%);
+        border: 1px solid var(--ui-line);
+        border-bottom: 0;
+        border-radius: 20px 20px 0 0;
+        box-shadow: 0 -12px 36px rgb(24 38 56 / 12%);
+    }
+    body.urp-app .sidebar.active { transform: translateY(0); }
+    body.urp-app .sidebar-header { min-height: 64px; padding: 10px 20px; }
+    body.urp-app .sidebar-header h2 { font-size: 20px; font-weight: 750; }
+    body.urp-app .sidebar-header .close-btn { min-width: 52px; font-size: 14px; }
+    body.urp-app .sidebar-nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; padding: 12px 14px; flex: 0 1 auto; }
+    body.urp-app .mobile-more-unread-dot {
+        display: none;
+        position: absolute;
+        top: 6px;
+        left: calc(50% + 9px);
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--ui-accent);
+    }
+    body.urp-app .mobile-nav-more.has-unread .mobile-more-unread-dot { display: block; }
+    body.urp-app .mobile-announcement-slot { display: block; grid-column: 1 / -1; }
+    body.urp-app .mobile-announcement-slot .announcement-trigger {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        min-height: 52px;
+        height: auto;
+        margin: 0;
+        padding: 10px;
+        border-color: transparent;
+        background: transparent;
+        color: var(--ui-muted);
+        font-size: 14px;
+        font-weight: 600;
+        text-align: left;
+    }
+    body.urp-app .mobile-announcement-slot .announcement-trigger:hover { background: var(--ui-accent-soft); }
+    body.urp-app .mobile-announcement-slot .announcement-trigger svg { width: 20px; height: 20px; flex-shrink: 0; }
+    body.urp-app .mobile-announcement-slot .announcement-unread-dot { top: 11px; left: 25px; right: auto; }
+    body.urp-app .mobile-announcement-count { margin-left: auto; font-size: 12px; color: var(--ui-accent); }
+    body.urp-app .sidebar-nav :is([data-page="home"], [data-page="schedule"], [data-page="grades"]) { display: none; }
+    body.urp-app .sidebar-nav .nav-item { min-height: 52px; padding: 10px; font-size: 14px; }
+    body.urp-app .sidebar-footer { padding: 14px 20px max(16px, env(safe-area-inset-bottom)); border-top: 1px solid var(--ui-line); }
+    body.urp-app .mobile-account-status { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; color: var(--ui-muted); font-size: 12px; }
+    body.urp-app .sidebar-footer .user-info { text-align: left; }
+    body.urp-app .site-footer { padding-bottom: 12px; }
+    body.urp-app .main-content:has(#page-schedule.active) { bottom: var(--mobile-nav-height); height: calc(100dvh - var(--mobile-nav-height)); }
+    body.urp-app .content-wrapper:has(> #page-schedule.active) {
+        padding-top: max(8px, env(safe-area-inset-top));
+        padding-bottom: 8px;
+        padding-left: max(8px, env(safe-area-inset-left));
+        padding-right: max(8px, env(safe-area-inset-right));
+    }
+    body.urp-app #page-schedule .schedule-container {
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+    }
+    body.urp-app #page-schedule .schedule-week-toolbar {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-rows: 44px auto;
+        gap: 0 8px;
+        flex-shrink: 0;
+        margin: 0 0 10px;
+        padding: 0 4px 8px;
+        border: 0;
+    }
+    body.urp-app #page-schedule .schedule-week-controls { display: contents; }
+    body.urp-app #page-schedule .schedule-week-controls > button { display: none; }
+    body.urp-app #page-schedule .schedule-week-controls .week-select-wrap {
+        grid-column: 1;
+        grid-row: 1;
+        width: 132px;
+        padding: 0;
+        border: 0;
+        background: transparent;
+    }
+    body.urp-app #page-schedule .week-select-wrap > span { display: none; }
+    body.urp-app #page-schedule .week-select-wrap select {
+        padding-left: 0;
+        color: var(--ui-ink);
+        font-size: 23px;
+        font-weight: 750;
+        text-align: left;
+        text-align-last: left;
+    }
+    body.urp-app #page-schedule .week-select-wrap::after { right: 14px; top: 18px; }
+    body.urp-app #page-schedule .schedule-week-caption {
+        display: block;
+        grid-column: 1;
+        grid-row: 2;
+        min-width: 0;
+        color: var(--ui-muted);
+        font-size: 12px;
+        font-weight: 400;
+        line-height: 18px;
+        white-space: nowrap;
+    }
+    body.urp-app #page-schedule .schedule-week-caption > span:first-child { display: none; }
+    body.urp-app #schedule-mobile-range { display: block; }
+    body.urp-app #schedule-mobile-actions {
+        display: flex;
+        grid-column: 2;
+        grid-row: 1 / 3;
+        align-items: center;
+        gap: 4px;
+    }
+    body.urp-app #schedule-mobile-actions button {
+        min-width: 44px;
+        min-height: 44px;
+        padding: 8px;
+        border: 0;
+        background: transparent;
+        color: var(--ui-ink);
+        box-shadow: none;
+    }
+    body.urp-app #schedule-mobile-actions button:hover { background: var(--ui-accent-soft); }
+    body.urp-app #schedule-mobile-actions #update-schedule-btn { font-size: 0; }
+    body.urp-app #schedule-mobile-actions #update-schedule-btn::before { content: '更新'; font-size: 14px; }
+    body.urp-app #schedule-mobile-actions #update-schedule-btn:disabled::before { content: '更新中'; }
+    body.urp-app #schedule-mobile-more { font-size: 27px; font-weight: 750; line-height: 1; }
+    body.urp-app #schedule-mobile-more[aria-expanded="true"] { color: var(--ui-accent); background: var(--ui-accent-soft); }
+    body.urp-app #schedule-mobile-gesture { display: block; position: relative; margin-top: 6px; }
+    body.urp-app #schedule-mobile-gesture:has(.is-pulling) .schedule-gesture-help { visibility: hidden; }
+    body.urp-app #page-schedule .schedule-header { margin-bottom: 8px; }
+    body.urp-app #page-schedule .schedule-header-day {
+        min-height: 46px;
+        padding: 4px 0;
+        border-radius: 0;
+        background: transparent;
+        color: var(--ui-muted);
+    }
+    body.urp-app #page-schedule .schedule-day-name { font-size: 13px; font-weight: 600; }
+    body.urp-app #page-schedule .schedule-day-date { font-size: 10px; color: var(--ui-subtle); }
+    body.urp-app #page-schedule .schedule-day-today { color: var(--ui-accent); }
+    body.urp-app #page-schedule .schedule-day-today .schedule-day-date {
+        padding: 3px 5px;
+        border-radius: 5px;
+        color: white;
+        background: var(--ui-accent);
+    }
+    body.urp-app #page-schedule .timeline-item { background: transparent; }
+    body.urp-app #page-schedule .timeline-section { font-size: 16px; margin-bottom: 4px; }
+    body.urp-app #page-schedule .schedule-column-today { background: transparent; }
+    body.urp-app #page-schedule .schedule-data-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 768px) and (min-height: 600px) {
+    body.urp-app #page-schedule .course-card { justify-content: flex-start; padding: 7px 4px; }
+    body.urp-app #page-schedule .course-card-name { font-size: clamp(11px, 3vw, 13px); line-height: 1.35; }
+    body.urp-app #page-schedule .course-card-location { font-size: 10px; line-height: 1.3; }
+}
+
+/* 首页围绕下一项安排与常用教务任务展开。 */
+body.urp-app #page-home.active { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
+body.urp-app #page-home .home-icon-definitions { position: absolute; width: 0; height: 0; overflow: hidden; }
+body.urp-app #page-home .home-icon { display: block; width: 22px; height: 22px; flex-shrink: 0; }
+body.urp-app #page-home .home-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 16px; padding: 2px 0; }
+body.urp-app #page-home .home-heading > div { display: contents; }
+body.urp-app #page-home .home-heading-kicker { grid-column: 1; grid-row: 1; display: block; margin: 0; color: var(--ui-muted); font-size: 12px; }
+body.urp-app #page-home .home-heading h2 { grid-column: 1 / -1; grid-row: 2; }
+body.urp-app #page-home .home-heading-description { grid-column: 1 / -1; grid-row: 3; margin: 0; color: var(--ui-muted); font-size: 13px; line-height: 1.7; }
+body.urp-app #page-home .home-heading #home-today-date { grid-column: 2; grid-row: 1; }
+body.urp-app #page-home .home-heading h2 { margin: 0; color: var(--ui-ink); font-size: 28px; line-height: 1.3; letter-spacing: -.03em; }
+body.urp-app #page-home #home-today-date { color: var(--ui-muted); font-size: 13px; line-height: 1.6; white-space: nowrap; }
+body.urp-app #page-home .urgent-card { margin: 0; padding: 0; border: 0; background: transparent; }
+body.urp-app #page-home .urgent-header { gap: 12px; margin-bottom: 10px; padding-bottom: 0; border: 0; }
+body.urp-app #page-home .urgent-header h2 { font-size: 17px; line-height: 1.5; }
+body.urp-app #page-home .refresh-btn { min-width: 72px; padding: 0 8px; background: transparent; border-color: transparent; color: var(--ui-muted); }
+body.urp-app #page-home .refresh-btn:hover { color: var(--ui-accent); background: var(--ui-accent-soft); }
+body.urp-app #page-home .urgent-content { min-height: 0; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+body.urp-app #page-home .event-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px 14px;
+    padding: 18px;
+    border: 1px solid var(--ui-line);
+    border-radius: var(--ui-radius);
+    background: var(--ui-surface);
+}
+body.urp-app #page-home .event-card > * { grid-column: 1; min-width: 0; }
+body.urp-app #page-home .event-card-current { background: var(--ui-accent-soft); border-color: #bdcee7; }
+body.urp-app #page-home .event-card-exam { border-color: #e6c7cc; }
+body.urp-app #page-home .event-type { grid-row: 1; display: flex; align-items: center; gap: 7px; margin: 0 0 5px; color: var(--ui-muted); font-size: 12px; }
+body.urp-app #page-home .home-event-icon { color: var(--ui-accent); }
+body.urp-app #page-home .home-event-icon .home-icon { width: 18px; height: 18px; }
+body.urp-app #page-home .event-card-exam .home-event-icon { color: var(--ui-exam-ink); }
+body.urp-app #page-home .event-title { grid-row: 2; margin: 0; font-size: 20px; line-height: 1.4; letter-spacing: 0; overflow-wrap: anywhere; }
+body.urp-app #page-home .event-location { grid-row: 3; display: block; margin: 0; padding: 0; color: var(--ui-ink); background: none; font-size: 14px; line-height: 1.6; letter-spacing: 0; overflow-wrap: anywhere; }
+body.urp-app #page-home :is(.event-time, .event-time-label) { grid-row: 4; margin: 0; color: var(--ui-muted); font-size: 13px; line-height: 1.6; font-weight: 400; letter-spacing: 0; overflow-wrap: anywhere; }
+body.urp-app #page-home .event-seat { grid-row: 5; margin: 0; padding: 0; background: none; color: var(--ui-muted); font-size: 13px; line-height: 1.6; }
+body.urp-app #page-home .event-card .countdown { grid-column: 2; grid-row: 2; align-self: center; margin: 0; color: var(--ui-accent); font-size: 22px; line-height: 1.4; font-weight: 750; letter-spacing: -.02em; white-space: nowrap; font-variant-numeric: tabular-nums; }
+body.urp-app #page-home .event-card .countdown-label { grid-column: 2; grid-row: 3; margin: 0; color: var(--ui-muted); font-size: 12px; text-align: right; }
+body.urp-app #page-home .countdown-urgent { animation: none; }
+body.urp-app #page-home .rest-message { padding: 0; margin: 0; color: var(--ui-muted); font-size: 13px; line-height: 1.6; text-align: left; }
+body.urp-app #page-home .home-welcome { display: block; min-height: 0; padding: 0; margin: 0; border: 0; background: transparent; }
+body.urp-app #page-home .home-welcome-copy { max-width: none; }
+body.urp-app #page-home .home-welcome h2 { max-width: none; margin: 0 0 14px; font-size: 17px; line-height: 1.5; letter-spacing: 0; }
+body.urp-app #page-home .home-shortcuts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+body.urp-app #page-home .home-shortcuts button { display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 82px; padding: 12px; border: 1px solid var(--ui-line); background: var(--ui-surface); font-family: inherit; transform: none; box-shadow: none; }
+body.urp-app #page-home .home-shortcuts button:hover { border-color: #91b2de; background: var(--ui-surface-soft); }
+body.urp-app #page-home .home-shortcut-icon { display: flex; flex-shrink: 0; align-items: center; justify-content: center; width: 34px; height: 38px; color: var(--ui-accent); }
+body.urp-app #page-home .home-shortcut-copy { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; }
+body.urp-app #page-home .home-shortcut-copy strong { display: block; color: var(--ui-ink); font-size: 15px; font-weight: 650; line-height: 1.5; }
+body.urp-app #page-home .home-shortcut-copy > span { grid-column: 1; grid-row: auto; color: var(--ui-muted); font-size: 12px; font-weight: 400; line-height: 1.5; overflow-wrap: anywhere; }
+body.urp-app #page-home .home-secondary-shortcuts { display: block; margin: 10px 0 0; padding: 0; border: 0; }
+body.urp-app #page-home .home-secondary-shortcuts button { display: flex; align-items: center; justify-content: flex-start; gap: 10px; min-height: 66px; width: 100%; padding: 10px 12px; border: 1px solid var(--ui-line); border-radius: var(--ui-radius-sm); background: var(--ui-surface); font-family: inherit; text-align: left; cursor: pointer; }
+body.urp-app #page-home .home-secondary-shortcuts button:hover { background: var(--ui-surface-soft); border-color: #91b2de; }
+body.urp-app #page-home .home-shortcut-arrow { margin-left: auto; color: var(--ui-subtle); font-size: 20px; }
+body.urp-app #page-home .home-agenda { display: block; min-width: 0; padding: 0; border: 0; background: transparent; }
+body.urp-app #page-home .home-agenda-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+body.urp-app #page-home .home-agenda-heading h2 { margin: 0; font-size: 17px; line-height: 1.5; }
+body.urp-app #page-home .home-agenda-link { min-height: 44px; padding: 0 4px; border: 0; border-radius: 6px; background: transparent; color: var(--ui-accent); font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; }
+body.urp-app #page-home .home-agenda-link:hover { background: var(--ui-accent-soft); }
+body.urp-app #page-home .home-agenda-list { list-style: none; margin: 0; padding: 0 14px; border: 1px solid var(--ui-line); border-radius: var(--ui-radius); background: var(--ui-surface); }
+body.urp-app #page-home .home-agenda-item { display: grid; grid-template-columns: 82px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 76px; padding: 14px 0; border: 0; }
+body.urp-app #page-home .home-agenda-item + .home-agenda-item { border-top: 1px solid var(--ui-line); }
+body.urp-app #page-home .home-agenda-item time { color: var(--ui-muted); font-size: 11px; line-height: 1.5; font-variant-numeric: tabular-nums; }
+body.urp-app #page-home .home-agenda-item > div { display: grid; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+body.urp-app #page-home .home-agenda-item strong { font-size: 14px; font-weight: 650; line-height: 1.5; }
+body.urp-app #page-home .home-agenda-item > div > span { color: var(--ui-muted); font-size: 12px; line-height: 1.5; }
+body.urp-app #page-home .home-agenda-status { color: var(--ui-muted); font-size: 11px; white-space: nowrap; }
+body.urp-app #page-home .home-agenda-item.is-current :is(time, .home-agenda-status) { color: var(--ui-accent); font-weight: 650; }
+body.urp-app #page-home .home-agenda-empty { padding: 8px 0; color: var(--ui-muted); font-size: 13px; line-height: 1.7; }
+body.urp-app #page-home .home-agenda-empty p { margin: 0; }
+body.urp-app #page-home .home-query-error { padding: 8px 0; color: var(--ui-muted); font-size: 13px; line-height: 1.7; }
+body.urp-app #page-home .home-state { grid-column: 1 / -1; display: flex; align-items: flex-start; gap: 14px; padding: 22px 18px; border: 1px solid var(--ui-line); border-radius: var(--ui-radius); background: var(--ui-surface); }
+body.urp-app #page-home .home-state-icon { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; flex-shrink: 0; border-radius: var(--ui-radius-sm); background: var(--ui-accent-soft); color: var(--ui-accent); }
+body.urp-app #page-home .home-state strong { font-size: 17px; line-height: 1.5; }
+body.urp-app #page-home .home-state p { margin: 8px 0 14px; color: var(--ui-muted); font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
+body.urp-app #page-home .home-state button { min-height: 44px; font-size: 13px; }
+body.urp-app #page-home .home-state-error .home-state-icon { color: var(--ui-exam-ink); background: var(--ui-exam-surface); }
+body.urp-app #page-home .home-events-loading { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+body.urp-app #page-home .home-events-loading > span { min-height: 100px; }
+body.urp-app #page-home .home-events-loading > span:nth-child(2) { display: none; }
+
+@media (min-width: 1100px) {
+    body.urp-app #page-home.active { grid-template-columns: minmax(0, 1.5fr) minmax(340px, 1fr); gap: 24px; }
+    body.urp-app #page-home .home-heading { grid-column: 1 / -1; }
+    body.urp-app #page-home .home-heading h2 { font-size: 30px; }
+    body.urp-app #page-home #home-today-date { font-size: 14px; }
+    body.urp-app #page-home .urgent-card { grid-column: 1 / -1; }
+    body.urp-app #page-home .urgent-content { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    body.urp-app #page-home .event-card { padding: 22px; }
+    body.urp-app #page-home .event-title { font-size: 23px; }
+    body.urp-app #page-home .event-card .countdown { font-size: 26px; }
+    body.urp-app #page-home .home-agenda { grid-column: 1; grid-row: 3; }
+    body.urp-app #page-home .home-welcome { grid-column: 2; grid-row: 3; }
+    body.urp-app #page-home .home-shortcuts button { min-height: 92px; padding: 12px 10px; gap: 6px; }
+    body.urp-app #page-home .home-shortcut-copy > span { font-size: 12px; }
+    body.urp-app #page-home .home-agenda-item { grid-template-columns: 100px minmax(0, 1fr) auto; gap: 16px; }
+    body.urp-app #page-home .home-agenda-item time { font-size: 13px; }
+    body.urp-app #page-home .home-agenda-item strong { font-size: 15px; }
+    body.urp-app #page-home .home-events-loading { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    body.urp-app #page-home .home-events-loading > span:nth-child(2) { display: block; }
+}
+
+@media (max-width: 360px) {
+    body.urp-app #page-home .home-shortcuts button { gap: 5px; padding: 10px 8px; }
+    body.urp-app #page-home .home-shortcut-icon { width: 28px; }
+    body.urp-app #page-home .home-agenda-item { grid-template-columns: 72px minmax(0, 1fr); gap: 5px 9px; }
+    body.urp-app #page-home .home-agenda-status { grid-column: 2; }
+    body.urp-app #page-home .event-card { padding: 14px; gap: 6px 10px; }
+    body.urp-app #page-home .event-card .countdown { font-size: 19px; }
 }

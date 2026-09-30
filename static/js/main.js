@@ -494,8 +494,10 @@ function handleUiKeydown(event) {
         return;
     }
 
-    if (event.key !== 'Tab' || !modal) return;
-    const focusable = getUiFocusable(modal);
+    const sidebar = document.getElementById('sidebar');
+    const focusContainer = modal || (sidebar?.classList.contains('active') ? sidebar : null);
+    if (event.key !== 'Tab' || !focusContainer) return;
+    const focusable = getUiFocusable(focusContainer);
     if (focusable.length === 0) {
         event.preventDefault();
         return;
@@ -854,10 +856,107 @@ function showRebindNotifications(notifications) {
 }
 
 // ==================== 侧边栏控制 ====================
-function openSidebar() {
+function isDesktopWorkspace() {
+    return Boolean(window.matchMedia?.('(min-width: 1100px)').matches);
+}
+
+function isMobileWorkspace() {
+    return Boolean(window.matchMedia?.('(max-width: 768px)').matches);
+}
+
+function getSidebarTrigger() {
+    return document.getElementById(isMobileWorkspace() ? 'mobile-nav-more' : 'menu-trigger');
+}
+
+function initMobileWorkspaceLayout() {
+    const query = window.matchMedia?.('(max-width: 768px)');
+    const status = document.getElementById('login-status-indicator');
+    const account = document.getElementById('mobile-account-status');
+    const announcement = document.getElementById('announcement-trigger');
+    const announcementSlot = document.getElementById('mobile-announcement-slot');
+    const header = status?.parentElement;
+    if (!query || !status || !account || !header) return;
+    const sync = () => {
+        closeSidebar({ restoreFocus: false });
+        if (query.matches) {
+            account.append(status);
+            if (announcement && announcementSlot) announcementSlot.append(announcement);
+        } else {
+            if (announcement) header.append(announcement);
+            header.append(status);
+        }
+    };
+    query.addEventListener?.('change', sync);
+    sync();
+}
+
+// 同一组导航和按钮在断点之间移动，保留原事件与条件显示规则。
+function createDesktopWorkspaceLayout() {
+    if (typeof document.querySelector !== 'function') return () => {};
     const sidebar = document.getElementById('sidebar');
-    const trigger = document.getElementById('menu-trigger');
+    const nav = sidebar?.querySelector('.sidebar-nav');
+    const host = document.getElementById('desktop-navigation');
+    const navMore = document.getElementById('desktop-nav-more');
+    const actions = document.querySelector('.schedule-data-actions');
+    const more = document.getElementById('schedule-more');
+    if (!nav || !host || !navMore || !actions || !more) return () => {};
+    const links = Array.from(nav.querySelectorAll('.nav-item'));
+    const buttons = Array.from(actions.querySelectorAll(':scope > button'));
+    const menus = [navMore, more];
+    menus.forEach(menu => {
+        menu.addEventListener('click', event => {
+            if (event.target.closest('button, a')) menu.querySelector('summary').focus();
+        }, true);
+        menu.addEventListener('click', event => {
+            if (event.target.closest('button, a')) menu.open = false;
+        });
+        menu.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && menu.open) {
+                menu.open = false;
+                menu.querySelector('summary').focus();
+                event.stopPropagation();
+            }
+        });
+    });
+    document.addEventListener('click', event => {
+        menus.forEach(menu => { if (!menu.contains(event.target)) menu.open = false; });
+    });
+    return desktop => {
+        menus.forEach(menu => { menu.open = false; });
+        if (desktop) {
+            host.append(nav);
+            links.slice(5).forEach(link => navMore.querySelector('.desktop-menu-items').append(link));
+            buttons.slice(1).forEach(button => more.querySelector('.desktop-menu-items').append(button));
+            actions.insertBefore(buttons[0], more);
+        } else {
+            links.forEach(link => nav.append(link));
+            sidebar.insertBefore(nav, sidebar.querySelector('.sidebar-footer'));
+            buttons.forEach(button => actions.insertBefore(button, more));
+        }
+    };
+}
+
+function returnToCurrentScheduleWeek() {
+    const start = currentSemesterStartValue();
+    if (!start) {
+        showUiToast('学期日期待确认，暂时无法定位本周', 'info');
+        return;
+    }
+    const elapsed = Date.parse(`${getCalendarChinaToday()}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`);
+    const week = Math.floor(elapsed / (7 * 86400000)) + 1;
+    if (week < SCHEDULE_MIN_WEEK || week > SCHEDULE_MAX_WEEK) {
+        showUiToast('当前日期不在本学期课表范围内', 'info');
+        return;
+    }
+    jumpToWeek(week);
+}
+
+function openSidebar() {
+    if (isDesktopWorkspace()) return;
+    const sidebar = document.getElementById('sidebar');
+    const trigger = getSidebarTrigger();
     toggleUiClass(sidebar, 'active', true);
+    sidebar?.setAttribute('aria-hidden', 'false');
     if (trigger) trigger.setAttribute('aria-expanded', 'true');
     syncUiOverlay();
     const closeButton = sidebar && sidebar.querySelector
@@ -868,16 +967,21 @@ function openSidebar() {
 
 function closeSidebar({ restoreFocus = true } = {}) {
     const sidebar = document.getElementById('sidebar');
-    const trigger = document.getElementById('menu-trigger');
+    const trigger = getSidebarTrigger();
+    if (sidebar?.contains?.(document.activeElement)) document.activeElement?.blur?.();
     toggleUiClass(sidebar, 'active', false);
-    if (trigger) trigger.setAttribute('aria-expanded', 'false');
+    sidebar?.setAttribute('aria-hidden', 'true');
+    ['menu-trigger', 'mobile-nav-more'].forEach(id => {
+        document.getElementById(id)?.setAttribute('aria-expanded', 'false');
+    });
     syncUiOverlay();
-    if (restoreFocus) focusUiElement(trigger);
+    if (restoreFocus && !isDesktopWorkspace()) focusUiElement(trigger);
 }
 
 // ==================== 页面切换 ====================
 // 监听导航项点击
 document.addEventListener('DOMContentLoaded', function() {
+    initMobileWorkspaceLayout();
     const navItems = document.querySelectorAll('.nav-item');
 
     navItems.forEach(item => {
@@ -887,12 +991,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const pageName = this.getAttribute('data-page');
             switchPage(pageName);
 
-            // 更新导航项激活状态
-            navItems.forEach(nav => nav.classList.remove('active'));
-            this.classList.add('active');
-
             // 关闭侧边栏
-            closeSidebar();
+            closeSidebar({ restoreFocus: false });
+            focusCurrentPage(pageName);
         });
     });
 });
@@ -975,6 +1076,14 @@ function switchPage(pageName, { scheduleWeek = null } = {}) {
         }
     });
 
+    const more = document.getElementById('mobile-nav-more');
+    if (more) {
+        const isMorePage = !['home', 'schedule', 'grades'].includes(selectedNavPage);
+        toggleUiClass(more, 'active', isMorePage);
+        if (isMorePage) more.setAttribute('aria-current', 'true');
+        else more.removeAttribute('aria-current');
+    }
+
     // 保存当前页面到 localStorage
     localStorage.setItem('current_page', pageName);
 
@@ -988,6 +1097,22 @@ function openHomeShortcut(pageName) {
         return;
     }
     switchPage(pageName);
+    focusCurrentPage(pageName);
+}
+
+function focusCurrentPage(pageName) {
+    if (isDesktopWorkspace() || isMobileWorkspace()) {
+        const page = document.getElementById(`page-${pageName}`);
+        const heading = Array.from(page?.querySelectorAll?.('h1, h2') || [])
+            .find(element => element.getClientRects().length > 0);
+        const target = heading || page;
+        if (target) {
+            target.setAttribute('tabindex', '-1');
+            if (!heading) target.setAttribute('aria-label', document.getElementById('page-title')?.textContent || pageName);
+            target.focus({ preventScroll: isDesktopWorkspace() });
+        }
+        return;
+    }
     const title = document.getElementById('page-title');
     if (title && typeof title.focus === 'function') title.focus();
 }
@@ -1176,19 +1301,66 @@ async function loadServiceStatus() {
 }
 
 // ==================== 首页：加载紧急事件 ====================
+function homeIcon(name) {
+    return `<svg class="home-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#home-icon-${name}"/></svg>`;
+}
+
+function renderHomeState(kind, message) {
+    const states = {
+        empty: { title: '暂无后续安排', message: '暂未查询到后续课程或考试。课表有变动时，可前往日程表更新。', icon: 'calendar', action: "openHomeShortcut('schedule')", button: '查看课表' },
+        guest: { title: '登录后查看你的安排', message: '课程、考试和上课地点会显示在这里。', icon: 'calendar', action: 'showLoginModal()', button: '登录教务账号' },
+        error: { title: '安排暂时未能读取', message: '请检查网络后重试。', icon: 'warning', action: 'refreshUrgentEvent()', button: '重试' },
+    };
+    const state = states[kind];
+    return `<div class="home-state home-state-${kind}"${kind === 'error' ? ' role="alert"' : ''}>
+        <span class="home-state-icon">${homeIcon(state.icon)}</span>
+        <div><strong>${state.title}</strong><p>${escapeScheduleHtml(message || state.message)}</p>
+        <button class="${kind === 'guest' ? 'btn-primary' : 'btn-secondary'}" type="button" onclick="${state.action}">${state.button}</button></div>
+    </div>`;
+}
+
+function renderHomeAgenda(eventData) {
+    const content = document.getElementById('home-agenda-content');
+    const title = document.getElementById('home-agenda-title');
+    if (!content) return;
+    if (title) title.textContent = eventData.upcoming_label || '今日安排';
+    const courses = Array.isArray(eventData.upcoming) ? eventData.upcoming : [];
+    content.innerHTML = courses.length
+        ? '<ol class="home-agenda-list">' + courses.map(course => `<li class="home-agenda-item${course.status === 'current' ? ' is-current' : ''}">
+            <time>${escapeScheduleHtml(course.time || '时间待定')}</time>
+            <div><strong>${escapeScheduleHtml(course.title || '课程')}</strong><span>${escapeScheduleHtml(course.location || '上课地点待确认')}</span></div>
+            <span class="home-agenda-status">${course.status === 'current' ? '进行中' : '待上课'}</span>
+        </li>`).join('') + '</ol>'
+        : '<div class="home-agenda-empty"><p>暂无后续课程。考试时间和考场可从「查考试」查看。</p></div>';
+}
+
 async function loadUrgentEvent() {
     const generation = academicCacheGeneration;
     // 后台检查登录状态（不阻塞日程加载）
     checkLoginStatus();
 
     const contentDiv = document.getElementById('urgent-content');
+    const agenda = document.getElementById('home-agenda-content');
+    const today = document.getElementById('home-today-date');
+    if (today) {
+        const date = getCalendarChinaToday();
+        today.dateTime = date;
+        today.textContent = new Date(`${date}T00:00:00Z`).toLocaleDateString('zh-CN', {
+            timeZone: 'UTC', month: 'long', day: 'numeric', weekday: 'long',
+        });
+    }
+    if (countdownTimer) clearInterval(countdownTimer);
+    if (nextCountdownTimer) clearInterval(nextCountdownTimer);
+    countdownTimer = nextCountdownTimer = null;
 
     if (isGuestMode) {
-        contentDiv.innerHTML = '<p style="text-align:center;color:var(--text-secondary);">登录教务账号后可查看今日课程和考试安排</p>';
+        contentDiv.innerHTML = renderHomeState('guest');
+        if (agenda) agenda.innerHTML = '<div class="home-agenda-empty"><p>登录后，这里会展示当天剩余课程或下一个有课日的课程。</p></div>';
         return;
     }
 
-    contentDiv.innerHTML = '<div class="loading">加载中</div>';
+    contentDiv.innerHTML = '<div class="home-events-loading" role="status" aria-label="正在读取课程和考试安排"><span></span><span></span><p>正在读取安排…</p></div>';
+    if (agenda) agenda.innerHTML = '<div class="loading">正在读取课程安排…</div>';
 
     try {
         const response = await fetch('/api/urgent_event', {
@@ -1197,7 +1369,7 @@ async function loadUrgentEvent() {
             }
         });
         const data = await response.json();
-        if (generation !== academicCacheGeneration) return;
+        if (generation !== academicCacheGeneration || isGuestMode) return;
 
         if (data.success && data.event) {
             updateScheduleTimeline(data.event.is_freshman);
@@ -1216,14 +1388,17 @@ async function loadUrgentEvent() {
             }
         } else if (data.success) {
             updateScheduleTimeline(data.is_freshman);
-            contentDiv.innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">今天没有课程和考试，好好休息吧~</p>';
+            contentDiv.innerHTML = renderHomeState('empty');
+            renderHomeAgenda({});
         } else {
-            contentDiv.innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">今天没有课程和考试，好好休息吧~</p>';
+            contentDiv.innerHTML = renderHomeState('error', data.message || '查询失败，请重试。');
+            if (agenda) agenda.innerHTML = '<p class="home-query-error">课程安排未能读取，请点击上方刷新重试。</p>';
         }
     } catch (error) {
-        if (generation !== academicCacheGeneration) return;
+        if (generation !== academicCacheGeneration || isGuestMode) return;
         console.error('加载紧急事件失败:', error);
-        contentDiv.innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+        contentDiv.innerHTML = renderHomeState('error', '加载失败，请检查网络后重试。');
+        if (agenda) agenda.innerHTML = '<p class="home-query-error">课程安排未能读取，请点击上方刷新重试。</p>';
     }
 }
 
@@ -1271,6 +1446,7 @@ function formatMinutes(minutes) {
 
 function displayUrgentEvent(eventData) {
     const contentDiv = document.getElementById('urgent-content');
+    renderHomeAgenda(eventData);
 
     if (countdownTimer) {
         clearInterval(countdownTimer);
@@ -1294,7 +1470,7 @@ function displayUrgentEvent(eventData) {
     function getStartTime(timeStr) {
         if (!timeStr) return '';
         const t = timeStr.split(' ')[1] || '';
-        return t.split('-')[0];
+        return next?.time_range || t;
     }
 
     function getTimeLabel(timeStr) {
@@ -1323,33 +1499,18 @@ function displayUrgentEvent(eventData) {
 
     let html = '';
 
-    // 今天没课或课程已结束时，显示关怀语
-    if (noMoreToday) {
-        const dow = new Date(`${todayStr}T00:00:00Z`).getUTCDay();
-        const nextDiffDays = nextDateStr
-            ? (Date.parse(`${nextDateStr}T00:00:00Z`) - Date.parse(`${todayStr}T00:00:00Z`)) / 86400000
-            : 999;
-        let restMsg;
-        if (dow === 5 && nextDiffDays >= 3) {
-            // 周五且下一节课不在本周末
-            restMsg = '周末快乐！好好放松一下吧~';
-        } else if (dow === 6 && nextDiffDays >= 2) {
-            // 周六且下一节课不是周日
-            restMsg = '周末愉快，充充电准备新的一周~';
-        } else {
-            restMsg = '今天没课了，好好休息~';
-        }
-        html += `<p class="rest-message">${restMsg}</p>`;
+    if (noMoreToday && next) {
+        html += '<p class="rest-message">今天暂无后续安排，下面是下一项提醒。</p>';
     }
 
     // 正在进行的课程（保留倒计时）
     if (current) {
         html += `
             <div class="event-card event-card-current">
-                <div class="event-type">正在进行</div>
-                <div class="event-title">${current.title}</div>
-                <div class="event-location">${current.location}</div>
-                <div class="event-time">${current.time}</div>
+                <div class="event-type"><span class="home-event-icon">${homeIcon('calendar')}</span><span>正在上课</span></div>
+                <div class="event-title">${escapeScheduleHtml(current.title)}</div>
+                <div class="event-location">${escapeScheduleHtml(current.location)}</div>
+                <div class="event-time">${escapeScheduleHtml(current.time)}</div>
                 <div class="countdown" id="current-remaining">${current.remaining}分钟</div>
                 <div class="countdown-label">后下课</div>
             </div>
@@ -1360,32 +1521,32 @@ function displayUrgentEvent(eventData) {
     if (next) {
         let typeText;
         if (next.type === 'exam') {
-            typeText = '考试提醒';
+            typeText = '下一场考试';
         } else if (nextIsToday && current) {
-            typeText = '接下来';
+            typeText = '下一节课';
         } else if (nextIsToday) {
-            typeText = '今天还有课';
+            typeText = '下一节课';
         } else {
             typeText = '下一节课';
         }
-        const seatHtml = next.seat ? `<div class="event-seat">座位号: ${next.seat}</div>` : '';
+        const seatHtml = next.seat ? `<div class="event-seat">座位号： ${escapeScheduleHtml(next.seat)}</div>` : '';
         const timeLabel = getTimeLabel(next.time);
         const nextCountdownHtml = (nextIsToday && next.countdown != null)
-            ? `<div class="countdown${next.countdown <= 10 ? ' countdown-urgent' : ''}" id="next-remaining">${formatMinutes(next.countdown)}</div><div class="countdown-label">后上课</div>`
+            ? `<div class="countdown${next.countdown <= 10 ? ' countdown-urgent' : ''}" id="next-remaining">${formatMinutes(next.countdown)}</div><div class="countdown-label">${next.type === 'exam' ? '后考试' : '后上课'}</div>`
             : '';
 
         html += `
-            <div class="event-card${current ? ' event-card-next' : ' event-card-upcoming'}">
-                <div class="event-type">${typeText}</div>
-                <div class="event-title">${next.title}</div>
-                <div class="event-location">${next.location}</div>
-                <div class="event-time-label">${timeLabel}</div>
+            <div class="event-card${current ? ' event-card-next' : ' event-card-upcoming'}${next.type === 'exam' ? ' event-card-exam' : ''}">
+                <div class="event-type"><span class="home-event-icon">${homeIcon(next.type === 'exam' ? 'exam' : 'calendar')}</span><span>${typeText}</span></div>
+                <div class="event-title">${escapeScheduleHtml(next.title)}</div>
+                <div class="event-location">${escapeScheduleHtml(next.location)}</div>
+                <div class="event-time-label">${escapeScheduleHtml(timeLabel)}</div>
                 ${seatHtml}
                 ${nextCountdownHtml}
             </div>
         `;
     } else if (!current) {
-        html += '<p class="rest-message" style="margin-top:8px;font-size:13px;">近期没有更多课程安排</p>';
+        html = renderHomeState('empty');
     }
 
     contentDiv.innerHTML = html;
@@ -1882,6 +2043,8 @@ function handleSchedulePointerDown(event) {
     const swipe = getScheduleSwipeElements();
     if (!swipe || scheduleSwipeGesture.pointerId !== null || scheduleQueuedPointer.pointerId !== null) return;
     if (event.pointerType === 'mouse' && event.button !== 0) return;
+    // 新一次按下与上一轮滑动的合成点击无关，课程按钮也需要清除旧标记。
+    suppressScheduleSwipeClick = false;
     if (event.target.closest && event.target.closest('button, select, a, input, textarea')) return;
 
     if (scheduleSwipeTransition) {
@@ -1915,7 +2078,6 @@ function handleSchedulePointerDown(event) {
     scheduleSwipeGesture.releasedAfterCrash = false;
     scheduleSwipeGesture.lastMoveTime = Date.now();
     clearScheduleDinoGestureTimers();
-    suppressScheduleSwipeClick = false;
     swipe.viewport.classList.remove(
         'is-dino-jumping',
         'is-dino-reversing',
@@ -2168,9 +2330,20 @@ function showScheduleActions() {
     panel.classList.add('is-open');
     panel.removeAttribute('inert');
     panel.setAttribute('aria-hidden', 'false');
+    document.getElementById('schedule-mobile-more')?.setAttribute('aria-expanded', 'true');
+}
+
+function toggleScheduleActions() {
+    const panel = document.getElementById('schedule-actions');
+    if (panel?.classList.contains('is-open')) hideScheduleActions(false);
+    else showScheduleActions();
 }
 
 function hideScheduleActions(focusTimetable = true, preventScroll = false) {
+    if (isDesktopWorkspace()) {
+        showScheduleActions();
+        return;
+    }
     const panel = document.getElementById('schedule-actions');
     if (!panel || !panel.classList) return;
     if (focusTimetable && typeof panel.contains === 'function' && panel.contains(document.activeElement)) {
@@ -2182,6 +2355,7 @@ function hideScheduleActions(focusTimetable = true, preventScroll = false) {
     panel.classList.remove('is-open');
     panel.setAttribute('inert', '');
     panel.setAttribute('aria-hidden', 'true');
+    document.getElementById('schedule-mobile-more')?.setAttribute('aria-expanded', 'false');
     resetScheduleActionPull();
 }
 
@@ -2190,6 +2364,7 @@ function scheduleActionTouch(event) {
 }
 
 function handleScheduleActionTouchStart(event) {
+    if (isDesktopWorkspace()) return;
     const panel = document.getElementById('schedule-actions');
     const touch = event.touches && event.touches[0];
     if (!panel || !touch) return;
@@ -2248,6 +2423,7 @@ function handleScheduleActionTouchEnd(event) {
 }
 
 function handleScheduleActionWheel(event) {
+    if (isDesktopWorkspace()) return;
     const panel = document.getElementById('schedule-actions');
     if (!panel) return;
     const isOpen = panel.classList.contains('is-open');
@@ -2271,6 +2447,7 @@ function handleScheduleActionWheel(event) {
 }
 
 function handleScheduleActionKeyDown(event) {
+    if (isDesktopWorkspace()) return;
     if (event.target?.closest?.('input, select, textarea, .schedule-unplaced-exams')) return;
     const page = document.getElementById('page-schedule');
     const panel = document.getElementById('schedule-actions');
@@ -2281,11 +2458,55 @@ function handleScheduleActionKeyDown(event) {
     showScheduleActions();
 }
 
+function createMobileScheduleLayout() {
+    const container = document.querySelector('#page-schedule .schedule-container');
+    const toolbar = container?.querySelector('.schedule-toolbar');
+    const week = container?.querySelector('.schedule-week-toolbar');
+    const controls = week?.querySelector('.schedule-week-controls');
+    const help = controls?.querySelector('.schedule-gesture-help');
+    const pull = document.getElementById('schedule-actions-pull');
+    const gesture = document.getElementById('schedule-mobile-gesture');
+    const actions = document.getElementById('schedule-mobile-actions');
+    const update = document.getElementById('update-schedule-btn');
+    if (!container || !toolbar || !week || !controls || !gesture || !actions) return () => {};
+    return mobile => {
+        if (mobile) {
+            container.prepend(week);
+            if (help) gesture.append(help);
+            if (pull) gesture.append(pull);
+            if (update) actions.prepend(update);
+        } else {
+            toolbar.prepend(week);
+            if (help) controls.append(help);
+            if (pull) controls.append(pull);
+        }
+    };
+}
+
 function initScheduleActions() {
     const page = document.getElementById('page-schedule');
     const panel = document.getElementById('schedule-actions');
     if (!page || !panel || page.dataset.scheduleActionsReady === 'true') return;
     page.dataset.scheduleActionsReady = 'true';
+    const desktopQuery = window.matchMedia?.('(min-width: 1100px)');
+    const syncDesktopLayout = createDesktopWorkspaceLayout();
+    const mobileQuery = window.matchMedia?.('(max-width: 768px)');
+    const syncMobileLayout = createMobileScheduleLayout();
+    const syncWorkspace = () => {
+        syncDesktopLayout(Boolean(desktopQuery?.matches));
+        syncMobileLayout(Boolean(mobileQuery?.matches));
+        scheduleActionReveal.touchId = null;
+        resetScheduleActionPull();
+        if (desktopQuery?.matches) {
+            closeSidebar({ restoreFocus: false });
+            showScheduleActions();
+        } else {
+            hideScheduleActions(false);
+        }
+    };
+    desktopQuery?.addEventListener?.('change', syncWorkspace);
+    mobileQuery?.addEventListener?.('change', syncWorkspace);
+    syncWorkspace();
     page.addEventListener('touchstart', handleScheduleActionTouchStart, { passive: true });
     page.addEventListener('touchmove', handleScheduleActionTouchMove, { passive: false });
     page.addEventListener('touchend', handleScheduleActionTouchEnd);
@@ -2776,7 +2997,7 @@ function renderScheduleWeek(schedule, panel, courseColorMap = buildScheduleCours
 
     let html = '';
     for (let day = 1; day <= 7; day++) {
-        html += `<div class="schedule-day-column${day >= 6 ? ' schedule-day-weekend' : ''}">`;
+        html += `<div class="schedule-day-column${day >= 6 ? ' schedule-day-weekend' : ''}" data-schedule-column-day="${day}">`;
         buildScheduleDayCardLayout(daysCourses[day]).forEach(course => {
             if (course.kind === 'exam' && course.lanes > 1) {
                 unplacedExams.push({ ...course, note: '同一时段还有其他安排，请核对实际时间' });
@@ -2784,15 +3005,19 @@ function renderScheduleWeek(schedule, panel, courseColorMap = buildScheduleCours
             const position = scheduleCourseGridPlacement(course.section, course.duration)
                 + ` --schedule-event-lanes: ${course.lanes}; --schedule-event-lane: ${course.lane};`;
             const isExam = course.kind === 'exam';
-            const color = courseColorMap.get(getScheduleCourseColorKey(course)) || 'hsl(208, 72%, 40%)';
+            const startTime = times[course.section - 1]?.start;
+            const endTime = times[course.section + course.duration - 2]?.end;
+            const courseTime = startTime && endTime ? `${startTime}-${endTime}` : '';
+            const color = courseColorMap.get(getScheduleCourseColorKey(course)) || 'hsl(208, 72%, 27%)';
             const data = encodeURIComponent(JSON.stringify(course));
-            html += `<button type="button" class="course-card${isExam ? ' schedule-exam-card' : ''}"
-                style="${position}${isExam ? '' : ` background: ${color};`}"
-                title="${escapeScheduleHtml(`${course.name}${isExam ? ` · 考试 · ${course.time}` : ''}${course.location ? ` · ${course.location}` : ''}`)}"
+            html += `<button type="button" class="course-card${isExam ? ' schedule-exam-card' : ''}${course.duration === 1 ? ' is-single-period' : ''}"
+                style="${position}${isExam ? '' : ` --course-color: ${color}; background: ${color};`}"
+                title="${escapeScheduleHtml(`${course.name}${isExam ? ` · 考试 · ${course.time}` : courseTime ? ` · ${courseTime}` : ''}${course.location ? ` · ${course.location}` : ''}`)}"
                 data-course="${data}" data-day="${day}" tabindex="${panel.getAttribute?.('aria-hidden') === 'true' ? -1 : 0}" onclick="showCourseDetail(this)">
                 <span class="course-card-name">${escapeScheduleHtml(course.name)}</span>
                 ${isExam ? `<span class="schedule-exam-time" aria-label="${escapeScheduleHtml(course.time)}"><span>${escapeScheduleHtml(course.time.split('-')[0])}</span><span aria-hidden="true">-</span><span>${escapeScheduleHtml(course.time.split('-')[1])}</span></span>` : ''}
                 ${course.location ? `<span class="course-card-location">${escapeScheduleHtml(course.location)}</span>` : ''}
+                ${!isExam && courseTime ? `<span class="course-card-period desktop-only">${courseTime} · 第${course.section}${course.duration > 1 ? `-${course.section + course.duration - 1}` : ''}节</span>` : ''}
                 ${isExam ? '<span class="schedule-exam-label">考试</span>' : ''}
             </button>`;
         });
@@ -2890,7 +3115,7 @@ function buildScheduleCourseColorMap(schedule = {}) {
     const colorMap = new Map();
     sortedCourseKeys.forEach((courseKey, index) => {
         const hue = (208 + (index * 360) / sortedCourseKeys.length) % 360;
-        colorMap.set(courseKey, `hsl(${hue.toFixed(3)}, 72%, 40%)`);
+        colorMap.set(courseKey, `hsl(${hue.toFixed(3)}, 72%, 27%)`);
     });
     return colorMap;
 }
@@ -2983,6 +3208,21 @@ function updateScheduleDates(week) {
 
     const activeStart = currentSemesterStartValue();
     const today = getCalendarChinaToday();
+    const range = document.getElementById('schedule-desktop-range');
+    if (range) {
+        range.textContent = activeStart
+            ? `${getCalendarDate(activeStart, week, 1)} 至 ${getCalendarDate(activeStart, week, 7)}`
+            : '学期日期待确认';
+    }
+    const mobileRange = document.getElementById('schedule-mobile-range');
+    if (mobileRange) {
+        const start = activeStart && getCalendarDate(activeStart, week, 1);
+        const end = activeStart && getCalendarDate(activeStart, week, 7);
+        mobileRange.textContent = start
+            ? `${start.replace(/-0?/g, '/')} – ${end.slice(0, 4) === start.slice(0, 4)
+                ? end.split('-').slice(1).map(Number).join('/') : end.replace(/-0?/g, '/')}`
+            : '学期日期待确认';
+    }
 
     const swipe = ensureScheduleSwipePanels();
     const panels = swipe?.panels || [document.querySelector('.schedule-week-panel')].filter(Boolean);
@@ -2993,11 +3233,13 @@ function updateScheduleDates(week) {
         for (let day = 1; day <= 7; day++) {
             const dateEl = panel.querySelector(`[data-schedule-date="${day}"]`);
             const dayEl = panel.querySelector(`[data-schedule-day="${day}"]`);
+            const column = panel.querySelector(`[data-schedule-column-day="${day}"]`);
             if (!dateEl) continue;
 
             if (!activeStart) {
                 dateEl.textContent = '';
                 if (dayEl) dayEl.classList.remove('schedule-day-today');
+                if (column) column.classList.remove('schedule-column-today');
                 continue;
             }
             const date = getCalendarDate(activeStart, panelWeek, day);
@@ -3010,6 +3252,7 @@ function updateScheduleDates(week) {
             if (dayEl) {
                 dayEl.classList.toggle('schedule-day-today', date === today);
             }
+            if (column) column.classList.toggle('schedule-column-today', date === today);
         }
     });
 }
@@ -3986,6 +4229,15 @@ function updateAnnouncementIndicator(items = announcementItems) {
     trigger.setAttribute('aria-label', unreadCount > 0
         ? `系统公告，${unreadCount} 条未读`
         : '系统公告，无未读公告');
+    const more = document.getElementById('mobile-nav-more');
+    if (more) {
+        more.classList.toggle('has-unread', unreadCount > 0);
+        more.setAttribute('aria-label', unreadCount > 0
+            ? `更多功能与账号，${unreadCount} 条未读公告`
+            : '更多功能与账号');
+    }
+    const count = document.getElementById('mobile-announcement-count');
+    if (count) count.textContent = unreadCount > 0 ? `${unreadCount} 条未读` : '';
 }
 
 function rememberAnnouncements(items) {
