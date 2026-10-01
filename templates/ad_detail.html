@@ -1,6 +1,17 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>{{ (ad.detail_title or ad.title) if ad.enabled else '暂无活动' }} - URP教务助手</title><link rel="stylesheet" href="/static/css/ad-template.css?v=1"><link rel="stylesheet" href="/static/css/taste-theme.css?v=1"></head>
+<html lang="zh-CN" class="urp-root">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f3f6fa">
+    <script src="/static/js/appearance.js?v=3"></script>
+    <script src="/static/js/liquid-glass.js?v=1" defer></script>
+    <title>{{ (ad.detail_title or ad.title) if ad.enabled else '暂无活动' }} - URP教务助手</title>
+    <link rel="stylesheet" href="/static/css/ad-template.css?v=1">
+    <link rel="stylesheet" href="/static/css/taste-theme.css?v=45">
+    <link rel="stylesheet" href="/static/css/appearance.css?v=3">
+    <link rel="stylesheet" href="/static/css/liquid-glass.css?v=8">
+</head>
 <body class="campaign-body"><main class="campaign-page" data-ad-copy-root>
 <nav class="campaign-nav"><a href="/">← 返回教务助手</a><span>推广</span></nav>
 {% if ad.enabled %}

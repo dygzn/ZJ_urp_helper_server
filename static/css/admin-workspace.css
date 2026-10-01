@@ -3,7 +3,7 @@ body.urp-admin {
     --admin-line: #d8e1eb;
     --admin-quiet: #eef3f8;
     --admin-soft: #f7f9fc;
-    background: #eef2f7;
+    background: var(--ui-admin-canvas);
 }
 
 body.urp-admin .admin-container,
@@ -13,7 +13,7 @@ body.urp-admin .admin-panel {
 
 body.urp-admin .admin-panel {
     padding: 0 0 72px;
-    background: #eef2f7;
+    background: var(--ui-admin-canvas);
 }
 
 body.urp-admin .admin-header {

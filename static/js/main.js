@@ -601,11 +601,11 @@ async function checkLoginStatus() {
         if (data.success && data.logged_in) {
             // 登录状态正常
             statusDot.className = 'status-dot status-online';
-            statusText.textContent = 'Online';
+            statusText.textContent = '已登录';
         } else {
             // 登录失效或未登录
             statusDot.className = 'status-dot status-offline';
-            statusText.textContent = 'Offline';
+            statusText.textContent = '未连接';
             if (data.requires_relogin && !temporaryReloginPromptShown) {
                 temporaryReloginPromptShown = true;
                 document.getElementById('login-error').textContent = data.message;
@@ -615,7 +615,7 @@ async function checkLoginStatus() {
     } catch (error) {
         console.error('检查登录状态失败:', error);
         statusDot.className = 'status-dot status-offline';
-        statusText.textContent = 'Error';
+        statusText.textContent = '连接失败';
     } finally {
         isCheckingLoginStatus = false;
     }
@@ -2314,6 +2314,7 @@ function resetScheduleActionPull() {
 }
 
 function updateScheduleActionPull(distance, direction = 'up', commit = true) {
+    if (scheduleActionsUseMenu()) return resetScheduleActionPull();
     const pull = document.getElementById('schedule-actions-pull');
     const panel = document.getElementById('schedule-actions');
     if (!pull || !panel || (direction === 'up' && panel.classList.contains('is-open'))
@@ -2343,7 +2344,19 @@ function updateScheduleActionPull(distance, direction = 'up', commit = true) {
             : state.progress >= 0.8 ? '再向上滑一点' : '继续上滑，展开日程表操作');
 }
 
+function scheduleActionsUseMenu() {
+    return Boolean(typeof window !== 'undefined' && window.ScheduleActionsMenu?.isEnabled?.());
+}
+
+function resetScheduleActionGesture() {
+    scheduleActionReveal.touchId = null;
+    scheduleActionReveal.touchDirection = null;
+    scheduleActionReveal.horizontalTouch = false;
+    resetScheduleActionPull();
+}
+
 function showScheduleActions() {
+    if (scheduleActionsUseMenu()) return window.ScheduleActionsMenu.open();
     const panel = document.getElementById('schedule-actions');
     if (!panel || panel.classList.contains('is-open')) return;
     resetScheduleActionPull();
@@ -2354,12 +2367,14 @@ function showScheduleActions() {
 }
 
 function toggleScheduleActions() {
+    if (scheduleActionsUseMenu()) return window.ScheduleActionsMenu.toggle();
     const panel = document.getElementById('schedule-actions');
     if (panel?.classList.contains('is-open')) hideScheduleActions(false);
     else showScheduleActions();
 }
 
 function hideScheduleActions(focusTimetable = true, preventScroll = false) {
+    if (scheduleActionsUseMenu()) return window.ScheduleActionsMenu.close({ restoreFocus: focusTimetable });
     if (isDesktopWorkspace()) {
         showScheduleActions();
         return;
@@ -2384,7 +2399,7 @@ function scheduleActionTouch(event) {
 }
 
 function handleScheduleActionTouchStart(event) {
-    if (isDesktopWorkspace()) return;
+    if (scheduleActionsUseMenu() || isDesktopWorkspace()) return;
     const panel = document.getElementById('schedule-actions');
     const touch = event.touches && event.touches[0];
     if (!panel || !touch) return;
@@ -2405,6 +2420,7 @@ function handleScheduleActionTouchStart(event) {
 }
 
 function handleScheduleActionTouchMove(event) {
+    if (scheduleActionsUseMenu()) return;
     const panel = document.getElementById('schedule-actions');
     const touch = scheduleActionTouch(event);
     if (!panel || !touch || scheduleActionReveal.horizontalTouch) return;
@@ -2429,6 +2445,7 @@ function handleScheduleActionTouchMove(event) {
 }
 
 function handleScheduleActionTouchEnd(event) {
+    if (scheduleActionsUseMenu()) return;
     if (scheduleActionReveal.touchId === null || scheduleActionTouch(event)) return;
     const direction = scheduleActionReveal.touchDirection;
     const distance = scheduleActionReveal.distance;
@@ -2443,7 +2460,7 @@ function handleScheduleActionTouchEnd(event) {
 }
 
 function handleScheduleActionWheel(event) {
-    if (isDesktopWorkspace()) return;
+    if (scheduleActionsUseMenu() || isDesktopWorkspace()) return;
     const panel = document.getElementById('schedule-actions');
     if (!panel) return;
     const isOpen = panel.classList.contains('is-open');
@@ -2467,7 +2484,7 @@ function handleScheduleActionWheel(event) {
 }
 
 function handleScheduleActionKeyDown(event) {
-    if (uiModalState.activeModal || isDesktopWorkspace()) return;
+    if (scheduleActionsUseMenu() || uiModalState.activeModal || isDesktopWorkspace()) return;
     if (event.target?.closest?.('input, select, textarea, .schedule-unplaced-exams')) return;
     const page = document.getElementById('page-schedule');
     const panel = document.getElementById('schedule-actions');
@@ -3028,7 +3045,7 @@ function renderScheduleWeek(schedule, panel, courseColorMap = buildScheduleCours
             const startTime = times[course.section - 1]?.start;
             const endTime = times[course.section + course.duration - 2]?.end;
             const courseTime = startTime && endTime ? `${startTime}-${endTime}` : '';
-            const color = courseColorMap.get(getScheduleCourseColorKey(course)) || 'hsl(208, 72%, 27%)';
+            const color = courseColorMap.get(getScheduleCourseColorKey(course)) || '#2563eb';
             const data = encodeURIComponent(JSON.stringify(course));
             html += `<button type="button" class="course-card${isExam ? ' schedule-exam-card' : ''}${course.duration === 1 ? ' is-single-period' : ''}"
                 style="${position} --course-color: ${isExam ? 'var(--ui-exam-ink)' : color};"
@@ -3132,10 +3149,18 @@ function buildScheduleCourseColorMap(schedule = {}) {
     });
 
     const sortedCourseKeys = Array.from(courseKeys).sort();
+    // 按 Oklab 感知距离预先排序：每个新颜色优先远离已使用的颜色。
+    // 少量课程只取前几个反差最大的颜色，更多课程才使用后续补充色。
+    const palette = [
+        '#2563eb', '#cf5900', '#16834a', '#9333d5',
+        '#80441b', '#393a94', '#a05a85', '#007d98',
+        '#4b5563', '#b91c1c', '#d52b78', '#a77800',
+    ];
     const colorMap = new Map();
     sortedCourseKeys.forEach((courseKey, index) => {
-        const hue = (208 + (index * 360) / sortedCourseKeys.length) % 360;
-        colorMap.set(courseKey, `hsl(${hue.toFixed(3)}, 72%, 27%)`);
+        const hue = (208 + (index - palette.length) * 137.508) % 360;
+        const color = palette[index] || `hsl(${hue.toFixed(3)}, 72%, 27%)`;
+        colorMap.set(courseKey, color);
     });
     return colorMap;
 }
