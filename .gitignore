@@ -29,6 +29,7 @@ Thumbs.db
 /.playwright-cli/
 /.superpowers/
 /.worktrees/
+/artifacts/*-preview/
 /AGENTS.md
 /DESIGN.md
 /docs/

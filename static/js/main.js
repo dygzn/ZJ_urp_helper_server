@@ -109,8 +109,10 @@ let currentUsername = null;
 let currentMemberStatus = null;
 let shortcutApiPlainKey = '';
 let shortcutApiHasKey = false;
-let isCheckingLoginStatus = false;
+let loginStatusPromise = null;
 let cachedSchedule = null;
+const currentScheduleMap = new Map();
+let scheduleCourseId = 0;
 let cachedExams = null;
 let cachedScheduleExams = [];
 let scheduleExamsStale = false;
@@ -156,8 +158,17 @@ function rememberBoundUsername(username) {
     const normalized = String(username || '').trim();
     if (academicCacheUsername !== normalized) {
         academicCacheGeneration++;
+        if (typeof apiClient !== 'undefined') {
+            apiClient.resetAuthState();
+            apiClient.cancelRequest('grades');
+            apiClient.cancelRequest('login-status');
+            loginStatusPromise = null;
+        }
+        temporaryReloginPromptShown = false;
+        _examSessions = null;
         if (calendarExportKind) closeCalendarExport();
         cachedSchedule = null;
+        currentScheduleMap.clear();
         cachedExams = null;
         cachedScheduleExams = [];
         scheduleExamsStale = false;
@@ -539,23 +550,20 @@ document.addEventListener('click', handleModalBackdropClick);
 
 // ==================== 设备ID管理 ====================
 function getDeviceId() {
-    /**
-     * 获取或生成设备ID
-     * 设备ID存储在 localStorage 中，确保同一浏览器在不同网络环境下ID相同
-     */
-    let deviceId = localStorage.getItem('device_id');
-    if (!deviceId) {
-        // 生成新的UUID
-        deviceId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-            const r = Math.random() * 16 | 0;
-            const v = c === 'x' ? r : (r & 0x3 | 0x8);
-            return v.toString(16);
-        });
-        localStorage.setItem('device_id', deviceId);
-        console.log('生成新的设备ID:', deviceId);
-    }
-    return deviceId;
+    return apiClient.getDeviceId();
 }
+
+// 所有鉴权失效都通过同一个事件入口复用现有登录提示。
+document.addEventListener('api:auth-expired', event => {
+    const statusDot = document.querySelector('.status-dot');
+    const statusText = document.querySelector('.status-text');
+    if (statusDot) statusDot.className = 'status-dot status-offline';
+    if (statusText) statusText.textContent = '未连接';
+    if (temporaryReloginPromptShown) return;
+    temporaryReloginPromptShown = true;
+    document.getElementById('login-error').textContent = event.detail.message;
+    showLoginModal();
+});
 
 // ==================== 页面初始化 ====================
 document.addEventListener('DOMContentLoaded', function() {
@@ -576,48 +584,40 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ==================== 登录状态检查 ====================
-async function checkLoginStatus() {
-    // 防止重复检查
-    if (isCheckingLoginStatus) {
-        return;
-    }
+function checkLoginStatus() {
+    // 并发调用者等待同一次检查，避免提前返回让后续查询抢跑。
+    if (loginStatusPromise) return loginStatusPromise;
+    const pending = performLoginStatusCheck().finally(() => {
+        if (loginStatusPromise === pending) loginStatusPromise = null;
+    });
+    loginStatusPromise = pending;
+    return pending;
+}
 
-    isCheckingLoginStatus = true;
+async function performLoginStatusCheck() {
+    const request = apiClient.beginRequest('login-status');
+    const generation = academicCacheGeneration;
     const statusDot = document.querySelector('.status-dot');
     const statusText = document.querySelector('.status-text');
-
-    // 显示检查中状态
     statusDot.className = 'status-dot status-checking';
     statusText.textContent = '检查中';
-
     try {
-        const response = await fetch('/api/check_login_status', {
-            headers: {
-                'X-Device-ID': getDeviceId()
-            }
-        });
+        const response = await apiClient.request('/api/check_login_status', { signal: request.signal });
         const data = await response.json();
-
+        if (!request.isCurrent() || generation !== academicCacheGeneration) return;
         if (data.success && data.logged_in) {
-            // 登录状态正常
             statusDot.className = 'status-dot status-online';
             statusText.textContent = '已登录';
         } else {
-            // 登录失效或未登录
             statusDot.className = 'status-dot status-offline';
             statusText.textContent = '未连接';
-            if (data.requires_relogin && !temporaryReloginPromptShown) {
-                temporaryReloginPromptShown = true;
-                document.getElementById('login-error').textContent = data.message;
-                showLoginModal();
-            }
         }
+        return data;
     } catch (error) {
+        if (!request.isCurrent() || generation !== academicCacheGeneration || error.name === 'AbortError') return;
         console.error('检查登录状态失败:', error);
         statusDot.className = 'status-dot status-offline';
         statusText.textContent = '连接失败';
-    } finally {
-        isCheckingLoginStatus = false;
     }
 }
 
@@ -753,6 +753,9 @@ async function handleLogin(event) {
         if (data.success) {
             document.getElementById('password').value = '';
             temporaryReloginPromptShown = false;
+            apiClient.resetAuthState();
+            apiClient.cancelRequest('login-status');
+            loginStatusPromise = null;
             const isBound = data.bound !== false;
             hideLoginModal();
 
@@ -1167,9 +1170,9 @@ function setPageAccessLock(pageName, locked) {
             };
         gate.innerHTML = `
             <div class="page-access-gate-icon" aria-hidden="true">锁</div>
-            <h2>${escapeFeedbackHtml(copy.title)}</h2>
-            <p>${escapeFeedbackHtml(copy.description)}</p>
-            <button class="btn-primary" type="button" onclick="showLoginModal()">${escapeFeedbackHtml(copy.button)}</button>`;
+            <h2>${escapeHtml(copy.title)}</h2>
+            <p>${escapeHtml(copy.description)}</p>
+            <button class="btn-primary" type="button" onclick="showLoginModal()">${escapeHtml(copy.button)}</button>`;
     } else if (typeof gate.replaceChildren === 'function') {
         gate.replaceChildren();
     } else {
@@ -1334,7 +1337,7 @@ function renderHomeState(kind, message) {
     const state = states[kind];
     return `<div class="home-state home-state-${kind}"${kind === 'error' ? ' role="alert"' : ''}>
         <span class="home-state-icon">${homeIcon(state.icon)}</span>
-        <div><strong>${state.title}</strong><p>${escapeScheduleHtml(message || state.message)}</p>
+        <div><strong>${state.title}</strong><p>${escapeHtml(message || state.message)}</p>
         <button class="${kind === 'guest' ? 'btn-primary' : 'btn-secondary'}" type="button" onclick="${state.action}">${state.button}</button></div>
     </div>`;
 }
@@ -1347,8 +1350,8 @@ function renderHomeAgenda(eventData) {
     const courses = Array.isArray(eventData.upcoming) ? eventData.upcoming : [];
     content.innerHTML = courses.length
         ? '<ol class="home-agenda-list">' + courses.map(course => `<li class="home-agenda-item${course.status === 'current' ? ' is-current' : ''}">
-            <time>${escapeScheduleHtml(course.time || '时间待定')}</time>
-            <div><strong>${escapeScheduleHtml(course.title || '课程')}</strong><span>${escapeScheduleHtml(course.location || '上课地点待确认')}</span></div>
+            <time>${escapeHtml(course.time || '时间待定')}</time>
+            <div><strong>${escapeHtml(course.title || '课程')}</strong><span>${escapeHtml(course.location || '上课地点待确认')}</span></div>
             <span class="home-agenda-status">${course.status === 'current' ? '进行中' : '待上课'}</span>
         </li>`).join('') + '</ol>'
         : '<div class="home-agenda-empty"><p>暂无后续课程。考试时间和考场可从「查考试」查看。</p></div>';
@@ -1528,9 +1531,9 @@ function displayUrgentEvent(eventData) {
         html += `
             <div class="event-card event-card-current">
                 <div class="event-type"><span class="home-event-icon">${homeIcon('calendar')}</span><span>正在上课</span></div>
-                <div class="event-title">${escapeScheduleHtml(current.title)}</div>
-                <div class="event-location">${escapeScheduleHtml(current.location)}</div>
-                <div class="event-time">${escapeScheduleHtml(current.time)}</div>
+                <div class="event-title">${escapeHtml(current.title)}</div>
+                <div class="event-location">${escapeHtml(current.location)}</div>
+                <div class="event-time">${escapeHtml(current.time)}</div>
                 <div class="countdown" id="current-remaining">${current.remaining}分钟</div>
                 <div class="countdown-label">后下课</div>
             </div>
@@ -1549,7 +1552,7 @@ function displayUrgentEvent(eventData) {
         } else {
             typeText = '下一节课';
         }
-        const seatHtml = next.seat ? `<div class="event-seat">座位号： ${escapeScheduleHtml(next.seat)}</div>` : '';
+        const seatHtml = next.seat ? `<div class="event-seat">座位号： ${escapeHtml(next.seat)}</div>` : '';
         const timeLabel = getTimeLabel(next.time);
         const nextCountdownHtml = (nextIsToday && next.countdown != null)
             ? `<div class="countdown${next.countdown <= 10 ? ' countdown-urgent' : ''}" id="next-remaining">${formatMinutes(next.countdown)}</div><div class="countdown-label">${next.type === 'exam' ? '后考试' : '后上课'}</div>`
@@ -1558,9 +1561,9 @@ function displayUrgentEvent(eventData) {
         html += `
             <div class="event-card${current ? ' event-card-next' : ' event-card-upcoming'}${next.type === 'exam' ? ' event-card-exam' : ''}">
                 <div class="event-type"><span class="home-event-icon">${homeIcon(next.type === 'exam' ? 'exam' : 'calendar')}</span><span>${typeText}</span></div>
-                <div class="event-title">${escapeScheduleHtml(next.title)}</div>
-                <div class="event-location">${escapeScheduleHtml(next.location)}</div>
-                <div class="event-time-label">${escapeScheduleHtml(timeLabel)}</div>
+                <div class="event-title">${escapeHtml(next.title)}</div>
+                <div class="event-location">${escapeHtml(next.location)}</div>
+                <div class="event-time-label">${escapeHtml(timeLabel)}</div>
                 ${seatHtml}
                 ${nextCountdownHtml}
             </div>
@@ -2730,13 +2733,13 @@ async function loadHistoricalSchedule(semester = '') {
         if (requestId !== historicalScheduleRequestId) return;
 
         if (!data.success || !data.data) {
-            body.innerHTML = `<p class="historical-schedule-empty">${escapeGradeHtml(data.message || '历年课表加载失败')}</p>`;
+            body.innerHTML = `<p class="historical-schedule-empty">${escapeHtml(data.message || '历年课表加载失败')}</p>`;
             return;
         }
 
         const semesters = Array.isArray(data.data.semesters) ? data.data.semesters : [];
         select.innerHTML = semesters.length
-            ? semesters.map(option => `<option value="${escapeGradeHtml(option.value)}">${escapeGradeHtml(option.label || option.value)}</option>`).join('')
+            ? semesters.map(option => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label || option.value)}</option>`).join('')
             : '<option value="">暂无可选学期</option>';
         select.disabled = semesters.length === 0;
         if (data.data.semester && semesters.some(option => option.value === data.data.semester)) {
@@ -2782,12 +2785,7 @@ async function updateScheduleData(event) {
     btn.textContent = '更新中...';
 
     try {
-        const response = await fetch('/api/update_schedule', {
-            method: 'POST',
-            headers: {
-                'X-Device-ID': getDeviceId()
-            }
-        });
+        const response = await apiClient.request('/api/update_schedule', { method: 'POST', timeout: 60000 });
         const data = await response.json();
         if (generation !== academicCacheGeneration) return;
 
@@ -2810,6 +2808,7 @@ async function updateScheduleData(event) {
 }
 
 function resetScheduleDisplay() {
+    currentScheduleMap.clear();
     scheduleHeightAnimation?.cancel();
     scheduleHeightAnimation = null;
     clearScheduleDinoGestureTimers();
@@ -2859,6 +2858,7 @@ function refreshScheduleDisplay(week = null) {
 }
 
 async function loadSchedule(week = null, autoFetched = false) {
+    const request = apiClient.beginRequest('schedule');
     let generation = academicCacheGeneration;
     const useActualWeek = week === null;
     const messageDiv = document.getElementById('schedule-message');
@@ -2920,13 +2920,9 @@ async function loadSchedule(week = null, autoFetched = false) {
 
     // 没有缓存，请求全量数据（不传 week 参数）
     try {
-        const response = await fetch('/api/schedule', {
-            headers: {
-                'X-Device-ID': getDeviceId()
-            }
-        });
+        const response = await apiClient.request('/api/schedule', { signal: request.signal });
         const data = await response.json();
-        if (generation !== academicCacheGeneration) return;
+        if (!request.isCurrent() || generation !== academicCacheGeneration) return;
 
         if (data.success && data.account && data.account !== currentUsername) {
             currentUsername = data.account;
@@ -2966,12 +2962,11 @@ async function loadSchedule(week = null, autoFetched = false) {
                 resetScheduleDisplay();
                 showMessage('正在从教务系统获取课表...');
                 try {
-                    const updateResp = await fetch('/api/update_schedule', {
-                        method: 'POST',
-                        headers: { 'X-Device-ID': getDeviceId() }
+                    const updateResp = await apiClient.request('/api/update_schedule', {
+                        method: 'POST', signal: request.signal, timeout: 60000,
                     });
                     const updateData = await updateResp.json();
-                    if (generation !== academicCacheGeneration) return;
+                    if (!request.isCurrent() || generation !== academicCacheGeneration) return;
                     if (updateData.success) {
                         loadSchedule(week, true);
                         return;
@@ -2979,8 +2974,9 @@ async function loadSchedule(week = null, autoFetched = false) {
                         showMessage(updateData.message || '获取课表失败', true);
                     }
                 } catch (e) {
-                    if (generation !== academicCacheGeneration) return;
-                    showMessage('获取课表失败，学校可能暂未开放查询', true);
+                    if (!request.isCurrent() || generation !== academicCacheGeneration) return;
+                    if (e.name === 'AbortError') return;
+                    showMessage(e.message || '获取课表失败，学校可能暂未开放查询', true);
                 }
             } else {
                 resetScheduleDisplay();
@@ -2991,10 +2987,11 @@ async function loadSchedule(week = null, autoFetched = false) {
             showMessage(data.message || '暂无课程数据');
         }
     } catch (error) {
-        if (generation !== academicCacheGeneration) return;
+        if (!request.isCurrent() || generation !== academicCacheGeneration) return;
+        if (error.name === 'AbortError') return;
         console.error('加载课程表失败:', error);
         resetScheduleDisplay();
-        showMessage('加载失败，请检查网络连接', true);
+        showMessage(error.message || '加载失败，请检查网络连接', true);
     }
 }
 
@@ -3016,6 +3013,12 @@ function renderScheduleWeek(schedule, panel, courseColorMap = buildScheduleCours
     });
 
     const week = Number(panel.dataset.week) || currentWeek;
+    // 每次注册使用新标识，避免重复课程、相邻周以及过期元素指向同一对象。
+    const registerCourse = (course, day) => {
+        const key = `${week}_${course.kind || 'course'}_${day}_${course.section ?? 'unplaced'}_${++scheduleCourseId}`;
+        currentScheduleMap.set(key, course);
+        return key;
+    };
     const times = userIsFreshman ? PERIOD_TIMES_FRESHMAN : PERIOD_TIMES_DEFAULT;
     const weekExams = otherMajorScheduleData ? [] : cachedScheduleExams
         .filter(exam => Number(exam.week) === week)
@@ -3046,14 +3049,14 @@ function renderScheduleWeek(schedule, panel, courseColorMap = buildScheduleCours
             const endTime = times[course.section + course.duration - 2]?.end;
             const courseTime = startTime && endTime ? `${startTime}-${endTime}` : '';
             const color = courseColorMap.get(getScheduleCourseColorKey(course)) || '#2563eb';
-            const data = encodeURIComponent(JSON.stringify(course));
+            const courseId = registerCourse(course, day);
             html += `<button type="button" class="course-card${isExam ? ' schedule-exam-card' : ''}${course.duration === 1 ? ' is-single-period' : ''}"
                 style="${position} --course-color: ${isExam ? 'var(--ui-exam-ink)' : color};"
-                title="${escapeScheduleHtml(`${course.name}${isExam ? ` · 考试 · ${course.time}` : courseTime ? ` · ${courseTime}` : ''}${course.location ? ` · ${course.location}` : ''}`)}"
-                data-course="${data}" data-day="${day}" tabindex="${panel.getAttribute?.('aria-hidden') === 'true' ? -1 : 0}" onclick="showCourseDetail(this)">
-                <span class="course-card-name">${escapeScheduleHtml(course.name)}</span>
-                ${isExam ? `<span class="schedule-exam-time" aria-label="${escapeScheduleHtml(course.time)}"><span>${escapeScheduleHtml(course.time.split('-')[0])}</span><span aria-hidden="true">-</span><span>${escapeScheduleHtml(course.time.split('-')[1])}</span></span>` : ''}
-                ${course.location ? `<span class="course-card-location">${escapeScheduleHtml(course.location)}</span>` : ''}
+                title="${escapeHtml(`${course.name}${isExam ? ` · 考试 · ${course.time}` : courseTime ? ` · ${courseTime}` : ''}${course.location ? ` · ${course.location}` : ''}`)}"
+                data-course-id="${escapeHtml(courseId)}" data-day="${day}" tabindex="${panel.getAttribute?.('aria-hidden') === 'true' ? -1 : 0}" onclick="showCourseDetail(this)">
+                <span class="course-card-name">${escapeHtml(course.name)}</span>
+                ${isExam ? `<span class="schedule-exam-time" aria-label="${escapeHtml(course.time)}"><span>${escapeHtml(course.time.split('-')[0])}</span><span aria-hidden="true">-</span><span>${escapeHtml(course.time.split('-')[1])}</span></span>` : ''}
+                ${course.location ? `<span class="course-card-location">${escapeHtml(course.location)}</span>` : ''}
                 ${!isExam && courseTime ? `<span class="course-card-period desktop-only">${courseTime} · 第${course.section}${course.duration > 1 ? `-${course.section + course.duration - 1}` : ''}节</span>` : ''}
                 ${isExam ? '<span class="schedule-exam-label">考试</span>' : ''}
             </button>`;
@@ -3070,7 +3073,7 @@ function renderScheduleWeek(schedule, panel, courseColorMap = buildScheduleCours
                     && item.time === exam.time && item.location === exam.location);
                 const note = extra ? extra.note || '时间待定或不在上课时段内' : '';
                 const date = getCalendarDate(currentSemesterStartValue(), week, exam.dayNumber);
-                return `<button type="button" class="schedule-unplaced-exam" data-course="${encodeURIComponent(JSON.stringify(exam))}" data-day="${exam.dayNumber}" tabindex="${panel.getAttribute?.('aria-hidden') === 'true' ? -1 : 0}" onclick="showCourseDetail(this)"><strong>${escapeScheduleHtml(exam.name)}</strong><span class="schedule-exam-summary-time">${date ? `${escapeScheduleHtml(date)} ` : ''}${escapeScheduleHtml(exam.day)} ${escapeScheduleHtml(exam.time)}</span><span class="schedule-exam-summary-location">${escapeScheduleHtml(exam.location || '考试位置待定')}</span>${note ? `<small>${escapeScheduleHtml(note)}</small>` : ''}</button>`;
+                return `<button type="button" class="schedule-unplaced-exam" data-course-id="${escapeHtml(registerCourse(exam, exam.dayNumber))}" data-day="${exam.dayNumber}" tabindex="${panel.getAttribute?.('aria-hidden') === 'true' ? -1 : 0}" onclick="showCourseDetail(this)"><strong>${escapeHtml(exam.name)}</strong><span class="schedule-exam-summary-time">${date ? `${escapeHtml(date)} ` : ''}${escapeHtml(exam.day)} ${escapeHtml(exam.time)}</span><span class="schedule-exam-summary-location">${escapeHtml(exam.location || '考试位置待定')}</span>${note ? `<small>${escapeHtml(note)}</small>` : ''}</button>`;
             }).join('') : '';
     }
     scheduleGrid.classList.toggle('has-evening', hasEvening);
@@ -3079,6 +3082,7 @@ function renderScheduleWeek(schedule, panel, courseColorMap = buildScheduleCours
 }
 
 function displaySchedule(schedule) {
+    currentScheduleMap.clear();
     clearScheduleDinoGestureTimers();
     resetScheduleSwipeGesture();
     const source = getScheduleDataSource(schedule);
@@ -3166,7 +3170,8 @@ function buildScheduleCourseColorMap(schedule = {}) {
 }
 
 function showCourseDetail(el) {
-    const course = JSON.parse(decodeURIComponent(el.dataset.course));
+    const course = currentScheduleMap.get(el?.dataset.courseId);
+    if (!course) return;
     const modal = document.getElementById('course-detail-modal');
     const week = Number.parseInt(el.closest('.schedule-week-panel')?.dataset.week, 10) || currentWeek;
     const date = getCalendarDate(currentSemesterStartValue(), week, el.dataset.day);
@@ -3434,7 +3439,7 @@ function displayExams(exams) {
     examGroups.forEach((examList, examName) => {
         html += `
             <div class="exam-group">
-                <div class="exam-group-title">${escapeScheduleHtml(examName)}</div>
+                <div class="exam-group-title">${escapeHtml(examName)}</div>
                 <div class="exam-group-content">
         `;
         examList.forEach(exam => {
@@ -3444,7 +3449,7 @@ function displayExams(exams) {
             const weekText = exam.week ? `第${exam.week}周 ${dayName}` : dayName;
             const location = exam.location || [exam.campus, exam.building, exam.room].filter(Boolean).join('');
             const row = (label, value) => value
-                ? `<div class="exam-info-item"><strong>${label}：</strong><span>${escapeScheduleHtml(value)}</span></div>`
+                ? `<div class="exam-info-item"><strong>${label}：</strong><span>${escapeHtml(value)}</span></div>`
                 : '';
             let urgencyClass = 'exam-normal';
             let countdownHtml = '';
@@ -3464,7 +3469,7 @@ function displayExams(exams) {
 
             html += `
                 <div class="exam-card ${urgencyClass}">
-                    <div class="exam-course">${escapeScheduleHtml(exam.course || '未命名课程')}</div>
+                    <div class="exam-course">${escapeHtml(exam.course || '未命名课程')}</div>
                     <div class="exam-info">
                         ${row('日期', date ? `${date}（${weekText}）` : `学期起始日期待核对（${weekText}）`)}
                         ${row('时间', exam.time)}
@@ -3657,6 +3662,7 @@ function downloadCalendarExport(event) {
 let gradesReturnFocus = null;
 
 function gradesBackToMenu({ restoreFocus = true } = {}) {
+    apiClient.cancelRequest('grades');
     const menu = document.getElementById('grades-menu');
     menu.style.display = '';
     document.getElementById('grades-result').style.display = 'none';
@@ -3686,15 +3692,6 @@ function gradesShowResult(title) {
     focusUiElement(document.getElementById('grades-back-btn'));
 }
 
-function gradesEscape(value) {
-    return String(value ?? '').replace(/[&<>"']/g, ch => ({
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#39;'
-    }[ch]));
-}
 
 function gradesScoreClass(scoreValue) {
     const score = parseFloat(scoreValue);
@@ -3708,7 +3705,7 @@ function gradesBuildSimpleTable(grades) {
     let html = '<table class="grades-table"><thead><tr><th>课程名称</th><th>成绩</th></tr></thead><tbody>';
     grades.forEach(grade => {
         const scoreClass = gradesScoreClass(grade.score);
-        html += `<tr><td>${gradesEscape(grade.course || '-')}</td><td class="${scoreClass}">${gradesEscape(grade.score || '-')}</td></tr>`;
+        html += `<tr><td>${escapeHtml(grade.course || '-')}</td><td class="${scoreClass}">${escapeHtml(grade.score ?? '-')}</td></tr>`;
     });
     return html + '</tbody></table>';
 }
@@ -3721,19 +3718,24 @@ function gradesFormatExamTime(value) {
 function gradesBuildFailedTable(list) {
     let html = '<table class="grades-table"><thead><tr><th>课程名称</th><th>学分</th><th>成绩</th><th>考试时间</th></tr></thead><tbody>';
     list.forEach(g => {
-        html += `<tr><td>${gradesEscape(g.course || '-')}</td><td>${gradesEscape(g.credit || '-')}</td><td class="score-low">${gradesEscape(g.score || '-')}</td><td>${gradesEscape(gradesFormatExamTime(g.exam_time))}</td></tr>`;
+        html += `<tr><td>${escapeHtml(g.course || '-')}</td><td>${escapeHtml(g.credit ?? '-')}</td><td class="score-low">${escapeHtml(g.score ?? '-')}</td><td>${escapeHtml(gradesFormatExamTime(g.exam_time))}</td></tr>`;
     });
     return html + '</tbody></table>';
 }
 
 async function gradesLoadLatestSummary() {
+    const request = apiClient.beginRequest('grades');
+    const generation = academicCacheGeneration;
+    const isCurrent = () => request.isCurrent() && generation === academicCacheGeneration;
     await checkLoginStatus();
+    if (!isCurrent()) return;
     gradesShowResult('一键查本学期成绩');
     try {
-        const resp = await fetch('/api/grades/latest_summary', { headers: { 'X-Device-ID': getDeviceId() } });
+        const resp = await apiClient.request('/api/grades/latest_summary', { signal: request.signal });
         const data = await resp.json();
+        if (!isCurrent()) return;
         if (!data.success) {
-            document.getElementById('grades-content').innerHTML = `<p style="text-align:center;color:var(--error);">${gradesEscape(data.message || '查询失败')}</p>`;
+            document.getElementById('grades-content').innerHTML = `<p style="text-align:center;color:var(--error);">${escapeHtml(data.message || '查询失败')}</p>`;
             return;
         }
 
@@ -3744,7 +3746,7 @@ async function gradesLoadLatestSummary() {
         const semester = data.semester || '最新学期';
         let html = `
             <div class="grade-summary-meta">
-                <span>最新学期：${gradesEscape(semester)}</span>
+                <span>最新学期：${escapeHtml(semester)}</span>
                 <span>及格 ${passed.length} 门</span>
                 <span>尚不及格 ${currentFailed.length} 门</span>
                 <span>曾不及格 ${pastFailed.length} 门</span>
@@ -3768,15 +3770,21 @@ async function gradesLoadLatestSummary() {
 
         document.getElementById('grades-content').innerHTML = html;
     } catch (e) {
-        document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+        if (!isCurrent() || e.name === 'AbortError') return;
+        document.getElementById('grades-content').innerHTML = `<p style="text-align:center;color:var(--error);">${escapeHtml(e.message || '加载失败')}</p>`;
     }
 }
 async function gradesShowCurrentSemester() {
+    const request = apiClient.beginRequest('grades');
+    const generation = academicCacheGeneration;
+    const isCurrent = () => request.isCurrent() && generation === academicCacheGeneration;
     await checkLoginStatus();
+    if (!isCurrent()) return;
     gradesShowResult('本学期成绩');
     try {
-        const resp = await fetch('/api/grades/current', { headers: { 'X-Device-ID': getDeviceId() } });
+        const resp = await apiClient.request('/api/grades/current', { signal: request.signal });
         const data = await resp.json();
+        if (!isCurrent()) return;
         if (data.success && data.grades && data.grades.length > 0) {
             displayGrades(data.grades);
         } else if (!data.success) {
@@ -3785,21 +3793,27 @@ async function gradesShowCurrentSemester() {
             document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">暂无成绩数据</p>';
         }
     } catch (e) {
-        document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+        if (!isCurrent() || e.name === 'AbortError') return;
+        document.getElementById('grades-content').innerHTML = `<p style="text-align:center;color:var(--error);">${escapeHtml(e.message || '加载失败')}</p>`;
     }
 }
 
 async function gradesShowSemesterPicker() {
+    const request = apiClient.beginRequest('grades');
+    const generation = academicCacheGeneration;
+    const isCurrent = () => request.isCurrent() && generation === academicCacheGeneration;
     await checkLoginStatus();
+    if (!isCurrent()) return;
     const modal = document.getElementById('semester-picker-modal');
     const list = document.getElementById('semester-picker-list');
     list.innerHTML = '<div class="loading">加载中...</div>';
     openUiModal(modal);
     try {
-        const resp = await fetch('/api/grades/semesters', { headers: { 'X-Device-ID': getDeviceId() } });
+        const resp = await apiClient.request('/api/grades/semesters', { signal: request.signal });
         const data = await resp.json();
+        if (!isCurrent()) return;
         if (!data.success) {
-            list.innerHTML = `<p style="color:var(--error);text-align:center;">${gradesEscape(data.message || '查询失败')}</p>`;
+            list.innerHTML = `<p style="color:var(--error);text-align:center;">${escapeHtml(data.message || '查询失败')}</p>`;
             return;
         }
         if (!Array.isArray(data.semesters) || data.semesters.length === 0) {
@@ -3807,43 +3821,55 @@ async function gradesShowSemesterPicker() {
             return;
         }
         list.innerHTML = data.semesters.map(s => `
-            <button class="semester-option-btn" onclick="gradesPickSemester('${s.replace(/'/g, "\\'")}')">${s}</button>
+            <button class="semester-option-btn" data-semester="${escapeHtml(s)}" onclick="gradesPickSemester(this.dataset.semester)">${escapeHtml(s)}</button>
         `).join('');
     } catch (e) {
-        list.innerHTML = '<p style="color:var(--error);text-align:center;">加载失败</p>';
+        if (!isCurrent() || e.name === 'AbortError') return;
+        list.innerHTML = `<p style="color:var(--error);text-align:center;">${escapeHtml(e.message || '加载失败')}</p>`;
     }
 }
 
 function closeSemesterPicker() {
+    apiClient.cancelRequest('grades');
     closeUiModal(document.getElementById('semester-picker-modal'));
 }
 
 async function gradesPickSemester(semester) {
     closeSemesterPicker();
+    const request = apiClient.beginRequest('grades');
+    const generation = academicCacheGeneration;
+    const isCurrent = () => request.isCurrent() && generation === academicCacheGeneration;
     gradesShowResult(`及格成绩（${semester}）`);
     try {
-        const resp = await fetch(`/api/grades/by_semester?semester=${encodeURIComponent(semester)}`, { headers: { 'X-Device-ID': getDeviceId() } });
+        const resp = await apiClient.request(`/api/grades/by_semester?semester=${encodeURIComponent(semester)}`, { signal: request.signal });
         const data = await resp.json();
+        if (!isCurrent()) return;
         if (!data.success) {
-            document.getElementById('grades-content').innerHTML = `<p style="text-align:center;color:var(--error);">${gradesEscape(data.message || '查询失败')}</p>`;
+            document.getElementById('grades-content').innerHTML = `<p style="text-align:center;color:var(--error);">${escapeHtml(data.message || '查询失败')}</p>`;
         } else if (Array.isArray(data.grades) && data.grades.length > 0) {
             displayGrades(data.grades);
         } else {
             document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">该学期暂无成绩数据</p>';
         }
     } catch (e) {
-        document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+        if (!isCurrent() || e.name === 'AbortError') return;
+        document.getElementById('grades-content').innerHTML = `<p style="text-align:center;color:var(--error);">${escapeHtml(e.message || '加载失败')}</p>`;
     }
 }
 
 async function gradesLoadFailed() {
+    const request = apiClient.beginRequest('grades');
+    const generation = academicCacheGeneration;
+    const isCurrent = () => request.isCurrent() && generation === academicCacheGeneration;
     await checkLoginStatus();
+    if (!isCurrent()) return;
     gradesShowResult('不及格成绩');
     try {
-        const resp = await fetch('/api/grades/failed', { headers: { 'X-Device-ID': getDeviceId() } });
+        const resp = await apiClient.request('/api/grades/failed', { signal: request.signal });
         const data = await resp.json();
+        if (!isCurrent()) return;
         if (!data.success) {
-            document.getElementById('grades-content').innerHTML = `<p style="text-align:center;color:var(--error);">${data.message || '查询失败'}</p>`;
+            document.getElementById('grades-content').innerHTML = `<p style="text-align:center;color:var(--error);">${escapeHtml(data.message || '查询失败')}</p>`;
             return;
         }
         const current = data.current || [];
@@ -3853,35 +3879,19 @@ async function gradesLoadFailed() {
             return;
         }
         let html = '';
-        const fmtDate = s => (s && s.length === 8) ? `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}` : (s || '-');
-        const buildTable = (list) => {
-            let t = '<table class="grades-table"><thead><tr><th>课程名称</th><th>学分</th><th>成绩</th><th>考试时间</th></tr></thead><tbody>';
-            list.forEach(g => {
-                t += `<tr><td>${g.course}</td><td>${g.credit}</td><td class="score-low">${g.score}</td><td>${fmtDate(g.exam_time)}</td></tr>`;
-            });
-            return t + '</tbody></table>';
-        };
         if (current.length > 0) {
-            html += `<div class="failed-section"><div class="failed-section-title failed-current">尚不及格</div>${buildTable(current)}</div>`;
+            html += `<div class="failed-section"><div class="failed-section-title failed-current">尚不及格</div>${gradesBuildFailedTable(current)}</div>`;
         }
         if (past.length > 0) {
-            html += `<div class="failed-section"><div class="failed-section-title failed-past">曾不及格</div>${buildTable(past)}</div>`;
+            html += `<div class="failed-section"><div class="failed-section-title failed-past">曾不及格</div>${gradesBuildFailedTable(past)}</div>`;
         }
         document.getElementById('grades-content').innerHTML = html;
     } catch (e) {
-        document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+        if (!isCurrent() || e.name === 'AbortError') return;
+        document.getElementById('grades-content').innerHTML = `<p style="text-align:center;color:var(--error);">${escapeHtml(e.message || '加载失败')}</p>`;
     }
 }
 
-function escapeGradeHtml(value) {
-    return String(value ?? '').replace(/[&<>"']/g, ch => ({
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#39;'
-    }[ch]));
-}
 
 function buildGpaDetailTable(details) {
     if (!Array.isArray(details) || details.length === 0) {
@@ -3904,13 +3914,13 @@ function buildGpaDetailTable(details) {
     html += '<h3 class="gpa-title">学期绩点明细</h3>';
     html += '<div class="grades-table-wrap"><table class="grades-table gpa-detail-table"><thead><tr>';
     columns.forEach(column => {
-        html += `<th>${escapeGradeHtml(column)}</th>`;
+        html += `<th>${escapeHtml(column)}</th>`;
     });
     html += '</tr></thead><tbody>';
     rows.forEach(row => {
         html += '<tr>';
         columns.forEach(column => {
-            html += `<td>${escapeGradeHtml(row[column])}</td>`;
+            html += `<td>${escapeHtml(row[column])}</td>`;
         });
         html += '</tr>';
     });
@@ -3919,13 +3929,18 @@ function buildGpaDetailTable(details) {
 }
 
 async function gradesLoadGpa() {
+    const request = apiClient.beginRequest('grades');
+    const generation = academicCacheGeneration;
+    const isCurrent = () => request.isCurrent() && generation === academicCacheGeneration;
     await checkLoginStatus();
+    if (!isCurrent()) return;
     gradesShowResult('学分绩点');
     try {
-        const resp = await fetch('/api/grades/gpa', { headers: { 'X-Device-ID': getDeviceId() } });
+        const resp = await apiClient.request('/api/grades/gpa', { signal: request.signal });
         const data = await resp.json();
+        if (!isCurrent()) return;
         if (!data.success) {
-            document.getElementById('grades-content').innerHTML = `<p style="text-align:center;color:var(--error);">${gradesEscape(data.message || '查询失败')}</p>`;
+            document.getElementById('grades-content').innerHTML = `<p style="text-align:center;color:var(--error);">${escapeHtml(data.message || '查询失败')}</p>`;
             return;
         }
         const gpa = data.gpa || {};
@@ -3935,13 +3950,13 @@ async function gradesLoadGpa() {
         const semesterDetails = gpa['学期绩点明细'] || gpa.semester_details || [];
         let html = '<div class="gpa-info-card"><h3 class="gpa-title">绩点信息</h3><div class="gpa-items">';
         if (creditGpa !== null && creditGpa !== undefined) {
-            html += `<div class="gpa-item"><span class="gpa-label">学分绩点</span><span class="gpa-value">${escapeGradeHtml(creditGpa)}</span></div>`;
+            html += `<div class="gpa-item"><span class="gpa-label">学分绩点</span><span class="gpa-value">${escapeHtml(creditGpa)}</span></div>`;
         }
         if (degreeGpa !== null && degreeGpa !== undefined) {
-            html += `<div class="gpa-item"><span class="gpa-label">学位绩点</span><span class="gpa-value">${escapeGradeHtml(degreeGpa)}</span></div>`;
+            html += `<div class="gpa-item"><span class="gpa-label">学位绩点</span><span class="gpa-value">${escapeHtml(degreeGpa)}</span></div>`;
         }
         if (weightedGpa !== null && weightedGpa !== undefined) {
-            html += `<div class="gpa-item"><span class="gpa-label">加权学分学位绩点</span><span class="gpa-value">${escapeGradeHtml(weightedGpa)}</span></div>`;
+            html += `<div class="gpa-item"><span class="gpa-label">加权学分学位绩点</span><span class="gpa-value">${escapeHtml(weightedGpa)}</span></div>`;
         }
         if ((creditGpa === null || creditGpa === undefined) && (degreeGpa === null || degreeGpa === undefined) && (weightedGpa === null || weightedGpa === undefined)) {
             html += '<p class="gpa-empty">暂未查询到总体绩点</p>';
@@ -3950,7 +3965,8 @@ async function gradesLoadGpa() {
         html += buildGpaDetailTable(semesterDetails);
         document.getElementById('grades-content').innerHTML = html;
     } catch (e) {
-        document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+        if (!isCurrent() || e.name === 'AbortError') return;
+        document.getElementById('grades-content').innerHTML = `<p style="text-align:center;color:var(--error);">${escapeHtml(e.message || '加载失败')}</p>`;
     }
 }
 
@@ -3959,7 +3975,11 @@ async function gradesLoadGpa() {
 let _examSessions = null; // 缓存会话数据
 
 async function gradesShowExamPicker() {
+    const request = apiClient.beginRequest('grades');
+    const generation = academicCacheGeneration;
+    const isCurrent = () => request.isCurrent() && generation === academicCacheGeneration;
     await checkLoginStatus();
+    if (!isCurrent()) return;
     const modal = document.getElementById('exam-picker-modal');
     document.getElementById('exam-picker-title').textContent = '选择学期';
     const body = document.getElementById('exam-picker-body');
@@ -3968,15 +3988,17 @@ async function gradesShowExamPicker() {
 
     if (!_examSessions) {
         try {
-            const resp = await fetch('/api/grades/exam_sessions', { headers: { 'X-Device-ID': getDeviceId() } });
+            const resp = await apiClient.request('/api/grades/exam_sessions', { signal: request.signal });
             const data = await resp.json();
+            if (!isCurrent()) return;
             if (!data.success) {
                 body.innerHTML = `<p style="color:var(--error);text-align:center;">${data.message || '加载失败'}</p>`;
                 return;
             }
             _examSessions = data;
         } catch (e) {
-            body.innerHTML = '<p style="color:var(--error);text-align:center;">加载失败</p>';
+            if (!isCurrent() || e.name === 'AbortError') return;
+            body.innerHTML = `<p style="color:var(--error);text-align:center;">${escapeHtml(e.message || '加载失败')}</p>`;
             return;
         }
     }
@@ -3984,7 +4006,7 @@ async function gradesShowExamPicker() {
     // 倒序取最新 8 个学期
     const semesters = [..._examSessions.semesters].reverse().slice(0, 8);
     body.innerHTML = semesters.map(s =>
-        `<button class="semester-option-btn" onclick="examPickSemester('${s.value}', '${s.text.replace(/'/g, "\\'")}')">${s.text}</button>`
+        `<button class="semester-option-btn" data-semester-id="${escapeHtml(s.value)}" data-semester-label="${escapeHtml(s.text)}" onclick="examPickSemester(this.dataset.semesterId, this.dataset.semesterLabel)">${escapeHtml(s.text)}</button>`
     ).join('');
 }
 
@@ -3997,20 +4019,24 @@ function examPickSemester(jxzxjh, semesterText) {
         return;
     }
     body.innerHTML = exams.map(e =>
-        `<button class="semester-option-btn" onclick="examPickExam('${e.jxzxjh}','${e.ksbh}','${e.name.replace(/'/g, "\\'")}')">${e.name}</button>`
+        `<button class="semester-option-btn" data-semester-id="${escapeHtml(e.jxzxjh)}" data-exam-id="${escapeHtml(e.ksbh)}" data-exam-name="${escapeHtml(e.name)}" onclick="examPickExam(this.dataset.semesterId, this.dataset.examId, this.dataset.examName)">${escapeHtml(e.name)}</button>`
     ).join('');
 }
 
 async function examPickExam(jxzxjh, ksbh, examName) {
     closeExamPicker();
+    const request = apiClient.beginRequest('grades');
+    const generation = academicCacheGeneration;
+    const isCurrent = () => request.isCurrent() && generation === academicCacheGeneration;
     gradesShowResult(examName);
     try {
-        const resp = await fetch(`/api/grades/exam_scores?jxzxjh=${encodeURIComponent(jxzxjh)}&ksbh=${encodeURIComponent(ksbh)}`, {
-            headers: { 'X-Device-ID': getDeviceId() }
+        const resp = await apiClient.request(`/api/grades/exam_scores?jxzxjh=${encodeURIComponent(jxzxjh)}&ksbh=${encodeURIComponent(ksbh)}`, {
+            signal: request.signal
         });
         const data = await resp.json();
+        if (!isCurrent()) return;
         if (!data.success) {
-            document.getElementById('grades-content').innerHTML = `<p style="text-align:center;color:var(--error);">${data.message || '查询失败'}</p>`;
+            document.getElementById('grades-content').innerHTML = `<p style="text-align:center;color:var(--error);">${escapeHtml(data.message || '查询失败')}</p>`;
             return;
         }
         if (!data.grades || data.grades.length === 0) {
@@ -4020,16 +4046,18 @@ async function examPickExam(jxzxjh, ksbh, examName) {
         let html = '<table class="grades-table"><thead><tr><th>课程名称</th><th>学分</th><th>成绩</th></tr></thead><tbody>';
         data.grades.forEach(g => {
             const scoreClass = (parseFloat(g.score) < 60) ? 'score-low' : '';
-            html += `<tr><td>${g.course}</td><td>${g.credit}</td><td class="${scoreClass}">${g.score || '-'}</td></tr>`;
+            html += `<tr><td>${escapeHtml(g.course)}</td><td>${escapeHtml(g.credit)}</td><td class="${scoreClass}">${escapeHtml(g.score ?? '-')}</td></tr>`;
         });
         html += '</tbody></table>';
         document.getElementById('grades-content').innerHTML = html;
     } catch (e) {
-        document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--error);">加载失败</p>';
+        if (!isCurrent() || e.name === 'AbortError') return;
+        document.getElementById('grades-content').innerHTML = `<p style="text-align:center;color:var(--error);">${escapeHtml(e.message || '加载失败')}</p>`;
     }
 }
 
 function closeExamPicker() {
+    apiClient.cancelRequest('grades');
     closeUiModal(document.getElementById('exam-picker-modal'));
 }
 
@@ -4047,7 +4075,7 @@ function displayGrades(grades) {
     const courseGrades = [];
 
     grades.forEach(grade => {
-        const courseName = grade.course.trim();
+        const courseName = String(grade.course ?? '').trim();
         if (courseName === '学分绩点') {
             creditGpa = grade.score;
         } else if (courseName === '学位绩点') {
@@ -4073,8 +4101,8 @@ function displayGrades(grades) {
 
         html += `
             <tr>
-                <td>${grade.course}</td>
-                <td class="${scoreClass}">${grade.score}</td>
+                <td>${escapeHtml(grade.course)}</td>
+                <td class="${scoreClass}">${escapeHtml(grade.score)}</td>
             </tr>
         `;
     });
@@ -4091,7 +4119,7 @@ function displayGrades(grades) {
             html += `
                 <div class="gpa-item">
                     <span class="gpa-label">学分绩点</span>
-                    <span class="gpa-value">${creditGpa}</span>
+                    <span class="gpa-value">${escapeHtml(creditGpa)}</span>
                 </div>
             `;
         }
@@ -4100,7 +4128,7 @@ function displayGrades(grades) {
             html += `
                 <div class="gpa-item">
                     <span class="gpa-label">学位绩点</span>
-                    <span class="gpa-value">${degreeGpa}</span>
+                    <span class="gpa-value">${escapeHtml(degreeGpa)}</span>
                 </div>
             `;
         }
@@ -4366,8 +4394,8 @@ async function showAnnouncementAt(index) {
     status.hidden = true;
     article.hidden = false;
     time.textContent = Number.isNaN(date.getTime()) ? '' : date.toLocaleString('zh-CN');
-    document.getElementById('announcement-dialog-title').textContent = String(item.title || '');
-    document.getElementById('announcement-dialog-content').textContent = String(item.content || '');
+    document.getElementById('announcement-dialog-title').textContent = String(item.title ?? '');
+    document.getElementById('announcement-dialog-content').textContent = String(item.content ?? '');
     document.getElementById('announcement-dialog-position').textContent = `${index + 1} / ${announcementItems.length}`;
     document.getElementById('announcement-previous').disabled = index === 0;
     document.getElementById('announcement-next').disabled = index === announcementItems.length - 1;
@@ -4405,17 +4433,9 @@ async function markAnnouncementRead(item) {
 
 // ==================== 反馈建议 ====================
 
-function escapeFeedbackHtml(value) {
-    return String(value || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
 
 function formatFeedbackContent(value) {
-    return escapeFeedbackHtml(value).replace(/\n/g, '<br>');
+    return escapeHtml(value).replace(/\n/g, '<br>');
 }
 
 function formatFeedbackTime(value) {
@@ -4435,7 +4455,7 @@ function renderRetryState(container, message, retry) {
     if (!container) return;
     container.innerHTML = `
         <div class="ui-retry-state" role="alert">
-            <p>${escapeFeedbackHtml(message || '加载失败')}</p>
+            <p>${escapeHtml(message || '加载失败')}</p>
             <button class="btn-secondary" type="button">重新加载</button>
         </div>`;
     const retryButton = container.querySelector('.ui-retry-state button');
@@ -4598,10 +4618,13 @@ function displayFeedbackList(myFeedbacks, publicFeedbacks) {
 
 // 构建单条反馈卡片 HTML
 function buildFeedbackCard(fb) {
+    // 内联事件只允许服务端的整数 ID，文本转义不能替代 JavaScript 上下文验证。
+    const feedbackId = Number(fb.id);
+    const canReply = Number.isSafeInteger(feedbackId) && feedbackId > 0;
     const createTime = formatFeedbackTime(fb.create_time);
     const visLabel = fb.visibility === 'public' ? '公开' : '仅自己可见';
     const visClass = fb.visibility === 'public' ? 'feedback-visibility-badge is-public' : 'feedback-visibility-badge';
-    const authorName = fb.is_own ? '我' : escapeFeedbackHtml(fb.username || '同学');
+    const authorName = fb.is_own ? '我' : escapeHtml(fb.username || '同学');
 
     let html = `
         <div class="feedback-card">
@@ -4620,7 +4643,7 @@ function buildFeedbackCard(fb) {
         fb.replies.forEach((reply, index) => {
             const replyTime = formatFeedbackTime(reply.create_time);
             const isAdmin = reply.username === '管理员';
-            const replyName = isAdmin ? '管理员' : escapeFeedbackHtml(reply.username || '同学');
+            const replyName = isAdmin ? '管理员' : escapeHtml(reply.username || '同学');
             html += `
                 <div class="feedback-floor ${isAdmin ? 'feedback-floor-admin' : ''}">
                     <div class="feedback-floor-header">
@@ -4634,13 +4657,13 @@ function buildFeedbackCard(fb) {
         });
     }
 
-    html += `
+    if (canReply) html += `
             <div class="feedback-reply-bar">
-                <button class="feedback-reply-btn" onclick="toggleReplyBox(${fb.id})">回复这条反馈</button>
+                <button class="feedback-reply-btn" onclick="toggleReplyBox(${feedbackId})">回复这条反馈</button>
             </div>
-            <div id="reply-box-${fb.id}" class="feedback-reply-box" style="display:none;">
-                <textarea id="reply-input-${fb.id}" class="feedback-reply-textarea" rows="2" placeholder="补充说明或参与讨论..."></textarea>
-                <button class="btn-primary btn-sm" onclick="submitFeedbackReply(${fb.id})">发送</button>
+            <div id="reply-box-${feedbackId}" class="feedback-reply-box" style="display:none;">
+                <textarea id="reply-input-${feedbackId}" class="feedback-reply-textarea" rows="2" placeholder="补充说明或参与讨论..."></textarea>
+                <button class="btn-primary btn-sm" onclick="submitFeedbackReply(${feedbackId})">发送</button>
             </div>
         </div>
     `;
@@ -4740,8 +4763,8 @@ function renderShortcutApiKeyStatus(data) {
         <div class="shortcut-api-active">
             <div>
                 <span class="shortcut-api-label">当前密钥</span>
-                <code>${escapeGradeHtml(prefix)}...</code>
-                <small>${escapeGradeHtml(createTime)}</small>
+                <code>${escapeHtml(prefix)}...</code>
+                <small>${escapeHtml(createTime)}</small>
             </div>
             <button class="btn-secondary" type="button" onclick="generateShortcutApiKey()">重新生成</button>
         </div>`;
@@ -4822,14 +4845,14 @@ async function generateShortcutApiKey() {
                     <span>刷新页面后不会再次显示</span>
                 </div>
                 <div class="shortcut-api-secret-row">
-                    <code>${escapeGradeHtml(shortcutApiPlainKey)}</code>
+                    <code>${escapeHtml(shortcutApiPlainKey)}</code>
                     <button id="shortcut-api-copy" class="btn-primary" type="button" onclick="copyShortcutApiKey()">复制密钥</button>
                 </div>`;
         }
         await loadShortcutApiKey();
     } catch (e) {
         if (status) {
-            status.innerHTML = `<p class="shortcut-api-error">${escapeGradeHtml(e.message || '密钥生成失败，请稍后重试')}</p>`;
+            status.innerHTML = `<p class="shortcut-api-error">${escapeHtml(e.message || '密钥生成失败，请稍后重试')}</p>`;
         }
     }
 }
@@ -4861,7 +4884,7 @@ function renderInvitationLink(data, errorMessage = '') {
 
     if (!data || data.has_link !== true || !data.invite_url) {
         const message = errorMessage
-            ? `<span class="invitation-link-error">${escapeGradeHtml(errorMessage)}</span>`
+            ? `<span class="invitation-link-error">${escapeHtml(errorMessage)}</span>`
             : '<span>生成固定邀请链接，分享给新用户即可自动绑定邀请关系。</span>';
         container.innerHTML = `
             <div class="invitation-link-empty">
@@ -4871,7 +4894,7 @@ function renderInvitationLink(data, errorMessage = '') {
         return;
     }
 
-    const safeUrl = escapeGradeHtml(data.invite_url);
+    const safeUrl = escapeHtml(data.invite_url);
     container.innerHTML = `
         <div class="invitation-link-label">我的固定邀请链接</div>
         <div class="invitation-link-row">
@@ -4972,7 +4995,7 @@ async function loadInvitationEarnings() {
     let html = `<div class="invitation-promo"><strong>每成功邀请1位新付费用户，获得最高1.2元奖励。</strong></div>`;
 
     if (inviterData.success && inviterData.data && inviterData.data.inviter) {
-        html += `<div class="inviter-info"><span class="inviter-label">邀请人：</span><span>${escapeGradeHtml(inviterData.data.inviter)}</span></div>`;
+        html += `<div class="inviter-info"><span class="inviter-label">邀请人：</span><span>${escapeHtml(inviterData.data.inviter)}</span></div>`;
     }
 
     let hasPending = false;
@@ -4999,14 +5022,14 @@ async function loadInvitationEarnings() {
 
     html += `<div class="earnings-summary">
         <div class="earnings-row"><span>有效邀请</span><span>${effectiveInviteCount} 人</span></div>
-        <div class="earnings-row"><span>当前每人奖励</span><span class="earnings-rate">¥${escapeGradeHtml(currentReward)}</span></div>
+        <div class="earnings-row"><span>当前每人奖励</span><span class="earnings-rate">¥${escapeHtml(currentReward)}</span></div>
         <div class="earnings-row"><span>团队充值</span><span>¥${inviteeTotal.toFixed(2)}</span></div>
         <div class="earnings-row earnings-row-total"><span>累计收益</span><span class="earnings-amount">¥${earned.toFixed(2)}</span></div>
     </div>`;
 
     if (data.next_level_count !== null && data.next_level_count !== undefined) {
         const remaining = Math.max(Number(data.next_level_count) - effectiveInviteCount, 0);
-        html += `<div class="invite-hint">再邀请 ${remaining} 位新付费用户，后续每人奖励提升至 ¥${escapeGradeHtml(data.next_reward || '0.00')}。</div>`;
+        html += `<div class="invite-hint">再邀请 ${remaining} 位新付费用户，后续每人奖励提升至 ¥${escapeHtml(data.next_reward || '0.00')}。</div>`;
     } else {
         html += '<div class="invite-hint">已达到当前最高奖励档位，继续邀请仍可获得当前奖励。</div>';
     }
@@ -5018,7 +5041,7 @@ async function loadInvitationEarnings() {
             const range = nextLevel
                 ? `${Number(level.min_count)}～${Number(nextLevel.min_count) - 1}人`
                 : `${Number(level.min_count)}人以上`;
-            html += `<div class="referral-level-row"><span>${range}</span><span>¥${escapeGradeHtml(level.reward)} / 人</span></div>`;
+            html += `<div class="referral-level-row"><span>${range}</span><span>¥${escapeHtml(level.reward)} / 人</span></div>`;
         });
         html += '</div>';
     }
@@ -5026,16 +5049,16 @@ async function loadInvitationEarnings() {
     if (Array.isArray(data.milestones) && data.milestones.length > 0) {
         html += '<div class="referral-milestones"><div class="referral-section-title">限时任务</div>';
         data.milestones.forEach(milestone => {
-            const label = escapeGradeHtml(milestone.label || milestone.id || '邀请任务');
+            const label = escapeHtml(milestone.label || milestone.id || '邀请任务');
             let status;
             if (milestone.completed) {
                 status = milestone.rewarded ? '已完成，奖励已发放' : '已完成，奖励待发放';
             } else if (milestone.is_active) {
                 status = `已完成 ${Number(milestone.count || 0)}/${Number(milestone.target_count || 0)}，还差 ${Number(milestone.remaining || 0)} 人`;
             } else {
-                status = `目标 ${Number(milestone.target_count || 0)} 人，奖励 ¥${escapeGradeHtml(milestone.bonus || '0.00')}`;
+                status = `目标 ${Number(milestone.target_count || 0)} 人，奖励 ¥${escapeHtml(milestone.bonus || '0.00')}`;
             }
-            html += `<div class="referral-milestone-row"><div><strong>${label}</strong><span>${status}</span></div><span>额外 ¥${escapeGradeHtml(milestone.bonus || '0.00')}</span></div>`;
+            html += `<div class="referral-milestone-row"><div><strong>${label}</strong><span>${status}</span></div><span>额外 ¥${escapeHtml(milestone.bonus || '0.00')}</span></div>`;
         });
         html += '</div>';
     }
@@ -5054,7 +5077,7 @@ async function loadInvitationEarnings() {
     if ((data.earnings && data.earnings.length > 0) || (data.milestone_earnings && data.milestone_earnings.length > 0)) {
         html += '<div class="earnings-list">';
         (data.earnings || []).forEach(e => {
-            html += `<div class="earning-item"><span>${escapeGradeHtml(e.invitee_username)} 首次付费</span><span class="earning-amount">+¥${(parseFloat(e.amount) || 0).toFixed(2)}</span><span class="earning-time">${e.create_time ? e.create_time.slice(0, 10) : ''}</span></div>`;
+            html += `<div class="earning-item"><span>${escapeHtml(e.invitee_username)} 首次付费</span><span class="earning-amount">+¥${(parseFloat(e.amount) || 0).toFixed(2)}</span><span class="earning-time">${e.create_time ? e.create_time.slice(0, 10) : ''}</span></div>`;
         });
         if (data.milestone_earnings && data.milestone_earnings.length > 0) {
             data.milestone_earnings.forEach(e => {

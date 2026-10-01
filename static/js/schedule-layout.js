@@ -223,17 +223,17 @@ function buildScheduleExamDetailHtml(exam = {}) {
         ['校区', exam.campus], ['教学楼', exam.building], ['教室', exam.room], ['座位号', exam.seat],
     ];
     return rows.filter(([, value]) => value !== null && value !== undefined && value !== '')
-        .map(([label, value]) => `<div class="course-detail-row"><span class="course-detail-label">${escapeScheduleHtml(label)}</span><span>${escapeScheduleHtml(value)}</span></div>`)
+        .map(([label, value]) => `<div class="course-detail-row"><span class="course-detail-label">${escapeHtml(label)}</span><span>${escapeHtml(value)}</span></div>`)
         .join('\n');
 }
 
-function escapeScheduleHtml(value) {
-    return String(value ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+// 用户端共享的文本及双引号 HTML 属性转义；空值为空串，保留 0 和 false。
+const htmlEntities = {
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+};
+
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, character => htmlEntities[character]);
 }
 
 function buildScheduleCourseDetailHtml(course = {}) {
@@ -242,7 +242,7 @@ function buildScheduleCourseDetailHtml(course = {}) {
     const endSection = section + duration - 1;
     const row = (label, value) => {
         if (value === null || value === undefined || value === '') return '';
-        return `<div class="course-detail-row"><span class="course-detail-label">${escapeScheduleHtml(label)}</span><span>${escapeScheduleHtml(value)}</span></div>`;
+        return `<div class="course-detail-row"><span class="course-detail-label">${escapeHtml(label)}</span><span>${escapeHtml(value)}</span></div>`;
     };
 
     return [
@@ -254,7 +254,7 @@ function buildScheduleCourseDetailHtml(course = {}) {
         row('修读方式', course.studyMode),
         row('选课状态', course.selectionStatus),
         row('日期', course.date),
-        `<div class="course-detail-row"><span class="course-detail-label">时间</span><span>${course.week ? `第${escapeScheduleHtml(course.week)}周 ` : ''}${escapeScheduleHtml(course.day)} 第${section}-${endSection}节${course.clockTime ? `（${escapeScheduleHtml(course.clockTime)}）` : ''}</span></div>`,
+        `<div class="course-detail-row"><span class="course-detail-label">时间</span><span>${course.week ? `第${escapeHtml(course.week)}周 ` : ''}${escapeHtml(course.day)} 第${section}-${endSection}节${course.clockTime ? `（${escapeHtml(course.clockTime)}）` : ''}</span></div>`,
         row('地点', course.location),
         row('校区', course.campus),
         row('教学楼', course.building),
@@ -307,10 +307,6 @@ function buildHistoricalScheduleGridModel(courses) {
     };
 }
 
-function escapeHistoricalScheduleHtml(value) {
-    return escapeScheduleHtml(value);
-}
-
 function buildHistoricalScheduleGridHtml(courses) {
     const model = buildHistoricalScheduleGridModel(courses);
     const dayHeaders = model.days.map((day, index) => (
@@ -326,9 +322,9 @@ function buildHistoricalScheduleGridHtml(courses) {
     )).join('');
     const courseBlocks = model.courses.map(course => {
         const location = course.location || '地点未提供';
-        const classNo = course.classNo ? `<small>课序 ${escapeHistoricalScheduleHtml(course.classNo)}</small>` : '';
-        const title = escapeHistoricalScheduleHtml(`${course.name} · ${location} · ${course.sectionText}`);
-        return `<article class="historical-schedule-course-block" title="${title}" style="grid-column: ${course.column}; grid-row: ${course.row} / span ${course.duration};"><strong>${escapeHistoricalScheduleHtml(course.name)}</strong><span>${escapeHistoricalScheduleHtml(location)}</span><small>${course.sectionText}</small>${classNo}</article>`;
+        const classNo = course.classNo ? `<small>课序 ${escapeHtml(course.classNo)}</small>` : '';
+        const title = escapeHtml(`${course.name} · ${location} · ${course.sectionText}`);
+        return `<article class="historical-schedule-course-block" title="${title}" style="grid-column: ${course.column}; grid-row: ${course.row} / span ${course.duration};"><strong>${escapeHtml(course.name)}</strong><span>${escapeHtml(location)}</span><small>${course.sectionText}</small>${classNo}</article>`;
     }).join('');
 
     return `<div class="historical-schedule-summary">共 ${model.courses.length} 个课程时段</div><div class="historical-schedule-grid-scroll"><div class="historical-schedule-grid" style="--historical-period-count: ${model.periods.length};"><div class="historical-schedule-grid-corner">节次</div>${dayHeaders}${periodLabels}${slots}${courseBlocks}</div></div>`;
@@ -336,6 +332,7 @@ function buildHistoricalScheduleGridHtml(courses) {
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
+        escapeHtml,
         setScheduleWeekendVisibility,
         resolveScheduleSwipe,
         resolveScheduleButtonSwipe,
