@@ -366,8 +366,14 @@ function openUiModal(modal, { initialFocusSelector = '' } = {}) {
     focusUiElement(initialFocus || focusable[0]);
 }
 
-function closeUiModal(modal, { restoreFocus = true } = {}) {
+function closeUiModal(modal, { restoreFocus = true, animate = true } = {}) {
     if (!modal) return;
+
+    const transition = typeof window !== 'undefined' && window.courseDetailTransition;
+    if (transition && modal.id === 'course-detail-modal') {
+        if (animate && restoreFocus && transition.close(modal, () => closeUiModal(modal, { restoreFocus, animate: false }))) return;
+        transition.reset(modal);
+    }
 
     toggleUiClass(modal, 'active', false);
     if (typeof modal.setAttribute === 'function') {
@@ -514,6 +520,20 @@ function handleUiKeydown(event) {
     }
 }
 
+function setUiFocusInput(input) {
+    document.body?.setAttribute?.('data-focus-input', input);
+}
+
+function handleUiFocusKeyDown(event) {
+    if (event.ctrlKey || event.altKey || event.metaKey) return;
+    if (['Tab', 'Enter', ' ', 'Escape', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) {
+        setUiFocusInput('keyboard');
+    }
+}
+
+// 捕获阶段先确定输入方式，切页和弹窗随后仍按原逻辑移动焦点。
+document.addEventListener('pointerdown', () => setUiFocusInput('pointer'), true);
+document.addEventListener('keydown', handleUiFocusKeyDown, true);
 document.addEventListener('keydown', handleUiKeydown);
 document.addEventListener('click', handleModalBackdropClick);
 
@@ -2447,7 +2467,7 @@ function handleScheduleActionWheel(event) {
 }
 
 function handleScheduleActionKeyDown(event) {
-    if (isDesktopWorkspace()) return;
+    if (uiModalState.activeModal || isDesktopWorkspace()) return;
     if (event.target?.closest?.('input, select, textarea, .schedule-unplaced-exams')) return;
     const page = document.getElementById('page-schedule');
     const panel = document.getElementById('schedule-actions');
@@ -3011,7 +3031,7 @@ function renderScheduleWeek(schedule, panel, courseColorMap = buildScheduleCours
             const color = courseColorMap.get(getScheduleCourseColorKey(course)) || 'hsl(208, 72%, 27%)';
             const data = encodeURIComponent(JSON.stringify(course));
             html += `<button type="button" class="course-card${isExam ? ' schedule-exam-card' : ''}${course.duration === 1 ? ' is-single-period' : ''}"
-                style="${position}${isExam ? '' : ` --course-color: ${color}; background: ${color};`}"
+                style="${position} --course-color: ${isExam ? 'var(--ui-exam-ink)' : color};"
                 title="${escapeScheduleHtml(`${course.name}${isExam ? ` · 考试 · ${course.time}` : courseTime ? ` · ${courseTime}` : ''}${course.location ? ` · ${course.location}` : ''}`)}"
                 data-course="${data}" data-day="${day}" tabindex="${panel.getAttribute?.('aria-hidden') === 'true' ? -1 : 0}" onclick="showCourseDetail(this)">
                 <span class="course-card-name">${escapeScheduleHtml(course.name)}</span>
@@ -3131,6 +3151,7 @@ function showCourseDetail(el) {
             ...course, week, date: date || '学期起始日期或考试日期待核对',
         });
         openUiModal(modal);
+        if (window.courseDetailTransition) window.courseDetailTransition.open(modal, el);
         return;
     }
     const times = userIsFreshman ? PERIOD_TIMES_FRESHMAN : PERIOD_TIMES_DEFAULT;
@@ -3145,6 +3166,7 @@ function showCourseDetail(el) {
     });
 
     openUiModal(modal);
+    if (window.courseDetailTransition) window.courseDetailTransition.open(modal, el);
 }
 
 function closeCourseDetail() {

@@ -134,11 +134,16 @@ body.campaign-body button {
     font-family: inherit;
 }
 
-body.urp-app :where(button, a, input, select, textarea):focus-visible,
+body.urp-app :where(button, a, input, select, textarea, summary, [tabindex]):focus-visible,
 body.urp-admin :where(button, a, input, select, textarea):focus-visible,
 body.campaign-body :where(button, a, input, select, textarea):focus-visible {
     outline: 3px solid var(--ui-accent);
     outline-offset: 3px;
+}
+
+/* 点击或触摸后仍保留真实焦点，仅隐藏额外轮廓；不改变控件边框。 */
+body.urp-app[data-focus-input="pointer"] :focus {
+    outline: none !important;
 }
 
 body.urp-app :is(.btn-primary, .btn-secondary),
@@ -524,7 +529,26 @@ body.urp-app .grades-card-grid .grade-action-btn:hover { border-color: #91b2de; 
 body.urp-app .grades-card-grid .grade-action-btn svg { stroke: var(--ui-accent); }
 body.urp-app .grades-card-grid .grade-action-label { color: var(--ui-ink); }
 body.urp-app .grades-card-grid .grade-action-desc { color: var(--ui-muted); }
-body.urp-app .in-page-back { color: var(--ui-accent); }
+body.urp-app :is(.in-page-back, .schedule-actions-close) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 8px 12px;
+    border: 1px solid #a9bbd2;
+    border-radius: var(--ui-radius-sm);
+    background: var(--ui-surface);
+    color: var(--ui-accent);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.4;
+    cursor: pointer;
+    box-shadow: none;
+}
+body.urp-app :is(.in-page-back, .schedule-actions-close):hover { background: var(--ui-accent-soft); border-color: var(--ui-accent); }
+body.urp-app :is(.in-page-back, .schedule-actions-close, .refresh-btn, .home-agenda-link):active:not(:disabled) { transform: scale(.98); }
+body.urp-app .lab-actions > a.btn-secondary { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
 body.urp-app .grades-result { margin-top: 0; }
 body.urp-app .grades-result-header { display: grid; justify-items: start; gap: 6px; margin-bottom: 22px; }
 
@@ -975,7 +999,7 @@ body.urp-app #page-schedule .week-select-wrap select {
     padding: 0 22px 0 4px;
     box-shadow: none;
 }
-body.urp-app #page-schedule .week-select-wrap:has(select:focus-visible) {
+body.urp-app:not([data-focus-input="pointer"]) #page-schedule .week-select-wrap:has(select:focus-visible) {
     outline: 3px solid var(--ui-accent);
     outline-offset: 3px;
 }
@@ -1317,11 +1341,6 @@ body.urp-app .course-card-sections { opacity: 1; }
         background: repeating-linear-gradient(to bottom, var(--ui-line) 0 1px, transparent 1px calc(100% / var(--schedule-visible-rows)));
     }
     body.urp-app #page-schedule .schedule-day-column.schedule-column-today { background-color: #f5f8fd; }
-    body.urp-app #page-schedule .course-card:not(.schedule-exam-card) {
-        background: color-mix(in srgb, var(--course-color, #2055a2) 23%, white) !important;
-        color: var(--ui-ink);
-        border-left: 3px solid var(--course-color, #2055a2);
-    }
     body.urp-app #page-schedule .course-card {
         width: calc((100% - 8px) / var(--schedule-event-lanes, 1) - 3px);
         margin: 4px 0 4px calc(5px + (100% - 8px) / var(--schedule-event-lanes, 1) * var(--schedule-event-lane, 0));
@@ -1566,18 +1585,20 @@ body.urp-app #page-schedule.is-access-locked .schedule-container { display: none
         grid-column: 2;
         grid-row: 1 / 3;
         align-items: center;
-        gap: 4px;
+        gap: 8px;
     }
     body.urp-app #schedule-mobile-actions button {
         min-width: 44px;
         min-height: 44px;
         padding: 8px;
-        border: 0;
-        background: transparent;
-        color: var(--ui-ink);
+        border: 1px solid #a9bbd2;
+        border-radius: var(--ui-radius-sm);
+        background: var(--ui-surface);
+        color: var(--ui-accent);
         box-shadow: none;
     }
-    body.urp-app #schedule-mobile-actions button:hover { background: var(--ui-accent-soft); }
+    body.urp-app #schedule-mobile-actions button:hover:not(:disabled) { background: var(--ui-accent-soft); border-color: var(--ui-accent); }
+    body.urp-app #schedule-mobile-actions button:disabled { background: var(--ui-surface-soft); color: var(--ui-subtle); border-color: var(--ui-line); opacity: .7; cursor: wait; }
     body.urp-app #schedule-mobile-actions #update-schedule-btn { font-size: 0; }
     body.urp-app #schedule-mobile-actions #update-schedule-btn::before { content: '更新'; font-size: 14px; }
     body.urp-app #schedule-mobile-actions #update-schedule-btn:disabled::before { content: '更新中'; }
@@ -1629,8 +1650,9 @@ body.urp-app #page-home #home-today-date { color: var(--ui-muted); font-size: 13
 body.urp-app #page-home .urgent-card { margin: 0; padding: 0; border: 0; background: transparent; }
 body.urp-app #page-home .urgent-header { gap: 12px; margin-bottom: 10px; padding-bottom: 0; border: 0; }
 body.urp-app #page-home .urgent-header h2 { font-size: 17px; line-height: 1.5; }
-body.urp-app #page-home .refresh-btn { min-width: 72px; padding: 0 8px; background: transparent; border-color: transparent; color: var(--ui-muted); }
-body.urp-app #page-home .refresh-btn:hover { color: var(--ui-accent); background: var(--ui-accent-soft); }
+body.urp-app #page-home .refresh-btn { min-width: 76px; padding: 0 12px; background: var(--ui-surface); border-color: #a9bbd2; color: var(--ui-accent); font-weight: 600; }
+body.urp-app #page-home .refresh-btn span { position: static; width: auto; height: auto; overflow: visible; clip: auto; }
+body.urp-app #page-home .refresh-btn:hover:not(:disabled) { border-color: var(--ui-accent); background: var(--ui-accent-soft); }
 body.urp-app #page-home .urgent-content { min-height: 0; grid-template-columns: minmax(0, 1fr); gap: 12px; }
 body.urp-app #page-home .event-card {
     display: grid;
@@ -1673,8 +1695,8 @@ body.urp-app #page-home .home-shortcut-arrow { margin-left: auto; color: var(--u
 body.urp-app #page-home .home-agenda { display: block; min-width: 0; padding: 0; border: 0; background: transparent; }
 body.urp-app #page-home .home-agenda-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
 body.urp-app #page-home .home-agenda-heading h2 { margin: 0; font-size: 17px; line-height: 1.5; }
-body.urp-app #page-home .home-agenda-link { min-height: 44px; padding: 0 4px; border: 0; border-radius: 6px; background: transparent; color: var(--ui-accent); font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; }
-body.urp-app #page-home .home-agenda-link:hover { background: var(--ui-accent-soft); }
+body.urp-app #page-home .home-agenda-link { min-height: 44px; padding: 0 12px; border: 1px solid #a9bbd2; border-radius: var(--ui-radius-sm); background: var(--ui-surface); color: var(--ui-accent); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+body.urp-app #page-home .home-agenda-link:hover { border-color: var(--ui-accent); background: var(--ui-accent-soft); }
 body.urp-app #page-home .home-agenda-list { list-style: none; margin: 0; padding: 0 14px; border: 1px solid var(--ui-line); border-radius: var(--ui-radius); background: var(--ui-surface); }
 body.urp-app #page-home .home-agenda-item { display: grid; grid-template-columns: 82px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 76px; padding: 14px 0; border: 0; }
 body.urp-app #page-home .home-agenda-item + .home-agenda-item { border-top: 1px solid var(--ui-line); }
@@ -1725,4 +1747,147 @@ body.urp-app #page-home .home-events-loading > span:nth-child(2) { display: none
     body.urp-app #page-home .home-agenda-status { grid-column: 2; }
     body.urp-app #page-home .event-card { padding: 14px; gap: 6px 10px; }
     body.urp-app #page-home .event-card .countdown { font-size: 19px; }
+}
+
+/* 课程卡片与详情共用展开表面；文字独立移动，避免随表面拉伸。 */
+body.urp-app #course-detail-modal {
+    align-items: center;
+    padding: 16px;
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+/* 详情自己承担遮罩，避免与通用遮罩叠加、收回后留下灰屏。 */
+body.urp-app:has(#course-detail-modal.active) #overlay { background: transparent; }
+body.urp-app #course-detail-modal .course-detail-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgb(24 38 56 / 42%);
+    pointer-events: none;
+}
+body.urp-app #course-detail-modal .modal-content {
+    display: flex;
+    flex-direction: column;
+    width: min(100%, 420px);
+    max-height: calc(100dvh - 32px);
+    padding: 24px;
+    background: var(--ui-surface);
+    animation: none;
+    transform-origin: top left;
+    overflow: hidden;
+}
+body.urp-app #course-detail-name {
+    flex-shrink: 0;
+    margin: 0 84px 14px 0;
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+body.urp-app #course-detail-modal .modal-close {
+    top: 12px;
+    right: 12px;
+    width: 72px;
+    height: 44px;
+    border: 1px solid var(--ui-line);
+    background: var(--ui-surface-soft);
+    border-radius: var(--ui-radius-sm);
+    font-size: 14px;
+    font-weight: 600;
+}
+body.urp-app #course-detail-body {
+    flex: 0 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    padding-right: 4px;
+}
+body.urp-app #course-detail-modal .course-detail-footer { display: none; }
+@media (max-width: 768px) {
+    body.urp-app #course-detail-modal .course-detail-footer {
+        display: block;
+        flex-shrink: 0;
+        margin-top: 16px;
+        padding-top: 12px;
+        border-top: 1px solid var(--ui-line);
+    }
+    body.urp-app #course-detail-close-bottom {
+        width: 100%;
+        min-height: 48px;
+        border: 1px solid var(--ui-line);
+        border-radius: var(--ui-radius-sm);
+        background: var(--ui-surface-soft);
+        color: var(--ui-ink);
+        font-size: 14px;
+        font-weight: 600;
+    }
+    body.urp-app #course-detail-close-bottom:hover { background: var(--ui-accent-soft); }
+}
+body.urp-app #course-detail-modal .course-detail-row {
+    gap: 12px;
+    align-items: baseline;
+    line-height: 1.65;
+}
+body.urp-app #course-detail-modal .course-detail-label { margin-right: 0; }
+body.urp-app #course-detail-modal .course-detail-row > span:last-child {
+    min-width: 0;
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+body.urp-app #course-detail-modal.is-course-morphing .modal-content {
+    overflow: hidden;
+    will-change: transform;
+}
+body.urp-app #course-detail-modal.is-course-morphing #course-detail-name { visibility: hidden; }
+body.urp-app #course-detail-modal .modal-content::before,
+body.urp-app #page-schedule .course-card::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 8px;
+    bottom: 8px;
+    width: 5px;
+    border-radius: 0 3px 3px 0;
+    pointer-events: none;
+    transition: none;
+}
+body.urp-app #course-detail-modal .modal-content::before {
+    background: var(--course-detail-color, var(--ui-accent));
+}
+body.urp-app #course-detail-modal.is-course-morphing .modal-content::before { visibility: hidden; }
+body.urp-app #page-schedule .course-card {
+    background: var(--ui-surface);
+    color: var(--ui-ink);
+    border: 1px solid var(--ui-line);
+    box-shadow: none;
+    padding-left: 8px;
+    /* 可见性必须立即恢复，关闭时才能把键盘焦点交还给卡片。 */
+    transition-property: transform, box-shadow, border-color;
+}
+body.urp-app #page-schedule .course-card::before {
+    top: 4px;
+    bottom: 4px;
+    background: var(--course-color, var(--ui-accent));
+}
+body.urp-app #page-schedule .course-card-location { color: var(--ui-muted); }
+body.urp-app .course-card.is-detail-source { visibility: hidden; }
+body.urp-app .course-detail-shared-mark {
+    position: fixed;
+    z-index: 1;
+    border-radius: 0 3px 3px 0;
+    transform-origin: top left;
+    background: var(--course-detail-color, var(--ui-accent));
+    pointer-events: none;
+    will-change: transform;
+}
+body.urp-app .course-detail-shared-name {
+    position: fixed;
+    z-index: 1;
+    display: block;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    pointer-events: none;
+    transform-origin: top left;
+    will-change: transform;
 }
