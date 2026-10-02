@@ -1,0 +1,271 @@
+import { pageResources } from './lifecycle.js';
+import { state } from './store.js';
+import { checkLoginStatus, getDeviceId } from './auth.js';
+import { updateScheduleTimeline } from './schedule.js';
+const resources = pageResources('home');
+
+export function mountHome() { return loadUrgentEvent(); }
+
+export function unmountHome() {
+    resources.dispose();
+    state.countdownTimer = state.nextCountdownTimer = null;
+}
+
+export function homeIcon(name) {
+    return `<svg class="home-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#home-icon-${name}"/></svg>`;
+}
+
+export function renderHomeState(kind, message) {
+    const states = {
+        empty: { title: '暂无后续安排', message: '暂未查询到后续课程或考试。课表有变动时，可前往日程表更新。', icon: 'calendar', action: "openHomeShortcut('schedule')", button: '查看课表' },
+        guest: { title: '登录后查看你的安排', message: '课程、考试和上课地点会显示在这里。', icon: 'calendar', action: 'showLoginModal()', button: '登录教务账号' },
+        error: { title: '安排暂时未能读取', message: '请检查网络后重试。', icon: 'warning', action: 'refreshUrgentEvent()', button: '重试' },
+    };
+    const state = states[kind];
+    return `<div class="home-state home-state-${kind}"${kind === 'error' ? ' role="alert"' : ''}>
+        <span class="home-state-icon">${homeIcon(state.icon)}</span>
+        <div><strong>${state.title}</strong><p>${escapeHtml(message || state.message)}</p>
+        <button class="${kind === 'guest' ? 'btn-primary' : 'btn-secondary'}" type="button" onclick="${state.action}">${state.button}</button></div>
+    </div>`;
+}
+
+export function renderHomeAgenda(eventData) {
+    const content = document.getElementById('home-agenda-content');
+    const title = document.getElementById('home-agenda-title');
+    if (!content) return;
+    if (title) title.textContent = eventData.upcoming_label || '今日安排';
+    const courses = Array.isArray(eventData.upcoming) ? eventData.upcoming : [];
+    content.innerHTML = courses.length
+        ? '<ol class="home-agenda-list">' + courses.map(course => `<li class="home-agenda-item${course.status === 'current' ? ' is-current' : ''}">
+            <time>${escapeHtml(course.time || '时间待定')}</time>
+            <div><strong>${escapeHtml(course.title || '课程')}</strong><span>${escapeHtml(course.location || '上课地点待确认')}</span></div>
+            <span class="home-agenda-status">${course.status === 'current' ? '进行中' : '待上课'}</span>
+        </li>`).join('') + '</ol>'
+        : '<div class="home-agenda-empty"><p>暂无后续课程。考试时间和考场可从「查考试」查看。</p></div>';
+}
+
+export async function loadUrgentEvent() {
+    const operation = resources.capture();
+    const generation = state.academicCacheGeneration;
+    // 后台检查登录状态（不阻塞日程加载）
+    checkLoginStatus();
+
+    const contentDiv = document.getElementById('urgent-content');
+    const agenda = document.getElementById('home-agenda-content');
+    const today = document.getElementById('home-today-date');
+    if (today) {
+        const date = getCalendarChinaToday();
+        today.dateTime = date;
+        today.textContent = new Date(`${date}T00:00:00Z`).toLocaleDateString('zh-CN', {
+            timeZone: 'UTC', month: 'long', day: 'numeric', weekday: 'long',
+        });
+    }
+    if (state.countdownTimer) resources.clearInterval(state.countdownTimer);
+    if (state.nextCountdownTimer) resources.clearInterval(state.nextCountdownTimer);
+    state.countdownTimer = state.nextCountdownTimer = null;
+
+    if (state.isGuestMode) {
+        contentDiv.innerHTML = renderHomeState('guest');
+        if (agenda) agenda.innerHTML = '<div class="home-agenda-empty"><p>登录后，这里会展示当天剩余课程或下一个有课日的课程。</p></div>';
+        return;
+    }
+
+    contentDiv.innerHTML = '<div class="home-events-loading" role="status" aria-label="正在读取课程和考试安排"><span></span><span></span><p>正在读取安排…</p></div>';
+    if (agenda) agenda.innerHTML = '<div class="loading">正在读取课程安排…</div>';
+
+    try {
+        const response = await operation.wait(resources.fetch('/api/urgent_event', {
+            headers: {
+                'X-Device-ID': getDeviceId()
+            }
+        }));
+        const data = await operation.wait(response.json());
+        if (generation !== state.academicCacheGeneration || state.isGuestMode) return;
+
+        if (data.success && data.event) {
+            updateScheduleTimeline(data.event.is_freshman);
+            displayUrgentEvent(data.event);
+            const staleParts = [];
+            if (data.event.schedule_cache_stale) staleParts.push('更新课程表');
+            if (data.event.exams_cache_stale) staleParts.push('更新考试安排');
+            if (data.event.semester_start_invalid) staleParts.push('联系管理员校正学期起始日期');
+            if (staleParts.length) {
+                const notice = document.createElement('p');
+                notice.className = 'calendar-cache-notice';
+                notice.textContent = data.event.semester_start_invalid
+                    ? '后台学期起始日期无效，请联系管理员校正后再查看或导出日程。'
+                    : `后台已切换学期，请到对应页面${staleParts.join('、')}后查看日程。`;
+                contentDiv.prepend(notice);
+            }
+        } else if (data.success) {
+            updateScheduleTimeline(data.is_freshman);
+            contentDiv.innerHTML = renderHomeState('empty');
+            renderHomeAgenda({});
+        } else {
+            contentDiv.innerHTML = renderHomeState('error', data.message || '查询失败，请重试。');
+            if (agenda) agenda.innerHTML = '<p class="home-query-error">课程安排未能读取，请点击上方刷新重试。</p>';
+        }
+    } catch (error) {
+        if (error?.name === 'AbortError') return;
+        if (generation !== state.academicCacheGeneration || state.isGuestMode) return;
+        console.error('加载紧急事件失败:', error);
+        contentDiv.innerHTML = renderHomeState('error', '加载失败，请检查网络后重试。');
+        if (agenda) agenda.innerHTML = '<p class="home-query-error">课程安排未能读取，请点击上方刷新重试。</p>';
+    }
+}
+
+export function formatMinutes(minutes) {
+    if (minutes >= 60) {
+        const h = Math.floor(minutes / 60);
+        const m = minutes % 60;
+        return m > 0 ? `${h}小时${m}分钟` : `${h}小时`;
+    }
+    return `${minutes}分钟`;
+}
+
+export function displayUrgentEvent(eventData) {
+    const contentDiv = document.getElementById('urgent-content');
+    renderHomeAgenda(eventData);
+
+    if (state.countdownTimer) {
+        resources.clearInterval(state.countdownTimer);
+        state.countdownTimer = null;
+    }
+    if (state.nextCountdownTimer) {
+        resources.clearInterval(state.nextCountdownTimer);
+        state.nextCountdownTimer = null;
+    }
+
+    const current = eventData.current;
+    const next = eventData.next;
+
+    const now = new Date();
+    const todayStr = getCalendarChinaToday(now);
+
+    function parseDateStr(timeStr) {
+        return timeStr ? timeStr.split(' ')[0] : null;
+    }
+
+    function getStartTime(timeStr) {
+        if (!timeStr) return '';
+        const t = timeStr.split(' ')[1] || '';
+        return next?.time_range || t;
+    }
+
+    function getTimeLabel(timeStr) {
+        const datePart = parseDateStr(timeStr);
+        if (!datePart) return timeStr;
+        const startTime = getStartTime(timeStr);
+        const eventDate = new Date(datePart + 'T00:00:00Z');
+        const todayDate = new Date(todayStr + 'T00:00:00Z');
+        const diffDays = Math.round((eventDate - todayDate) / 86400000);
+        const dayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+        const dayName = dayNames[eventDate.getUTCDay()];
+
+        if (diffDays === 0) return `今天 ${startTime}`;
+        if (diffDays === 1) return `明天 ${startTime}`;
+        if (diffDays === 2) return `后天 ${startTime}`;
+        if (diffDays <= 6) return `${dayName} ${startTime}`;
+        if (diffDays <= 13) return `下周${dayName.slice(1)} ${startTime}`;
+        const m = eventDate.getMonth() + 1;
+        const d = eventDate.getDate();
+        return `${m}月${d}日 ${startTime}`;
+    }
+
+    const nextDateStr = next ? parseDateStr(next.time) : null;
+    const nextIsToday = nextDateStr === todayStr;
+    const noMoreToday = !current && !nextIsToday;
+
+    let html = '';
+
+    if (noMoreToday && next) {
+        html += '<p class="rest-message">今天暂无后续安排，下面是下一项提醒。</p>';
+    }
+
+    // 正在进行的课程（保留倒计时）
+    if (current) {
+        html += `
+            <div class="event-card event-card-current">
+                <div class="event-type"><span class="home-event-icon">${homeIcon('calendar')}</span><span>正在上课</span></div>
+                <div class="event-title">${escapeHtml(current.title)}</div>
+                <div class="event-location">${escapeHtml(current.location)}</div>
+                <div class="event-time">${escapeHtml(current.time)}</div>
+                <div class="countdown" id="current-remaining">${current.remaining}分钟</div>
+                <div class="countdown-label">后下课</div>
+            </div>
+        `;
+    }
+
+    // 下一个事件
+    if (next) {
+        let typeText;
+        if (next.type === 'exam') {
+            typeText = '下一场考试';
+        } else if (nextIsToday && current) {
+            typeText = '下一节课';
+        } else if (nextIsToday) {
+            typeText = '下一节课';
+        } else {
+            typeText = '下一节课';
+        }
+        const seatHtml = next.seat ? `<div class="event-seat">座位号： ${escapeHtml(next.seat)}</div>` : '';
+        const timeLabel = getTimeLabel(next.time);
+        const nextCountdownHtml = (nextIsToday && next.countdown != null)
+            ? `<div class="countdown${next.countdown <= 10 ? ' countdown-urgent' : ''}" id="next-remaining">${formatMinutes(next.countdown)}</div><div class="countdown-label">${next.type === 'exam' ? '后考试' : '后上课'}</div>`
+            : '';
+
+        html += `
+            <div class="event-card${current ? ' event-card-next' : ' event-card-upcoming'}${next.type === 'exam' ? ' event-card-exam' : ''}">
+                <div class="event-type"><span class="home-event-icon">${homeIcon(next.type === 'exam' ? 'exam' : 'calendar')}</span><span>${typeText}</span></div>
+                <div class="event-title">${escapeHtml(next.title)}</div>
+                <div class="event-location">${escapeHtml(next.location)}</div>
+                <div class="event-time-label">${escapeHtml(timeLabel)}</div>
+                ${seatHtml}
+                ${nextCountdownHtml}
+            </div>
+        `;
+    } else if (!current) {
+        html = renderHomeState('empty');
+    }
+
+    contentDiv.innerHTML = html;
+
+    // 正在进行中的课程倒计时（每分钟更新）
+    if (current) {
+        let currentRemaining = current.remaining;
+        state.countdownTimer = resources.setInterval(() => {
+            currentRemaining--;
+            const el = document.getElementById('current-remaining');
+            if (!el || currentRemaining <= 0) {
+                resources.clearInterval(state.countdownTimer);
+                state.countdownTimer = null;
+                loadUrgentEvent();
+                return;
+            }
+            el.textContent = `${currentRemaining}分钟`;
+        }, 60000);
+    }
+
+    // 下一节课倒计时（每分钟更新）
+    if (next && nextIsToday && next.countdown != null) {
+        let nextRemaining = next.countdown;
+        state.nextCountdownTimer = resources.setInterval(() => {
+            nextRemaining--;
+            const el = document.getElementById('next-remaining');
+            if (!el || nextRemaining <= 0) {
+                resources.clearInterval(state.nextCountdownTimer);
+                state.nextCountdownTimer = null;
+                loadUrgentEvent();
+                return;
+            }
+            el.textContent = formatMinutes(nextRemaining);
+            if (nextRemaining <= 10) {
+                el.classList.add('countdown-urgent');
+            }
+        }, 60000);
+    }
+}
+
+export function refreshUrgentEvent() {
+    loadUrgentEvent();
+}

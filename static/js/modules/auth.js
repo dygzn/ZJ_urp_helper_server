@@ -1,0 +1,503 @@
+import { pageResources } from './lifecycle.js';
+import { state } from './store.js';
+import { closeCalendarExport } from './calendar.js';
+import { boundUsernameStorageKey } from './ad.js';
+import { getAvailablePageNames, switchPage } from './router.js';
+import { loadAnnouncementIndicator } from './announcements.js';
+import { closeUiModal, openUiModal, requestUiConfirmation, showUiToast, urpUi } from './ui.js';
+const resources = pageResources('auth');
+
+export const pendingInvitationTokenKey = 'pending_invitation_token';
+
+export const ownInvitationTokenKey = 'own_invitation_token';
+
+export function capturePendingInvitationToken() {
+    try {
+        const token = (new URLSearchParams(window.location.search).get('invite') || '').trim();
+        const ownToken = (sessionStorage.getItem(ownInvitationTokenKey) || '').trim();
+        if (token && token.length <= 128 && token !== ownToken) {
+            sessionStorage.setItem(pendingInvitationTokenKey, token);
+        }
+    } catch (error) {
+        if (error?.name === 'AbortError') return;
+        // 隐私模式或禁用存储时不影响普通登录。
+    }
+}
+
+export function getPendingInvitationToken() {
+    try {
+        const token = (sessionStorage.getItem(pendingInvitationTokenKey) || '').trim();
+        return token.length > 0 && token.length <= 128 ? token : '';
+    } catch (error) {
+        if (error?.name === 'AbortError') return;
+        return '';
+    }
+}
+
+export function clearPendingInvitationToken() {
+    try {
+        sessionStorage.removeItem(pendingInvitationTokenKey);
+    } catch (error) {
+        if (error?.name === 'AbortError') return;
+        // 存储不可用时无需阻断登录结果。
+    }
+}
+
+export function sanitizeIndexUrl() {
+    try {
+        const currentUrl = new URL(window.location.href);
+        const cleanParams = new URLSearchParams();
+        ['page', 'invite'].forEach(key => {
+            const value = currentUrl.searchParams.get(key);
+            if (value) cleanParams.set(key, value);
+        });
+
+        const cleanSearch = cleanParams.toString();
+        const cleanUrl = `${currentUrl.pathname || '/'}${cleanSearch ? `?${cleanSearch}` : ''}${currentUrl.hash || ''}`;
+        const currentPath = `${currentUrl.pathname || '/'}${currentUrl.search}${currentUrl.hash || ''}`;
+        if (cleanUrl !== currentPath && window.history && typeof window.history.replaceState === 'function') {
+            window.history.replaceState(window.history.state || null, '', cleanUrl);
+        }
+    } catch (error) {
+        if (error?.name === 'AbortError') return;
+        // 地址栏清理失败时不影响正常使用。
+    }
+}
+
+export function setOwnInvitationTokenInUrl(token) {
+    const normalizedToken = String(token || '').trim();
+    if (!normalizedToken || normalizedToken.length > 128) return false;
+
+    try {
+        const currentUrl = new URL(window.location.href);
+        const cleanParams = new URLSearchParams();
+        const page = currentUrl.searchParams.get('page');
+        if (page) cleanParams.set('page', page);
+        cleanParams.set('invite', normalizedToken);
+
+        const query = cleanParams.toString();
+        const cleanUrl = `${currentUrl.pathname || '/'}${query ? `?${query}` : ''}${currentUrl.hash || ''}`;
+        if (window.history && typeof window.history.replaceState === 'function') {
+            window.history.replaceState(window.history.state || null, '', cleanUrl);
+            return true;
+        }
+    } catch (error) {
+        if (error?.name === 'AbortError') return;
+        // 地址栏同步失败时不影响正常使用。
+    }
+    return false;
+}
+
+export async function ensureOwnInvitationTokenInUrl() {
+    const operation = resources.capture();
+    try {
+        const response = await operation.wait(resources.fetch('/api/invitation/link', {
+            method: 'POST',
+            headers: { 'X-Device-ID': getDeviceId() },
+        }));
+        const data = await operation.wait(response.json().catch(() => ({ success: false })));
+        if (!response.ok || !data.success || !data.data || !data.data.invite_url) {
+            return false;
+        }
+
+        const inviteUrl = new URL(data.data.invite_url, window.location.origin);
+        const token = inviteUrl.searchParams.get('invite');
+        const updated = setOwnInvitationTokenInUrl(token);
+        if (!updated) return false;
+
+        try {
+            sessionStorage.setItem(ownInvitationTokenKey, token);
+            if (getPendingInvitationToken() === token) {
+                clearPendingInvitationToken();
+            }
+        } catch (error) {
+        if (error?.name === 'AbortError') return;
+            // 存储不可用时不影响地址栏同步。
+        }
+        return true;
+    } catch (error) {
+        if (error?.name === 'AbortError') return;
+        return false;
+    }
+}
+
+export function setTemporarySession(expiresAt) {
+    if (state.temporarySessionTimer) clearTimeout(state.temporarySessionTimer);
+    state.temporarySessionTimer = null;
+    state.temporarySessionExpiresAt = expiresAt ? Number(expiresAt) * 1000 : null;
+    if (!state.temporarySessionExpiresAt) return;
+    const remaining = state.temporarySessionExpiresAt - Date.now();
+    if (remaining <= 0) {
+        window.location.reload();
+        return;
+    }
+    state.temporarySessionTimer = setTimeout(() => window.location.reload(), remaining + 50);
+}
+
+export function rememberBoundUsername(username) {
+    const normalized = String(username || '').trim();
+    if (state.academicCacheUsername !== normalized) {
+        state.academicCacheGeneration++;
+        if (typeof apiClient !== 'undefined') {
+            apiClient.resetAuthState();
+            apiClient.cancelRequest('grades');
+            apiClient.cancelRequest('login-status');
+            state.loginStatusPromise = null;
+        }
+        state.temporaryReloginPromptShown = false;
+        state._examSessions = null;
+        if (state.calendarExportKind) closeCalendarExport();
+        state.cachedSchedule = null;
+        state.currentScheduleMap.clear();
+        state.cachedExams = null;
+        state.cachedScheduleExams = [];
+        state.scheduleExamsStale = false;
+        state.semesterStart = null;
+        state.otherMajorScheduleData = null;
+        state.calendarExportData = null;
+        state.calendarExportAccount = '';
+        state.academicCacheUsername = normalized;
+        if (typeof document.querySelectorAll === 'function') {
+            document.querySelectorAll('.schedule-week-panel .schedule-days').forEach(el => { el.innerHTML = ''; });
+            document.querySelectorAll('.schedule-unplaced-exams').forEach(el => { el.innerHTML = ''; el.hidden = true; });
+            document.querySelectorAll('[data-schedule-date]').forEach(el => { el.textContent = ''; });
+            document.querySelectorAll('.schedule-day-today').forEach(el => el.classList.remove('schedule-day-today'));
+            const examsContent = document.getElementById('exams-content');
+            if (examsContent) examsContent.innerHTML = '<div class="loading">加载中...</div>';
+        }
+    }
+    try {
+        if (normalized && !state.temporarySessionExpiresAt) {
+            localStorage.setItem(boundUsernameStorageKey, normalized);
+        } else {
+            localStorage.removeItem(boundUsernameStorageKey);
+        }
+    } catch (error) {
+        if (error?.name === 'AbortError') return;
+        // 本地存储不可用时不影响登录和广告浏览。
+    }
+}
+
+export function getDeviceId() {
+    return apiClient.getDeviceId();
+}
+
+export function checkLoginStatus() {
+    // 并发调用者等待同一次检查，避免提前返回让后续查询抢跑。
+    if (state.loginStatusPromise) return state.loginStatusPromise;
+    const pending = performLoginStatusCheck().finally(() => {
+        if (state.loginStatusPromise === pending) state.loginStatusPromise = null;
+    });
+    state.loginStatusPromise = pending;
+    return pending;
+}
+
+export async function performLoginStatusCheck() {
+    const operation = resources.capture();
+    const request = apiClient.beginRequest('login-status');
+    const generation = state.academicCacheGeneration;
+    const statusDot = document.querySelector('.status-dot');
+    const statusText = document.querySelector('.status-text');
+    statusDot.className = 'status-dot status-checking';
+    statusText.textContent = '检查中';
+    try {
+        const response = await operation.wait(apiClient.request('/api/check_login_status', { signal: request.signal }));
+        const data = await operation.wait(response.json());
+        if (!request.isCurrent() || generation !== state.academicCacheGeneration) return;
+        if (data.success && data.logged_in) {
+            statusDot.className = 'status-dot status-online';
+            statusText.textContent = '已登录';
+        } else {
+            statusDot.className = 'status-dot status-offline';
+            statusText.textContent = '未连接';
+        }
+        return data;
+    } catch (error) {
+        if (error?.name === 'AbortError') return;
+        if (!request.isCurrent() || generation !== state.academicCacheGeneration || error.name === 'AbortError') return;
+        console.error('检查登录状态失败:', error);
+        statusDot.className = 'status-dot status-offline';
+        statusText.textContent = '连接失败';
+    }
+}
+
+export async function checkBindStatus() {
+    const operation = resources.capture();
+    const generation = state.academicCacheGeneration;
+    try {
+        const response = await operation.wait(resources.fetch('/api/check_bind', {
+            headers: {
+                'X-Device-ID': getDeviceId()
+            }
+        }));
+        const data = await operation.wait(response.json());
+
+        if (generation !== state.academicCacheGeneration) return;
+        if (data.rebind_notifications && data.rebind_notifications.length > 0) {
+            showRebindNotifications(data.rebind_notifications);
+        }
+
+        if (data.success && data.bound) {
+            setTemporarySession(data.temporary ? data.expires_at : null);
+            state.currentUsername = data.username;
+            rememberBoundUsername(state.currentUsername);
+            state.isGuestMode = false;
+            document.getElementById('sidebar-username').textContent = data.temporary
+                ? `${state.currentUsername} · 临时` : state.currentUsername;
+            if (!data.temporary) ensureOwnInvitationTokenInUrl();
+
+            const urlPage = new URLSearchParams(window.location.search).get('page');
+            let lastPage = urlPage || localStorage.getItem('current_page') || 'home';
+            if (lastPage === 'tools') lastPage = 'home';
+            switchPage(lastPage);
+            loadAnnouncementIndicator();
+        } else {
+            const wasTemporary = Boolean(state.temporarySessionExpiresAt);
+            setTemporarySession(null);
+            state.currentUsername = null;
+            rememberBoundUsername(null);
+            state.isGuestMode = true;
+            document.getElementById('sidebar-username').textContent = '未登录';
+            if (wasTemporary) {
+                window.location.reload();
+                return;
+            }
+            switchPage('home');
+            showLoginModal();
+        }
+    } catch (error) {
+        if (error?.name === 'AbortError') return;
+        console.error('检查绑定状态失败:', error);
+        showLoginModal();
+    }
+}
+
+export function showLoginModal() {
+    const modal = document.getElementById('login-modal');
+    openUiModal(modal, { initialFocusSelector: '#username' });
+}
+
+export function hideLoginModal() {
+    const modal = document.getElementById('login-modal');
+    closeUiModal(modal);
+}
+
+export function showPasswordDisclaimer() {
+    const modal = document.getElementById('password-disclaimer-modal');
+    if (!modal) return;
+
+    const loginModal = document.getElementById('login-modal');
+    state.passwordDisclaimerReturnToLogin = Boolean(
+        loginModal && loginModal.classList && loginModal.classList.contains('active'),
+    );
+    if (state.passwordDisclaimerReturnToLogin) {
+        closeUiModal(loginModal, { restoreFocus: false });
+    }
+    openUiModal(modal, { initialFocusSelector: '#password-disclaimer-close' });
+}
+
+export function closePasswordDisclaimer() {
+    const modal = document.getElementById('password-disclaimer-modal');
+    closeUiModal(modal, { restoreFocus: false });
+
+    const shouldReturnToLogin = state.passwordDisclaimerReturnToLogin;
+    state.passwordDisclaimerReturnToLogin = false;
+    if (shouldReturnToLogin) {
+        openUiModal(document.getElementById('login-modal'), {
+            initialFocusSelector: '#bind-account',
+        });
+    }
+}
+
+export function skipBind() {
+    state.isGuestMode = true;
+    state.currentUsername = null;
+    rememberBoundUsername(null);
+    hideLoginModal();
+    document.getElementById('sidebar-username').textContent = '访客';
+    switchPage('home');
+    loadAnnouncementIndicator();
+}
+
+export async function handleLogin(event) {
+    const operation = resources.capture();
+    event.preventDefault();
+
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+    const bindControl = document.getElementById('bind-account');
+    // 没有控件时按旧版客户端处理，避免旧页面升级期间意外失去绑定能力。
+    const bindAccount = bindControl ? Boolean(bindControl.checked) : true;
+    const invitationToken = bindAccount ? getPendingInvitationToken() : null;
+    const errorDiv = document.getElementById('login-error');
+
+    errorDiv.textContent = '';
+
+    try {
+        const response = await operation.wait(resources.fetch('/api/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Device-ID': getDeviceId()
+            },
+            body: JSON.stringify({
+                username,
+                password,
+                bind_account: bindAccount,
+                invitation_token: invitationToken,
+            })
+        }));
+
+        const data = await operation.wait(response.json());
+
+        if (data.success) {
+            document.getElementById('password').value = '';
+            state.temporaryReloginPromptShown = false;
+            apiClient.resetAuthState();
+            apiClient.cancelRequest('login-status');
+            state.loginStatusPromise = null;
+            const isBound = data.bound !== false;
+            hideLoginModal();
+
+            if (isBound || data.temporary) {
+                setTemporarySession(data.temporary ? data.expires_at : null);
+                state.currentUsername = data.username;
+                rememberBoundUsername(state.currentUsername);
+                state.isGuestMode = false;
+                if (isBound) {
+                    clearPendingInvitationToken();
+                    ensureOwnInvitationTokenInUrl();
+                }
+                document.getElementById('sidebar-username').textContent = data.temporary
+                    ? `${state.currentUsername} · 临时` : state.currentUsername;
+                const availablePages = getAvailablePageNames();
+                const storedPage = localStorage.getItem('current_page') || 'home';
+                const currentPage = urpUi
+                    ? urpUi.normalizePageName(storedPage, availablePages, 'home')
+                    : (availablePages.includes(storedPage) ? storedPage : 'home');
+                switchPage(currentPage);
+                loadAnnouncementIndicator();
+                if (data.temporary) showUiToast(data.message || '已登录，本次输入的密码不会保存。登录失效后请重新输入。', 'info');
+            } else {
+                state.currentUsername = null;
+                rememberBoundUsername(null);
+                state.isGuestMode = true;
+                document.getElementById('sidebar-username').textContent = '访客';
+                switchPage('home');
+                loadAnnouncementIndicator();
+                showUiToast(data.message || '登录成功，本次未绑定账号；下次使用需重新登录', 'info');
+            }
+        } else {
+            errorDiv.textContent = data.message || '登录失败';
+        }
+    } catch (error) {
+        if (error?.name === 'AbortError') return;
+        console.error('登录失败:', error);
+        errorDiv.textContent = '网络错误，请重试';
+    }
+}
+
+export async function showRebindDialog() {
+    const operation = resources.capture();
+    const confirmed = await operation.wait(requestUiConfirmation({
+        title: '重新绑定账号',
+        message: '解绑后需要重新输入新账号密码，确定继续吗？',
+        confirmText: '继续解绑',
+        danger: true,
+    }));
+    if (!confirmed) {
+        return;
+    }
+    await operation.wait(unbindForRebind());
+}
+
+export function closeRebindDialog() {
+    const modal = document.getElementById('rebind-modal');
+    closeUiModal(modal);
+}
+
+export async function handleRebind(event) {
+    const operation = resources.capture();
+    event.preventDefault();
+    await operation.wait(unbindForRebind());
+}
+
+export async function unbindForRebind() {
+    const operation = resources.capture();
+    const errorDiv = document.getElementById('rebind-error');
+    if (errorDiv) errorDiv.textContent = '';
+
+    try {
+        const response = await operation.wait(resources.fetch('/api/request_rebind', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Device-ID': getDeviceId()
+            },
+            body: JSON.stringify({})
+        }));
+        const data = await operation.wait(response.json());
+
+        if (!data.success) {
+            if (errorDiv) errorDiv.textContent = data.message || '解绑失败';
+            else showUiToast(data.message || '解绑失败', 'error');
+            return;
+        }
+
+        state.currentUsername = null;
+        rememberBoundUsername(null);
+        state.isGuestMode = false;
+        document.getElementById('sidebar-username').textContent = '未绑定';
+        closeRebindDialog();
+        showLoginModal();
+        showUiToast(data.message || '当前设备已解绑，请重新绑定新账号', 'success');
+    } catch (error) {
+        if (error?.name === 'AbortError') return;
+        console.error('解绑失败:', error);
+        if (errorDiv) errorDiv.textContent = '网络错误，请重试';
+        else showUiToast('网络错误，请重试', 'error');
+    }
+}
+
+export function showRebindNotifications(notifications) {
+    const messages = notifications.map(n => {
+        if (n.status === 'approved') {
+            return `你的换绑申请（${n.old_username} → ${n.new_username}）已通过，请重新登录绑定新账号`;
+        }
+        if (n.status === 'rejected') {
+            return `你的换绑申请（${n.old_username} → ${n.new_username}）已被拒绝`;
+        }
+        return `你的换绑申请（${n.old_username} → ${n.new_username}）状态已更新`;
+    });
+    showUiToast(messages.join('；'), 'info');
+
+    const requestIds = notifications.map(n => n.request_id);
+    resources.fetch('/api/rebind_notified', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Device-ID': getDeviceId()
+        },
+        body: JSON.stringify({ request_ids: requestIds })
+    }).catch(() => {});
+}
+
+export function initializeAuth() {
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible'
+        && state.temporarySessionExpiresAt
+        && Date.now() >= state.temporarySessionExpiresAt) {
+        window.location.reload();
+    }
+});
+document.addEventListener('api:auth-expired', event => {
+    const statusDot = document.querySelector('.status-dot');
+    const statusText = document.querySelector('.status-text');
+    if (statusDot) statusDot.className = 'status-dot status-offline';
+    if (statusText) statusText.textContent = '未连接';
+    if (state.temporaryReloginPromptShown) return;
+    state.temporaryReloginPromptShown = true;
+    document.getElementById('login-error').textContent = event.detail.message;
+    showLoginModal();
+});
+}
