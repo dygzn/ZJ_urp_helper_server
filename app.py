@@ -25,6 +25,18 @@ app = Flask(__name__)
 app.secret_key = 'your-secret-key-change-this'
 INDEX_QUERY_ALLOWLIST = ('page', 'invite')
 
+
+@app.template_global()
+def static_versioned(filename):
+    """使用纳秒级修改时间生成静态资源版本，文件更新后立即生效。"""
+    try:
+        version = os.stat(os.path.join(app.static_folder, filename)).st_mtime_ns
+    except OSError:
+        # 缺失或暂时不可读的资源仍交由静态路由处理，不中断页面渲染。
+        return url_for('static', filename=filename)
+    return url_for('static', filename=filename, v=version)
+
+
 def initialize_database():
     """初始化完整数据库，并为快捷指令 API 保留独立兜底。"""
     try:
