@@ -551,7 +551,14 @@ def get_current_semester_grades(username):
     url = get_current_urp_url()
     urp_query = URP_query(url, username)
     courses = urp_query.score_current_semester()
-    return [{'course': c.get('课程名', ''), 'score': c.get('成绩', '')} for c in courses]
+    return [
+        {
+            'course': c.get('课程名', ''),
+            'credit': c.get('学分', ''),
+            'score': c.get('成绩', ''),
+        }
+        for c in courses
+    ]
 
 
 def get_grades_by_semester(username, semester):
@@ -570,6 +577,8 @@ def _format_grade_courses(courses, include_failed_fields=False):
             'course': c.get('\u8bfe\u7a0b\u540d', ''),
             'score': c.get('\u6210\u7ee9', ''),
         }
+        if '学分' in c:
+            item['credit'] = c['学分']
         if include_failed_fields:
             item.update({
                 'credit': c.get('\u5b66\u5206', ''),
@@ -598,6 +607,14 @@ def _semester_sort_key(semester, fallback_index):
         term_key = 2
     elif '上' in text:
         term_key = 1
+    elif '春' in text:
+        term_key = 2
+    elif '秋' in text:
+        term_key = 1
+    else:
+        numeric_term = re.search(r'(?:19|20)\d{2}-(?:19|20)\d{2}-([1-4])(?:-|$)', text)
+        if numeric_term:
+            term_key = int(numeric_term.group(1))
 
     return (year_key, term_key, fallback_index)
 
@@ -658,6 +675,168 @@ def get_exam_scores(username, jxzxjh, ksbh):
     urp_query = URP_query(url, username)
     courses = urp_query.score_resit(jxzxjh, ksbh)
     return [{'course': c.get('课程名', ''), 'credit': c.get('学分', ''), 'score': c.get('成绩', '')} for c in courses]
+
+
+_MAKEUP_TERM_NUMBERS = {
+    '一': 1, '二': 2, '三': 3, '四': 4,
+    '1': 1, '2': 2, '3': 3, '4': 4,
+}
+
+
+def _makeup_period_from_exam(name, fallback_semester=''):
+    """从补考场次名称提取实际学期，名称无法识别时才使用接口学期。"""
+    text = str(name or '').strip()
+    year_range = re.search(r'((?:19|20)\d{2})\s*[-至]\s*((?:19|20)\d{2})', text)
+    explicit_term = re.search(r'第\s*([一二三四1-4])\s*学期', text)
+    season = re.search(r'((?:19|20)\d{2})\s*年?\s*([春秋])', text)
+
+    if year_range:
+        start, end = int(year_range.group(1)), int(year_range.group(2))
+        if explicit_term:
+            term = _MAKEUP_TERM_NUMBERS.get(explicit_term.group(1), 0)
+        elif '秋' in text:
+            term = 1
+        elif '春' in text:
+            term = 2
+        else:
+            term = 0
+        if term:
+            return start, end, term
+
+    if season:
+        year = int(season.group(1))
+        if season.group(2) == '秋':
+            return year, year + 1, 1
+        return year - 1, year, 2
+
+    fallback = re.search(r'((?:19|20)\d{2})-((?:19|20)\d{2})-([1-4])', str(fallback_semester or ''))
+    if fallback:
+        return int(fallback.group(1)), int(fallback.group(2)), int(fallback.group(3))
+    return 0, 0, 0
+
+
+def _makeup_period_label(period):
+    start, end, term = period
+    term_label = '秋' if term == 1 else '春' if term == 2 else f'第{term}'
+    return f'{start}-{end}学年{term_label}学期'
+
+
+def _clean_makeup_rows(rows, session_name):
+    cleaned = []
+    for row in rows or []:
+        course = str(row.get('课程名') or '').strip()
+        credit = str(row.get('学分') if row.get('学分') is not None else '').strip()
+        score = str(row.get('成绩') if row.get('成绩') is not None else '').strip()
+        if not course or course in {'课序号', '课程名称', '课程名'}:
+            continue
+        cleaned.append({
+            'course': course,
+            'credit': credit,
+            'score': score,
+            'session': session_name,
+        })
+    return cleaned
+
+
+def _merge_makeup_results(rows, include_pending=False):
+    merged = {}
+    for row in rows:
+        if not row['score'] and not include_pending:
+            continue
+        key = (row['course'], row['credit'], row['score'])
+        if key not in merged:
+            merged[key] = {
+                'course': row['course'],
+                'credit': row['credit'],
+                'score': row['score'],
+                'sessions': [],
+            }
+        if row['session'] not in merged[key]['sessions']:
+            merged[key]['sessions'].append(row['session'])
+    return list(merged.values())
+
+
+def get_latest_makeup_grade_summary(username, max_periods=6):
+    """返回最新补考场次状态与最近一次已发布的补考成绩。"""
+    from urp import URP_query
+
+    url = get_current_urp_url()
+    urp_query = URP_query(url, username)
+    deadline = time.monotonic() + 20
+    sessions = urp_query.get_exam_sessions(timeout=6)
+    groups = {}
+    seen = set()
+    for exam in sessions.get('exams', []):
+        name = str(exam.get('name', '')).strip()
+        if '补考' not in name:
+            continue
+        identity = (exam.get('jxzxjh'), exam.get('ksbh'))
+        if not all(identity) or identity in seen:
+            continue
+        seen.add(identity)
+        period = _makeup_period_from_exam(name, exam.get('jxzxjh', ''))
+        groups.setdefault(period, []).append(exam)
+
+    periods = sorted(groups, reverse=True)
+    latest_session = None
+    latest_published = None
+    checked_periods = 0
+    errors = []
+    queried_sessions = 0
+    truncated = False
+    for period in periods[:max(1, int(max_periods or 1))]:
+        checked_periods += 1
+        exams = groups[period]
+        rows = []
+        group_errors = []
+        for exam in exams:
+            remaining = deadline - time.monotonic()
+            name = str(exam.get('name', '')).strip()
+            if remaining <= 0 or queried_sessions >= 16:
+                truncated = True
+                group_errors.append({'session': name, 'message': '查询达到时间或场次数量上限'})
+                break
+            queried_sessions += 1
+            try:
+                rows.extend(_clean_makeup_rows(
+                    urp_query.score_resit(exam['jxzxjh'], exam['ksbh'], timeout=min(6, remaining)),
+                    name,
+                ))
+            except Exception:
+                group_errors.append({'session': name, 'message': '该场次查询失败，请稍后重试'})
+        errors.extend(group_errors)
+        published = _merge_makeup_results(rows)
+        if latest_session is None:
+            latest_session = {
+                'period': f'{period[0]}-{period[1]}-{period[2]}',
+                'label': _makeup_period_label(period) if period[0] else '学期未标明',
+                'sessions': [str(exam.get('name', '')).strip() for exam in exams],
+                'status': ('partial' if published or rows else 'error') if group_errors
+                    else 'published' if published else 'pending' if rows else 'no_results',
+            }
+            pending_count = sum(1 for row in rows if not row['score'])
+            if pending_count:
+                latest_session['pending_count'] = pending_count
+                latest_session['pending_results'] = _merge_makeup_results(
+                    [row for row in rows if not row['score']], include_pending=True,
+                )
+        if published:
+            latest_published = {
+                'period': f'{period[0]}-{period[1]}-{period[2]}',
+                'label': _makeup_period_label(period) if period[0] else '学期未标明',
+                'results': published,
+            }
+            break
+        if truncated:
+            break
+
+    return {
+        'latest_session': latest_session,
+        'latest_published': latest_published,
+        'checked_periods': checked_periods,
+        'errors': errors,
+        'truncated': truncated or (latest_published is None and checked_periods < len(periods)),
+    }
 
 
 def get_unevaluated_courses(username):

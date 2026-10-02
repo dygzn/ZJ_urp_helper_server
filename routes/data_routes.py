@@ -14,7 +14,8 @@ from services.urp_service import (
     check_login_status, get_semesters, get_grades_by_semester,
     get_failed_grades, get_gpa, get_current_semester_grades,
     get_latest_semester_grade_summary,
-    get_exam_sessions, get_exam_scores, LEGACY_GRADES_ENDPOINT_MESSAGE
+    get_exam_sessions, get_exam_scores, get_latest_makeup_grade_summary,
+    LEGACY_GRADES_ENDPOINT_MESSAGE
 )
 from services.config_service import get_current_urp_url
 from services.temporary_session_service import current_temporary_session
@@ -221,6 +222,15 @@ def api_exam_scores(user):
     try:
         grades = get_exam_scores(user['username'], jxzxjh, ksbh)
         return jsonify({'success': True, 'grades': grades})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@data_bp.route('/api/grades/latest_makeup', methods=['GET'])
+@require_grade_login('basic')
+def api_latest_makeup_grades(user):
+    try:
+        return jsonify({'success': True, **get_latest_makeup_grade_summary(user['username'])})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 

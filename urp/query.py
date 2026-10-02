@@ -105,7 +105,10 @@ class URP_query:
             tds = r.find_all('td')
             if len(tds) < 8:
                 continue
-            courses.append({'课程名': tds[2].get_text(strip=True), '成绩': tds[7].get_text(strip=True)})
+            course = tds[2].get_text(strip=True)
+            if not course or course in {'课程名', '课程名称', '课序号'}:
+                continue
+            courses.append({'课程名': course, '学分': tds[4].get_text(strip=True), '成绩': tds[7].get_text(strip=True)})
         return courses
 
     def score_current_semester(self):
@@ -122,7 +125,11 @@ class URP_query:
         for row in soup.find_all('tr'):
             cols = row.find_all('td')
             if len(cols) >= 8:
-                courses.append({'课程名': cols[2].get_text(strip=True), '成绩': cols[7].get_text(strip=True)})
+                courses.append({
+                    '课程名': cols[2].get_text(strip=True),
+                    '学分': cols[4].get_text(strip=True),
+                    '成绩': cols[7].get_text(strip=True),
+                })
         return courses
 
     def score_failed(self):
@@ -186,15 +193,18 @@ class URP_query:
             '学期绩点明细': self._parse_gpa_detail_tables(soup),
         }
 
-    def get_exam_sessions(self):
+    def get_exam_sessions(self, timeout=10):
         """获取考试成绩查询页面的所有学期及考试名称列表"""
         response = self._request('GET', f'{self.url}cjSearchAction.do', params={
             'oper': 'getKscjList', 'yzxh': self.account
-        }, verify=False)
+        }, verify=False, timeout=timeout)
+        response.raise_for_status()
         html = response.text
         soup = BeautifulSoup(html, 'html.parser')
         semesters = []
         select = soup.find('select', {'name': 'jxzxjh'})
+        if select is None:
+            raise RuntimeError('考试场次页面未返回学期列表，请检查教务登录状态')
         if select:
             for opt in select.find_all('option'):
                 val = opt.get('value', '').strip()
@@ -208,20 +218,30 @@ class URP_query:
             exams.append({'name': name, 'ksbh': ksbh, 'jxzxjh': jxzxjh})
         return {'semesters': semesters, 'exams': exams}
 
-    def score_resit(self, jxzxjh, ksbh):
+    def score_resit(self, jxzxjh, ksbh, timeout=10):
         """查询指定考试的成绩"""
         response = self._request('POST', f'{self.url}cjSearchAction.do', params={'oper': 'tjcx'}, data={
             'jxzxjh': jxzxjh, 'ksbh': ksbh, 'yzxh': self.account
-        }, verify=False)
+        }, verify=False, timeout=timeout)
+        response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
+        if soup.find('input', attrs={'type': 'password'}) or soup.find('td', class_='errorTop'):
+            raise RuntimeError('考试成绩页面未正常打开，请检查教务登录状态')
         courses = []
         for row in soup.find_all('tr'):
-            cols = row.find_all('td')
+            cols = row.find_all('td', recursive=False)
             if len(cols) >= 6:
+                course_name = cols[2].get_text(strip=True)
+                credit = cols[4].get_text(strip=True)
+                score = cols[5].get_text(strip=True)
+                if not course_name or course_name in {'课序号', '课程名称', '课程名'}:
+                    continue
+                if credit in {'学时', '学分'} and score in {'学分', '考试成绩', '成绩'}:
+                    continue
                 courses.append({
-                    '课程名': cols[2].get_text(strip=True),
-                    '学分':   cols[4].get_text(strip=True),
-                    '成绩':   cols[5].get_text(strip=True),
+                    '课程名': course_name,
+                    '学分': credit,
+                    '成绩': score,
                 })
         return courses
     # ==================== 评教 ====================

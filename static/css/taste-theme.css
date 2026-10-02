@@ -540,6 +540,152 @@ body.urp-app .grades-card-grid .grade-action-btn:hover { border-color: #91b2de; 
 body.urp-app .grades-card-grid .grade-action-btn svg { stroke: var(--ui-accent); }
 body.urp-app .grades-card-grid .grade-action-label { color: var(--ui-ink); }
 body.urp-app .grades-card-grid .grade-action-desc { color: var(--ui-muted); }
+body.urp-app .grades-dashboard-header { margin-bottom: 18px; }
+body.urp-app .grades-dashboard-header h2 { margin: 0 0 6px; }
+body.urp-app .grades-dashboard-header .page-section-desc { margin: 0; }
+body.urp-app .grades-kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-bottom: 14px;
+    border: 1px solid var(--ui-line);
+    border-radius: var(--ui-radius);
+    background: var(--ui-surface);
+    overflow: hidden;
+}
+body.urp-app .grades-kpi { min-width: 0; padding: 16px 18px; }
+body.urp-app .grades-kpi + .grades-kpi { border-left: 1px solid var(--ui-line); }
+body.urp-app .grades-kpi span { display: block; margin-bottom: 5px; color: var(--ui-muted); font-size: 12px; line-height: 1.4; }
+body.urp-app .grades-kpi strong { display: block; color: var(--ui-ink); font-size: 24px; font-weight: 750; line-height: 1.2; font-variant-numeric: tabular-nums; }
+body.urp-app .grades-kpi small { display: block; margin-top: 7px; color: var(--ui-muted); font-size: 11px; line-height: 1.5; }
+body.urp-app .grades-kpi-risk.has-failures strong { color: var(--ui-danger); }
+body.urp-app .grades-table-panel { padding: 18px; border: 1px solid var(--ui-line); border-radius: var(--ui-radius); background: var(--ui-surface); }
+body.urp-app .grades-table-header { display: grid; gap: 6px; margin-bottom: 18px; }
+body.urp-app .grades-table-header h3 { margin: 0; color: var(--ui-ink); font-size: 17px; line-height: 1.4; }
+body.urp-app .grades-table-header .page-section-desc { margin: 0; }
+body.urp-app .grades-query-toolbar { position: relative; display: flex; align-items: center; flex-wrap: wrap; gap: 9px; margin-bottom: 18px; }
+body.urp-app .grades-query-toolbar > button { min-height: 44px; padding: 10px 14px; font-size: 14px; }
+body.urp-app .grades-more-queries > summary {
+    min-height: 44px;
+    border: 1px solid var(--ui-line);
+    border-radius: var(--ui-radius-sm);
+    background: var(--ui-surface-soft);
+    color: var(--ui-accent);
+    font: 650 13px/1.4 var(--ui-font);
+}
+body.urp-app .grades-more-queries { position: relative; }
+body.urp-app .grades-more-queries > summary { display: inline-flex; align-items: center; gap: 8px; padding: 8px 13px; list-style: none; cursor: pointer; }
+body.urp-app .grades-more-queries > summary::-webkit-details-marker { display: none; }
+/* 页内查询菜单沿用桌面下拉菜单层级；菜单有自己的阅读空间。 */
+body.urp-app .grades-more-queries > .grades-query-menu { position: absolute; z-index: 8; top: calc(100% + 6px); left: 0; display: grid; width: 320px; max-width: calc(100vw - 40px); padding: 7px; border: 1px solid var(--ui-line); border-radius: var(--ui-radius); background: var(--ui-surface); box-shadow: 0 12px 30px rgb(24 38 56 / 14%); }
+body.urp-app .grades-more-queries:not([open]) > .grades-query-menu { display: none; }
+body.urp-app .grades-more-queries button { display: grid; gap: 4px; min-height: 60px; padding: 10px 12px; border: 0; border-radius: var(--ui-radius-sm); background: transparent; color: var(--ui-ink); font: inherit; text-align: left; cursor: pointer; }
+body.urp-app .grades-more-queries button strong { font-size: 14px; line-height: 1.4; }
+body.urp-app .grades-more-queries button span { color: var(--ui-muted); font-size: 12px; line-height: 1.5; }
+body.urp-app .grades-more-queries button:hover { background: var(--ui-accent-soft); color: var(--ui-accent); }
+body.urp-app .grades-more-queries > summary:hover { border-color: #91b2de; background: var(--ui-accent-soft); }
+body.urp-app .grades-query-toolbar [aria-pressed="true"] { box-shadow: inset 0 -3px 0 currentColor; }
+body.urp-app :is(.grades-more-queries > summary, .grades-more-queries button):focus-visible { outline: 3px solid var(--ui-accent); outline-offset: 2px; }
+body.urp-app .makeup-summary { margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--ui-line); }
+body.urp-app .makeup-summary h3 { margin: 0 0 10px; font-size: 17px; }
+body.urp-app .makeup-status { margin: 0 0 12px; color: var(--ui-muted); font-size: 14px; line-height: 1.6; }
+body.urp-app .makeup-published-heading { margin: 16px 0 10px; }
+body.urp-app .makeup-published-heading h4 { margin: 0 0 5px; color: var(--ui-ink); font-size: 14px; }
+body.urp-app .makeup-published-heading span { color: var(--ui-muted); font-size: 12px; }
+/* 长课程名在自身列内换行，所有分数与附加字段始终留在页面宽度内。 */
+body.urp-app #page-grades .grades-table-wrap { min-width: 0; max-width: 100%; overflow: visible; }
+body.urp-app #page-grades .grades-table { width: 100%; min-width: 0; table-layout: fixed; }
+body.urp-app #page-grades .grades-table :is(th, td) {
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    vertical-align: top;
+    line-height: 1.5;
+}
+body.urp-app #page-grades .grades-course-table th:last-child { width: 18%; }
+body.urp-app #page-grades .grades-course-table:has(th:nth-child(3)) th:nth-child(2) { width: 16%; }
+body.urp-app #page-grades .grades-failed-table th:nth-child(1) { width: 38%; }
+body.urp-app #page-grades .grades-failed-table th:nth-child(2) { width: 14%; }
+body.urp-app #page-grades .grades-failed-table th:nth-child(3) { width: 17%; }
+body.urp-app #page-grades .grades-failed-table th:nth-child(4) { width: 31%; }
+body.urp-app #page-grades .makeup-results-table th:nth-child(1) { width: 37%; }
+body.urp-app #page-grades .makeup-results-table th:nth-child(2) { width: 14%; }
+body.urp-app #page-grades .makeup-results-table th:nth-child(3) { width: 19%; }
+body.urp-app #page-grades .makeup-results-table th:nth-child(4) { width: 30%; }
+@media (max-width: 768px) {
+    body.urp-app #page-grades .grades-table :is(th, td) { padding: 10px 6px; font-size: 13px; letter-spacing: 0; }
+    body.urp-app #page-grades .grades-course-table th:last-child { width: 22%; }
+    body.urp-app #page-grades .grades-course-table:has(th:nth-child(3)) th:nth-child(2) { width: 18%; }
+    body.urp-app #page-grades .gpa-detail-table,
+    body.urp-app #page-grades .gpa-detail-table tbody { display: block; }
+    body.urp-app #page-grades .gpa-detail-table thead { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); }
+    body.urp-app #page-grades .gpa-detail-table tbody tr { display: block; padding: 8px 0; border-bottom: 1px solid var(--ui-line); }
+    body.urp-app #page-grades .gpa-detail-table tbody tr:last-child { border-bottom: 0; }
+    body.urp-app #page-grades .gpa-detail-table td {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        align-items: start;
+        gap: 10px;
+        width: 100%;
+        min-width: 0;
+        padding: 7px 10px;
+        border: 0;
+        text-align: left;
+        font-size: 14px;
+    }
+    body.urp-app #page-grades .gpa-detail-table td::before { content: attr(data-label); color: var(--ui-muted); font-weight: 500; }
+    body.urp-app #page-grades .gpa-cell-value { min-width: 0; overflow-wrap: anywhere; }
+    body.urp-app .grades-kpi { padding: 13px 12px; }
+    body.urp-app .grades-kpi strong { font-size: 21px; }
+    body.urp-app .grades-table-panel { padding: 14px 12px; }
+    body.urp-app .grades-table-header { align-items: stretch; flex-direction: column; }
+    body.urp-app .grades-more-queries { position: static; flex-basis: 100%; }
+    body.urp-app .grades-more-queries > .grades-query-menu { position: relative; top: auto; left: auto; right: auto; width: 100%; max-width: 100%; max-height: 50dvh; overflow-y: auto; margin-top: 8px; }
+}
+@media (max-width: 420px) {
+    body.urp-app .grades-kpi { padding-inline: 9px; }
+    body.urp-app .grades-kpi span { min-height: 34px; }
+    body.urp-app .grades-kpi strong { font-size: 19px; }
+    body.urp-app .grades-query-toolbar { display: grid; grid-template-columns: minmax(0, 1fr); }
+    body.urp-app .grades-query-toolbar > button { width: 100%; }
+    body.urp-app .grades-more-queries { width: 100%; }
+}
+
+body.urp-app .schedule-action-menu {
+    position: fixed;
+    width: min(320px, calc(100vw - 24px));
+    max-height: calc(100dvh - 24px);
+    margin: 0;
+    padding: 10px;
+    overflow-y: auto;
+    border: 1px solid var(--ui-line);
+    border-radius: var(--ui-radius);
+    background: var(--ui-surface);
+    color: var(--ui-ink);
+    font-family: var(--ui-font);
+    box-shadow: 0 18px 54px rgb(24 38 56 / 18%);
+}
+body.urp-app .schedule-action-menu::backdrop { background: rgb(24 38 56 / 24%); }
+body.urp-app .schedule-action-menu-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 2px 8px 10px; }
+body.urp-app .schedule-action-menu-heading h2 { margin: 0; font-size: 15px; font-weight: 700; line-height: 1.4; }
+body.urp-app .schedule-action-menu-close { min-width: 52px; min-height: 44px; padding: 8px; border: 0; border-radius: var(--ui-radius-sm); background: transparent; color: var(--ui-muted); font: 600 13px/1.4 var(--ui-font); cursor: pointer; }
+body.urp-app .schedule-action-menu-list { display: grid; gap: 8px; }
+body.urp-app .schedule-action-menu-item { display: block; width: 100%; min-height: 48px; padding: 12px 14px; border: 1px solid var(--ui-line); border-radius: var(--ui-radius-sm); background: var(--ui-surface-soft); color: var(--ui-ink); font: 650 14px/1.4 var(--ui-font); text-align: left; cursor: pointer; }
+body.urp-app .schedule-action-menu-item:hover:not(:disabled),
+body.urp-app .schedule-action-menu-close:hover { border-color: #91b2de; background: var(--ui-accent-soft); }
+body.urp-app .schedule-action-menu-item:disabled { color: var(--ui-muted); opacity: .55; cursor: wait; }
+body.urp-app .schedule-action-menu :is(button):focus-visible { outline: 3px solid var(--ui-accent); outline-offset: 2px; }
+
+@media (max-width: 768px) {
+    body.urp-app .schedule-action-menu {
+        inset: auto 12px max(12px, env(safe-area-inset-bottom));
+        width: auto;
+        max-height: min(72dvh, 420px);
+        border-radius: 18px;
+    }
+    body.urp-app .schedule-action-menu-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    body.urp-app .schedule-action-menu-item { min-height: 64px; text-align: center; }
+}
+
 body.urp-app :is(.in-page-back, .schedule-actions-close) {
     display: inline-flex;
     align-items: center;

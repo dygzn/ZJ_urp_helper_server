@@ -10,9 +10,9 @@
     <title>URP教务助手</title>
     <link rel="stylesheet" href="/static/css/style.css?v=27">
     <link rel="stylesheet" href="/static/css/lab.css?v=2">
-    <link rel="stylesheet" href="/static/css/taste-theme.css?v=45">
+    <link rel="stylesheet" href="/static/css/taste-theme.css?v=48">
     <link rel="stylesheet" href="/static/css/appearance.css?v=3">
-    <link rel="stylesheet" href="/static/css/liquid-glass.css?v=8">
+    <link rel="stylesheet" href="/static/css/liquid-glass.css?v=10">
 </head>
 <body class="urp-app">
 
@@ -178,48 +178,41 @@
                 <div class="page-access-gate" data-page-access-gate hidden></div>
                 <div class="grades-container grades-dashboard">
                     <div class="grades-dashboard-main">
-                        <h2 id="grades-page-title">成绩查询</h2>
-                        <div id="grades-menu" class="grades-menu grades-card-grid">
-                            <button class="grade-action-btn grade-action-btn-summary" type="button" onclick="gradesLoadLatestSummary()">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-7"/></svg>
-                                <span class="grade-action-label">一键查本学期成绩</span>
-                                <span class="grade-action-desc">自动展示最新学期及格成绩和不及格成绩</span>
-                            </button>
-                            <button class="grade-action-btn" type="button" onclick="gradesShowCurrentSemester()">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-                                <span class="grade-action-label">本学期成绩</span>
-                                <span class="grade-action-desc">查看当前学期已出的课程成绩</span>
-                            </button>
-                            <button class="grade-action-btn" type="button" onclick="gradesShowSemesterPicker()">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 6h6M9 10h6M9 14h4"/></svg>
-                                <span class="grade-action-label">按学期查询</span>
-                                <span class="grade-action-desc">选择学期查看历史及格成绩</span>
-                            </button>
-                            <button class="grade-action-btn grade-action-btn-warn" type="button" onclick="gradesLoadFailed()">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>
-                                <span class="grade-action-label">不及格成绩</span>
-                                <span class="grade-action-desc">查看尚不及格和曾不及格记录</span>
-                            </button>
-                            <button class="grade-action-btn grade-action-btn-accent" type="button" onclick="gradesLoadGpa()">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19V9M12 19V5M19 19v-7"/></svg>
-                                <span class="grade-action-label">学分绩点</span>
-                                <span class="grade-action-desc">查询学分绩点和学位绩点</span>
-                            </button>
-                            <button class="grade-action-btn" type="button" onclick="gradesShowExamPicker()">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M9 15l2 2 4-5"/></svg>
-                                <span class="grade-action-label">考试成绩</span>
-                                <span class="grade-action-desc">按考试场次查询成绩明细</span>
-                            </button>
+                        <header class="grades-dashboard-header">
+                            <h2 id="grades-page-title">成绩查询</h2>
+                            <p class="page-section-desc">本学期成绩、补考记录与学分绩点。</p>
+                        </header>
+                        <div class="grades-query-toolbar" role="group" aria-label="成绩查询方式">
+                            <button id="grades-one-click" data-grade-query="summary" class="btn-primary" type="button" aria-pressed="true" onclick="gradesLoadLatestSummary()">一键查本学期成绩</button>
+                            <button id="grades-gpa-quick" data-grade-query="gpa" class="btn-secondary" type="button" aria-pressed="false" onclick="gradesLoadGpa()">学分绩点查询</button>
+                            <details id="grades-query-options" class="grades-more-queries">
+                                <summary id="grades-query-summary" aria-controls="grades-query-menu">其他查询 <span aria-hidden="true">⌄</span></summary>
+                                <div id="grades-query-menu" class="grades-query-menu" role="group" aria-label="全部其他成绩查询">
+                                    <button data-grade-query="current" type="button" onclick="gradesShowCurrentSemester()"><strong>本学期成绩</strong><span>教务系统里面的本学期成绩，可能暂未开放</span></button>
+                                    <button data-grade-query="semester" type="button" onclick="gradesShowSemesterPicker()"><strong>按学期查询</strong><span>选择本学期或过往学期查看成绩</span></button>
+                                    <button data-grade-query="failed" type="button" onclick="gradesLoadFailed()"><strong>不及格成绩</strong><span>全部学期的不及格记录及当前通过状态</span></button>
+                                    <button data-grade-query="gpa" type="button" onclick="gradesLoadGpa()"><strong>学分绩点</strong><span>总体绩点、学位绩点与各学期明细</span></button>
+                                    <button data-grade-query="exam" type="button" onclick="gradesShowExamPicker()"><strong>考试成绩</strong><span>按考试场次查询，含补考成绩</span></button>
+                                </div>
+                            </details>
                         </div>
-                        <div id="grades-result" class="grades-result" style="display:none;">
-                            <div class="grades-result-header"><button id="grades-back-btn" class="in-page-back grades-back-btn" type="button" onclick="gradesBackToMenu()">← 返回查询选项</button><h2 id="grades-result-title"></h2></div>
+                        <section class="grades-kpi-strip" aria-label="最新成绩学期概览">
+                            <div class="grades-kpi"><span>查询学期 GPA</span><strong id="grades-kpi-gpa">-</strong><small id="grades-kpi-semester">最新成绩学期</small></div>
+                            <div class="grades-kpi"><span>总学分</span><strong id="grades-kpi-credits">-</strong><small>本期已查及格课程</small></div>
+                            <div class="grades-kpi grades-kpi-risk"><span>尚不及格门数</span><strong id="grades-kpi-failed">-</strong><small>全部学期</small></div>
+                        </section>
+                        <div id="grades-result" class="grades-result grades-table-panel">
+                            <div class="grades-result-header grades-table-header">
+                                <h3 id="grades-result-title">一键查本学期成绩</h3>
+                                <p id="grades-result-description" class="page-section-desc"></p>
+                            </div>
                             <div id="grades-content" class="grades-content"></div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div id="page-evaluation" class="page"><div class="page-access-gate" data-page-access-gate hidden></div><div class="evaluation-container"><h2>教学评估</h2><p class="page-section-desc">查询待评课程，支持一键提交默认评教。</p><div class="action-bar"><button class="btn-primary" id="do-eval-btn" type="button" onclick="checkUnevaluatedCourses()">刷新查询</button><button class="btn-primary" id="one-click-eval-btn" type="button" onclick="oneClickEvaluation()">一键评教</button></div><div id="evaluation-result" class="evaluation-result"></div></div></div>
+            <div id="page-evaluation" class="page"><div class="page-access-gate" data-page-access-gate hidden></div><div class="evaluation-container"><h2>教学评估</h2><p class="page-section-desc">查询待评课程，支持一键提交默认评教。</p><div class="action-bar"><button class="btn-secondary" id="do-eval-btn" type="button" onclick="checkUnevaluatedCourses()">刷新查询</button><button class="btn-primary" id="one-click-eval-btn" type="button" onclick="oneClickEvaluation()">一键评教</button></div><div id="evaluation-result" class="evaluation-result"></div></div></div>
 
             <div id="page-service-status" class="page">
                 <div class="service-status-container">
@@ -572,6 +565,6 @@
     <script src="/static/js/ui-ux.js?v=3"></script>
     <script src="/static/js/course-detail-transition.js?v=4"></script>
     <script src="/static/js/api.js?v=1"></script>
-    <script type="module" src="/static/js/main.js?v=68"></script>
+    <script type="module" src="/static/js/main.js?v=71"></script>
 </body>
 </html>

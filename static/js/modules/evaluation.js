@@ -1,7 +1,7 @@
 import { pageResources } from './lifecycle.js';
 import { checkLoginStatus, getDeviceId } from './auth.js';
 import { state } from './store.js';
-import { showUiToast } from './ui.js';
+import { requestUiConfirmation, showUiToast } from './ui.js';
 const resources = pageResources('evaluation');
 
 export function mountEvaluation() {
@@ -140,6 +140,13 @@ export async function oneClickEvaluation() {
     const scope = resources.capture();
     await operation.wait(checkLoginStatus());
     if (!scope.isActive()) return;
+    const confirmed = await operation.wait(requestUiConfirmation({
+        title: '确认一键评教',
+        message: '即将对本学期所有待评教师提交默认好评，该操作不可撤销，是否继续？',
+        confirmText: '继续评教',
+        danger: true,
+    }));
+    if (!confirmed || !scope.isActive()) return;
     const resultDiv = document.getElementById('evaluation-result');
     const btn = document.getElementById('one-click-eval-btn');
     const restoreButton = () => { btn.disabled = false; btn.textContent = '一键评教'; };

@@ -24,6 +24,10 @@ export function mountScheduleMenu() {
     let restoreOnClose = true;
 
     function isEnabled() {
+        return enabled;
+    }
+
+    function isExclusive() {
         return enabled && root.dataset.uiTemplate === 'glass' && narrow.matches;
     }
 
@@ -46,8 +50,6 @@ export function mountScheduleMenu() {
         list.replaceChildren();
         copies.clear();
         sources.forEach(source => {
-            // The mobile update button is already directly available beside More.
-            if (source.dataset.scheduleAction === 'update' && mobile.matches) return;
             const action = document.createElement('button');
             action.type = 'button';
             action.className = 'schedule-action-menu-item';
@@ -66,6 +68,12 @@ export function mountScheduleMenu() {
     }
 
     function positionMenu() {
+        if (mobile.matches) {
+            menu.style.removeProperty('left');
+            menu.style.removeProperty('top');
+            menu.dataset.placement = 'bottom';
+            return;
+        }
         const anchor = trigger.getBoundingClientRect();
         const bounds = menu.getBoundingClientRect();
         const inset = 12;
@@ -81,6 +89,7 @@ export function mountScheduleMenu() {
 
     function open() {
         if (!isEnabled() || !page.classList.contains('active') || menu.open) return;
+        if (!isExclusive()) hideScheduleActions(false);
         renderActions();
         restoreOnClose = true;
         menu.showModal();
@@ -90,7 +99,14 @@ export function mountScheduleMenu() {
         (list.querySelector('button:not(:disabled)') || menu.querySelector('.schedule-action-menu-close')).focus();
     }
 
-    window.ScheduleActionsMenu = { isEnabled, open, close, toggle() { if (menu.open) close(); else open(); } };
+    window.ScheduleActionsMenu = {
+        isEnabled,
+        isExclusive,
+        isOpen: () => menu.open,
+        open,
+        close,
+        toggle() { if (menu.open) close(); else open(); },
+    };
 
     const sourceObserver = resources.observe(new MutationObserver(() => {
         copies.forEach((action, source) => {
@@ -102,13 +118,14 @@ export function mountScheduleMenu() {
 
     function syncMode() {
         close();
-        const next = root.dataset.uiTemplate === 'glass' && narrow.matches;
+        const next = mobile.matches || (root.dataset.uiTemplate === 'glass' && narrow.matches);
         // Collapse the old panel through its normal path before enabling the new presentation.
         enabled = false;
         resetScheduleActionGesture();
-        if (next) hideScheduleActions(false);
+        if (root.dataset.uiTemplate === 'glass' && narrow.matches) hideScheduleActions(false);
         enabled = next;
-        page.classList.toggle('has-glass-action-menu', enabled);
+        page.classList.toggle('has-schedule-action-menu', enabled);
+        page.classList.toggle('has-glass-action-menu', enabled && root.dataset.uiTemplate === 'glass');
         trigger.setAttribute('aria-controls', enabled ? menu.id : originalControls);
         if (enabled) trigger.setAttribute('aria-haspopup', 'dialog');
         else if (originalPopup) trigger.setAttribute('aria-haspopup', originalPopup);
@@ -154,6 +171,7 @@ export function mountScheduleMenu() {
         close({ restoreFocus: false });
         copies.clear();
         menu.remove();
+        page.classList.remove('has-schedule-action-menu');
         page.classList.remove('has-glass-action-menu');
         trigger.setAttribute('aria-controls', originalControls);
         if (originalPopup) trigger.setAttribute('aria-haspopup', originalPopup);
@@ -162,4 +180,3 @@ export function mountScheduleMenu() {
     });
     syncMode();
 }
-

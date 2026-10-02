@@ -730,7 +730,11 @@ export function updateScheduleActionPull(distance, direction = 'up', commit = tr
 }
 
 export function scheduleActionsUseMenu() {
-    return Boolean(typeof window !== 'undefined' && window.ScheduleActionsMenu?.isEnabled?.());
+    if (typeof window === 'undefined' || !window.ScheduleActionsMenu) return false;
+    if (typeof window.ScheduleActionsMenu.isExclusive === 'function') {
+        return Boolean(window.ScheduleActionsMenu.isExclusive());
+    }
+    return Boolean(window.ScheduleActionsMenu.isEnabled?.());
 }
 
 export function resetScheduleActionGesture() {
@@ -752,13 +756,18 @@ export function showScheduleActions() {
 }
 
 export function toggleScheduleActions() {
-    if (scheduleActionsUseMenu()) return window.ScheduleActionsMenu.toggle();
+    if (typeof window !== 'undefined' && window.ScheduleActionsMenu?.isEnabled?.()) {
+        return window.ScheduleActionsMenu.toggle();
+    }
     const panel = document.getElementById('schedule-actions');
     if (panel?.classList.contains('is-open')) hideScheduleActions(false);
     else showScheduleActions();
 }
 
 export function hideScheduleActions(focusTimetable = true, preventScroll = false) {
+    if (typeof window !== 'undefined' && window.ScheduleActionsMenu?.isOpen?.()) {
+        return window.ScheduleActionsMenu.close({ restoreFocus: focusTimetable });
+    }
     if (scheduleActionsUseMenu()) return window.ScheduleActionsMenu.close({ restoreFocus: focusTimetable });
     if (isDesktopWorkspace()) {
         showScheduleActions();
@@ -936,4 +945,3 @@ export function initScheduleActions() {
     resources.listen(page, 'wheel', handleScheduleActionWheel, { passive: false });
     resources.listen(document, 'keydown', handleScheduleActionKeyDown);
 }
-
