@@ -1,0 +1,10 @@
+/* Shared entry point: every author stylesheet belongs to a named layer. */
+@layer reset, base, components, themes, utilities;
+/* Legacy structure < current components < optional material presentation. */
+@layer components.legacy, components.workspace, components.appearance;
+
+@layer base {
+    :where(html) { color-scheme: var(--ui-color-scheme, light); }
+    :where(button, input, select, textarea) { font-family: inherit; }
+    :where(input, select, textarea) { accent-color: var(--ui-accent); }
+}

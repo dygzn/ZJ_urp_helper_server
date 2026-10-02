@@ -1,59 +1,69 @@
-/* Admin workspace layout. Loaded after legacy component styles and the shared theme. */
-body.urp-admin {
-    --admin-line: #d8e1eb;
-    --admin-quiet: #eef3f8;
-    --admin-soft: #f7f9fc;
+/* Component rules: zero-weight ancestors, class-weight control targets. */
+@layer components.workspace {
+:where(body.urp-admin) {
+--admin-line: var(--ui-line);
+    --admin-quiet: var(--ui-surface-quiet);
+    --admin-soft: var(--ui-surface-soft);
     background: var(--ui-admin-canvas);
 }
 
-body.urp-admin .admin-container,
-body.urp-admin .admin-panel {
-    min-height: 100dvh;
+:where(body.urp-admin) .admin-container,
+:where(body.urp-admin) .admin-panel {
+min-height: 100dvh;
 }
 
-body.urp-admin .admin-panel {
-    padding: 0 0 72px;
+:where(body.urp-admin) .admin-panel {
+padding: 0 0 72px;
     background: var(--ui-admin-canvas);
 }
 
-body.urp-admin .admin-header {
-    position: sticky;
+:where(body.urp-admin) .admin-header {
+position: sticky;
     top: 0;
     z-index: 90;
     min-height: 76px;
     padding: 12px max(28px, calc((100vw - 1480px) / 2));
-    background: #fff;
+    background: var(--ui-surface);
     border-bottom: 1px solid var(--admin-line);
     border-radius: 0;
 }
 
-body.urp-admin .admin-title { gap: 2px; }
-body.urp-admin .admin-kicker {
-    color: var(--ui-accent);
+:where(body.urp-admin) .admin-title {
+gap: 2px;
+}
+
+:where(body.urp-admin) .admin-kicker {
+color: var(--ui-accent);
     font-size: 11px;
     font-weight: 750;
     letter-spacing: .04em;
     text-transform: none;
 }
-body.urp-admin .admin-title h1 {
-    font-size: 21px;
+
+:where(body.urp-admin) .admin-title h1 {
+font-size: 21px;
     font-weight: 780;
     letter-spacing: -.04em;
 }
-body.urp-admin .logout-btn {
-    min-height: 40px;
+
+:where(body.urp-admin) .logout-btn {
+min-height: 40px;
     padding: 0 18px;
     border: 1px solid var(--admin-line);
     border-radius: 9px;
-    background: #fff;
+    background: var(--ui-surface);
     color: var(--ui-muted);
     font-size: 13px;
     font-weight: 650;
 }
-body.urp-admin .logout-btn:hover { background: var(--admin-soft); color: var(--ui-ink); }
 
-body.urp-admin .admin-content {
-    display: grid;
+:where(body.urp-admin) .logout-btn:hover {
+background: var(--admin-soft);
+    color: var(--ui-ink);
+}
+
+:where(body.urp-admin) .admin-content {
+display: grid;
     grid-template-columns: 216px minmax(0, 1fr);
     gap: clamp(28px, 3vw, 48px);
     align-items: start;
@@ -62,8 +72,8 @@ body.urp-admin .admin-content {
     padding: clamp(28px, 3vw, 42px) 28px;
 }
 
-body.urp-admin .tabs {
-    position: sticky;
+:where(body.urp-admin) .tabs {
+position: sticky;
     top: 100px;
     display: flex;
     flex-direction: column;
@@ -81,8 +91,8 @@ body.urp-admin .tabs {
     scrollbar-width: thin;
 }
 
-body.urp-admin .admin-nav-group {
-    display: block;
+:where(body.urp-admin) .admin-nav-group {
+display: block;
     margin: 23px 0 8px;
     padding: 0 12px;
     color: var(--ui-subtle);
@@ -90,9 +100,13 @@ body.urp-admin .admin-nav-group {
     font-weight: 750;
     letter-spacing: .06em;
 }
-body.urp-admin .admin-nav-group:first-child { margin-top: 0; }
-body.urp-admin .tab-btn {
-    flex: 0 0 auto;
+
+:where(body.urp-admin) .admin-nav-group:first-child {
+margin-top: 0;
+}
+
+:where(body.urp-admin) .tab-btn {
+flex: 0 0 auto;
     min-height: 41px;
     width: 100%;
     margin: 1px 0;
@@ -105,16 +119,21 @@ body.urp-admin .tab-btn {
     font-weight: 610;
     text-align: left;
 }
-body.urp-admin .tab-btn:hover { background: rgb(255 255 255 / 64%); color: var(--ui-ink); }
-body.urp-admin .tab-btn.active {
-    background: #fff;
+
+:where(body.urp-admin) .tab-btn:hover {
+background: rgb(255 255 255 / 64%);
+    color: var(--ui-ink);
+}
+
+:where(body.urp-admin) .tab-btn.active {
+background: var(--ui-surface);
     color: var(--ui-accent);
     box-shadow: inset 3px 0 var(--ui-accent), 0 1px 4px rgb(29 50 77 / 5%);
     font-weight: 750;
 }
 
-body.urp-admin .tab-content.active {
-    grid-column: 2;
+:where(body.urp-admin) .tab-content.active {
+grid-column: 2;
     min-width: 0;
     min-height: 0;
     padding: 0;
@@ -125,8 +144,8 @@ body.urp-admin .tab-content.active {
     animation: none;
 }
 
-body.urp-admin .section-header {
-    display: flex;
+:where(body.urp-admin) .section-header {
+display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 18px;
@@ -135,204 +154,519 @@ body.urp-admin .section-header {
     padding: 0;
     border: 0;
 }
-body.urp-admin .section-header h2 {
-    margin: 0;
+
+:where(body.urp-admin) .section-header h2 {
+margin: 0;
     color: var(--ui-ink);
     font-size: clamp(25px, 2.1vw, 30px);
     font-weight: 780;
     letter-spacing: -.045em;
     line-height: 1.15;
 }
-body.urp-admin .section-header h2::before { display: none; }
-body.urp-admin .tab-content > .config-desc {
-    max-width: 78ch;
+
+:where(body.urp-admin) .section-header h2::before {
+display: none;
+}
+
+:where(body.urp-admin) .tab-content > .config-desc {
+max-width: 78ch;
     margin: 0 0 24px;
     color: var(--ui-muted);
     font-size: 14px;
     line-height: 1.65;
 }
-body.urp-admin .section-header + :not(.config-desc) { margin-top: 22px; }
 
-body.urp-admin .icon-btn {
-    min-height: 40px;
+:where(body.urp-admin) .section-header + :not(.config-desc) {
+margin-top: 22px;
+}
+
+:where(body.urp-admin) .icon-btn {
+min-height: 40px;
     padding: 8px 15px;
     border: 1px solid #b9c9da;
     border-radius: 9px;
-    background: #fff;
+    background: var(--ui-surface);
     color: var(--ui-accent);
     font-size: 13px;
     font-weight: 700;
     box-shadow: none;
     white-space: nowrap;
 }
-body.urp-admin .icon-btn:hover { background: var(--ui-accent-soft); border-color: var(--ui-accent); }
-body.urp-admin .section-header .button-group { display: flex; width: auto; flex-direction: row; flex-wrap: wrap; gap: 9px; }
-body.urp-admin .btn-primary,
-body.urp-admin .btn-secondary,
-body.urp-admin .login-btn { border-radius: 9px; }
-body.urp-admin :is(.btn-success, .btn-danger, .btn-sm) { border-radius: 9px; box-shadow: none; }
-body.urp-admin .btn-success { background: #176b45; color: #fff; }
-body.urp-admin .btn-success:hover:not(:disabled) { background: #105235; }
-body.urp-admin .btn-danger { background: #a52d35; color: #fff; }
-body.urp-admin .btn-danger:hover:not(:disabled) { background: #84232b; }
-body.urp-admin :is(.status-ok, .status-approved, .member-status-valid) { color: #176b45; }
-body.urp-admin :is(.status-error, .status-rejected) { color: #a52d35; }
-body.urp-admin :is(button, select) { touch-action: manipulation; }
-body.urp-admin button:disabled { cursor: not-allowed; opacity: .5; }
 
-/* Data presentation: statistics are grouped as one strip, not four floating cards. */
-body.urp-admin #users-list {
-    padding: 0;
+:where(body.urp-admin) .icon-btn:hover {
+background: var(--ui-accent-soft);
+    border-color: var(--ui-accent);
+}
+
+:where(body.urp-admin) .section-header .button-group {
+display: flex;
+    width: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 9px;
+}
+
+:where(body.urp-admin) .btn-primary,
+:where(body.urp-admin) .btn-secondary,
+:where(body.urp-admin) .login-btn {
+border-radius: 9px;
+}
+
+:where(body.urp-admin) :is(.btn-success, .btn-danger, .btn-sm) {
+border-radius: 9px;
+    box-shadow: none;
+}
+
+:where(body.urp-admin) .btn-success {
+background: #176b45;
+    color: var(--ui-on-accent);
+}
+
+:where(body.urp-admin) .btn-success:hover:not(:disabled) {
+background: var(--ui-success-hover);
+}
+
+:where(body.urp-admin) .btn-danger {
+background: #a52d35;
+    color: var(--ui-on-accent);
+}
+
+:where(body.urp-admin) .btn-danger:hover:not(:disabled) {
+background: var(--ui-danger-hover);
+}
+
+:where(body.urp-admin) :is(.status-ok, .status-approved, .member-status-valid) {
+color: #176b45;
+}
+
+:where(body.urp-admin) :is(.status-error, .status-rejected) {
+color: #a52d35;
+}
+
+:where(body.urp-admin) :is(button, select) {
+touch-action: manipulation;
+}
+
+:where(body.urp-admin) button:disabled {
+cursor: not-allowed;
+    opacity: .5;
+}
+
+:where(body.urp-admin) [id="users-list"] {
+padding: 0;
     border: 0;
     background: transparent;
 }
-body.urp-admin #users-list > .loading,
-body.urp-admin #users-list > .empty-state,
-body.urp-admin #ad-stats > .loading,
-body.urp-admin :is(#online-users-list, #announcements-list, #feedback-list, #withdrawals-list, #commission-stats) > .loading {
-    min-height: 148px;
+
+:where(body.urp-admin) :where(#users-list) > .loading,
+:where(body.urp-admin) :where(#users-list) > .empty-state,
+:where(body.urp-admin) :where(#ad-stats) > .loading,
+:where(body.urp-admin) :is(:where(#online-users-list), :where(#announcements-list), :where(#feedback-list), :where(#withdrawals-list), :where(#commission-stats)) > .loading {
+min-height: 148px;
     display: grid;
     place-items: center;
     border: 1px solid var(--admin-line);
     border-radius: 13px;
-    background: #fff;
+    background: var(--ui-surface);
     color: var(--ui-muted);
 }
-body.urp-admin .ud-cards {
-    display: grid;
+
+:where(body.urp-admin) .ud-cards {
+display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0;
     overflow: hidden;
     margin: 0 0 20px;
     border: 1px solid var(--admin-line);
     border-radius: 13px;
-    background: #fff;
+    background: var(--ui-surface);
 }
-body.urp-admin .ud-card,
-body.urp-admin :is(.ud-card-green, .ud-card-blue, .ud-card-orange) {
-    min-height: 112px;
+
+:where(body.urp-admin) .ud-card,
+:where(body.urp-admin) :is(.ud-card-green, .ud-card-blue, .ud-card-orange) {
+min-height: 112px;
     align-items: flex-start;
     padding: 22px 24px;
     border: 0;
     border-right: 1px solid var(--admin-line);
     border-radius: 0;
-    background: #fff;
+    background: var(--ui-surface);
     text-align: left;
     box-shadow: none;
 }
-body.urp-admin .ud-card:last-child { border-right: 0; }
-body.urp-admin .ud-card-value,
-body.urp-admin :is(.ud-card-green, .ud-card-blue, .ud-card-orange) .ud-card-value {
-    color: var(--ui-ink);
+
+:where(body.urp-admin) .ud-card:last-child {
+border-right: 0;
+}
+
+:where(body.urp-admin) .ud-card-value,
+:where(body.urp-admin) :is(.ud-card-green, .ud-card-blue, .ud-card-orange) .ud-card-value {
+color: var(--ui-ink);
     font-size: 32px;
     font-weight: 760;
     letter-spacing: -.04em;
 }
-body.urp-admin .ud-card:first-child .ud-card-value { color: var(--ui-accent); }
-body.urp-admin .ud-card-label { margin-top: 6px; color: var(--ui-muted); font-size: 12px; font-weight: 580; }
-body.urp-admin .ud-section {
-    width: 100%;
+
+:where(body.urp-admin) .ud-card:first-child .ud-card-value {
+color: var(--ui-accent);
+}
+
+:where(body.urp-admin) .ud-card-label {
+margin-top: 6px;
+    color: var(--ui-muted);
+    font-size: 12px;
+    font-weight: 580;
+}
+
+:where(body.urp-admin) .ud-section {
+width: 100%;
     max-width: none;
     margin: 0 0 18px;
     padding: 24px;
     border: 1px solid var(--admin-line);
     border-radius: 13px;
-    background: #fff;
+    background: var(--ui-surface);
     box-shadow: none;
 }
-body.urp-admin .ud-section-header { min-height: 38px; margin-bottom: 18px; }
-body.urp-admin .ud-section-title { color: var(--ui-ink); font-size: 16px; font-weight: 730; }
-body.urp-admin .ud-toggle { padding: 3px; border: 1px solid var(--admin-line); border-radius: 8px; background: var(--admin-soft); }
-body.urp-admin .ud-toggle button { min-height: 34px; padding: 5px 13px; border-radius: 6px; color: var(--ui-muted); }
-body.urp-admin .ud-toggle button.active { color: var(--ui-accent); background: #fff; box-shadow: 0 1px 3px rgb(24 38 56 / 9%); }
-body.urp-admin .ud-bar-chart { height: 185px; gap: 7px; padding-bottom: 22px; }
-body.urp-admin .ud-col-label { color: var(--ui-accent); font-size: 10px; }
-body.urp-admin .ud-col-track { background: transparent; }
-body.urp-admin .ud-col-bar { width: min(24px, 78%); border-radius: 5px 5px 0 0; background: var(--ui-accent); }
-body.urp-admin .ud-col-date { color: var(--ui-subtle); font-size: 10px; }
-body.urp-admin .ud-dist-group-label { margin-top: 6px; color: var(--ui-muted); font-size: 12px; letter-spacing: 0; text-transform: none; }
-body.urp-admin .ud-dist-row { min-height: 38px; padding: 8px 0; border-bottom: 1px solid #edf1f5; }
-body.urp-admin .ud-dist-row:last-child { border-bottom: 0; }
-body.urp-admin .ud-dist-track { height: 4px; background: transparent; overflow: visible; }
-body.urp-admin .ud-dist-bar { height: 4px; border-radius: 4px; }
-body.urp-admin .ud-dist-name,
-body.urp-admin .ud-dist-stat { font-size: 13px; }
 
-/* Forms and settings */
-body.urp-admin .config-container { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; max-width: 960px; }
-body.urp-admin .config-section {
-    margin: 0 0 16px;
+:where(body.urp-admin) .ud-section-header {
+min-height: 38px;
+    margin-bottom: 18px;
+}
+
+:where(body.urp-admin) .ud-section-title {
+color: var(--ui-ink);
+    font-size: 16px;
+    font-weight: 730;
+}
+
+:where(body.urp-admin) .ud-toggle {
+padding: 3px;
+    border: 1px solid var(--admin-line);
+    border-radius: 8px;
+    background: var(--admin-soft);
+}
+
+:where(body.urp-admin) .ud-toggle button {
+min-height: 34px;
+    padding: 5px 13px;
+    border-radius: 6px;
+    color: var(--ui-muted);
+}
+
+:where(body.urp-admin) .ud-toggle button.active {
+color: var(--ui-accent);
+    background: var(--ui-surface);
+    box-shadow: 0 1px 3px rgb(24 38 56 / 9%);
+}
+
+:where(body.urp-admin) .ud-bar-chart {
+height: 185px;
+    gap: 7px;
+    padding-bottom: 22px;
+}
+
+:where(body.urp-admin) .ud-col-label {
+color: var(--ui-accent);
+    font-size: 10px;
+}
+
+:where(body.urp-admin) .ud-col-track {
+background: transparent;
+}
+
+:where(body.urp-admin) .ud-col-bar {
+width: min(24px, 78%);
+    border-radius: 5px 5px 0 0;
+    background: var(--ui-accent);
+}
+
+:where(body.urp-admin) .ud-col-date {
+color: var(--ui-subtle);
+    font-size: 10px;
+}
+
+:where(body.urp-admin) .ud-dist-group-label {
+margin-top: 6px;
+    color: var(--ui-muted);
+    font-size: 12px;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+:where(body.urp-admin) .ud-dist-row {
+min-height: 38px;
+    padding: 8px 0;
+    border-bottom: 1px solid #edf1f5;
+}
+
+:where(body.urp-admin) .ud-dist-row:last-child {
+border-bottom: 0;
+}
+
+:where(body.urp-admin) .ud-dist-track {
+height: 4px;
+    background: transparent;
+    overflow: visible;
+}
+
+:where(body.urp-admin) .ud-dist-bar {
+height: 4px;
+    border-radius: 4px;
+}
+
+:where(body.urp-admin) .ud-dist-name,
+:where(body.urp-admin) .ud-dist-stat {
+font-size: 13px;
+}
+
+:where(body.urp-admin) .config-container {
+display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+    max-width: 960px;
+}
+
+:where(body.urp-admin) .config-section {
+margin: 0 0 16px;
     padding: clamp(20px, 2.3vw, 30px);
     border: 1px solid var(--admin-line);
     border-radius: 13px;
-    background: #fff;
+    background: var(--ui-surface);
     box-shadow: none;
 }
-body.urp-admin .config-container .config-section { margin: 0; }
-body.urp-admin .config-section h3 { margin: 0 0 14px; color: var(--ui-ink); font-size: 18px; font-weight: 730; }
-body.urp-admin .config-section .config-desc { max-width: 75ch; color: var(--ui-muted); font-size: 13px; line-height: 1.7; }
-body.urp-admin :is(.database-field, .form-group) label,
-body.urp-admin .ad-editor-fields > label { color: var(--ui-ink); font-size: 13px; font-weight: 690; }
-body.urp-admin :is(.database-field, .form-group, .ad-editor-fields) input:not([type="checkbox"]),
-body.urp-admin :is(.database-field, .form-group, .ad-editor-fields) select,
-body.urp-admin :is(.database-field, .form-group, .ad-editor-fields) textarea,
-body.urp-admin #url-form input {
-    min-height: 44px;
+
+:where(body.urp-admin) .config-container .config-section {
+margin: 0;
+}
+
+:where(body.urp-admin) .config-section h3 {
+margin: 0 0 14px;
+    color: var(--ui-ink);
+    font-size: 18px;
+    font-weight: 730;
+}
+
+:where(body.urp-admin) .config-section .config-desc {
+max-width: 75ch;
+    color: var(--ui-muted);
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+:where(body.urp-admin) :is(.database-field, .form-group) label,
+:where(body.urp-admin) .ad-editor-fields > label {
+color: var(--ui-ink);
+    font-size: 13px;
+    font-weight: 690;
+}
+
+:where(body.urp-admin) :is(.database-field, .form-group, .ad-editor-fields) input:not([type="checkbox"]),
+:where(body.urp-admin) :is(.database-field, .form-group, .ad-editor-fields) select,
+:where(body.urp-admin) :is(.database-field, .form-group, .ad-editor-fields) textarea,
+:where(body.urp-admin) :where(#url-form) input {
+min-height: 44px;
     border: 1px solid #aebfd1;
     border-radius: 9px;
-    background: #fff;
+    background: var(--ui-surface);
     color: var(--ui-ink);
     box-shadow: none;
 }
-body.urp-admin :is(input, textarea)::placeholder { color: #63768b; opacity: 1; }
-body.urp-admin :is(input:not([type="checkbox"]), select, textarea):focus { border-color: var(--ui-accent); box-shadow: 0 0 0 3px rgb(32 85 162 / 14%); }
-body.urp-admin :is(.admin-form, .config-section form:not(.form-grid)) > .btn-full { width: fit-content; max-width: 100%; }
-body.urp-admin .config-section > .btn-full { width: fit-content; max-width: 100%; margin-top: 12px; }
-body.urp-admin .config-section .btn-danger { background: #a52d35; color: #fff; }
-body.urp-admin .config-section .btn-danger:hover:not(:disabled) { background: #84232b; }
-body.urp-admin .database-fields-stack { border: 1px solid var(--admin-line); border-radius: 9px; background: var(--admin-soft); }
-body.urp-admin :is(.admin-check-row, .admin-toggle-row) {
-    margin: 0;
-    border: 1px solid var(--admin-line) !important;
-    border-radius: 9px !important;
-    background: var(--admin-soft) !important;
+
+:where(body.urp-admin) :is(input, textarea)::placeholder {
+color: var(--ui-muted);
+    opacity: 1;
 }
-body.urp-admin :is(.admin-check-row, .admin-toggle-row) small { color: var(--ui-muted); }
-body.urp-admin :is(.admin-check-row, .admin-toggle-row) input[type="checkbox"]:checked { background: var(--ui-accent); }
-body.urp-admin .admin-service-status-panel { max-width: 780px; }
-body.urp-admin .admin-service-status-presets { flex-wrap: wrap; }
-body.urp-admin .admin-service-status-preset { border-color: var(--admin-line); border-radius: 8px; }
-body.urp-admin .admin-service-status-preset.active { border-color: var(--ui-accent); background: var(--ui-accent-soft); color: var(--ui-accent); }
 
-body.urp-admin .member-grant-form { display: grid; grid-template-columns: minmax(0, 1fr); align-items: stretch; gap: 18px; }
-body.urp-admin .member-grant-fields { display: grid; grid-template-columns: minmax(180px, 1.3fr) minmax(150px, 1fr) minmax(120px, .7fr); gap: 12px; }
-body.urp-admin .member-grant-actions { display: flex; flex-wrap: wrap; gap: 9px; }
-body.urp-admin .member-grant-actions .btn-primary { min-width: 120px; }
-body.urp-admin .member-grant-actions .btn-secondary:last-child { color: #a52d35; border-color: #d8b6b9; }
-body.urp-admin .member-grant-actions .btn-secondary:last-child:hover { background: #fbf0f1; border-color: #a52d35; }
-body.urp-admin #members-list { max-width: 960px; }
-body.urp-admin #members-list > .empty-state { min-height: 110px; display: grid; place-items: center; border: 1px dashed #b7c6d6; border-radius: 12px; background: rgb(255 255 255 / 60%); color: var(--ui-muted); }
+:where(body.urp-admin) :is(input:not([type="checkbox"]), select, textarea):focus {
+border-color: var(--ui-accent);
+    box-shadow: 0 0 0 3px rgb(32 85 162 / 14%);
+}
 
-/* Advertisement editing keeps the preview in view during long forms. */
-body.urp-admin .ad-editor { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(300px, .85fr); align-items: start; gap: 18px; margin: 0 0 20px; }
-body.urp-admin .ad-editor-fields,
-body.urp-admin .ad-editor aside { min-width: 0; padding: 24px; border: 1px solid var(--admin-line); border-radius: 13px; background: #fff; }
-body.urp-admin .ad-editor-fields { gap: 11px; }
-body.urp-admin .ad-editor aside { position: sticky; top: 100px; max-height: calc(100dvh - 120px); overflow-y: auto; }
-body.urp-admin .ad-editor h3 { margin: 0 0 6px; color: var(--ui-ink); font-size: 18px; }
-body.urp-admin .ad-editor p { color: var(--ui-muted); }
-body.urp-admin .ad-editor-fields > label { margin-top: 5px; }
-body.urp-admin .ad-editor-fields > label:first-of-type { margin-top: 7px; }
-body.urp-admin .ad-editor-fields .btn-primary { width: fit-content; margin-top: 10px; }
-body.urp-admin .ad-preview-box { margin: 12px 0 18px; border-color: var(--admin-line); border-radius: 9px; background: var(--admin-soft); }
-body.urp-admin .ad-stats-section { max-width: none; }
+:where(body.urp-admin) :is(.admin-form, .config-section form:not(.form-grid)) > .btn-full {
+width: fit-content;
+    max-width: 100%;
+}
 
-/* Lists, tables and transient UI */
-body.urp-admin :is(.monitor-table-wrap, .member-table-wrap, .users-list, .online-users-list) { border-color: var(--admin-line); border-radius: 13px; box-shadow: none; }
-body.urp-admin :is(.member-table-wrap, .monitor-table-wrap) { max-width: 100%; overflow-x: auto; background: #fff; }
-body.urp-admin :is(.users-table, .member-table, .monitor-table) { width: 100%; }
-body.urp-admin :is(.users-table, .member-table, .monitor-table) th {
-    padding: 13px 15px;
+:where(body.urp-admin) .config-section > .btn-full {
+width: fit-content;
+    max-width: 100%;
+    margin-top: 12px;
+}
+
+:where(body.urp-admin) .config-section .btn-danger {
+background: #a52d35;
+    color: var(--ui-on-accent);
+}
+
+:where(body.urp-admin) .config-section .btn-danger:hover:not(:disabled) {
+background: var(--ui-danger-hover);
+}
+
+:where(body.urp-admin) .database-fields-stack {
+border: 1px solid var(--admin-line);
+    border-radius: 9px;
+    background: var(--admin-soft);
+}
+
+:where(body.urp-admin) :is(.admin-check-row, .admin-toggle-row) {
+margin: 0;
+}
+
+:where(body.urp-admin) :is(.admin-check-row, .admin-toggle-row) small {
+color: var(--ui-muted);
+}
+
+:where(body.urp-admin) :is(.admin-check-row, .admin-toggle-row) input[type="checkbox"]:checked {
+background: var(--ui-accent);
+}
+
+:where(body.urp-admin) .admin-service-status-panel {
+max-width: 780px;
+}
+
+:where(body.urp-admin) .admin-service-status-presets {
+flex-wrap: wrap;
+}
+
+:where(body.urp-admin) .admin-service-status-preset {
+border-color: var(--admin-line);
+    border-radius: 8px;
+}
+
+:where(body.urp-admin) .admin-service-status-preset.active {
+border-color: var(--ui-accent);
+    background: var(--ui-accent-soft);
+    color: var(--ui-accent);
+}
+
+:where(body.urp-admin) .member-grant-form {
+display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    gap: 18px;
+}
+
+:where(body.urp-admin) .member-grant-fields {
+display: grid;
+    grid-template-columns: minmax(180px, 1.3fr) minmax(150px, 1fr) minmax(120px, .7fr);
+    gap: 12px;
+}
+
+:where(body.urp-admin) .member-grant-actions {
+display: flex;
+    flex-wrap: wrap;
+    gap: 9px;
+}
+
+:where(body.urp-admin) .member-grant-actions .btn-primary {
+min-width: 120px;
+}
+
+:where(body.urp-admin) .member-grant-actions .btn-secondary:last-child {
+color: #a52d35;
+    border-color: #d8b6b9;
+}
+
+:where(body.urp-admin) .member-grant-actions .btn-secondary:last-child:hover {
+background: #fbf0f1;
+    border-color: #a52d35;
+}
+
+:where(body.urp-admin) [id="members-list"] {
+max-width: 960px;
+}
+
+:where(body.urp-admin) :where(#members-list) > .empty-state {
+min-height: 110px;
+    display: grid;
+    place-items: center;
+    border: 1px dashed #b7c6d6;
+    border-radius: 12px;
+    background: rgb(255 255 255 / 60%);
+    color: var(--ui-muted);
+}
+
+:where(body.urp-admin) .ad-editor {
+display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(300px, .85fr);
+    align-items: start;
+    gap: 18px;
+    margin: 0 0 20px;
+}
+
+:where(body.urp-admin) .ad-editor-fields,
+:where(body.urp-admin) .ad-editor aside {
+min-width: 0;
+    padding: 24px;
+    border: 1px solid var(--admin-line);
+    border-radius: 13px;
+    background: var(--ui-surface);
+}
+
+:where(body.urp-admin) .ad-editor-fields {
+gap: 11px;
+}
+
+:where(body.urp-admin) .ad-editor aside {
+position: sticky;
+    top: 100px;
+    max-height: calc(100dvh - 120px);
+    overflow-y: auto;
+}
+
+:where(body.urp-admin) .ad-editor h3 {
+margin: 0 0 6px;
+    color: var(--ui-ink);
+    font-size: 18px;
+}
+
+:where(body.urp-admin) .ad-editor p {
+color: var(--ui-muted);
+}
+
+:where(body.urp-admin) .ad-editor-fields > label {
+margin-top: 5px;
+}
+
+:where(body.urp-admin) .ad-editor-fields > label:first-of-type {
+margin-top: 7px;
+}
+
+:where(body.urp-admin) .ad-editor-fields .btn-primary {
+width: fit-content;
+    margin-top: 10px;
+}
+
+:where(body.urp-admin) .ad-preview-box {
+margin: 12px 0 18px;
+    border-color: var(--admin-line);
+    border-radius: 9px;
+    background: var(--admin-soft);
+}
+
+:where(body.urp-admin) .ad-stats-section {
+max-width: none;
+}
+
+:where(body.urp-admin) :is(.monitor-table-wrap, .member-table-wrap, .users-list, .online-users-list) {
+border-color: var(--admin-line);
+    border-radius: 13px;
+    box-shadow: none;
+}
+
+:where(body.urp-admin) :is(.member-table-wrap, .monitor-table-wrap) {
+max-width: 100%;
+    overflow-x: auto;
+    background: var(--ui-surface);
+}
+
+:where(body.urp-admin) :is(.users-table, .member-table, .monitor-table) {
+width: 100%;
+}
+
+:where(body.urp-admin) :is(.users-table, .member-table, .monitor-table) th {
+padding: 13px 15px;
     border-color: var(--admin-line);
     background: var(--admin-soft);
     color: var(--ui-muted);
@@ -340,125 +674,458 @@ body.urp-admin :is(.users-table, .member-table, .monitor-table) th {
     font-weight: 700;
     text-align: left;
 }
-body.urp-admin :is(.users-table, .member-table, .monitor-table) td { padding: 14px 15px; border-color: #e7edf3; color: var(--ui-ink); }
-body.urp-admin :is(.users-table, .member-table, .monitor-table) tbody tr:hover { background: #f7faff; }
-body.urp-admin .monitor-summary { margin: 0 0 16px; border: 1px solid var(--admin-line); border-radius: 10px; box-shadow: none; }
-body.urp-admin .monitor-summary strong { color: var(--ui-accent); }
-body.urp-admin :is(.announcement-card, .wechat-binding-card) { border: 1px solid var(--admin-line); border-radius: 12px; background: #fff; box-shadow: none; }
-body.urp-admin .announcement-card::before { content: none; }
-body.urp-admin :is(.announcements-list, .feedback-list, .withdrawals-list) { gap: 12px; }
-body.urp-admin .withdrawals-subtitle { margin: 26px 0 12px; color: var(--ui-ink); font-size: 17px; font-weight: 720; }
-body.urp-admin #tab-withdrawals .config-desc + .withdrawals-subtitle { margin-top: 0; }
-body.urp-admin .ad-stats-row { border-color: #e7edf3; }
-body.urp-admin .ad-stats-row-metrics { color: var(--ui-muted); }
-body.urp-admin .ad-stats-row-metrics strong { color: var(--ui-accent); }
-body.urp-admin .empty-state { color: var(--ui-muted); }
-body.urp-admin .modal-content { width: min(92vw, 580px); max-height: min(88dvh, 780px); overflow-y: auto; padding: 28px; border: 1px solid var(--admin-line); border-radius: 14px; background: #fff; box-shadow: 0 28px 80px rgb(24 38 56 / 22%); }
-body.urp-admin .modal-content h2 { padding-right: 44px; font-size: 23px; font-weight: 760; }
-body.urp-admin .modal-close { width: 40px; height: 40px; border: 1px solid var(--admin-line); border-radius: 9px; background: #fff; color: var(--ui-muted); }
-body.urp-admin .modal-close:hover { color: var(--ui-ink); background: var(--admin-soft); }
-body.urp-admin .modal-content .button-group { display: flex; flex-direction: row; flex-wrap: wrap; justify-content: flex-end; gap: 9px; width: 100%; }
-body.urp-admin .modal-content .button-group > button { flex: 0 0 auto; min-width: 90px; }
-body.urp-admin #announcement-form > label { border: 1px solid var(--admin-line); border-radius: 9px; background: var(--admin-soft); }
 
-/* A calmer sign-in screen, with the same form and validation flow. */
-body.urp-admin .admin-login { min-height: 100dvh; padding: 26px; background: #eef2f7; }
-body.urp-admin .login-box { width: min(100%, 460px); padding: clamp(30px, 5vw, 48px); border: 1px solid var(--admin-line); border-radius: 14px; background: #fff; box-shadow: 0 24px 65px rgb(24 38 56 / 8%); text-align: left; }
-body.urp-admin .login-kicker { color: var(--ui-accent); font-size: 12px; font-weight: 750; letter-spacing: .05em; }
-body.urp-admin .login-box h1 { margin: 18px 0 10px; font-size: 32px; }
-body.urp-admin .login-desc { margin-bottom: 28px; color: var(--ui-muted); line-height: 1.7; }
-body.urp-admin .login-box .form-group { margin-bottom: 16px; }
-body.urp-admin .login-box .form-group label { margin-bottom: 8px; }
-body.urp-admin .login-box .login-btn { width: 100%; min-height: 46px; }
+:where(body.urp-admin) :is(.users-table, .member-table, .monitor-table) td {
+padding: 14px 15px;
+    border-color: #e7edf3;
+    color: var(--ui-ink);
+}
+
+:where(body.urp-admin) :is(.users-table, .member-table, .monitor-table) tbody tr:hover {
+background: var(--ui-surface-soft);
+}
+
+:where(body.urp-admin) .monitor-summary {
+margin: 0 0 16px;
+    border: 1px solid var(--admin-line);
+    border-radius: 10px;
+    box-shadow: none;
+}
+
+:where(body.urp-admin) .monitor-summary strong {
+color: var(--ui-accent);
+}
+
+:where(body.urp-admin) :is(.announcement-card, .wechat-binding-card) {
+border: 1px solid var(--admin-line);
+    border-radius: 12px;
+    background: var(--ui-surface);
+    box-shadow: none;
+}
+
+:where(body.urp-admin) .announcement-card::before {
+content: none;
+}
+
+:where(body.urp-admin) :is(.announcements-list, .feedback-list, .withdrawals-list) {
+gap: 12px;
+}
+
+:where(body.urp-admin) .withdrawals-subtitle {
+margin: 26px 0 12px;
+    color: var(--ui-ink);
+    font-size: 17px;
+    font-weight: 720;
+}
+
+:where(body.urp-admin) :where(#tab-withdrawals) .config-desc + .withdrawals-subtitle {
+margin-top: 0;
+}
+
+:where(body.urp-admin) .ad-stats-row {
+border-color: #e7edf3;
+}
+
+:where(body.urp-admin) .ad-stats-row-metrics {
+color: var(--ui-muted);
+}
+
+:where(body.urp-admin) .ad-stats-row-metrics strong {
+color: var(--ui-accent);
+}
+
+:where(body.urp-admin) .empty-state {
+color: var(--ui-muted);
+}
+
+:where(body.urp-admin) .modal-content {
+width: min(92vw, 580px);
+    max-height: min(88dvh, 780px);
+    overflow-y: auto;
+    padding: 28px;
+    border: 1px solid var(--admin-line);
+    border-radius: 14px;
+    background: var(--ui-surface);
+    box-shadow: 0 28px 80px rgb(24 38 56 / 22%);
+}
+
+:where(body.urp-admin) .modal-content h2 {
+padding-right: 44px;
+    font-size: 23px;
+    font-weight: 760;
+}
+
+:where(body.urp-admin) .modal-close {
+width: 40px;
+    height: 40px;
+    border: 1px solid var(--admin-line);
+    border-radius: 9px;
+    background: var(--ui-surface);
+    color: var(--ui-muted);
+}
+
+:where(body.urp-admin) .modal-close:hover {
+color: var(--ui-ink);
+    background: var(--admin-soft);
+}
+
+:where(body.urp-admin) .modal-content .button-group {
+display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 9px;
+    width: 100%;
+}
+
+:where(body.urp-admin) .modal-content .button-group > button {
+flex: 0 0 auto;
+    min-width: 90px;
+}
+
+:where(body.urp-admin) :where(#announcement-form) > label {
+border: 1px solid var(--admin-line);
+    border-radius: 9px;
+    background: var(--admin-soft);
+}
+
+:where(body.urp-admin) .admin-login {
+min-height: 100dvh;
+    padding: 26px;
+    background: #eef2f7;
+}
+
+:where(body.urp-admin) .login-box {
+width: min(100%, 460px);
+    padding: clamp(30px, 5vw, 48px);
+    border: 1px solid var(--admin-line);
+    border-radius: 14px;
+    background: var(--ui-surface);
+    box-shadow: 0 24px 65px rgb(24 38 56 / 8%);
+    text-align: left;
+}
+
+:where(body.urp-admin) .login-kicker {
+color: var(--ui-accent);
+    font-size: 12px;
+    font-weight: 750;
+    letter-spacing: .05em;
+}
+
+:where(body.urp-admin) .login-box h1 {
+margin: 18px 0 10px;
+    font-size: 32px;
+}
+
+:where(body.urp-admin) .login-desc {
+margin-bottom: 28px;
+    color: var(--ui-muted);
+    line-height: 1.7;
+}
+
+:where(body.urp-admin) .login-box .form-group {
+margin-bottom: 16px;
+}
+
+:where(body.urp-admin) .login-box .form-group label {
+margin-bottom: 8px;
+}
+
+:where(body.urp-admin) .login-box .login-btn {
+width: 100%;
+    min-height: 46px;
+}
 
 @media (max-width: 1150px) {
-    body.urp-admin .admin-content { grid-template-columns: 190px minmax(0, 1fr); gap: 24px; padding-inline: 22px; }
-    body.urp-admin .ad-editor { grid-template-columns: minmax(0, 1fr); }
-    body.urp-admin .ad-editor aside { position: static; max-height: none; overflow: visible; }
+:where(body.urp-admin) .admin-content {
+grid-template-columns: 190px minmax(0, 1fr);
+    gap: 24px;
+    padding-inline: 22px;
+}
+
+:where(body.urp-admin) .ad-editor {
+grid-template-columns: minmax(0, 1fr);
+}
+
+:where(body.urp-admin) .ad-editor aside {
+position: static;
+    max-height: none;
+    overflow: visible;
+}
 }
 
 @media (max-width: 768px) {
-    body.urp-admin .admin-header { position: relative; min-height: 68px; padding: 12px 16px; }
-    body.urp-admin .admin-title h1 { font-size: 18px; }
-    body.urp-admin .admin-content { display: block; padding: 18px 14px 50px; }
-    body.urp-admin .tabs {
-        position: static;
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 6px;
-        max-height: none;
-        margin: 0 0 24px;
-        padding: 14px;
-        overflow: visible;
-        border: 1px solid var(--admin-line);
-        border-radius: 12px;
-        background: #fff;
-        box-shadow: 0 8px 24px rgb(24 38 56 / 5%);
-    }
-    body.urp-admin .admin-nav-group { grid-column: 1 / -1; margin: 10px 0 3px; padding: 0 2px; }
-    body.urp-admin .admin-nav-group:first-child { margin-top: 0; }
-    body.urp-admin .tab-btn {
-        min-width: 0;
-        min-height: 44px;
-        margin: 0;
-        padding: 8px 4px;
-        border: 1px solid transparent;
-        background: var(--admin-soft);
-        font-size: 13px;
-        font-weight: 650;
-        line-height: 1.2;
-        text-align: center;
-        white-space: nowrap;
-    }
-    body.urp-admin .tab-btn.active { border-color: var(--ui-accent); background: var(--ui-accent); color: #fff; box-shadow: none; }
-    body.urp-admin :is(.tab-btn[data-tab="wechat"], .tab-btn[data-tab="service-status"]) { grid-column: span 2; }
-    body.urp-admin .tab-content.active { padding: 0; }
-    body.urp-admin .section-header { flex-direction: row; flex-wrap: nowrap; align-items: center; justify-content: space-between; }
-    body.urp-admin .section-header h2 { font-size: 25px; }
-    body.urp-admin .section-header .button-group { width: auto; margin: 0; }
-    body.urp-admin .section-header .icon-btn { width: auto; min-width: 64px; }
-    body.urp-admin .config-section { padding: 20px; }
-    body.urp-admin .member-grant-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    body.urp-admin .member-grant-fields > :first-child { grid-column: 1 / -1; }
-    body.urp-admin .ud-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    body.urp-admin .ud-card { min-height: 94px; padding: 18px; border-bottom: 1px solid var(--admin-line); }
-    body.urp-admin .ud-card:nth-child(2) { border-right: 0; }
-    body.urp-admin .ud-card:nth-child(n+3) { border-bottom: 0; }
-    body.urp-admin .ud-col-date { white-space: nowrap; font-size: 9px; }
-    body.urp-admin .ud-col:nth-child(odd) .ud-col-date { visibility: hidden; }
-    body.urp-admin :is(.member-table-wrap, .monitor-table-wrap) { overflow: visible; border: 0; background: transparent; }
-    body.urp-admin :is(.member-table, .monitor-table) { display: block; width: 100%; }
-    body.urp-admin :is(.member-table, .monitor-table) td { padding: 12px 0 12px 100px; overflow-wrap: anywhere; }
-    body.urp-admin :is(.member-table, .monitor-table) td::before { top: 12px; width: 88px; }
+:where(body.urp-admin) .admin-header {
+position: relative;
+    min-height: 68px;
+    padding: 12px 16px;
+}
+
+:where(body.urp-admin) .admin-title h1 {
+font-size: 18px;
+}
+
+:where(body.urp-admin) .admin-content {
+display: block;
+    padding: 18px 14px 50px;
+}
+
+:where(body.urp-admin) .tabs {
+position: static;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    max-height: none;
+    margin: 0 0 24px;
+    padding: 14px;
+    overflow: visible;
+    border: 1px solid var(--admin-line);
+    border-radius: 12px;
+    background: var(--ui-surface);
+    box-shadow: 0 8px 24px rgb(24 38 56 / 5%);
+}
+
+:where(body.urp-admin) .admin-nav-group {
+grid-column: 1 / -1;
+    margin: 10px 0 3px;
+    padding: 0 2px;
+}
+
+:where(body.urp-admin) .admin-nav-group:first-child {
+margin-top: 0;
+}
+
+:where(body.urp-admin) .tab-btn {
+min-width: 0;
+    min-height: 44px;
+    margin: 0;
+    padding: 8px 4px;
+    border: 1px solid transparent;
+    background: var(--admin-soft);
+    font-size: 13px;
+    font-weight: 650;
+    line-height: 1.2;
+    text-align: center;
+    white-space: nowrap;
+}
+
+:where(body.urp-admin) .tab-btn.active {
+border-color: var(--ui-accent);
+    background: var(--ui-accent);
+    color: var(--ui-on-accent);
+    box-shadow: none;
+}
+
+:where(body.urp-admin) :is(.tab-btn[data-tab="wechat"], .tab-btn[data-tab="service-status"]) {
+grid-column: span 2;
+}
+
+:where(body.urp-admin) .tab-content.active {
+padding: 0;
+}
+
+:where(body.urp-admin) .section-header {
+flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: space-between;
+}
+
+:where(body.urp-admin) .section-header h2 {
+font-size: 25px;
+}
+
+:where(body.urp-admin) .section-header .button-group {
+width: auto;
+    margin: 0;
+}
+
+:where(body.urp-admin) .section-header .icon-btn {
+width: auto;
+    min-width: 64px;
+}
+
+:where(body.urp-admin) .config-section {
+padding: 20px;
+}
+
+:where(body.urp-admin) .member-grant-fields {
+grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+:where(body.urp-admin) .member-grant-fields > :first-child {
+grid-column: 1 / -1;
+}
+
+:where(body.urp-admin) .ud-cards {
+grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+:where(body.urp-admin) .ud-card {
+min-height: 94px;
+    padding: 18px;
+    border-bottom: 1px solid var(--admin-line);
+}
+
+:where(body.urp-admin) .ud-card:nth-child(2) {
+border-right: 0;
+}
+
+:where(body.urp-admin) .ud-card:nth-child(n+3) {
+border-bottom: 0;
+}
+
+:where(body.urp-admin) .ud-col-date {
+white-space: nowrap;
+    font-size: 9px;
+}
+
+:where(body.urp-admin) .ud-col:nth-child(odd) .ud-col-date {
+visibility: hidden;
+}
+
+:where(body.urp-admin) :is(.member-table-wrap, .monitor-table-wrap) {
+overflow: visible;
+    border: 0;
+    background: transparent;
+}
+
+:where(body.urp-admin) :is(.member-table, .monitor-table) {
+display: block;
+    width: 100%;
+}
+
+:where(body.urp-admin) :is(.member-table, .monitor-table) td {
+padding: 12px 0 12px 100px;
+    overflow-wrap: anywhere;
+}
+
+:where(body.urp-admin) :is(.member-table, .monitor-table) td::before {
+top: 12px;
+    width: 88px;
+}
 }
 
 @media (max-width: 520px) {
-    body.urp-admin .admin-content { padding-inline: 12px; }
-    body.urp-admin .tabs { padding: 12px; gap: 5px; }
-    body.urp-admin .tab-btn { padding-inline: 2px; font-size: 12px; }
-    body.urp-admin .section-header { gap: 10px; }
-    body.urp-admin .section-header h2 { font-size: 22px; }
-    body.urp-admin .section-header .button-group { flex-wrap: nowrap; }
-    body.urp-admin .section-header .button-group .btn-primary { width: auto; padding-inline: 11px; }
-    body.urp-admin #tab-announcements .section-header { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
-    body.urp-admin #tab-announcements .section-header .button-group { display: grid; grid-template-columns: 88px minmax(0, 1fr); width: 100%; }
-    body.urp-admin #tab-announcements .section-header .button-group > button { width: 100%; }
-    body.urp-admin .tab-content > .config-desc { margin-bottom: 18px; }
-    body.urp-admin .ud-section { padding: 18px 14px; }
-    body.urp-admin .ud-card { padding: 16px; }
-    body.urp-admin .ud-card-value { font-size: 27px; }
-    body.urp-admin .ud-section-header { align-items: flex-start; gap: 10px; }
-    body.urp-admin .ud-toggle button { padding-inline: 8px; }
-    body.urp-admin .ud-dist-name { width: 68px; }
-    body.urp-admin .ud-dist-name-major { width: 88px; }
-    body.urp-admin .member-grant-fields { grid-template-columns: 1fr; }
-    body.urp-admin .member-grant-fields > :first-child { grid-column: 1; }
-    body.urp-admin .member-grant-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    body.urp-admin .member-grant-actions .btn-primary { grid-column: 1 / -1; width: 100%; }
-    body.urp-admin .member-grant-actions .btn-secondary { width: 100%; }
-    body.urp-admin .modal-content { padding: 22px 18px; }
+:where(body.urp-admin) .admin-content {
+padding-inline: 12px;
+}
+
+:where(body.urp-admin) .tabs {
+padding: 12px;
+    gap: 5px;
+}
+
+:where(body.urp-admin) .tab-btn {
+padding-inline: 2px;
+    font-size: 12px;
+}
+
+:where(body.urp-admin) .section-header {
+gap: 10px;
+}
+
+:where(body.urp-admin) .section-header h2 {
+font-size: 22px;
+}
+
+:where(body.urp-admin) .section-header .button-group {
+flex-wrap: nowrap;
+}
+
+:where(body.urp-admin) .section-header .button-group .btn-primary {
+width: auto;
+    padding-inline: 11px;
+}
+
+:where(body.urp-admin) :where(#tab-announcements) .section-header {
+display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+}
+
+:where(body.urp-admin) :where(#tab-announcements) .section-header .button-group {
+display: grid;
+    grid-template-columns: 88px minmax(0, 1fr);
+    width: 100%;
+}
+
+:where(body.urp-admin) :where(#tab-announcements) .section-header .button-group > button {
+width: 100%;
+}
+
+:where(body.urp-admin) .tab-content > .config-desc {
+margin-bottom: 18px;
+}
+
+:where(body.urp-admin) .ud-section {
+padding: 18px 14px;
+}
+
+:where(body.urp-admin) .ud-card {
+padding: 16px;
+}
+
+:where(body.urp-admin) .ud-card-value {
+font-size: 27px;
+}
+
+:where(body.urp-admin) .ud-section-header {
+align-items: flex-start;
+    gap: 10px;
+}
+
+:where(body.urp-admin) .ud-toggle button {
+padding-inline: 8px;
+}
+
+:where(body.urp-admin) .ud-dist-name {
+width: 68px;
+}
+
+:where(body.urp-admin) .ud-dist-name-major {
+width: 88px;
+}
+
+:where(body.urp-admin) .member-grant-fields {
+grid-template-columns: 1fr;
+}
+
+:where(body.urp-admin) .member-grant-fields > :first-child {
+grid-column: 1;
+}
+
+:where(body.urp-admin) .member-grant-actions {
+display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+:where(body.urp-admin) .member-grant-actions .btn-primary {
+grid-column: 1 / -1;
+    width: 100%;
+}
+
+:where(body.urp-admin) .member-grant-actions .btn-secondary {
+width: 100%;
+}
+
+:where(body.urp-admin) .modal-content {
+padding: 22px 18px;
+}
 }
 
 @media (prefers-reduced-motion: reduce) {
-    body.urp-admin :is(.tab-btn, .ud-col-bar, .ud-dist-bar, .modal-content) { transition: none; animation: none; }
+:where(body.urp-admin) :is(.tab-btn, .ud-col-bar, .ud-dist-bar, .modal-content) {
+transition: none;
+    animation: none;
+}
+}
+}
+
+@layer utilities {
+:where(body.urp-admin) :is(.admin-check-row, .admin-toggle-row) {
+border: 1px solid var(--admin-line) !important;
+    border-radius: 9px !important;
+    background: var(--admin-soft) !important;
+}
 }
