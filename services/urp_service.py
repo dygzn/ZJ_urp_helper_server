@@ -17,9 +17,6 @@ LOGIN_CACHE_TTL = 900
 _auto_update_state_lock = threading.Lock()
 _auto_update_running = set()
 _auto_update_context = threading.local()
-LEGACY_GRADES_ENDPOINT_MESSAGE = (
-    '该成绩接口已停用，请使用 /api/grades/latest_summary 或 /api/grades/current'
-)
 
 
 def urp_login(username, password, persist_cookies=True):
@@ -530,11 +527,6 @@ def get_exams(username):
     except Exception as e:
         print(f"读取考试安排失败: {str(e)}")
         return []
-
-
-def get_grades(username):
-    """旧成绩接口的兼容函数，避免把废弃查询伪装成空成绩。"""
-    raise RuntimeError(LEGACY_GRADES_ENDPOINT_MESSAGE)
 
 
 def get_semesters(username):

@@ -40,11 +40,3 @@ REFERRAL_MILESTONES = [
     },
 ]
 
-# 对分易签到服务
-DUIFENE_BASE_URL = "https://www.buxiangshangke.icu"
-
-# 免费白名单：这些 URP 学号不需要会员即可使用签到功能
-SIGN_FREE_USERS = {
-    '202100001',   # 你朋友的学号，可继续添加
-}
-

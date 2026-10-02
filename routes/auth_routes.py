@@ -18,20 +18,6 @@ def check_bind():
     device_id = get_device_id()
     user = get_user_by_device(device_id)
 
-    rebind_notifications = []
-    with get_db() as conn:
-        rows = conn.execute(
-            "SELECT request_id, old_username, new_username, status FROM pending_requests WHERE device_id = ? AND status != 'pending' AND notified = 0",
-            (device_id,)
-        ).fetchall()
-        for row in rows:
-            rebind_notifications.append({
-                'request_id': row['request_id'],
-                'old_username': row['old_username'],
-                'new_username': row['new_username'],
-                'status': row['status']
-            })
-
     if user:
         resp = {
             'success': True,
@@ -44,28 +30,7 @@ def check_bind():
     else:
         resp = {'success': True, 'bound': False}
 
-    if rebind_notifications:
-        resp['rebind_notifications'] = rebind_notifications
     return jsonify(resp)
-
-
-@auth_bp.route('/api/rebind_notified', methods=['POST'])
-def rebind_notified():
-    device_id = get_device_id()
-    data = request.get_json()
-    request_ids = data.get('request_ids', [])
-
-    if not request_ids:
-        return jsonify({'success': False, 'message': '缺少 request_ids'})
-
-    with get_db() as conn:
-        placeholders = ','.join(['?'] * len(request_ids))
-        conn.execute(
-            f"UPDATE pending_requests SET notified = 1 WHERE request_id IN ({placeholders}) AND device_id = ?",
-            request_ids + [device_id]
-        )
-
-    return jsonify({'success': True})
 
 
 @auth_bp.route('/api/login', methods=['POST'])
@@ -126,10 +91,6 @@ def request_rebind():
 
     with get_db() as conn:
         conn.execute('DELETE FROM users WHERE device_id = ?', (device_id,))
-        conn.execute(
-            "DELETE FROM pending_requests WHERE device_id = ? AND status = 'pending'",
-            (device_id,)
-        )
 
     return jsonify({
         'success': True,

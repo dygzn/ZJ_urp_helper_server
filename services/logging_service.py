@@ -10,7 +10,6 @@ from services.user_service import get_user_by_device
 
 ENDPOINT_NAMES = {
     '/api/check_bind': '检查绑定',
-    '/api/rebind_notified': '换绑通知已读',
     '/api/login': '登录绑定',
     '/api/request_rebind': '申请换绑',
     '/api/check_login_status': '检查登录状态',

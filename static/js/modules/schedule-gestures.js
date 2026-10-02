@@ -10,7 +10,6 @@ export const SCHEDULE_MAX_WEEK = 25;
 
 export const scheduleSwipeGesture = {
     pointerId: null,
-    pointerType: null,
     swipe: null,
     startX: 0,
     startY: 0,
@@ -20,13 +19,6 @@ export const scheduleSwipeGesture = {
     dragging: false,
     cancelled: false,
     moved: false,
-    obstacleType: null,
-    crossedObstacle: false,
-    airborne: false,
-    crashed: false,
-    crashFinished: false,
-    releasedAfterCrash: false,
-    lastMoveTime: 0,
 };
 
 export const scheduleQueuedPointer = {
@@ -45,7 +37,6 @@ export function getScheduleSwipeElements() {
     const track = document.getElementById('schedule-swipe-track');
     if (!viewport || !track || typeof track.querySelectorAll !== 'function') return null;
 
-    const dinoLane = viewport.querySelector('.schedule-dino-lane');
     const panels = Array.from(track.querySelectorAll('.schedule-week-panel'));
     const previous = panels.find(panel => panel.dataset.schedulePanel === 'previous');
     const current = panels.find(panel => panel.dataset.schedulePanel === 'current');
@@ -59,7 +50,6 @@ export function getScheduleSwipeElements() {
         previous,
         current,
         next,
-        dinoLane,
     };
 }
 
@@ -140,89 +130,11 @@ export function getScheduleSwipeWidth(viewport) {
     return Math.max(viewport.clientWidth || rect?.width || 1, 1);
 }
 
-export function clearScheduleDinoGestureTimers({ includeCrash = true } = {}) {
-    if (state.scheduleDinoHoldTimer !== null) {
-        resources.clearTimeout(state.scheduleDinoHoldTimer);
-        state.scheduleDinoHoldTimer = null;
-    }
-    if (state.scheduleDinoAirborneTimer !== null) {
-        resources.clearTimeout(state.scheduleDinoAirborneTimer);
-        state.scheduleDinoAirborneTimer = null;
-    }
-    if (includeCrash && state.scheduleDinoCrashTimer !== null) {
-        resources.clearTimeout(state.scheduleDinoCrashTimer);
-        state.scheduleDinoCrashTimer = null;
-    }
-}
-
-export function finishScheduleDinoCrash(swipe = getScheduleSwipeElements()) {
-    if (!swipe) return;
-    clearScheduleDinoGestureTimers();
-    swipe.viewport.classList.remove(
-        'is-swiping',
-        'is-settling',
-        'is-dino-jumping',
-        'is-dino-crashed',
-        'has-dino-obstacle',
-    );
-    swipe.track.classList.remove('is-dragging', 'is-animating');
-    swipe.track.style.setProperty('--schedule-swipe-direction', '0');
-    swipe.track.style.setProperty('--schedule-swipe-progress', '0');
-    if (swipe.dinoLane) {
-        swipe.dinoLane.style.setProperty('--dino-obstacle-progress', '0');
-        swipe.dinoLane.style.setProperty('--dino-obstacle-shift', '140px');
-        swipe.dinoLane.style.setProperty('--dino-fireball-distance', '240px');
-        swipe.dinoLane.style.setProperty('--dino-drag-lift', '0px');
-        swipe.dinoLane.dataset.blocked = 'false';
-    }
-    setScheduleSwipeTransform(0);
-    resetScheduleSwipeGesture();
-}
-
-export function crashScheduleDino() {
-    const swipe = getScheduleSwipeElements();
-    if (!swipe || scheduleSwipeGesture.crashed) return;
-
-    scheduleSwipeGesture.crashed = true;
-    scheduleSwipeGesture.airborne = false;
-    scheduleSwipeGesture.dragging = false;
-    clearScheduleDinoGestureTimers({ includeCrash: false });
-    if (swipe.dinoLane) swipe.dinoLane.style.setProperty('--dino-obstacle-shift', '-20px');
-    swipe.viewport.classList.remove('is-swiping', 'is-dino-jumping');
-    swipe.viewport.classList.add('is-dino-crashed');
-    swipe.track.classList.remove('is-dragging');
-    setScheduleSwipeTransform(0, { animate: true });
-
-    state.scheduleDinoCrashTimer = resources.setTimeout(() => {
-        state.scheduleDinoCrashTimer = null;
-        scheduleSwipeGesture.crashFinished = true;
-        if (scheduleSwipeGesture.pointerId === null || scheduleSwipeGesture.releasedAfterCrash) {
-            finishScheduleDinoCrash(swipe);
-        }
-    }, 800);
-}
-
-export function armScheduleDinoHoldTimer() {
-    if (state.scheduleDinoHoldTimer !== null) resources.clearTimeout(state.scheduleDinoHoldTimer);
-    scheduleSwipeGesture.lastMoveTime = Date.now();
-    state.scheduleDinoHoldTimer = resources.setTimeout(() => {
-        state.scheduleDinoHoldTimer = null;
-        if (shouldCrashScheduleDino({
-            airborne: scheduleSwipeGesture.airborne,
-            pointerDown: scheduleSwipeGesture.pointerId !== null,
-            idleMs: Date.now() - scheduleSwipeGesture.lastMoveTime,
-        })) {
-            crashScheduleDino();
-        }
-    }, 610);
-}
-
 export function resetScheduleSwipeGesture() {
     if (state.scheduleSwipeFrame !== null) resources.cancelAnimationFrame(state.scheduleSwipeFrame);
     state.scheduleSwipeFrame = null;
     state.scheduleSwipePendingEvent = null;
     scheduleSwipeGesture.pointerId = null;
-    scheduleSwipeGesture.pointerType = null;
     scheduleSwipeGesture.swipe = null;
     scheduleSwipeGesture.startX = 0;
     scheduleSwipeGesture.startY = 0;
@@ -232,27 +144,12 @@ export function resetScheduleSwipeGesture() {
     scheduleSwipeGesture.dragging = false;
     scheduleSwipeGesture.cancelled = false;
     scheduleSwipeGesture.moved = false;
-    scheduleSwipeGesture.obstacleType = null;
-    scheduleSwipeGesture.crossedObstacle = false;
-    scheduleSwipeGesture.airborne = false;
-    scheduleSwipeGesture.crashed = false;
-    scheduleSwipeGesture.crashFinished = false;
-    scheduleSwipeGesture.releasedAfterCrash = false;
-    scheduleSwipeGesture.lastMoveTime = 0;
 }
 
 export function finishScheduleSwipeTransition() {
     const transition = state.scheduleSwipeTransition;
     const swipe = getScheduleSwipeElements();
     if (!transition || !swipe) return;
-
-    // 轨道可能几乎没有剩余位移；不能用它的结束事件提前清除恐龙动画。
-    const remaining = transition.finishNotBefore - performance.now();
-    if (remaining > 0) {
-        if (state.scheduleSwipeTransitionTimer !== null) resources.clearTimeout(state.scheduleSwipeTransitionTimer);
-        state.scheduleSwipeTransitionTimer = resources.setTimeout(finishScheduleSwipeTransition, remaining);
-        return;
-    }
 
     state.scheduleSwipeTransition = null;
     if (state.scheduleSwipeTransitionTimer !== null) {
@@ -261,25 +158,7 @@ export function finishScheduleSwipeTransition() {
     }
     swipe.track.removeEventListener('transitionend', transition.onTransitionEnd);
     swipe.track.classList.remove('is-animating', 'is-changing');
-    swipe.viewport.classList.remove(
-        'is-settling',
-        'is-dino-jumping',
-        'is-dino-reversing',
-        'is-dino-fireball',
-        'is-dino-completing',
-        'is-dino-button-jump',
-        'is-dino-crashed',
-        'has-dino-obstacle',
-    );
-    swipe.track.style.setProperty('--schedule-swipe-direction', '0');
-    swipe.track.style.setProperty('--schedule-swipe-progress', '0');
-    if (swipe.dinoLane) {
-        swipe.dinoLane.style.setProperty('--dino-obstacle-progress', '0');
-        swipe.dinoLane.style.setProperty('--dino-obstacle-shift', '140px');
-        swipe.dinoLane.style.setProperty('--dino-fireball-distance', '240px');
-        swipe.dinoLane.style.setProperty('--dino-drag-lift', '0px');
-        swipe.dinoLane.dataset.blocked = 'false';
-    }
+    swipe.viewport.classList.remove('is-settling');
 
     if (!transition.shouldChange) {
         swipe.panels.forEach(panel => panel.classList.remove('is-swipe-target'));
@@ -302,7 +181,7 @@ export function finishScheduleSwipeTransition() {
     flushQueuedScheduleSwipe();
 }
 
-export function animateScheduleSwipeTo(result, width, dinoReleaseAction = 'idle') {
+export function animateScheduleSwipeTo(result, width) {
     const swipe = getScheduleSwipeElements();
     if (!swipe) return;
 
@@ -317,9 +196,6 @@ export function animateScheduleSwipeTo(result, width, dinoReleaseAction = 'idle'
     const transition = {
         shouldChange: result.shouldChange,
         week: result.week,
-        finishNotBefore: performance.now() + (
-            window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 0 : 380
-        ),
         onTransitionEnd: event => {
             if (event.target === swipe.track && event.propertyName === 'transform') {
                 finishScheduleSwipeTransition();
@@ -327,29 +203,10 @@ export function animateScheduleSwipeTo(result, width, dinoReleaseAction = 'idle'
         },
     };
     state.scheduleSwipeTransition = transition;
-    swipe.viewport.classList.remove('is-swiping', 'is-dino-fireball', 'is-dino-reversing', 'is-dino-completing');
+    swipe.viewport.classList.remove('is-swiping');
     swipe.viewport.classList.add('is-settling');
     swipe.track.classList.toggle('is-changing', result.shouldChange);
-    swipe.track.style.setProperty('--schedule-swipe-direction', String(result.direction));
     swipe.track.addEventListener('transitionend', transition.onTransitionEnd);
-    if (dinoReleaseAction === 'fireball') {
-        swipe.viewport.classList.remove('is-dino-jumping');
-        swipe.viewport.classList.add('is-dino-fireball');
-    } else if (dinoReleaseAction === 'reverse-jump') {
-        swipe.viewport.classList.remove('is-dino-jumping');
-        swipe.viewport.classList.add('is-dino-reversing');
-    } else if (dinoReleaseAction === 'complete') {
-        swipe.viewport.classList.add('is-dino-completing');
-        if (!swipe.viewport.classList.contains('is-dino-jumping')) {
-            if (swipe.dinoLane) {
-                swipe.dinoLane.style.setProperty('--dino-obstacle-progress', '1');
-                swipe.dinoLane.style.setProperty('--dino-obstacle-shift', '0px');
-            }
-            swipe.viewport.classList.add('is-dino-jumping');
-        }
-    } else {
-        swipe.viewport.classList.remove('has-dino-obstacle', 'is-dino-jumping');
-    }
     setScheduleSwipeTransform(result.direction * -width, { animate: true });
     state.scheduleSwipeTransitionTimer = resources.setTimeout(finishScheduleSwipeTransition, 460);
 }
@@ -463,7 +320,6 @@ export function handleSchedulePointerDown(event) {
     }
 
     scheduleSwipeGesture.pointerId = event.pointerId;
-    scheduleSwipeGesture.pointerType = event.pointerType;
     scheduleSwipeGesture.swipe = swipe;
     scheduleSwipeGesture.startX = event.clientX;
     scheduleSwipeGesture.startY = event.clientY;
@@ -473,30 +329,6 @@ export function handleSchedulePointerDown(event) {
     scheduleSwipeGesture.dragging = false;
     scheduleSwipeGesture.cancelled = false;
     scheduleSwipeGesture.moved = false;
-    scheduleSwipeGesture.obstacleType = null;
-    scheduleSwipeGesture.crossedObstacle = false;
-    scheduleSwipeGesture.airborne = false;
-    scheduleSwipeGesture.crashed = false;
-    scheduleSwipeGesture.crashFinished = false;
-    scheduleSwipeGesture.releasedAfterCrash = false;
-    scheduleSwipeGesture.lastMoveTime = Date.now();
-    clearScheduleDinoGestureTimers();
-    swipe.viewport.classList.remove(
-        'is-dino-jumping',
-        'is-dino-reversing',
-        'is-dino-fireball',
-        'is-dino-completing',
-        'is-dino-button-jump',
-        'is-dino-crashed',
-        'has-dino-obstacle',
-    );
-    if (swipe.dinoLane) {
-        swipe.dinoLane.style.setProperty('--dino-obstacle-progress', '0');
-        swipe.dinoLane.style.setProperty('--dino-obstacle-shift', '140px');
-        swipe.dinoLane.style.setProperty('--dino-fireball-distance', '240px');
-        swipe.dinoLane.style.setProperty('--dino-drag-lift', '0px');
-        swipe.dinoLane.dataset.blocked = 'false';
-    }
 }
 
 export function handleSchedulePointerMove(event) {
@@ -517,11 +349,6 @@ export function renderSchedulePointerMove(event) {
     const swipe = scheduleSwipeGesture.swipe || getScheduleSwipeElements();
     if (!swipe || event.pointerId !== scheduleSwipeGesture.pointerId || state.scheduleSwipeTransition) return;
 
-    if (scheduleSwipeGesture.crashed) {
-        if (event.cancelable) event.preventDefault();
-        return;
-    }
-
     const deltaX = event.clientX - scheduleSwipeGesture.startX;
     const deltaY = event.clientY - scheduleSwipeGesture.startY;
     scheduleSwipeGesture.lastX = event.clientX;
@@ -535,49 +362,17 @@ export function renderSchedulePointerMove(event) {
 
         scheduleSwipeGesture.dragging = true;
         scheduleSwipeGesture.moved = true;
-        scheduleSwipeGesture.obstacleType = pickScheduleDinoObstacle();
         if (typeof swipe.viewport.setPointerCapture === 'function') {
             swipe.viewport.setPointerCapture(event.pointerId);
         }
         swipe.viewport.classList.add('is-swiping');
-        swipe.viewport.classList.add('has-dino-obstacle');
         swipe.track.classList.add('is-dragging');
-        if (swipe.dinoLane) swipe.dinoLane.dataset.obstacle = scheduleSwipeGesture.obstacleType;
     }
 
     if (!scheduleSwipeGesture.dragging) return;
     if (event.cancelable) event.preventDefault();
 
     const offset = applyScheduleSwipeResistance(deltaX);
-    const dinoCue = resolveScheduleDinoCue({
-        deltaX,
-        viewportWidth: scheduleSwipeGesture.width,
-        currentWeek: state.currentWeek,
-        minWeek: SCHEDULE_MIN_WEEK,
-        maxWeek: SCHEDULE_MAX_WEEK,
-    });
-    if (swipe.dinoLane) {
-        const dinoDirection = dinoCue.direction < 0 ? 'previous' : 'next';
-        const blocked = String(dinoCue.blocked);
-        if (swipe.dinoLane.dataset.direction !== dinoDirection) swipe.dinoLane.dataset.direction = dinoDirection;
-        if (swipe.dinoLane.dataset.blocked !== blocked) swipe.dinoLane.dataset.blocked = blocked;
-        const obstacleShift = dinoCue.blocked
-            ? Math.max(24, (1 - dinoCue.obstacleProgress) * 140)
-            : (1 - dinoCue.obstacleProgress) * 140;
-        // 同一位移决定起跳和落地；暂停、反向拖动也保持安全间距。
-        const lift = resolveScheduleDinoLift(obstacleShift, dinoCue.blocked);
-        swipe.dinoLane.style.setProperty('--dino-drag-lift', `${-lift}px`);
-        scheduleSwipeGesture.airborne = lift > 0;
-        if (scheduleSwipeGesture.airborne && scheduleSwipeGesture.pointerType === 'mouse') {
-            armScheduleDinoHoldTimer();
-        } else if (state.scheduleDinoHoldTimer !== null) {
-            resources.clearTimeout(state.scheduleDinoHoldTimer);
-            state.scheduleDinoHoldTimer = null;
-        }
-        swipe.dinoLane.style.setProperty('--dino-obstacle-shift', `${obstacleShift}px`);
-        swipe.dinoLane.style.setProperty('--dino-fireball-distance', `${100 + obstacleShift}px`);
-    }
-    scheduleSwipeGesture.crossedObstacle = dinoCue.crossedObstacle;
     swipe.track.style.transform = `translate3d(calc(-33.333333% + ${offset}px), 0, 0)`;
 }
 
@@ -593,30 +388,12 @@ export function handleSchedulePointerEnd(event, cancelled = false) {
     const swipe = scheduleSwipeGesture.swipe || getScheduleSwipeElements();
     if (!swipe || event.pointerId !== scheduleSwipeGesture.pointerId) return;
 
-    if (scheduleSwipeGesture.crashed) {
-        if (typeof swipe.viewport.releasePointerCapture === 'function') {
-            try {
-                swipe.viewport.releasePointerCapture(event.pointerId);
-            } catch (error) {
-        if (error?.name === 'AbortError') return;
-                // 撞击后指针可能已经由浏览器释放。
-            }
-        }
-        scheduleSwipeGesture.pointerId = null;
-        scheduleSwipeGesture.releasedAfterCrash = true;
-        if (scheduleSwipeGesture.crashFinished) finishScheduleDinoCrash(swipe);
-        return;
-    }
-
     const wasDragging = scheduleSwipeGesture.dragging;
     const deltaX = (typeof event.clientX === 'number' ? event.clientX : scheduleSwipeGesture.lastX)
         - scheduleSwipeGesture.startX;
     const duration = Date.now() - scheduleSwipeGesture.startTime;
     const width = scheduleSwipeGesture.width;
-    const hadObstacle = Boolean(scheduleSwipeGesture.obstacleType);
-    const crossedObstacle = scheduleSwipeGesture.crossedObstacle;
     state.suppressScheduleSwipeClick = scheduleSwipeGesture.moved;
-    clearScheduleDinoGestureTimers();
 
     if (typeof swipe.viewport.releasePointerCapture === 'function') {
         try {
@@ -629,7 +406,7 @@ export function handleSchedulePointerEnd(event, cancelled = false) {
     resetScheduleSwipeGesture();
 
     if (!wasDragging) {
-        swipe.viewport.classList.remove('is-swiping', 'is-dino-jumping', 'has-dino-obstacle');
+        swipe.viewport.classList.remove('is-swiping');
         return;
     }
 
@@ -644,13 +421,7 @@ export function handleSchedulePointerEnd(event, cancelled = false) {
             minWeek: SCHEDULE_MIN_WEEK,
             maxWeek: SCHEDULE_MAX_WEEK,
         });
-    const dinoReleaseAction = resolveScheduleDinoRelease({
-        hadObstacle,
-        crossedObstacle,
-        shouldChange: result.shouldChange,
-    });
-    // 松手后从拖动时的高度落地，避免快扫时回到地面重播起跳。
-    animateScheduleSwipeTo(result, width, dinoReleaseAction);
+    animateScheduleSwipeTo(result, width);
 }
 
 export function handleScheduleSwipeClick(event) {

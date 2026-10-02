@@ -43,9 +43,6 @@ const initialState = {
     scheduleSwipeTransition: null,
     scheduleSwipeTransitionTimer: null,
     scheduleHeightAnimation: null,
-    scheduleDinoHoldTimer: null,
-    scheduleDinoAirborneTimer: null,
-    scheduleDinoCrashTimer: null,
     suppressScheduleSwipeClick: false,
     scheduleSwipeFrame: null,
     scheduleSwipePendingEvent: null,
@@ -58,8 +55,6 @@ const initialState = {
     announcementDialogIndex: 0,
     _currentPayMemberType: null,
     _withdrawAvailable: 0,
-    signClasses: [],
-    signStreamController: null,
     currentPage: null,
     user: null,
 };

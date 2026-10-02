@@ -233,10 +233,6 @@ export async function checkBindStatus() {
         const data = await operation.wait(response.json());
 
         if (generation !== state.academicCacheGeneration) return;
-        if (data.rebind_notifications && data.rebind_notifications.length > 0) {
-            showRebindNotifications(data.rebind_notifications);
-        }
-
         if (data.success && data.bound) {
             setTemporarySession(data.temporary ? data.expires_at : null);
             state.currentUsername = data.username;
@@ -457,29 +453,6 @@ export async function unbindForRebind() {
         if (errorDiv) errorDiv.textContent = '网络错误，请重试';
         else showUiToast('网络错误，请重试', 'error');
     }
-}
-
-export function showRebindNotifications(notifications) {
-    const messages = notifications.map(n => {
-        if (n.status === 'approved') {
-            return `你的换绑申请（${n.old_username} → ${n.new_username}）已通过，请重新登录绑定新账号`;
-        }
-        if (n.status === 'rejected') {
-            return `你的换绑申请（${n.old_username} → ${n.new_username}）已被拒绝`;
-        }
-        return `你的换绑申请（${n.old_username} → ${n.new_username}）状态已更新`;
-    });
-    showUiToast(messages.join('；'), 'info');
-
-    const requestIds = notifications.map(n => n.request_id);
-    resources.fetch('/api/rebind_notified', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-Device-ID': getDeviceId()
-        },
-        body: JSON.stringify({ request_ids: requestIds })
-    }).catch(() => {});
 }
 
 export function initializeAuth() {

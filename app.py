@@ -17,7 +17,6 @@ from routes.admin_routes import admin_bp
 from routes.member_routes import member_bp
 from routes.shortcut_routes import shortcut_bp
 from routes.misc_routes import misc_bp
-from routes.sign_routes import sign_bp
 from routes.wechat_routes import wechat_bp
 from routes.lab_routes import lab_bp
 
@@ -67,7 +66,6 @@ app.register_blueprint(admin_bp)
 app.register_blueprint(member_bp)
 app.register_blueprint(shortcut_bp)
 app.register_blueprint(misc_bp)
-app.register_blueprint(sign_bp)
 app.register_blueprint(wechat_bp)
 app.register_blueprint(lab_bp)
 

@@ -14,12 +14,11 @@ import * as feedback from './modules/feedback.js';
 import * as member from './modules/member.js';
 import * as evaluation from './modules/evaluation.js';
 import * as service from './modules/service.js';
-import * as sign from './modules/sign.js';
 import * as lab from './modules/lab.js';
 import * as ad from './modules/ad.js';
 
 const domains = { auth, router, schedule: { ...scheduleGestures, ...schedule }, grades, home, exams, calendar, ui, navigation,
-    announcements, feedback, member, evaluation, service, sign, lab, ad };
+    announcements, feedback, member, evaluation, service, lab, ad };
 
 // Modules communicate through imports. This bridge serves existing HTML attributes
 // and integrations; new HTML may use URP.auth.openLogin(), URP.router.switchPage(), etc.
@@ -44,7 +43,6 @@ router.registerPage('service-status', { mount: service.mountService, unmount: se
 router.registerPage('feedback', { mount: feedback.mountFeedback, unmount: feedback.unmountFeedback });
 router.registerPage('shortcut-api', { mount: member.mountShortcutApi, unmount: member.unmountShortcutApi });
 router.registerPage('member', { mount: member.mountMember, unmount: member.unmountMember });
-router.registerPage('sign', { mount: sign.mountSign, unmount: sign.unmountSign });
 router.registerPage('lab', { mount: lab.mountLab, unmount: lab.unmountLab });
 
 ui.registerModalCleanup('exams-modal', exams.unmountExams);

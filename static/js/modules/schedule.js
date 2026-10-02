@@ -2,7 +2,7 @@ import { mountScheduleMenu } from './schedule-menu.js';
 import { pageResources } from './lifecycle.js';
 import { currentSemesterStartValue } from './calendar.js';
 import { closeUiModal, openUiModal, showUiToast } from './ui.js';
-import { SCHEDULE_MAX_WEEK, SCHEDULE_MIN_WEEK, animateScheduleHeight, animateScheduleSwipeTo, clearScheduleDinoGestureTimers, ensureScheduleSwipePanels, getScheduleDataSource, getSchedulePanelElements, getScheduleSwipeElements, getScheduleSwipeWidth, getScheduleWeekPayload, hideScheduleActions, initScheduleActions, initScheduleSwipe, resetQueuedScheduleSwipe, resetScheduleSwipeGesture, scheduleSwipeGesture, setScheduleSwipeTransform } from './schedule-gestures.js';
+import { SCHEDULE_MAX_WEEK, SCHEDULE_MIN_WEEK, animateScheduleHeight, animateScheduleSwipeTo, ensureScheduleSwipePanels, getScheduleDataSource, getSchedulePanelElements, getScheduleSwipeElements, getScheduleSwipeWidth, getScheduleWeekPayload, hideScheduleActions, initScheduleActions, initScheduleSwipe, resetQueuedScheduleSwipe, resetScheduleSwipeGesture, scheduleSwipeGesture, setScheduleSwipeTransform } from './schedule-gestures.js';
 import { state } from './store.js';
 import { getDeviceId, rememberBoundUsername } from './auth.js';
 const resources = pageResources('schedule');
@@ -297,7 +297,6 @@ export function resetScheduleDisplay() {
     state.currentScheduleMap.clear();
     state.scheduleHeightAnimation?.cancel();
     state.scheduleHeightAnimation = null;
-    clearScheduleDinoGestureTimers();
     resetScheduleSwipeGesture();
     const swipe = ensureScheduleSwipePanels();
     const panels = swipe?.panels || [document.querySelector('.schedule-week-panel')].filter(Boolean);
@@ -315,25 +314,8 @@ export function resetScheduleDisplay() {
     });
     if (swipe) {
         swipe.track.classList.remove('is-dragging', 'is-animating', 'is-changing');
-        swipe.viewport.classList.remove(
-            'is-swiping',
-            'is-settling',
-            'is-dino-jumping',
-            'is-dino-reversing',
-            'is-dino-fireball',
-            'is-dino-completing',
-            'is-dino-button-jump',
-            'is-dino-crashed',
-            'has-dino-obstacle',
-        );
+        swipe.viewport.classList.remove('is-swiping', 'is-settling');
         swipe.panels.forEach(panel => panel.classList.remove('is-swipe-target'));
-        if (swipe.dinoLane) {
-            swipe.dinoLane.style.setProperty('--dino-obstacle-progress', '0');
-            swipe.dinoLane.style.setProperty('--dino-obstacle-shift', '140px');
-            swipe.dinoLane.style.setProperty('--dino-fireball-distance', '240px');
-        swipe.dinoLane.style.setProperty('--dino-drag-lift', '0px');
-            swipe.dinoLane.dataset.blocked = 'false';
-        }
         setScheduleSwipeTransform(0);
     }
 }
@@ -572,7 +554,6 @@ export function renderScheduleWeek(schedule, panel, courseColorMap = buildSchedu
 
 export function displaySchedule(schedule) {
     state.currentScheduleMap.clear();
-    clearScheduleDinoGestureTimers();
     resetScheduleSwipeGesture();
     const source = getScheduleDataSource(schedule);
     const courseColorMap = buildScheduleCourseColorMap(source);
@@ -605,24 +586,7 @@ export function displaySchedule(schedule) {
         animateScheduleHeight(swipe.track, previousHeight, swipe.track.getBoundingClientRect?.().height);
     }
     swipe.track.classList.remove('is-dragging', 'is-animating', 'is-changing');
-    swipe.viewport.classList.remove(
-        'is-swiping',
-        'is-settling',
-        'is-dino-jumping',
-        'is-dino-reversing',
-        'is-dino-fireball',
-        'is-dino-completing',
-        'is-dino-button-jump',
-        'is-dino-crashed',
-        'has-dino-obstacle',
-    );
-    if (swipe.dinoLane) {
-        swipe.dinoLane.style.setProperty('--dino-obstacle-progress', '0');
-        swipe.dinoLane.style.setProperty('--dino-obstacle-shift', '140px');
-        swipe.dinoLane.style.setProperty('--dino-fireball-distance', '240px');
-        swipe.dinoLane.style.setProperty('--dino-drag-lift', '0px');
-        swipe.dinoLane.dataset.blocked = 'false';
-    }
+    swipe.viewport.classList.remove('is-swiping', 'is-settling');
     setScheduleSwipeTransform(0);
 }
 
@@ -705,18 +669,8 @@ export function changeWeek(delta, animate = false) {
         const swipe = ensureScheduleSwipePanels();
         if (!buttonSwipe.shouldChange || !swipe || state.scheduleSwipeTransition || scheduleSwipeGesture.pointerId !== null) return;
 
-        clearScheduleDinoGestureTimers();
         resetScheduleSwipeGesture();
-        const obstacleType = pickScheduleDinoObstacle();
-        if (swipe.dinoLane) {
-            swipe.dinoLane.dataset.direction = buttonSwipe.direction < 0 ? 'previous' : 'next';
-            swipe.dinoLane.dataset.obstacle = obstacleType;
-            swipe.dinoLane.dataset.blocked = 'false';
-            swipe.dinoLane.style.setProperty('--dino-obstacle-progress', '0');
-            swipe.dinoLane.style.setProperty('--dino-obstacle-shift', '140px');
-        }
-        swipe.viewport.classList.add('has-dino-obstacle', 'is-dino-jumping', 'is-dino-button-jump');
-        animateScheduleSwipeTo(buttonSwipe, getScheduleSwipeWidth(swipe.viewport), 'complete');
+        animateScheduleSwipeTo(buttonSwipe, getScheduleSwipeWidth(swipe.viewport));
         return;
     }
 
@@ -828,7 +782,6 @@ export function unmountSchedule() {
     }
     state.scheduleSwipeTransition = null;
     state.scheduleSwipeTransitionTimer = null;
-    state.scheduleDinoHoldTimer = state.scheduleDinoAirborneTimer = state.scheduleDinoCrashTimer = null;
     resetQueuedScheduleSwipe();
     resetScheduleSwipeGesture();
     hideScheduleActions(false);

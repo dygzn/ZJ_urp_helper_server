@@ -15,7 +15,6 @@ from services.urp_service import (
     get_failed_grades, get_gpa, get_current_semester_grades,
     get_latest_semester_grade_summary,
     get_exam_sessions, get_exam_scores, get_latest_makeup_grade_summary,
-    LEGACY_GRADES_ENDPOINT_MESSAGE
 )
 from services.config_service import get_current_urp_url
 from services.temporary_session_service import current_temporary_session
@@ -128,17 +127,6 @@ def api_update_exams(user):
         return jsonify({'success': True, 'message': '考试安排更新成功', 'data': exams_data})
     except Exception as e:
         return jsonify({'success': False, 'message': f'更新失败: {str(e)}'})
-
-
-@data_bp.route('/api/grades', methods=['GET'])
-@require_grade_login('basic')
-def api_grades(user):
-    """保留旧路径，但明确告知调用方改用新的成绩接口。"""
-    return jsonify({
-        'success': False,
-        'error_code': 'deprecated_endpoint',
-        'message': LEGACY_GRADES_ENDPOINT_MESSAGE,
-    }), 410
 
 
 @data_bp.route('/api/grades/current', methods=['GET'])

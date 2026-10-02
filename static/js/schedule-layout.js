@@ -69,73 +69,6 @@ function resolveScheduleButtonSwipe({
     return { shouldChange: true, direction, week: nextWeek };
 }
 
-function resolveScheduleDinoCue({
-    deltaX,
-    viewportWidth,
-    currentWeek,
-    minWeek = 1,
-    maxWeek = 25,
-}) {
-    const offset = Number(deltaX) || 0;
-    const distance = Math.abs(offset);
-    if (distance < 8) {
-        return {
-            active: false,
-            blocked: false,
-            direction: 0,
-            progress: 0,
-            obstacleProgress: 0,
-            crossedObstacle: false,
-            targetWeek: currentWeek,
-        };
-    }
-
-    const direction = offset < 0 ? 1 : -1;
-    const requestedWeek = currentWeek + direction;
-    const targetWeek = Math.min(maxWeek, Math.max(minWeek, requestedWeek));
-    const blocked = targetWeek !== requestedWeek;
-    const width = Math.max(Number(viewportWidth) || 0, 1);
-    const jumpDistance = Math.min(96, Math.max(48, width * 0.18));
-    const progress = Math.min(distance / jumpDistance, 1);
-    const roundedProgress = Number(progress.toFixed(3));
-    const obstacleProgress = blocked ? Math.min(roundedProgress / 0.55, 1) : roundedProgress / 0.55;
-
-    return {
-        active: true,
-        blocked,
-        direction,
-        progress: roundedProgress,
-        obstacleProgress: Number(obstacleProgress.toFixed(3)),
-        crossedObstacle: !blocked && progress >= 0.55,
-        targetWeek,
-    };
-}
-
-// 平滑起落的速度，同时保留越障所需的高度；反向拖动走同一条轨迹。
-function resolveScheduleDinoLift(obstacleShift, blocked = false) {
-    if (blocked) return 0;
-    const progress = Math.max(0, Math.min(1,
-        (40 - obstacleShift) / 30,
-        (obstacleShift + 100) / 30));
-    return 32 * progress * progress * (3 - 2 * progress);
-}
-
-function pickScheduleDinoObstacle(randomValue = Math.random()) {
-    const obstacles = ['cactus-single', 'cactus-double', 'rock'];
-    const normalized = Math.min(Math.max(Number(randomValue) || 0, 0), 0.999999);
-    return obstacles[Math.floor(normalized * obstacles.length)];
-}
-
-function resolveScheduleDinoRelease({ hadObstacle, crossedObstacle, shouldChange }) {
-    if (!hadObstacle) return 'idle';
-    if (shouldChange) return 'complete';
-    return crossedObstacle ? 'reverse-jump' : 'fireball';
-}
-
-function shouldCrashScheduleDino({ airborne, pointerDown, idleMs, holdThreshold = 600 }) {
-    return Boolean(airborne && pointerDown && Number(idleMs) >= holdThreshold);
-}
-
 function buildScheduleCourseCardData(course, day) {
     const source = course || {};
     const dayNumber = Number.parseInt(day, 10);
@@ -336,11 +269,6 @@ if (typeof module !== 'undefined' && module.exports) {
         setScheduleWeekendVisibility,
         resolveScheduleSwipe,
         resolveScheduleButtonSwipe,
-        resolveScheduleDinoCue,
-        resolveScheduleDinoLift,
-        resolveScheduleDinoRelease,
-        shouldCrashScheduleDino,
-        pickScheduleDinoObstacle,
         buildScheduleCourseCardData,
         buildScheduleCourseDetailHtml,
         buildHistoricalScheduleGridModel,
