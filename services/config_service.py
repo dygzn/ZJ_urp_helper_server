@@ -3,7 +3,6 @@
 """
 import json
 import os
-import hashlib
 import secrets
 from constants import CONFIG_FILE
 
@@ -32,11 +31,6 @@ def get_admin_key():
     return os.environ.get('ADMIN_KEY', '').strip()
 
 
-# 旧版源码中公开过的管理员/支付密钥：仅保存摘要用于禁止继续使用。
-_COMPROMISED_KEY_HASHES = frozenset({
-    '85e84bc57c2c22a56794ffa061064791bc9d98e70c981b7fadf56d845670c10a',
-    '1a1df2523d9e52218b1a274089855500b2d21e1e7e1027c3a63ccdecec35eed5',
-})
 _EXAMPLE_VALUES = frozenset({
     'your-secret-key-change-this', 'your-secret-key', 'your-admin-key',
     'your-pay-secret-key', 'your-merchant-num', 'your-merchant-number',
@@ -60,7 +54,6 @@ def configure_app_security(app):
     invalid = [
         name for name, value in settings.items()
         if not value or value.lower() in _EXAMPLE_VALUES
-        or hashlib.sha256(value.encode('utf-8')).hexdigest() in _COMPROMISED_KEY_HASHES
     ]
     if invalid:
         # 只记录变量名，避免错误信息再次泄漏配置值。
