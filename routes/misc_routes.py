@@ -195,6 +195,8 @@ def get_announcements():
 @misc_bp.route('/api/announcements/<int:announcement_id>/read', methods=['POST'])
 def mark_announcement_read(announcement_id):
     device_id = get_device_id()
+    if not device_id:
+        return jsonify({'success': False, 'message': '缺少有效设备凭据'}), 401
     data = request.get_json() or {}
     never_show = data.get('never_show', False)
 

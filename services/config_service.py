@@ -3,6 +3,8 @@
 """
 import json
 import os
+import hashlib
+import secrets
 from constants import CONFIG_FILE
 
 
@@ -26,8 +28,49 @@ def save_json_file(filepath, data):
 
 
 def get_admin_key():
-    """获取管理员密钥"""
-    return "786171937Wzs"
+    """管理员密钥只从环境变量读取，未配置时保持为空并拒绝鉴权。"""
+    return os.environ.get('ADMIN_KEY', '').strip()
+
+
+# 旧版源码中公开过的管理员/支付密钥：仅保存摘要用于禁止继续使用。
+_COMPROMISED_KEY_HASHES = frozenset({
+    '85e84bc57c2c22a56794ffa061064791bc9d98e70c981b7fadf56d845670c10a',
+    '1a1df2523d9e52218b1a274089855500b2d21e1e7e1027c3a63ccdecec35eed5',
+})
+_EXAMPLE_VALUES = frozenset({
+    'your-secret-key-change-this', 'your-secret-key', 'your-admin-key',
+    'your-pay-secret-key', 'your-merchant-num', 'your-merchant-number',
+    'change-me', 'changeme', 'replace-me', 'secret', 'admin',
+})
+
+
+def configure_app_security(app):
+    """在数据库初始化前检查安全配置，同时覆盖直接启动与 WSGI 导入。"""
+    from constants import MERCHANT_NUM, PAY_SECRET_KEY
+
+    debug = os.environ.get('FLASK_DEBUG', '').lower() in ('1', 'true', 'yes', 'on')
+    app.debug = debug
+    secret_key = os.environ.get('SECRET_KEY', '').strip()
+    settings = {
+        'SECRET_KEY': secret_key,
+        'ADMIN_KEY': get_admin_key(),
+        'MERCHANT_NUM': MERCHANT_NUM,
+        'PAY_SECRET_KEY': PAY_SECRET_KEY,
+    }
+    invalid = [
+        name for name, value in settings.items()
+        if not value or value.lower() in _EXAMPLE_VALUES
+        or hashlib.sha256(value.encode('utf-8')).hexdigest() in _COMPROMISED_KEY_HASHES
+    ]
+    if invalid:
+        # 只记录变量名，避免错误信息再次泄漏配置值。
+        message = '安全配置缺失或不安全: ' + ', '.join(invalid)
+        if not debug:
+            app.logger.error(message)
+            raise RuntimeError(message)
+        app.logger.warning(message + '；当前仅允许本机开发调试')
+
+    app.secret_key = secrets.token_hex(32) if debug and 'SECRET_KEY' in invalid else secret_key
 
 
 def get_config():

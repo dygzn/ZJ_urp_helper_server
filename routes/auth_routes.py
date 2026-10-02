@@ -45,16 +45,14 @@ def login():
     if not username or not password:
         return jsonify({'success': False, 'message': '用户名和密码不能为空'})
 
-    if not bind_account:
-        device_header = (request.headers.get('X-Device-ID') or '').strip()
-        if not device_header or len(device_header) > 128:
-            return jsonify({'success': False, 'message': '登录准备失败，请刷新页面后重试'}), 400
+    device_id = get_device_id()
+    if not device_id:
+        return jsonify({'success': False, 'message': '登录准备失败，请刷新页面后重试'}), 400
 
     success, message, cookies = urp_login(username, password, persist_cookies=bind_account)
 
     if success:
         if bind_account:
-            device_id = get_device_id()
             bind_user(device_id, username, password, invitation_token)
             delete_temporary_session(device_id)
             return jsonify({
@@ -64,7 +62,7 @@ def login():
                 'username': username,
             })
 
-        expires_at = save_temporary_session(get_device_id(), username, cookies)
+        expires_at = save_temporary_session(device_id, username, cookies)
         return jsonify({
             'success': True,
             'bound': False,

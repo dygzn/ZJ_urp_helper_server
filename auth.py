@@ -2,6 +2,7 @@
 认证装饰器
 """
 from functools import wraps
+import hmac
 from datetime import datetime
 from flask import request, jsonify
 from database import get_db
@@ -21,8 +22,11 @@ def require_admin(f):
     """管理员权限装饰器"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        admin_key = request.headers.get('X-Admin-Key') or request.headers.get('Admin-Key') or request.args.get('admin_key')
-        if admin_key != get_admin_key():
+        admin_key = request.headers.get('X-Admin-Key', '')
+        expected_key = get_admin_key()
+        if not admin_key or not expected_key or not hmac.compare_digest(
+            admin_key.encode('utf-8'), expected_key.encode('utf-8')
+        ):
             return jsonify({'success': False, 'message': '管理员密钥错误'}), 403
         return f(*args, **kwargs)
     return decorated_function

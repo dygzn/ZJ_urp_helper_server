@@ -7,7 +7,7 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for
 from werkzeug.exceptions import HTTPException
 from database import ensure_api_keys_table, init_db
 from services.logging_service import init_logging
-from services.config_service import get_admin_key, get_config
+from services.config_service import configure_app_security, get_config
 from services.ad_service import EVENT_COLUMNS, record_ad_event
 from services.ad_config_service import get_ad_config
 from services.temporary_session_service import start_temporary_session_cleanup
@@ -21,7 +21,7 @@ from routes.wechat_routes import wechat_bp
 from routes.lab_routes import lab_bp
 
 app = Flask(__name__)
-app.secret_key = 'your-secret-key-change-this'
+configure_app_security(app)
 INDEX_QUERY_ALLOWLIST = ('page', 'invite')
 
 
@@ -146,12 +146,7 @@ def index():
 
 
 if __name__ == '__main__':
-    admin_key = get_admin_key()
-    print("=" * 50)
-    print(f"管理员密钥: {admin_key}")
-    print("请妥善保管此密钥，访问管理页面时需要使用")
-    print("=" * 50)
-
     debug = os.environ.get('FLASK_DEBUG', '').lower() in ('1', 'true', 'yes', 'on')
+    host = '127.0.0.1' if debug else os.environ.get('HOST', '0.0.0.0')
     port = int(os.environ.get('PORT', '5050'))
-    app.run(debug=True, host='0.0.0.0', port=port, use_reloader=debug)
+    app.run(debug=debug, host=host, port=port, use_reloader=debug)

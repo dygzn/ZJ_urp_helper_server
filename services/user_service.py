@@ -1,7 +1,6 @@
 """
 用户绑定管理服务
 """
-import hashlib
 from datetime import datetime
 from flask import g, has_request_context, request
 from database import get_db
@@ -9,25 +8,11 @@ from services.temporary_session_service import get_temporary_session
 
 
 def get_device_id():
-    """获取设备唯一标识"""
-    device_id = request.headers.get('X-Device-ID')
-    if device_id:
-        return device_id.strip()
-
-    authorization = request.headers.get('Authorization', '')
-    if authorization.strip():
-        # 小程序身份仅由 /api/wechat 专用接口解析，不能再借道网页设备接口。
-        # 即使旧 wechat_bindings 尚有记录，也不恢复设备权限。
-
-        # Bearer 已明确表明请求来自小程序。无效 token 不应退回
-        # User-Agent/IP 这种弱身份，否则可能意外命中其它用户的旧绑定。
-        token_digest = hashlib.sha256(authorization.encode('utf-8')).hexdigest()[:32]
-        return f'wx_invalid_{token_digest}'
-
-    user_agent = request.headers.get('User-Agent', '')
-    ip = request.remote_addr
-    device_string = f"{user_agent}_{ip}"
-    return hashlib.md5(device_string.encode()).hexdigest()
+    """只接受显式设备标识；微信身份由 /api/wechat 专用接口校验。"""
+    device_id = (request.headers.get('X-Device-ID') or '').strip()
+    if not device_id or len(device_id) > 128:
+        return None
+    return device_id
 
 
 def get_user_by_device(device_id):
@@ -35,6 +20,10 @@ def get_user_by_device(device_id):
 
     ``users`` 只负责证明设备绑定关系；账号密码始终来自 ``user_account``。
     """
+    if not device_id:
+        if has_request_context():
+            g.temporary_session = None
+        return None
     temporary = get_temporary_session(device_id)
     if temporary:
         if has_request_context():

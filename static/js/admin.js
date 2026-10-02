@@ -141,7 +141,7 @@ async function handleAdminLogin(event) {
     try {
         const response = await fetch('/api/admin/monitor/online', {
             headers: {
-                'Admin-Key': key
+                'X-Admin-Key': key
             }
         });
 
@@ -250,7 +250,7 @@ async function loadAdminServiceStatus() {
 
     try {
         const response = await fetch('/api/admin/service-status', {
-            headers: {'Admin-Key': adminKey}
+            headers: {'X-Admin-Key': adminKey}
         });
         const result = await response.json();
         if (!response.ok || !result.success) {
@@ -292,7 +292,7 @@ async function saveAdminServiceStatus(event) {
         const response = await fetch('/api/admin/service-status', {
             method: 'PUT',
             headers: {
-                'Admin-Key': adminKey,
+                'X-Admin-Key': adminKey,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
@@ -334,7 +334,7 @@ async function previewBindingArchive() {
     document.getElementById('binding-archive-prepared').checked = false;
     status.textContent = '正在读取当前数据库…';
     try {
-        const response = await fetch('/api/admin/bindings/archive', {cache: 'no-store', headers: {'Admin-Key': adminKey}});
+        const response = await fetch('/api/admin/bindings/archive', {cache: 'no-store', headers: {'X-Admin-Key': adminKey}});
         const result = await response.json();
         if (!response.ok || !result.success) throw new Error(result.message || '预览失败');
         const data = result.data;
@@ -381,7 +381,7 @@ async function executeBindingArchive() {
     status.textContent = '正在归档、核对并清理，请勿关闭页面…';
     try {
         const response = await fetch('/api/admin/bindings/archive', {
-            method: 'POST', headers: {'Admin-Key': adminKey, 'Content-Type': 'application/json'},
+            method: 'POST', headers: {'X-Admin-Key': adminKey, 'Content-Type': 'application/json'},
             body: JSON.stringify({protocol_version: 2, fingerprint: bindingArchivePreview.fingerprint, batch_id: bindingArchiveBatch, prepared: true})
         });
         const result = await response.json();
@@ -415,7 +415,7 @@ async function loadUsers() {
     const container = document.getElementById('users-list');
     container.innerHTML = '<div class="loading">加载中</div>';
     try {
-        const response = await fetch('/api/admin/users', { headers: { 'Admin-Key': adminKey } });
+        const response = await fetch('/api/admin/users', { headers: { 'X-Admin-Key': adminKey } });
         const raw = await response.text();
         let data;
         try {
@@ -442,7 +442,7 @@ async function loadAdStats() {
     container.innerHTML = '<div class="loading">加载中</div>';
     try {
         const response = await fetch('/api/admin/ad_stats', {
-            headers: { 'Admin-Key': adminKey }
+            headers: { 'X-Admin-Key': adminKey }
         });
         const data = await response.json();
         if (!data.success) {
@@ -675,7 +675,7 @@ async function loadConfig() {
     try {
         const response = await fetch('/api/admin/config', {
             headers: {
-                'Admin-Key': adminKey
+                'X-Admin-Key': adminKey
             }
         });
 
@@ -821,7 +821,7 @@ async function handleUpdateDatabase(event) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Admin-Key': adminKey
+                'X-Admin-Key': adminKey
             },
             body: JSON.stringify(payload)
         });
@@ -865,7 +865,7 @@ async function handleMigrateSqliteData() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Admin-Key': adminKey
+                'X-Admin-Key': adminKey
             },
             body: JSON.stringify({ sqlite_path: sqlitePath })
         });
@@ -904,7 +904,7 @@ async function handleUpdateGradesMemberRequired() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Admin-Key': adminKey
+                'X-Admin-Key': adminKey
             },
             body: JSON.stringify({ grades_require_member: required })
         });
@@ -945,7 +945,7 @@ async function handleUpdateMemberPageEnabled() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Admin-Key': adminKey
+                'X-Admin-Key': adminKey
             },
             body: JSON.stringify({ member_page_enabled: enabled })
         });
@@ -981,7 +981,7 @@ async function switchUrl(urlIndex) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Admin-Key': adminKey
+                'X-Admin-Key': adminKey
             },
             body: JSON.stringify({
                 url_index: urlIndex
@@ -1022,7 +1022,7 @@ async function handleUpdateUrls(event) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Admin-Key': adminKey
+                'X-Admin-Key': adminKey
             },
             body: JSON.stringify({
                 urls: [url1, url2]
@@ -1057,7 +1057,7 @@ async function handleUpdateSemester(event) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Admin-Key': adminKey
+                'X-Admin-Key': adminKey
             },
             body: JSON.stringify({ semester_start: dateStr })
         });
@@ -1084,7 +1084,7 @@ async function loadAnnouncements() {
     try {
         const response = await fetch('/api/admin/announcements', {
             headers: {
-                'Admin-Key': adminKey
+                'X-Admin-Key': adminKey
             }
         });
 
@@ -1193,7 +1193,7 @@ async function handleAnnouncementSubmit(event) {
             method: method,
             headers: {
                 'Content-Type': 'application/json',
-                'Admin-Key': adminKey
+                'X-Admin-Key': adminKey
             },
             body: JSON.stringify({
                 title: title,
@@ -1226,7 +1226,7 @@ async function deleteAnnouncement(id) {
         const response = await fetch(`/api/admin/announcements/${id}`, {
             method: 'DELETE',
             headers: {
-                'Admin-Key': adminKey
+                'X-Admin-Key': adminKey
             }
         });
 
@@ -1254,7 +1254,7 @@ async function loadAdminFeedbacks() {
     try {
         const response = await fetch('/api/admin/feedback', {
             headers: {
-                'Admin-Key': adminKey
+                'X-Admin-Key': adminKey
             }
         });
 
@@ -1368,7 +1368,7 @@ async function handleFeedbackReplySubmit(event) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Admin-Key': adminKey
+                'X-Admin-Key': adminKey
             },
             body: JSON.stringify({ content })
         });
@@ -1397,7 +1397,7 @@ async function deleteAdminFeedback(id) {
         const response = await fetch(`/api/admin/feedback/${id}`, {
             method: 'DELETE',
             headers: {
-                'Admin-Key': adminKey
+                'X-Admin-Key': adminKey
             }
         });
 
@@ -1443,7 +1443,7 @@ function stopMonitorRefresh() {
 
 async function loadMonitorData() {
     try {
-        const onlineRes = await fetch('/api/admin/monitor/online', { headers: { 'Admin-Key': adminKey } });
+        const onlineRes = await fetch('/api/admin/monitor/online', { headers: { 'X-Admin-Key': adminKey } });
         const onlineData = await onlineRes.json();
         if (onlineData.success) {
             document.getElementById('online-count').textContent = onlineData.data.online_count;
@@ -1486,7 +1486,7 @@ async function loadAdminMembers(usernameArg = '') {
 
     listDiv.innerHTML = '<div class="loading">\u67e5\u8be2\u4e2d...</div>';
     try {
-        const resp = await fetch(`/api/admin/members?username=${encodeURIComponent(username)}`, { headers: { 'Admin-Key': adminKey } });
+        const resp = await fetch(`/api/admin/members?username=${encodeURIComponent(username)}`, { headers: { 'X-Admin-Key': adminKey } });
         const data = await resp.json();
         if (!data.success) {
             listDiv.innerHTML = `<p style="color:var(--error);">${data.message || '\u67e5\u8be2\u5931\u8d25'}</p>`;
@@ -1572,7 +1572,7 @@ async function handleGrantMember(event) {
     try {
         const resp = await fetch('/api/admin/members/grant', {
             method: 'POST',
-            headers: { 'Admin-Key': adminKey, 'Content-Type': 'application/json' },
+            headers: { 'X-Admin-Key': adminKey, 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, member_type: memberType, days })
         });
         const data = await resp.json();
@@ -1606,7 +1606,7 @@ async function revokeMember(username) {
     try {
         const resp = await fetch('/api/admin/members/revoke', {
             method: 'POST',
-            headers: { 'Admin-Key': adminKey, 'Content-Type': 'application/json' },
+            headers: { 'X-Admin-Key': adminKey, 'Content-Type': 'application/json' },
             body: JSON.stringify({ username })
         });
         const data = await resp.json();
@@ -1628,7 +1628,7 @@ async function loadAdminWithdrawals() {
     const listDiv = document.getElementById('withdrawals-list');
     listDiv.innerHTML = '<div class="loading">加载中...</div>';
     try {
-        const resp = await fetch('/api/admin/withdrawals', { headers: { 'Admin-Key': adminKey } });
+        const resp = await fetch('/api/admin/withdrawals', { headers: { 'X-Admin-Key': adminKey } });
         const data = await resp.json();
         if (!data.success) { listDiv.innerHTML = `<p style="color:var(--error);">${data.message || '加载失败'}</p>`; return; }
         const items = data.data;
@@ -1677,7 +1677,7 @@ async function approveWithdrawal(id) {
     try {
         const resp = await fetch(`/api/admin/withdrawals/${id}/approve`, {
             method: 'POST',
-            headers: { 'Admin-Key': adminKey, 'Content-Type': 'application/json' }
+            headers: { 'X-Admin-Key': adminKey, 'Content-Type': 'application/json' }
         });
         const data = await resp.json();
         if (data.success) {
@@ -1697,7 +1697,7 @@ async function rejectWithdrawal(id) {
     try {
         const resp = await fetch(`/api/admin/withdrawals/${id}/reject`, {
             method: 'POST',
-            headers: { 'Admin-Key': adminKey, 'Content-Type': 'application/json' }
+            headers: { 'X-Admin-Key': adminKey, 'Content-Type': 'application/json' }
         });
         const data = await resp.json();
         if (data.success) {
@@ -1717,7 +1717,7 @@ async function loadCommissionStats() {
     const container = document.getElementById('commission-stats');
     container.innerHTML = '<div class="loading">加载中...</div>';
     try {
-        const resp = await fetch('/api/admin/commission_stats', { headers: { 'Admin-Key': adminKey } });
+        const resp = await fetch('/api/admin/commission_stats', { headers: { 'X-Admin-Key': adminKey } });
         const data = await resp.json();
         if (!data.success) { container.innerHTML = `<p style="color:var(--error);text-align:center;">${data.message || '加载失败'}</p>`; return; }
         const { users, summary } = data.data;

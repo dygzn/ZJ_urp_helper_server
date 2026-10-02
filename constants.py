@@ -12,8 +12,8 @@ os.makedirs(DATA_DIR, exist_ok=True)
 
 # 会员支付配置
 PAY_API_URL = "https://zfapi.nnt.ltd/api/startOrder"
-MERCHANT_NUM = "622981851413626880"
-PAY_SECRET_KEY = "31351beba3aa2327817b01c78bccf2f5"
+MERCHANT_NUM = os.environ.get('MERCHANT_NUM', '').strip()
+PAY_SECRET_KEY = os.environ.get('PAY_SECRET_KEY', '').strip()
 MEMBER_PRICES = {'basic': '3.00', 'advanced': '5.00'}
 MEMBER_DURATION_DAYS = 180  # 半年
 

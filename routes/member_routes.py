@@ -2,6 +2,7 @@
 会员系统路由
 """
 import os
+import hmac
 import traceback
 import uuid
 from datetime import datetime, timedelta
@@ -192,7 +193,7 @@ def member_pay_notify():
 
         state = params.get('state', '')
         sign_expected = _generate_md5(state + MERCHANT_NUM + order_no + amount + PAY_SECRET_KEY)
-        if sign_received != sign_expected:
+        if not hmac.compare_digest(sign_received.encode('utf-8'), sign_expected.encode('utf-8')):
             return 'fail', 400
 
         with get_db() as conn:
