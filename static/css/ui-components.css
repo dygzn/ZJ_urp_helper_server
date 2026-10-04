@@ -1,11 +1,5 @@
 /* Component rules: zero-weight ancestors, class-weight control targets. */
 @layer components.workspace {
-.schedule-week-panel.is-swipe-adjacent {
-height: 0;
-    min-height: 0;
-    overflow: visible;
-}
-
 .schedule-day-column > .course-card {
 border: 0;
     font-family: inherit;
@@ -2491,6 +2485,7 @@ flex: 1;
 }
 
 :where(body.urp-app) :where(#page-schedule) .schedule-week-panel {
+/* 相邻周同样铺满轨道，拖动露出时课程网格已经具有完整行高。 */
 height: 100%;
     min-height: 0;
 }
