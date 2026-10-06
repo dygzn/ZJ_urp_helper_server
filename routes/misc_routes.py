@@ -4,7 +4,7 @@
 from datetime import datetime
 from flask import Blueprint, request, jsonify
 from database import get_db
-from auth import require_admin, require_bindding
+from auth import require_admin, require_binding
 from services.user_service import get_device_id
 
 misc_bp = Blueprint('misc', __name__)
@@ -217,7 +217,7 @@ def mark_announcement_read(announcement_id):
 # ==================== 反馈 ====================
 
 @misc_bp.route('/api/feedback', methods=['GET', 'POST'])
-@require_bindding
+@require_binding
 def handle_feedback(user):
     if request.method == 'POST':
         data = request.get_json()
@@ -281,7 +281,7 @@ def handle_feedback(user):
 
 
 @misc_bp.route('/api/feedback/<int:feedback_id>/reply', methods=['POST'])
-@require_bindding
+@require_binding
 def user_reply_feedback(feedback_id, user):
     data = request.get_json()
     content = data.get('content', '').strip()

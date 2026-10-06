@@ -1,6 +1,7 @@
 """
 用户认证相关路由
 """
+import re
 from flask import Blueprint, request, jsonify
 from database import get_db
 from services.user_service import get_device_id, get_user_by_device, bind_user
@@ -44,6 +45,11 @@ def login():
 
     if not username or not password:
         return jsonify({'success': False, 'message': '用户名和密码不能为空'})
+
+    # 与微信绑定入口保持一致，校验后的学号才能用于教务登录和文件路径。
+    if not isinstance(username, str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,64}', username.strip()):
+        return jsonify({'success': False, 'message': '请输入有效学号'}), 400
+    username = username.strip()
 
     device_id = get_device_id()
     if not device_id:
@@ -111,7 +117,7 @@ def api_check_login_status():
     url = get_current_urp_url()
 
     try:
-        urp = URP_login(url, username, password, cookie_path=user_data_file(username, 'cookie.json'))
+        urp = URP_login(url, username, password, cookie_path=user_data_file(username, 'cookie.json'), stored_password=True)
         is_logged_in = urp.is_logined()
 
         if is_logged_in is True:

@@ -71,7 +71,7 @@ def admin_invitation_debug():
     invitee = (request.args.get('invitee') or '').strip()
     inviter = (request.args.get('inviter') or '').strip()
     if not invitee and not inviter:
-        return jsonify({'success': False, 'message': '??? invitee ? inviter ??'})
+        return jsonify({'success': False, 'message': '请提供 invitee 或 inviter 参数'})
 
     try:
         db_config = get_database_config()
@@ -142,7 +142,7 @@ def admin_invitation_debug():
             }
         })
     except Exception as e:
-        return jsonify({'success': False, 'message': f'????????: {str(e)}'})
+        return jsonify({'success': False, 'message': f'获取邀请调试信息失败: {str(e)}'})
 
 
 @admin_bp.route('/api/admin/users', methods=['GET'])
@@ -364,7 +364,7 @@ def admin_set_semester_start():
 def admin_members():
     username = (request.args.get('username') or '').strip()
     if not username:
-        return jsonify({'success': True, 'data': None, 'message': '???????????'})
+        return jsonify({'success': True, 'data': None, 'message': '请提供学号后查询会员信息'})
 
     with get_db() as conn:
         user = conn.execute(

@@ -8,7 +8,7 @@ import uuid
 from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify
 from database import get_db
-from auth import require_bindding
+from auth import require_binding
 from services.member_service import (
     _generate_md5,
     _get_server_url,
@@ -79,7 +79,7 @@ def _lock_membership_state(conn, username):
 
 
 @member_bp.route('/api/member/status', methods=['GET'])
-@require_bindding
+@require_binding
 def member_status(user):
     username = user['username']
     with get_db() as conn:
@@ -103,7 +103,7 @@ def member_status(user):
 
 
 @member_bp.route('/api/member/create_order', methods=['POST'])
-@require_bindding
+@require_binding
 def member_create_order(user):
     data = request.get_json() or {}
     member_type = data.get('member_type')
@@ -257,7 +257,7 @@ def member_pay_return():
 
 
 @member_bp.route('/api/invitation/my_inviter', methods=['GET'])
-@require_bindding
+@require_binding
 def my_inviter(user):
     username = user['username']
     with get_db() as conn:
@@ -271,7 +271,7 @@ def my_inviter(user):
 
 
 @member_bp.route('/api/invitation/link', methods=['GET'])
-@require_bindding
+@require_binding
 def invitation_link(user):
     username = user['username']
     with get_db() as conn:
@@ -292,7 +292,7 @@ def invitation_link(user):
 
 
 @member_bp.route('/api/invitation/link', methods=['POST'])
-@require_bindding
+@require_binding
 def create_invitation_link(user):
     with get_db() as conn:
         invite_url, created = get_or_create_invitation_link(
@@ -309,7 +309,7 @@ def create_invitation_link(user):
 
 
 @member_bp.route('/api/invitation/earnings', methods=['GET'])
-@require_bindding
+@require_binding
 def invitation_earnings(user):
     username = user['username']
     with get_db() as conn:
@@ -380,7 +380,7 @@ def invitation_earnings(user):
 
 
 @member_bp.route('/api/invitation/withdraw', methods=['POST'])
-@require_bindding
+@require_binding
 def invitation_withdraw(user):
     username = user['username']
     data = request.get_json() or {}
@@ -422,7 +422,7 @@ def invitation_withdraw(user):
 
 
 @member_bp.route('/api/invitation/withdrawals', methods=['GET'])
-@require_bindding
+@require_binding
 def invitation_withdrawals(user):
     username = user['username']
     with get_db() as conn:
@@ -440,7 +440,7 @@ def invitation_withdrawals(user):
 
 
 @member_bp.route('/api/member/orders', methods=['GET'])
-@require_bindding
+@require_binding
 def member_orders(user):
     username = user['username']
     now = datetime.now()

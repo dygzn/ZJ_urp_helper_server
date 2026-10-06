@@ -81,7 +81,7 @@ def require_login(f):
     return decorated_function
 
 
-def require_bindding(f):
+def require_binding(f):
     """账号绑定检查装饰器（不验证URP登录状态）"""
     @wraps(f)
     def decorated_function(*args, **kwargs):

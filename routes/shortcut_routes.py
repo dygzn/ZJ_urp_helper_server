@@ -3,7 +3,7 @@ from flask import Blueprint, jsonify, request
 
 from auth import (
     _check_member_access,
-    require_bindding,
+    require_binding,
     require_member,
 )
 from services.shortcut_service import (
@@ -20,7 +20,7 @@ shortcut_bp = Blueprint('shortcut', __name__)
 
 
 @shortcut_bp.route('/api/member/api-key', methods=['GET'])
-@require_bindding
+@require_binding
 def get_member_api_key(user):
     """查询当前绑定学号的密钥状态，不返回密钥明文。"""
     return jsonify({

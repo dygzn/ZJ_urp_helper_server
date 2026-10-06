@@ -3,7 +3,8 @@
 """
 from datetime import datetime
 from flask import g, has_request_context, request
-from database import get_db
+from database import get_db, migrate_account_password
+from services.credential_service import CredentialCipher
 from services.temporary_session_service import get_temporary_session
 
 
@@ -50,7 +51,7 @@ def get_user_by_device(device_id):
             return {
                 'device_id': row['device_id'],
                 'username': row['username'],
-                'password': row['password'],
+                'password': migrate_account_password(conn, row['username'], row['password']),
                 'bind_time': row['bind_time'],
                 'registered_at': row['registered_at'],
                 'last_bind_time': row['last_bind_time'],
@@ -73,7 +74,7 @@ def get_user_by_username(username):
         if row:
             return {
                 'username': row['username'],
-                'password': row['password'],
+                'password': migrate_account_password(conn, row['username'], row['password']),
                 'device_id': row['device_id'],
                 'bind_time': row['bind_time'] or row['last_bind_time'],
                 'registered_at': row['registered_at'],
@@ -84,6 +85,7 @@ def get_user_by_username(username):
 
 def bind_user(device_id, username, password, invitation_token=None):
     """更新账号主表并绑定设备；账号主表是唯一凭据来源。"""
+    password = CredentialCipher().encrypt(password)
     with get_db() as conn:
         now = datetime.now().isoformat()
         # 先幂等占位，再更新最新凭据；相比“先 SELECT 再 INSERT”，

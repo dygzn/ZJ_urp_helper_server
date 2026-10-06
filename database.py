@@ -4,6 +4,7 @@
 默认使用本机 SQLite；在后台配置 MySQL/MariaDB 后，所有业务数据会写入同一个远程数据库，
 用于多台服务器共享用户、会员、订单、返佣等数据。
 """
+import json
 import os
 import re
 import sqlite3
@@ -11,6 +12,7 @@ from contextlib import contextmanager
 from datetime import datetime
 from constants import DB_FILE
 from services.config_service import get_config
+from services.credential_service import CredentialCipher
 
 
 MYSQL_DUPLICATE_CODES = {1060, 1061, 1091}
@@ -746,18 +748,24 @@ def _migrate_temporary_sessions(conn, db_type):
 def _migrate_plural_user_accounts(conn):
     """把早期版本的 user_accounts（复数）合并到新的唯一账号主表。"""
     try:
-        # 用一次幂等的 INSERT 完成补齐，避免旧表有数万条记录时每次启动
-        # 都执行一次逐行 SELECT。INSERT OR IGNORE 在 MySQL 适配器中会
-        # 转成 INSERT IGNORE，因此已有的单数主表记录永远不会被覆盖。
-        conn.execute('''INSERT OR IGNORE INTO user_account
-            (username, password, registered_at, last_bind_time, archived_at)
-            SELECT username, password, registered_at, last_bind_time, archived_at
-            FROM user_accounts''')
+        rows = conn.execute('''SELECT legacy.username, legacy.password, legacy.registered_at,
+                                      legacy.last_bind_time, legacy.archived_at
+            FROM user_accounts AS legacy
+            LEFT JOIN user_account AS account ON account.username = legacy.username
+            WHERE account.username IS NULL''').fetchall()
     except Exception as exc:
         message = str(exc).lower()
         if 'no such table' in message or "doesn't exist" in message or 'does not exist' in message:
             return
         raise
+    if rows:
+        # 复制前加密，INSERT IGNORE 保证并发新增账号也不会被旧资料覆盖。
+        cipher = CredentialCipher()
+        values = [tuple(cipher.ensure_encrypted(row[field]) if field == 'password' else row[field]
+                        for field in ACCOUNT_FIELDS) for row in rows]
+        conn.executemany('''INSERT OR IGNORE INTO user_account
+            (username, password, registered_at, last_bind_time, archived_at)
+            VALUES (?, ?, ?, ?, ?)''', values)
 
 
 def init_db(config_override=None):
@@ -768,7 +776,6 @@ def init_db(config_override=None):
         _create_api_keys_table(conn, db_config['type'])
         _create_binding_archive_tables(conn, db_config['type'])
         _migrate_temporary_sessions(conn, db_config['type'])
-        _migrate_plural_user_accounts(conn)
         if db_config['type'] == 'mysql':
             _create_schema_mysql(conn)
         else:
@@ -778,6 +785,84 @@ def init_db(config_override=None):
         _create_indexes(conn)
         _create_wechat_account_bindings(conn, db_config['type'])
         _create_lab_credentials(conn, db_config['type'])
+        # MySQL DDL 会隐式提交，凭据加密和账号提升必须放在所有 DDL 后。
+        _migrate_urp_credentials(conn, db_config['type'])
+        _migrate_plural_user_accounts(conn)
+        _migrate_legacy_wechat_bindings(conn)
+
+
+def _table_columns(conn, table, db_type):
+    """仅用于下面固定白名单中的表；不存在的历史表返回空集合。"""
+    if db_type == 'sqlite':
+        return {row['name'] for row in conn.execute(f'PRAGMA table_info({table})').fetchall()}
+    return {row['name'] for row in conn.execute(
+        'SELECT COLUMN_NAME AS name FROM information_schema.COLUMNS '
+        'WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?', (table,)
+    ).fetchall()}
+
+
+def migrate_account_password(conn, username, password):
+    """读取时补迁移，条件更新避免覆盖另一个设备刚提交的新密码。"""
+    cipher = CredentialCipher()
+    if not password or cipher.is_encrypted(password) or not cipher.configured():
+        return password
+    encrypted = cipher.encrypt(password)
+    equality = 'password = ?' if isinstance(conn, sqlite3.Connection) else 'BINARY password = BINARY ?'
+    updated = conn.execute(f'UPDATE user_account SET password = ? WHERE username = ? AND {equality}',
+                           (encrypted, username, password))
+    if updated.rowcount == 0:
+        # MySQL RR 普通 SELECT 仍可能读到旧快照；锁定读取获取最新版本。
+        locking = '' if isinstance(conn, sqlite3.Connection) else ' FOR UPDATE'
+        current = conn.execute('SELECT password FROM user_account WHERE username = ?' + locking,
+                               (username,)).fetchone()
+        if current:
+            return current['password']
+    return encrypted
+
+
+def _migrate_urp_credentials(conn, db_type):
+    """有密钥时在同一事务内加密主表与历史副本；没有密钥仍兼容旧库读取。"""
+    cipher = CredentialCipher()
+    if not cipher.configured():
+        return
+    tables = {
+        'user_account': ('username',),
+        'user_accounts': ('username',),
+        'users': ('device_id',),
+        'user_account_archive': ('batch_id', 'device_id'),
+    }
+    equality = 'password = ?' if db_type == 'sqlite' else 'BINARY password = BINARY ?'
+    for table, keys in tables.items():
+        columns = _table_columns(conn, table, db_type)
+        if not {'password', *keys} <= columns:
+            continue
+        for row in conn.execute(f'SELECT {", ".join(keys)}, password FROM {table} '
+                                "WHERE password IS NOT NULL AND password != ''").fetchall():
+            encrypted = cipher.ensure_encrypted(row['password'])
+            if encrypted == row['password']:
+                continue
+            where = ' AND '.join(f'{key} = ?' for key in keys)
+            conn.execute(f'UPDATE {table} SET password = ? WHERE {where} AND {equality}',
+                         (encrypted, *(row[key] for key in keys), row['password']))
+
+    # 早期归档还可能把完整设备记录序列化到 JSON，不能遗留第二份明文。
+    table = 'binding_record_archive'
+    keys = ('batch_id', 'source_table', 'record_key')
+    columns = _table_columns(conn, table, db_type)
+    if not {*keys, 'record_json'} <= columns:
+        return
+    for row in conn.execute(f'SELECT {", ".join(keys)}, record_json FROM {table}').fetchall():
+        record = json.loads(row['record_json'])
+        if not isinstance(record, dict) or not isinstance(record.get('password'), str):
+            continue
+        encrypted = cipher.ensure_encrypted(record['password'])
+        if encrypted == record['password']:
+            continue
+        record['password'] = encrypted
+        where = ' AND '.join(f'{key} = ?' for key in keys)
+        equality = 'record_json = ?' if db_type == 'sqlite' else 'BINARY record_json = BINARY ?'
+        conn.execute(f'UPDATE {table} SET record_json = ? WHERE {where} AND {equality}',
+                     (json.dumps(record, ensure_ascii=False), *(row[key] for key in keys), row['record_json']))
 
 
 def _create_lab_credentials(conn, db_type):
@@ -797,8 +882,6 @@ def _create_wechat_account_bindings(conn, db_type):
         bind_time VARCHAR(32) NOT NULL,
         updated_at VARCHAR(32) NOT NULL
     ){suffix}''')
-
-    _migrate_legacy_wechat_bindings(conn)
 
 
 def _migrate_legacy_wechat_bindings(conn):
@@ -935,6 +1018,12 @@ def migrate_sqlite_to_current_database(sqlite_path=None):
                         operation = 'INSERT OR IGNORE' if table == 'user_accounts' else 'REPLACE'
                         insert_sql = f"{operation} INTO {target_table} ({', '.join(usable_columns)}) VALUES ({placeholders})"
                         values = [tuple(row[col] for col in usable_columns) for row in rows]
+                        if target_table == 'user_account' and 'password' in usable_columns:
+                            password_index = usable_columns.index('password')
+                            values = [tuple(CredentialCipher().ensure_encrypted(value)
+                                            if index == password_index else value
+                                            for index, value in enumerate(row_values))
+                                      for row_values in values]
                         account_rows = None
                         if table == 'users':
                             # 先从旧设备记录提取账号资料，再把兼容表中的密码
@@ -955,7 +1044,8 @@ def migrate_sqlite_to_current_database(sqlite_path=None):
                                     '''INSERT OR IGNORE INTO user_account
                                        (username, password, registered_at, last_bind_time, archived_at)
                                        VALUES (?, ?, ?, ?, ?)''',
-                                    [tuple(account[field] for field in ACCOUNT_FIELDS)
+                                    [tuple(CredentialCipher().ensure_encrypted(account[field])
+                                           if field == 'password' else account[field] for field in ACCOUNT_FIELDS)
                                      for account in account_rows],
                                 )
                             result['user_account_from_users'] = len(account_rows)

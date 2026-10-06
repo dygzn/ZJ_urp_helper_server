@@ -1,7 +1,8 @@
 """微信直接关联学号；不依赖或修改网页设备关系。"""
 from datetime import datetime
 
-from database import get_db
+from database import get_db, migrate_account_password
+from services.credential_service import CredentialCipher
 
 
 class BindingConflict(ValueError):
@@ -13,10 +14,15 @@ def get_account(openid):
         row = conn.execute('''SELECT a.username, a.password, w.bind_time
             FROM wechat_account_bindings w JOIN user_account a ON a.username = w.username
             WHERE w.openid = ?''', (openid,)).fetchone()
-    return dict(row) if row else None
+        if row:
+            account = dict(row)
+            account['password'] = migrate_account_password(conn, row['username'], row['password'])
+            return account
+    return None
 
 
 def bind_account(openid, username, password):
+    password = CredentialCipher().encrypt(password)
     now = datetime.now().isoformat()
     with get_db() as conn:
         conn.execute('''INSERT OR IGNORE INTO wechat_account_bindings

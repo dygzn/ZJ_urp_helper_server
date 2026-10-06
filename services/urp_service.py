@@ -48,7 +48,7 @@ def check_login_status(username, password, cookies):
         if os.path.exists(cookie_file):
             return True, {}
 
-    urp = URP_login(url, username, password, cookie_path=cookie_file)
+    urp = URP_login(url, username, password, cookie_path=cookie_file, stored_password=True)
     if urp.is_logined():
         if not temporary:
             _login_cache[username] = now
@@ -422,7 +422,7 @@ def _perform_auto_update(username, password):
         from urp import URP_login, URP_query
         url = get_current_urp_url()
 
-        urp = URP_login(url, username, password)
+        urp = URP_login(url, username, password, stored_password=True)
         if not urp.is_logined():
             urp.login()
 

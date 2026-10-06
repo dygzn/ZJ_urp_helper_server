@@ -3,9 +3,8 @@
 """
 import os
 import json
-import random
 from flask import Blueprint, request, jsonify
-from auth import require_login, require_bindding, require_member, require_grade_login
+from auth import require_login, require_binding, require_member, require_grade_login
 from database import get_db
 from services.config_service import get_config
 from services.urp_service import (
@@ -23,7 +22,7 @@ data_bp = Blueprint('data', __name__)
 
 
 @data_bp.route('/api/urgent_event', methods=['GET'])
-@require_bindding
+@require_binding
 def api_urgent_event(user):
     try:
         if not current_temporary_session(user['username']):
@@ -36,7 +35,7 @@ def api_urgent_event(user):
 
 
 @data_bp.route('/api/schedule', methods=['GET'])
-@require_bindding
+@require_binding
 def api_schedule(user):
     week = request.args.get('week', type=int)
     try:
@@ -91,7 +90,7 @@ def api_historical_schedule(user):
 
 
 @data_bp.route('/api/exams', methods=['GET'])
-@require_bindding
+@require_binding
 def api_exams(user):
     try:
         exams = get_exams(user['username'])
@@ -224,7 +223,7 @@ def api_latest_makeup_grades(user):
 
 
 @data_bp.route('/api/schedule/other_majors', methods=['GET'])
-@require_bindding
+@require_binding
 def api_other_majors(user):
     """返回其他年级+专业+班级列表，格式：{grade: {major: [class, ...]}，仅含有课表缓存的组合"""
     my_username = user['username']
@@ -253,7 +252,7 @@ def api_other_majors(user):
 
 
 @data_bp.route('/api/schedule/other_major', methods=['GET'])
-@require_bindding
+@require_binding
 def api_other_major_schedule(user):
     """返回指定年级+专业+班级的脱敏课表，参数：grade（前2位）、major（第5-7位）、class_num（第8位）"""
     grade = request.args.get('grade', '').strip()
@@ -266,34 +265,26 @@ def api_other_major_schedule(user):
         # 学号目录来自账号主表；users 只保存设备绑定，归档后可能为空。
         rows = conn.execute('SELECT username FROM user_account').fetchall()
 
-    candidates = []
-    for row in rows:
+    best_schedule = None
+    best_score = (0, 0)
+    # 课程数和覆盖周数相同时按学号稳定选择，避免每次查询结果变化。
+    for row in sorted(rows, key=lambda item: item['username']):
         username = row['username']
         if (len(username) >= 10 and username[:2] == grade
                 and username[4:7] == major and username[7] == class_num):
             schedule_file = os.path.join('user_data', username, 'schedule.json')
-            if os.path.exists(schedule_file):
-                candidates.append((username, schedule_file))
+            try:
+                with open(schedule_file, 'r', encoding='utf-8') as f:
+                    sample = _other_major_schedule_sample(json.load(f))
+            except (OSError, ValueError, UnicodeError):
+                continue
+            if sample is not None:
+                score, schedule = sample
+                if score > best_score:
+                    best_score, best_schedule = score, schedule
 
-    if not candidates:
+    if best_schedule is None:
         return jsonify({'success': False, 'message': f'暂无 {grade}级专业{major} {class_num}班 的课表数据'})
-
-    username, schedule_file = random.choice(candidates)
-    with open(schedule_file, 'r', encoding='utf-8') as f:
-        raw = json.load(f)
-
-    # 脱敏：只保留课程名、星期、节次、节数
-    desensitized = {}
-    for week, courses in raw.items():
-        desensitized[week] = [
-            {
-                '课程名': c.get('课程名', ''),
-                '星期': c.get('星期', ''),
-                '节次': c.get('节次', ''),
-                '节数': c.get('节数', ''),
-            }
-            for c in courses
-        ]
 
     config = get_config()
     return jsonify({
@@ -302,10 +293,39 @@ def api_other_major_schedule(user):
             'grade': grade,
             'major': major,
             'class_num': class_num,
-            'schedule': desensitized,
+            'schedule': best_schedule,
             'semester_start': config.get('semester_start', ''),
         }
     })
+
+
+def _other_major_schedule_sample(raw):
+    """只统计能正常展示的课程条目；次排序优先覆盖更多教学周。"""
+    if not isinstance(raw, dict):
+        return None
+    public_fields = ('课程名', '星期', '节次', '节数')
+    schedule = {}
+    count = 0
+    covered_weeks = 0
+    for week, courses in raw.items():
+        if not isinstance(week, str) or not week.isdecimal() or int(week) < 1 or not isinstance(courses, list):
+            continue
+        valid_courses = []
+        for course in courses:
+            if not isinstance(course, dict) or not isinstance(course.get('课程名'), str) or not course['课程名'].strip():
+                continue
+            values = [course.get(field) for field in public_fields[1:]]
+            if not all(isinstance(value, (str, int)) and not isinstance(value, bool)
+                       and str(value).strip().isdecimal() for value in values):
+                continue
+            day, period, duration = (int(value) for value in values)
+            if not 1 <= day <= 7 or period < 1 or duration < 1:
+                continue
+            valid_courses.append({field: course[field] for field in public_fields})
+        schedule[week] = valid_courses
+        count += len(valid_courses)
+        covered_weeks += bool(valid_courses)
+    return ((count, covered_weeks), schedule) if count else None
 
 
 @data_bp.route('/api/unevaluated_courses', methods=['GET'])

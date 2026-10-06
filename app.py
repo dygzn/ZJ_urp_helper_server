@@ -79,10 +79,11 @@ def handle_api_exception(error):
             }), error.code or 500
         return error
 
+    app.logger.exception('处理请求时发生未捕获异常')
     if request.path.startswith('/api/'):
         return jsonify({
             'success': False,
-            'message': f'服务器内部错误: {str(error)}',
+            'message': '服务器内部错误，请稍后重试',
         }), 500
     raise error
 

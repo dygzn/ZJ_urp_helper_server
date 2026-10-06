@@ -10,6 +10,7 @@ from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
 import requests
+from services.credential_service import CredentialCipher
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -370,10 +371,11 @@ def recover_vpn_session(session, url=VPN_KEEPALIVE_URL):
 
 
 class URP_login:
-    def __init__(self, url, account, password, cookie_path=None, persist_cookies=True):
+    def __init__(self, url, account, password, cookie_path=None, persist_cookies=True, stored_password=False):
         self.url = url.rstrip('/')
         self.account = account
-        self.password = password
+        self._password = password
+        self._stored_password = stored_password
         self.cookie_path = cookie_path or f'user_data/{account}/cookie.json'
         self.persist_cookies = persist_cookies
         self.x = requests.session()
@@ -383,6 +385,11 @@ class URP_login:
             'Accept-Language': 'zh-CN,zh;q=0.9',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         })
+
+    @property
+    def password(self):
+        # Cookie 检查不解密；只有需要发送登录凭据时才获取明文。
+        return CredentialCipher().decrypt(self._password) if self._stored_password else self._password
 
     def _url(self, path=''):
         return f"{self.url}/{path.lstrip('/')}" if path else f'{self.url}/'

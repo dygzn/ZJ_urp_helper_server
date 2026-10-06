@@ -4,6 +4,7 @@ import hmac
 import json
 import os
 from pathlib import Path
+import runpy
 import subprocess
 import sys
 import tempfile
@@ -27,6 +28,7 @@ SAFE_ENV = {
     'ADMIN_KEY': 'test-admin-key-with-sufficient-entropy',
     'MERCHANT_NUM': 'test-merchant-123',
     'PAY_SECRET_KEY': 'test-payment-key-with-sufficient-entropy',
+    'URP_CREDENTIAL_KEY': 'AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=',
 }
 
 
@@ -130,7 +132,10 @@ class RequestSecurityTests(unittest.TestCase):
         self.config_patch.start()
         self.addCleanup(self.config_patch.stop)
         init_db(config)
-        self.env_patch = patch.dict(os.environ, {'ADMIN_KEY': SAFE_ENV['ADMIN_KEY']})
+        self.env_patch = patch.dict(os.environ, {
+            'ADMIN_KEY': SAFE_ENV['ADMIN_KEY'],
+            'URP_CREDENTIAL_KEY': SAFE_ENV['URP_CREDENTIAL_KEY'],
+        })
         self.env_patch.start()
         self.addCleanup(self.env_patch.stop)
         self.app = Flask(__name__)
@@ -143,7 +148,7 @@ class RequestSecurityTests(unittest.TestCase):
             return jsonify(success=True)
 
         @self.app.get('/device-protected')
-        @auth.require_bindding
+        @auth.require_binding
         def device_protected(user):
             return jsonify(success=True, username=user['username'])
 
@@ -202,6 +207,41 @@ class RequestSecurityTests(unittest.TestCase):
                     self.assertEqual(response.status_code, 400)
                     login.assert_not_called()
 
+    def test_login_rejects_unsafe_usernames_before_urp_or_storage(self):
+        invalid = ('../outside', 'student/child', r'student\child', 'student..id',
+                   '.', '..', '%2e%2e%2foutside', 'student id', 'student\nid',
+                   '学生', 'student\x00', 'a' * 65, '   ', 123, True,
+                   ['student'], {'username': 'student'})
+        for bind in (True, False):
+            for username in invalid:
+                with self.subTest(bind=bind, username=username), patch(
+                    'routes.auth_routes.urp_login',
+                    side_effect=AssertionError('非法学号不应触发教务登录'),
+                ):
+                    response = self.client.post('/api/login', headers={'X-Device-ID': 'safe-device'},
+                                                json={'username': username, 'password': 'password',
+                                                      'bind_account': bind})
+                    self.assertEqual(response.status_code, 400)
+                    self.assertEqual(response.get_json(), {'success': False, 'message': '请输入有效学号'})
+        with get_db() as conn:
+            self.assertEqual(conn.execute('SELECT COUNT(*) AS n FROM users').fetchone()['n'], 0)
+            self.assertEqual(conn.execute('SELECT COUNT(*) AS n FROM temporary_sessions').fetchone()['n'], 0)
+
+    def test_login_accepts_whitelist_boundaries_and_normalizes_like_wechat(self):
+        for index, username in enumerate(('A', '20260001', 'student_01-A', 'a' * 64, ' student-02 ')):
+            device_id = f'valid-device-{index}'
+            with self.subTest(username=username), patch(
+                'routes.auth_routes.urp_login', return_value=(True, '登录成功', {}),
+            ):
+                response = self.client.post('/api/login', headers={'X-Device-ID': device_id},
+                                            json={'username': username, 'password': 'password'})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.get_json(), {'success': True, 'bound': True,
+                                                  'message': '登录成功', 'username': username.strip()})
+            with get_db() as conn:
+                row = conn.execute('SELECT username FROM users WHERE device_id = ?', (device_id,)).fetchone()
+            self.assertEqual(row['username'], username.strip())
+
     def test_anonymous_announcement_write_requires_device(self):
         response = self.client.post('/api/announcements/1/read', json={})
         self.assertEqual(response.status_code, 401)
@@ -247,6 +287,54 @@ class RequestSecurityTests(unittest.TestCase):
         with get_db() as conn:
             self.assertEqual(conn.execute("SELECT status FROM orders WHERE order_no = 'test-order'").fetchone()['status'], 'paid')
             self.assertEqual(conn.execute('SELECT COUNT(*) AS n FROM memberships').fetchone()['n'], 1)
+
+
+class ApiExceptionTests(unittest.TestCase):
+    def setUp(self):
+        # 加载真实入口及全部 Blueprint，隔离数据库启动和后台清理线程。
+        cleanup = patch('services.temporary_session_service.start_temporary_session_cleanup')
+        cleanup.start()
+        self.addCleanup(cleanup.stop)
+        with patch.dict(os.environ, SAFE_ENV), patch('database.init_db'), \
+                patch('database.ensure_api_keys_table'), \
+                patch('constants.MERCHANT_NUM', SAFE_ENV['MERCHANT_NUM']), \
+                patch('constants.PAY_SECRET_KEY', SAFE_ENV['PAY_SECRET_KEY']):
+            self.app = runpy.run_path(str(ROOT / 'app.py'), run_name='api_exception_test')['app']
+
+        @self.app.get('/api/test-unhandled-error')
+        def unhandled_error():
+            raise RuntimeError('private-database-password-and-path')
+
+        @self.app.post('/api/test-json')
+        def parse_json():
+            from flask import request
+            return jsonify(request.get_json())
+
+        self.client = self.app.test_client()
+
+    def test_unhandled_error_is_logged_with_traceback_and_redacted_in_response(self):
+        with self.assertLogs(self.app.logger, level='ERROR') as logs:
+            response = self.client.get('/api/test-unhandled-error')
+            self.assertEqual(response.status_code, 500)
+            self.assertEqual(response.get_json(), {'success': False, 'message': '服务器内部错误，请稍后重试'})
+        self.assertTrue(logs.records[0].exc_info)
+        self.assertIn('Traceback', logs.output[0])
+        self.assertIn('private-database-password-and-path', logs.output[0])
+
+    def test_http_error_status_codes_and_json_contract_are_preserved(self):
+        responses = (
+            (self.client.get('/api/nonexistent-test-route'), 404),
+            (self.client.post('/api/test-unhandled-error'), 405),
+            (self.client.post('/api/test-json', data='{', content_type='application/json'), 400),
+        )
+        for response, code in responses:
+            with self.subTest(code=code):
+                self.assertEqual(response.status_code, code)
+                self.assertFalse(response.get_json()['success'])
+                self.assertIsInstance(response.get_json()['message'], str)
+        response = self.client.get('/nonexistent-test-page')
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(response.is_json)
 
 
 if __name__ == '__main__':

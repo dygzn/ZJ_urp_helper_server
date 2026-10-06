@@ -6,6 +6,7 @@ import uuid
 from datetime import datetime
 
 from database import get_db, get_database_config
+from services.credential_service import CredentialCipher
 
 
 PROTOCOL_VERSION = 2
@@ -131,6 +132,7 @@ def archive_snapshot(conn, data, batch_id):
     archived_at = datetime.now().isoformat()
     accounts = _merge_accounts(data, archived_at)
     for row in accounts.values():
+        row['password'] = CredentialCipher().ensure_encrypted(row['password'])
         conn.execute(
             'INSERT OR REPLACE INTO user_account '
             '(username, password, registered_at, last_bind_time, archived_at) '
