@@ -34,7 +34,7 @@ Thumbs.db
 /DESIGN.md
 /docs/
 /scripts/
-/tests/__pycache__/
+/tests/
 
 # Legacy local-only files
 CLAUD.md
