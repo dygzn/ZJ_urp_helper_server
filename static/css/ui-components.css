@@ -5745,10 +5745,14 @@ width: 100% !important;
 .schedule-draft-drag-cue.is-up {top:0;}
 .schedule-draft-drag-cue.is-down {bottom:0;}
 :where(#page-schedule) :is(.course-card,.schedule-course-draft).is-editor-dragging {transition:none;cursor:grabbing;will-change:transform,height;box-shadow:0 4px 16px rgb(0 0 0 / 16%);}
-.schedule-drag-arrow {position:absolute;left:50%;transform:translateX(-50%);width:24px;height:24px;display:grid;place-items:center;font-size:20px;line-height:1;border-radius:50%;background:var(--ui-surface);box-shadow:0 1px 4px rgb(0 0 0 / 15%);}
-.schedule-drag-arrow[data-drag-arrow="up"] {top:-25px;}
-.schedule-drag-arrow[data-drag-arrow="down"] {bottom:-25px;}
-.schedule-drag-caption {position:absolute;top:50%;left:calc(100% + 8px);transform:translateY(-50%);padding:5px 8px;border-radius:8px;background:var(--ui-surface);color:var(--ui-ink);font-size:12px;white-space:pre-line;min-width:78px;box-shadow:0 2px 8px rgb(0 0 0 / 12%);}
+.schedule-course-drag-preview {outline:2px solid currentColor;outline-offset:2px;border-radius:var(--ui-radius,12px);}
+.schedule-drag-arrow {position:absolute;left:50%;transform:translateX(-50%);width:44px;height:44px;display:grid;place-items:center;pointer-events:auto;cursor:ns-resize;touch-action:none;-webkit-touch-callout:none;}
+.schedule-drag-arrow::before {content:"";width:26px;height:14px;box-sizing:border-box;border:2px solid currentColor;border-radius:4px;background:var(--ui-surface);box-shadow:0 2px 6px rgb(0 0 0 / 18%);}
+.schedule-drag-arrow::after {content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:12px;height:4px;border-block:1px solid currentColor;}
+.schedule-drag-arrow[data-drag-arrow="up"] {top:-22px;}
+.schedule-drag-arrow[data-drag-arrow="down"] {bottom:-22px;}
+.schedule-course-drag-preview[data-resize-edge="start"] [data-drag-arrow="up"]::before,
+.schedule-course-drag-preview[data-resize-edge="end"] [data-drag-arrow="down"]::before {background:var(--ui-accent-soft);}
 }
 
 @layer components.workspace {

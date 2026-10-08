@@ -1,4 +1,4 @@
-// Refresh the versioned entry for the fixed-period schedule editor and evening classes.
+// Refresh the versioned entry for the schedule editor's visual resize handles.
 import * as scheduleEditor from './modules/schedule-editor.js';
 import { state, store } from './modules/store.js';
 import * as auth from './modules/auth.js';

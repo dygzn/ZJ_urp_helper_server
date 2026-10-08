@@ -24,12 +24,12 @@ export function cancelScheduleEditingGesture() {
     document.getElementById('page-schedule')?.classList.remove('is-course-editing');
     document.getElementById('schedule-course-drag-preview')?.remove?.();
 }
-export function mountScheduleEditorGestures({onDraft,onResize,onMove,onCourseResize,onCancel,onDismiss,isEnabled,getDraft,describeSlot,describeSpan}) {
+export function mountScheduleEditorGestures({onDraft,onResize,onMove,onCourseResize,onCancel,onDismiss,isEnabled,getDraft}) {
     const viewport=document.getElementById('schedule-content');
     if (!viewport) return ()=>{};
-    let tap=null,candidate=null,originalDraft=null,lastSlot=null,preview=null,caption=null,captureId=null;
+    let tap=null,candidate=null,originalDraft=null,lastSlot=null,preview=null,captureId=null,selection=null;
     let geometry=null,rect=null,initialSlot=null,originalStyle=null,rowStep=1,resizedDuration=1,pending=null,createdOnDown=false;
-    let lastCreated=null,previewKey='',resizedSpan=null;
+    let lastCreated=null,resizedSpan=null;
     const now=event=>Number.isFinite(event.timeStamp)?event.timeStamp:performance.now();
     // 触屏浏览器会把邻近空白点击吸附到小按钮；编辑按实际触点判断。
     const targetAt=event=>event.pointerType==='touch'?document.elementFromPoint?.(event.clientX,event.clientY) || event.target:event.target;
@@ -48,13 +48,31 @@ export function mountScheduleEditorGestures({onDraft,onResize,onMove,onCourseRes
         return slotAt({x:event.clientX,y:event.clientY},scheduleGridGeometry());
     };
     const release=()=>{if(captureId!==null){try{viewport.releasePointerCapture(captureId);}catch{}captureId=null;}};
+    const clearSelection=()=>{
+        selection?.element.classList.remove('is-editor-selected');selection=null;
+        if(!editorPointer.active)document.getElementById('schedule-course-drag-preview')?.remove?.();
+    };
+    const drawFrame=box=>{
+        const frame=document.createElement('div');frame.id='schedule-course-drag-preview';frame.className='schedule-course-drag-preview';frame.setAttribute('aria-hidden','true');
+        for(const [direction,edge] of [['up','start'],['down','end']]){
+            const handle=document.createElement('span');handle.className='schedule-drag-arrow';handle.dataset.dragArrow=direction;handle.dataset.scheduleResizeEdge=edge;
+            // 抓手随临时框一起移除，不留在页面级监听清理队列中。
+            handle.addEventListener('pointerdown',down,{capture:true,passive:false});frame.append(handle);
+        }
+        frame.style.left=`${box.left}px`;frame.style.top=`${box.top}px`;frame.style.width=`${box.width}px`;frame.style.height=`${box.height}px`;document.body.append(frame);
+        return frame;
+    };
+    const selectCard=element=>{
+        if(element.isConnected===false || !isEnabled())return;
+        selection={element,week:state.currentWeek};element.classList.add('is-editor-selected');drawFrame(element.getBoundingClientRect());
+    };
     const restoreCard=()=>{
         if(candidate && originalStyle){Object.assign(candidate.element.style,originalStyle);candidate.element.classList.remove('is-editor-dragging');}
         originalStyle=null;
     };
     const clear=()=>{
-        release();restoreCard();cancelScheduleEditingGesture();
-        candidate=null;originalDraft=null;lastSlot=null;preview=null;caption=null;geometry=null;rect=null;initialSlot=null;pending=null;createdOnDown=false;previewKey='';resizedSpan=null;
+        clearSelection();release();restoreCard();cancelScheduleEditingGesture();
+        candidate=null;originalDraft=null;lastSlot=null;preview=null;geometry=null;rect=null;initialSlot=null;pending=null;createdOnDown=false;resizedSpan=null;
     };
     const cancel=()=>{
         const active=editorPointer.active,draft=originalDraft;
@@ -70,6 +88,9 @@ export function mountScheduleEditorGestures({onDraft,onResize,onMove,onCourseRes
         if(!isEnabled() || event.button>0)return;
         if(editorPointer.id!==null || event.isPrimary===false){cancel();return;}
         const point={x:event.clientX,y:event.clientY};
+        const hit=targetAt(event),frameHandle=hit.closest?.('[data-schedule-resize-edge]');
+        const fromHandle=!!frameHandle && !!hit.closest?.('#schedule-course-drag-preview') && !!selection;
+        if(fromHandle && (selection.element.isConnected===false || selection.week!==state.currentWeek)){cancel();return;}
         const match=tap && tap.week===state.currentWeek && now(event)-tap.time<=DOUBLE_TAP_MS
             && Math.hypot(point.x-tap.x,point.y-tap.y)<=DOUBLE_TAP_DISTANCE;
         if(match && !state.scheduleSwipeTransition){
@@ -80,7 +101,7 @@ export function mountScheduleEditorGestures({onDraft,onResize,onMove,onCourseRes
             }
         }
         if(state.scheduleSwipeTransition)return;
-        const target=targetAt(event),panel=target.closest?.('.schedule-week-panel');
+        const target=fromHandle?selection.element:hit,panel=target.closest?.('.schedule-week-panel');
         if(!panel?.classList.contains('is-current'))return;
         const draft=target.closest?.('.schedule-course-draft');
         const card=target.closest?.('.course-card');
@@ -91,15 +112,16 @@ export function mountScheduleEditorGestures({onDraft,onResize,onMove,onCourseRes
         candidate=draft?{mode:'move',element:draft,draft:true}:course?{mode:'move',element:card,course:course.raw,placement:course}:null;
         originalDraft=getDraft()?{...getDraft()}:null;lastSlot=null;
         if(candidate){
+            clearSelection();
             const sourceRect=candidate.element.getBoundingClientRect();
-            const handle=target.closest?.('[data-schedule-resize-edge]');
+            const handle=fromHandle?frameHandle:target.closest?.('[data-schedule-resize-edge]');
             const edgeZone=candidate.draft?sourceRect.height/3:Math.min(14,sourceRect.height*.2);
             const edge=handle?.dataset.scheduleResizeEdge || (point.y-sourceRect.top<edgeZone?'start':sourceRect.bottom-point.y<edgeZone?'end':null);
             if(edge){candidate.mode='resize';candidate.edge=edge;}
             candidate.lastPoint=point;
             candidate.span=candidate.draft?originalDraft:{section:course.section,duration:course.duration};
             tap=null;
-            editorPointer.timer=resources.setTimeout(()=>{
+            const activate=()=>{
                 editorPointer.timer=null;
                 if(editorPointer.id===null || editorPointer.moved || candidate.element.isConnected===false)return;
                 geometry=scheduleGridGeometry();rect=candidate.element.getBoundingClientRect();
@@ -116,11 +138,10 @@ export function mountScheduleEditorGestures({onDraft,onResize,onMove,onCourseRes
                 // 只改变拖动状态，不展开列数或重排时间轴。
                 document.getElementById('page-schedule').classList.add('is-course-editing');
                 candidate.element.classList.add('is-editor-dragging');candidate.element.style.zIndex='20';
-                preview=document.createElement('div');preview.id='schedule-course-drag-preview';preview.className='schedule-course-drag-preview';preview.setAttribute('aria-hidden','true');
-                for(const direction of ['up','down']){const arrow=document.createElement('span');arrow.className='schedule-drag-arrow';arrow.dataset.dragArrow=direction;arrow.textContent=direction==='up'?'↑':'↓';preview.append(arrow);}
-                caption=document.createElement('span');caption.className='schedule-drag-caption';caption.textContent=describeSpan?.(candidate.course,{...resizedSpan,day:initialSlot?.day,edge:candidate.edge}) || (candidate.mode==='resize'?'上下拖动调整长度':'拖到新的星期和节次');preview.append(caption);
-                preview.style.left=`${rect.left}px`;preview.style.top=`${rect.top}px`;preview.style.width=`${rect.width}px`;preview.style.height=`${rect.height}px`;document.body.append(preview);
-            },candidate.draft?300:450);
+                preview=drawFrame(rect);preview.dataset.resizeEdge=candidate.edge || '';
+            };
+            if(fromHandle){consume(event);activate();}
+            else editorPointer.timer=resources.setTimeout(activate,candidate.draft?300:450);
         }
     };
     const render=event=>{
@@ -135,15 +156,12 @@ export function mountScheduleEditorGestures({onDraft,onResize,onMove,onCourseRes
             resizedSpan=resizeScheduleSpan(span,edge,section);resizedDuration=resizedSpan.duration;
             candidate.element.style.height=`${Math.round(height)}px`;preview.style.height=`${Math.round(height)}px`;
             candidate.element.style.transform=`${candidate.baseTransform}translate3d(0, ${offset}px, 0)`;preview.style.transform=`translate3d(0, ${offset}px, 0)`;
-            const key=`${resizedSpan.section}:${resizedSpan.duration}`;if(key!==previewKey){caption.textContent=describeSpan?.(candidate.course,{...resizedSpan,day:initialSlot.day,edge}) || `第 ${resizedSpan.section}–${resizedSpan.section+resizedDuration-1} 节`;previewKey=key;}
         }else{
             candidate.element.style.transform=`${candidate.baseTransform}translate3d(${dx}px, ${dy}px, 0)`;
             preview.style.transform=`translate3d(${dx}px, ${dy}px, 0)`;
             // 以卡片首行中心定位，保留用户抓住卡片的位置。
             lastSlot=slotAt({x:rect.left+dx+rect.width/2,y:rect.top+dy+rowStep/2},geometry);
             preview.classList.toggle('is-invalid',!lastSlot);
-            const key=lastSlot?`${lastSlot.day}:${lastSlot.section}`:'outside';
-            if(key!==previewKey){caption.textContent=lastSlot?describeSlot?.(candidate.course,{...lastSlot,duration:candidate.span.duration}) || '':'拖回课表内放置';previewKey=key;}
         }
     };
     const move=event=>{
@@ -167,10 +185,11 @@ export function mountScheduleEditorGestures({onDraft,onResize,onMove,onCourseRes
             consume(event);
             if(editorPointer.frame!==null){resources.cancelAnimationFrame(editorPointer.frame);editorPointer.frame=null;}
             render(event); // 即使浏览器合并了末次 move，松手位置也不能丢失。
-            const mode=candidate.mode,course=candidate.course,draft=originalDraft,slot=lastSlot,span=resizedSpan,moved=editorPointer.moved,isDraft=candidate.draft,edge=candidate.edge,day=initialSlot?.day;
+            const mode=candidate.mode,course=candidate.course,draft=originalDraft,slot=lastSlot,span=resizedSpan,moved=editorPointer.moved,isDraft=candidate.draft,edge=candidate.edge,day=initialSlot?.day,element=candidate.element;
             const unchanged=mode==='move'?slot && initialSlot && slot.day===initialSlot.day && slot.section===initialSlot.section:span.duration===candidate.span.duration && span.section===candidate.span.section;
             clear();
-            if(!moved || unchanged || (mode==='move' && !slot))onCancel(draft);
+            if(!moved || unchanged){onCancel(draft);selectCard(element);}
+            else if(mode==='move' && !slot)onCancel(draft);
             else if(mode==='resize' && isDraft)onResize({...draft,...span,day},{mode,edge});
             else if(mode==='resize')onCourseResize?.(course,{...span,day,edge});
             else if(isDraft && slot.section+draft.duration-1<=10)onResize({...draft,...slot},{mode});
@@ -192,6 +211,12 @@ export function mountScheduleEditorGestures({onDraft,onResize,onMove,onCourseRes
     resources.listen(viewport,'pointerup',up,true);
     resources.listen(viewport,'pointercancel',cancel,true);
     resources.listen(viewport,'contextmenu',event=>{if(candidate || editorPointer.active)event.preventDefault();});
+    resources.listen(document,'pointerdown',event=>{if(selection && !event.target.closest?.('#schedule-course-drag-preview'))clearSelection();},true);
+    resources.listen(document,'click',event=>{if(selection && event.detail===0 && !event.target.closest?.('#schedule-course-drag-preview'))clearSelection();},true);
+    resources.listen(document,'focusin',event=>{
+        if(selection && event.target!==selection.element && !selection.element.contains?.(event.target)
+            && !event.target.closest?.('#schedule-course-drag-preview'))clearSelection();
+    });
     resources.listen(viewport,'dblclick',event=>{
         if(!isEnabled() || editorPointer.active || state.scheduleSwipeTransition)return;
         const slot=blankSlot(event);if(!slot)return;
@@ -201,7 +226,12 @@ export function mountScheduleEditorGestures({onDraft,onResize,onMove,onCourseRes
     });
     resources.listen(viewport,'touchstart',event=>{if(event.touches.length>1)cancel();},{passive:true,capture:true});
     resources.listen(viewport,'touchmove',event=>{if(editorPointer.active || createdOnDown){event.preventDefault();event.stopPropagation();}},{passive:false,capture:true});
-    resources.listen(document,'keydown',event=>{if(event.key==='Escape' && editorPointer.id!==null){event.preventDefault();cancel();}});
+    resources.listen(document,'keydown',event=>{if(event.key==='Escape' && (editorPointer.id!==null || selection)){event.preventDefault();cancel();}});
+    resources.listen(window,'scroll',()=>{if(selection)clearSelection();},{capture:true,passive:true});
+    if(typeof MutationObserver==='function'){
+        const observer=resources.observe(new MutationObserver(()=>{if(selection?.element.isConnected===false)clearSelection();}));
+        observer.observe(viewport,{childList:true,subtree:true});
+    }
     resources.listen(window,'blur',cancel);resources.listen(window,'resize',cancel);resources.addCleanup(cancel);
     return cancel;
 }

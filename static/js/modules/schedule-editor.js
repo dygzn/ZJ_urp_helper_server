@@ -352,14 +352,8 @@ export function mountScheduleEditor() {
             return write();
         },'',course,action);
     });
-    const describePlacement=(course,slot,resize=false)=>{
-        const duration=course && !resize?coursePeriodSelection(course,editorPeriods()).duration:slot.duration;
-        const times=periodSpanTimes(state.currentWeek,slot.day,slot.section,duration,currentSemesterStartValue(),editorPeriods());
-        return times?`周${'一二三四五六日'[slot.day-1]} · 第${slot.section}${slot.duration>1?'–'+(slot.section+slot.duration-1):''}节\n${courseClockLabel(times)}`:'此位置无法容纳完整课程';
-    };
     scheduleEditor.cancelGestures=mountScheduleEditorGestures({isEnabled:canEditSchedule,getDraft:()=>scheduleEditor.draft,onDraft:createScheduleDraft,onDismiss:clearScheduleDraft,
         onResize:applyScheduleDraftPlacement,onMove:moveScheduleCourse,onCourseResize:resizeScheduleCourse,
-        describeSlot:(course,slot)=>describePlacement(course,slot),describeSpan:(course,slot)=>describePlacement(course,slot,!!slot.edge),
         onCancel:draft=>{if(draft){scheduleEditor.draft=draft;renderScheduleDraft();}}});
     resources.addCleanup(unmountScheduleEditor);
 }
