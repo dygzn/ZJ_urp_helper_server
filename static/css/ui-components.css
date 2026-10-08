@@ -5658,3 +5658,66 @@ width: 100% !important;
 }
 }
 }
+
+@layer components.workspace {
+.schedule-course-draft {
+    grid-column: 1; min-height: 0; z-index: 3; border: 2px dashed var(--ui-accent);
+    border-radius: var(--ui-radius, 12px); background: var(--ui-accent-soft); color: var(--ui-accent);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    font: inherit; font-size: 11px; padding: 2px; touch-action: none; cursor: grab;
+}
+.schedule-course-draft > span:first-child {font-size: 25px; line-height: 1;}
+.schedule-editor-dialog {
+    width: min(540px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); overflow-y: auto;
+    margin: auto; padding: 20px; box-sizing: border-box; border: 1px solid var(--ui-line);
+    border-radius: var(--ui-radius, 14px); color: var(--ui-ink); background: var(--ui-surface);
+    box-shadow: 0 16px 60px rgb(0 0 0 / 20%);
+}
+.schedule-editor-dialog::backdrop {background: rgb(0 0 0 / 40%);}
+.schedule-editor-dialog header {display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px;}
+.schedule-editor-dialog h2 {font-size: 20px; margin: 0;}
+.schedule-editor-dialog header > button {min-width: 72px; min-height: 44px; color: var(--ui-ink); background: var(--ui-surface-soft); border: 1px solid var(--ui-line); border-radius: 9px;}
+.schedule-editor-dialog form {display: grid; gap: 14px;}
+.schedule-editor-dialog label {display: grid; gap: 6px; font-size: 14px; min-width: 0;}
+.schedule-editor-dialog input, .schedule-editor-dialog textarea, .schedule-editor-dialog select {
+    width: 100%; min-width: 0; box-sizing: border-box; min-height: 44px; font: inherit;
+    color: var(--ui-ink); background: var(--ui-surface); border: 1px solid var(--ui-control-line, var(--ui-line)); border-radius: 9px; padding: 9px 10px;
+}
+.schedule-editor-dialog [hidden] {display: none;}
+.schedule-editor-dialog [data-editor-mode], .schedule-editor-dialog footer, .schedule-course-edit-actions {display: flex; flex-wrap: wrap; gap: 8px;}
+.schedule-editor-dialog [aria-pressed="true"] {background: var(--ui-accent-soft); border-color: var(--ui-accent);}
+.schedule-editor-times {display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px;}
+.schedule-extra-row {display: grid; grid-template-columns: minmax(0,1fr) minmax(0,2fr); gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--ui-line);}
+.schedule-extra-row > button {grid-column: 2; justify-self: end;}
+.schedule-editor-help {margin: 0; font-size: 12px; color: var(--ui-muted);}
+.schedule-editor-error {margin: 0; color: var(--ui-danger); font-size: 14px;}
+.schedule-editor-error:empty {display: none;}
+.schedule-editor-dialog .btn-primary, .schedule-editor-dialog .btn-secondary {min-height: 44px;}
+.schedule-course-drag-preview {position: fixed; z-index: 10000; transform: translate(-50%,-50%); pointer-events: none; padding: 12px; max-width: 180px; border: 2px solid var(--ui-accent); color: var(--ui-ink); background: var(--ui-surface); border-radius: 12px; box-shadow: 0 8px 24px rgb(0 0 0 / 20%);}
+.schedule-course-drag-preview.is-invalid {border-color: var(--ui-danger);}
+:where(#page-schedule).is-course-editing .schedule-grid {--schedule-visible-rows: 10;}
+:where(#page-schedule).is-course-editing .schedule-grid.no-weekend {grid-template-columns: var(--schedule-time-width) minmax(0,1fr);}
+:where(#page-schedule).is-course-editing :is(.schedule-days,.schedule-header).no-weekend {grid-template-columns: var(--schedule-time-width) repeat(7,minmax(0,1fr));}
+:where(#page-schedule).is-course-editing .schedule-days {grid-template-columns: repeat(7,minmax(0,1fr));}
+:where(#page-schedule).is-course-editing :is(.schedule-day-weekend,.schedule-header-weekend) {display: grid;}
+:where(#page-schedule).is-course-editing .schedule-timeline .timeline-item {display: flex;}
+:where(#page-schedule) .course-card { -webkit-touch-callout: none; touch-action: pinch-zoom; }
+.schedule-unplaced-course {display: flex; flex-wrap: wrap; gap: 8px; width: 100%; padding: 8px; border: 1px solid var(--ui-line); border-radius: 9px; background: var(--ui-surface-soft); color: var(--ui-ink); text-align: left; font: inherit; min-height: 44px;}
+:where(html[data-ui-template="glass"]) .schedule-editor-dialog {background: var(--glass-light),var(--glass-dialog-fill); border-color: var(--glass-edge); backdrop-filter: var(--glass-blur);}
+@media (max-width: 520px) {
+    .schedule-editor-times {grid-template-columns: minmax(0,1fr);}
+    .schedule-editor-dialog {padding: 16px;}
+    .schedule-extra-row {grid-template-columns: minmax(0,1fr);}
+    .schedule-extra-row > button {grid-column: 1;}
+}
+}
+@layer components.workspace {
+:where(#page-schedule).has-draft-evening .schedule-grid {--schedule-visible-rows:10;}
+:where(#page-schedule).has-draft-evening .timeline-item-evening {display:flex;}
+.schedule-course-drag-preview {white-space:pre-line;}
+.schedule-personal-notices {flex-shrink:0;max-height:100px;overflow-y:auto;font-size:12px;color:var(--ui-muted);}
+.schedule-personal-notices p {margin:4px 0;}
+}
+@layer components.workspace {
+.schedule-conflict-label {font-size:9px;line-height:1.2;color:var(--ui-warning);}
+}

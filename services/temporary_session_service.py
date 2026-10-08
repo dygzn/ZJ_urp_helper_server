@@ -27,6 +27,8 @@ def _session_directory(session_id):
 def _remove_session_directory(session_id):
     # session_id 只由服务端 uuid4 生成，删除范围始终限制在临时目录内。
     if session_id and len(session_id) == 32 and all(c in '0123456789abcdef' for c in session_id):
+        from services.personal_schedule_service import clear_temporary_personal_schedule
+        clear_temporary_personal_schedule([session_id])
         shutil.rmtree(_session_directory(session_id), ignore_errors=True)
 
 

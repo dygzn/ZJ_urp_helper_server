@@ -32,6 +32,10 @@ class CredentialCipher:
         """输入是新提交的明文，即使它恰好包含密文前缀也要正常加密。"""
         return self.PREFIX + self._cipher().encrypt(password.encode('utf-8')).decode('ascii')
 
+    def validate_configuration(self):
+        """保存账号前检查配置，不接触用户密码或改变已有密文。"""
+        self._cipher()
+
     def ensure_encrypted(self, stored_password):
         """迁移已存储凭据：保留空占位和现有密文，避免二次加密。"""
         if not stored_password or self.is_encrypted(stored_password):

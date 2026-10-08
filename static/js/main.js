@@ -1,3 +1,4 @@
+import * as scheduleEditor from './modules/schedule-editor.js';
 import { state, store } from './modules/store.js';
 import * as auth from './modules/auth.js';
 import * as router from './modules/router.js';
@@ -17,7 +18,7 @@ import * as service from './modules/service.js';
 import * as lab from './modules/lab.js';
 import * as ad from './modules/ad.js';
 
-const domains = { auth, router, schedule: { ...scheduleGestures, ...schedule }, grades, home, exams, calendar, ui, navigation,
+const domains = { auth, router, schedule: { ...scheduleGestures, ...schedule, ...scheduleEditor }, grades, home, exams, calendar, ui, navigation,
     announcements, feedback, member, evaluation, service, lab, ad };
 
 // Modules communicate through imports. This bridge serves existing HTML attributes

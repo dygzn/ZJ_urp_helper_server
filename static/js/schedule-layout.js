@@ -77,6 +77,7 @@ function buildScheduleCourseCardData(course, day) {
     const dayNames = ['', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'];
 
     return {
+        dayNumber, raw: source, extra_fields: source.extra_fields || [],
         code: String(source['课程号'] ?? ''),
         name: String(source['课程名'] ?? ''),
         credit: String(source['学分'] ?? ''),
@@ -187,11 +188,12 @@ function buildScheduleCourseDetailHtml(course = {}) {
         row('修读方式', course.studyMode),
         row('选课状态', course.selectionStatus),
         row('日期', course.date),
-        `<div class="course-detail-row"><span class="course-detail-label">时间</span><span>${course.week ? `第${escapeHtml(course.week)}周 ` : ''}${escapeHtml(course.day)} 第${section}-${endSection}节${course.clockTime ? `（${escapeHtml(course.clockTime)}）` : ''}</span></div>`,
+        `<div class="course-detail-row"><span class="course-detail-label">时间</span><span>${course.week ? `第${escapeHtml(course.week)}周 ` : ''}${escapeHtml(course.day)}${Number.isInteger(section) && section > 0 ? ` 第${section}-${endSection}节` : ''}${course.clockTime ? `（${escapeHtml(course.clockTime)}）` : ''}</span></div>`,
         row('地点', course.location),
         row('校区', course.campus),
         row('教学楼', course.building),
         row('教室', course.room),
+        ...(course.extra_fields || []).map(field => row(field.name, field.value)),
     ].filter(Boolean).join('\n');
 }
 

@@ -1,3 +1,4 @@
+import { chinaDateTime } from './schedule-editor-model.js';
 import { pageResources } from './lifecycle.js';
 import { state } from './store.js';
 import { checkLoginStatus, getDeviceId } from './auth.js';
@@ -29,6 +30,13 @@ export function renderHomeState(kind, message) {
     </div>`;
 }
 
+export function formatHomeCourseClock(course,includeStartDate=true) {
+    const start=chinaDateTime(course.start_at),end=chinaDateTime(course.end_at);
+    if(!start || !end || start.slice(0,10)===end.slice(0,10))return course.time_range || course.time || '';
+    const date=value=>`${start.slice(0,4)!==end.slice(0,4)?value.slice(0,4)+'年':''}${Number(value.slice(5,7))}月${Number(value.slice(8,10))}日`;
+    return `${includeStartDate?date(start)+' ':''}${start.slice(11)} 至 ${date(end)} ${end.slice(11)}`;
+}
+
 export function renderHomeAgenda(eventData) {
     const content = document.getElementById('home-agenda-content');
     const title = document.getElementById('home-agenda-title');
@@ -37,7 +45,7 @@ export function renderHomeAgenda(eventData) {
     const courses = Array.isArray(eventData.upcoming) ? eventData.upcoming : [];
     content.innerHTML = courses.length
         ? '<ol class="home-agenda-list">' + courses.map(course => `<li class="home-agenda-item${course.status === 'current' ? ' is-current' : ''}">
-            <time>${escapeHtml(course.time || '时间待定')}</time>
+            <time>${escapeHtml(formatHomeCourseClock(course) || '时间待定')}</time>
             <div><strong>${escapeHtml(course.title || '课程')}</strong><span>${escapeHtml(course.location || '上课地点待确认')}</span></div>
             <span class="home-agenda-status">${course.status === 'current' ? '进行中' : '待上课'}</span>
         </li>`).join('') + '</ol>'
@@ -149,7 +157,7 @@ export function displayUrgentEvent(eventData) {
     function getStartTime(timeStr) {
         if (!timeStr) return '';
         const t = timeStr.split(' ')[1] || '';
-        return next?.time_range || t;
+        return next?.start_at && next.end_at ? formatHomeCourseClock(next,false) : next?.time_range || t;
     }
 
     function getTimeLabel(timeStr) {
@@ -189,7 +197,7 @@ export function displayUrgentEvent(eventData) {
                 <div class="event-type"><span class="home-event-icon">${homeIcon('calendar')}</span><span>正在上课</span></div>
                 <div class="event-title">${escapeHtml(current.title)}</div>
                 <div class="event-location">${escapeHtml(current.location)}</div>
-                <div class="event-time">${escapeHtml(current.time)}</div>
+                <div class="event-time">${escapeHtml(formatHomeCourseClock(current))}</div>
                 <div class="countdown" id="current-remaining">${current.remaining}分钟</div>
                 <div class="countdown-label">后下课</div>
             </div>

@@ -1,3 +1,4 @@
+import { isScheduleEditingGesture } from './schedule-editor-gestures.js';
 import { pageResources } from './lifecycle.js';
 import { state } from './store.js';
 import { changeWeek, displaySchedule, loadSchedule, updateScheduleDates } from './schedule.js';
@@ -300,6 +301,7 @@ export function handleQueuedSchedulePointerEnd(event, cancelled = false) {
 }
 
 export function handleSchedulePointerDown(event) {
+    if (isScheduleEditingGesture()) return;
     const swipe = getScheduleSwipeElements();
     if (!swipe || scheduleSwipeGesture.pointerId !== null || scheduleQueuedPointer.pointerId !== null) return;
     if (event.pointerType === 'mouse' && event.button !== 0) return;
@@ -307,7 +309,7 @@ export function handleSchedulePointerDown(event) {
     state.suppressScheduleSwipeClick = false;
     const control = event.target.closest?.('button, select, a, input, textarea');
     // 课程卡片也是按钮：允许从卡片或其文字开始拖动，轻点仍由原点击逻辑打开详情。
-    if (control && !control.classList?.contains('course-card')) return;
+    if (control && !control.classList?.contains('course-card') && !control.classList?.contains('schedule-course-draft')) return;
 
     if (state.scheduleSwipeTransition) {
         scheduleQueuedPointer.pointerId = event.pointerId;
@@ -587,6 +589,7 @@ export function handleScheduleActionTouchStart(event) {
 }
 
 export function handleScheduleActionTouchMove(event) {
+    if (isScheduleEditingGesture()) return;
     if (scheduleActionsUseMenu()) return;
     const panel = document.getElementById('schedule-actions');
     const touch = scheduleActionTouch(event);

@@ -5,6 +5,7 @@ from flask import Blueprint, jsonify, request, current_app
 from auth import require_wechat_session, require_admin
 from database import get_db
 from services.urp_service import urp_login
+from services.credential_service import CredentialCipher, CredentialError
 from services.wechat_auth_service import WechatAuthError, code_to_session, create_session
 from services.wechat_account_service import get_account, bind_account, unbind_account, BindingConflict
 from services.wechat_access import require_wechat_account
@@ -86,6 +87,14 @@ def bind_wechat_account(wechat_session):
     username = username.strip()
     if not isinstance(password, str) or not password or len(password) > 256:
         return jsonify(success=False, message='请输入教务密码'), 400
+    try:
+        CredentialCipher().validate_configuration()
+    except CredentialError:
+        current_app.logger.exception('微信教务账号绑定的密码加密配置不可用')
+        return jsonify(
+            success=False, code='ACCOUNT_STORAGE_UNAVAILABLE',
+            message='当前无法保存教务账号，请联系管理员稍后再试。',
+        ), 503
     existing = get_account(wechat_session['openid'])
     if existing and existing['username'] != username:
         return jsonify(success=False, message='请先解绑当前学号'), 409

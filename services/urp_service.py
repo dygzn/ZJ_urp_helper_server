@@ -7,6 +7,7 @@ import re
 import threading
 import time
 from datetime import datetime, timedelta
+from services.personal_schedule_service import effective_schedule, context_user, parse_time, CHINA
 from database import get_db
 from services.config_service import get_config, get_current_urp_url
 from services.temporary_session_service import current_temporary_session, user_data_file
@@ -131,7 +132,7 @@ def _build_upcoming_classes(schedule, semester_start, now, period_times, current
     entries = []
     for week_key in sorted(schedule.keys(), key=week_number):
         week = week_number(week_key)
-        if week == 10 ** 9 or week < current_week:
+        if week == 10 ** 9:
             continue
         seen = set()
         for course in schedule.get(week_key) or []:
@@ -143,25 +144,32 @@ def _build_upcoming_classes(schedule, semester_start, now, period_times, current
                 duration = max(1, int(course.get('节数', 1)))
             except (TypeError, ValueError):
                 continue
-            if period not in period_times or day < 1 or day > 7:
+            if (period not in period_times and not course.get('start_at')) or day < 1 or day > 7:
                 continue
 
-            dedup_key = (week, day, period)
+            dedup_key = course.get('event_id') or (week, day, period, course.get('课程名'), course.get('教师'))
             if dedup_key in seen:
                 continue
             seen.add(dedup_key)
 
-            end_period = period + duration - 1
-            if end_period not in period_times:
-                valid_periods = [item for item in period_times if item <= end_period]
-                end_period = max(valid_periods) if valid_periods else period
-
-            days_offset = (week - 1) * 7 + (day - 1)
-            course_date = semester_start + timedelta(days=days_offset)
-            start_h, start_m = period_times[period][0]
-            end_h, end_m = period_times[end_period][1]
-            course_start = course_date.replace(hour=start_h, minute=start_m, second=0, microsecond=0)
-            course_end = course_date.replace(hour=end_h, minute=end_m, second=0, microsecond=0)
+            if course.get('start_at') and course.get('end_at'):
+                try:
+                    course_start, course_end = parse_time(course['start_at']), parse_time(course['end_at'])
+                except ValueError:
+                    continue
+                if now.tzinfo is None:
+                    course_start = course_start.replace(tzinfo=None)
+                    course_end = course_end.replace(tzinfo=None)
+                course_date = course_start
+                start_h, start_m = course_start.hour, course_start.minute
+                end_h, end_m = course_end.hour, course_end.minute
+            else:
+                end_period = min(period + duration - 1, max(period_times))
+                course_date = semester_start + timedelta(days=(week-1)*7+day-1)
+                start_h, start_m = period_times[period][0]
+                end_h, end_m = period_times[end_period][1]
+                course_start = course_date.replace(hour=start_h, minute=start_m, second=0, microsecond=0)
+                course_end = course_date.replace(hour=end_h, minute=end_m, second=0, microsecond=0)
 
             if course_end < now:
                 continue
@@ -193,7 +201,7 @@ def _build_upcoming_classes(schedule, semester_start, now, period_times, current
     next_class = future_entries[0] if future_entries else None
 
     today = now.date()
-    today_entries = [item for item in entries if item['_start_dt'].date() == today]
+    today_entries = [item for item in entries if item['_start_dt'].date() == today or item['status'] == 'current']
     if today_entries:
         target_date = today
         label = '今日安排'
@@ -210,7 +218,7 @@ def _build_upcoming_classes(schedule, semester_start, now, period_times, current
             return None
         return {key: value for key, value in item.items() if not key.startswith('_')}
 
-    courses = [public(item) for item in entries if target_date and item['_start_dt'].date() == target_date]
+    courses = [public(item) for item in entries if target_date and (item['_start_dt'].date() == target_date or item['status'] == 'current')]
     public_next = public(next_class)
     if public_next:
         public_next['time_range'] = public_next['time']
@@ -226,24 +234,7 @@ def _build_upcoming_classes(schedule, semester_start, now, period_times, current
     }
 
 
-def get_urgent_event(username):
-    """获取正在进行的课程、当天剩余课程和下一个最紧急的事件"""
-    schedule_file = user_data_file(username, 'schedule.json')
-    exams_file = user_data_file(username, 'exams.json')
-
-    config = get_config()
-    schedule_cache_stale = is_calendar_cache_stale(username, 'schedule', config)
-    exams_cache_stale = is_calendar_cache_stale(username, 'exams', config)
-    semester_start_str = config.get('semester_start', '2026-03-02')
-    semester_start = _parse_semester_start(semester_start_str)
-    now = datetime.now().replace(microsecond=0)
-
-    if semester_start:
-        days_passed = (now - semester_start).days
-        current_week = max(1, (days_passed // 7) + 1) if days_passed >= 0 else 0
-    else:
-        current_week = 0
-
+def get_schedule_period_times(username):
     # 最新一届新生（另一校区）：45分钟/节，课间10分钟，大课间（2-3、6-7）15分钟
     # 上午 08:00 起，下午 13:30 起，晚上 18:30 起
     if _is_freshman(username):
@@ -263,11 +254,36 @@ def get_urgent_event(username):
             9: ((19, 0), (19, 45)), 10: ((19, 55), (20, 40)),
         }
 
+    return period_times
+
+
+def get_urgent_event(username):
+    """获取正在进行的课程、当天剩余课程和下一个最紧急的事件"""
+    schedule_file = user_data_file(username, 'schedule.json')
+    exams_file = user_data_file(username, 'exams.json')
+
+    config = get_config()
+    schedule_cache_stale = is_calendar_cache_stale(username, 'schedule', config)
+    exams_cache_stale = is_calendar_cache_stale(username, 'exams', config)
+    semester_start_str = config.get('semester_start', '2026-03-02')
+    semester_start = _parse_semester_start(semester_start_str)
+    now = datetime.now(CHINA).replace(microsecond=0)
+    if semester_start: semester_start = semester_start.replace(tzinfo=now.tzinfo)
+
+    if semester_start:
+        days_passed = (now - semester_start).days
+        current_week = max(1, (days_passed // 7) + 1) if days_passed >= 0 else 0
+    else:
+        current_week = 0
+
+    period_times = get_schedule_period_times(username)
+
     schedule = {}
     if os.path.exists(schedule_file) and not schedule_cache_stale:
         with open(schedule_file, 'r', encoding='utf-8') as f:
             schedule = json.load(f)
 
+    schedule = effective_schedule(context_user(username), schedule, config, period_times)['schedule']
     upcoming_info = _build_upcoming_classes(
         schedule,
         semester_start,
@@ -442,37 +458,23 @@ def _perform_auto_update(username, password):
         return False, f'自动更新失败: {str(e)}'
 
 
+def read_raw_schedule(username, config=None):
+    config = config if config is not None else get_config()
+    if is_calendar_cache_stale(username, 'schedule', config): return {}
+    path = user_data_file(username, 'schedule.json')
+    if not os.path.exists(path): return {}
+    with open(path, 'r', encoding='utf-8') as handle:
+        value = json.load(handle)
+    return value if isinstance(value, dict) else {}
+
+
 def get_schedule(username, week=None, config=None):
-    """读取课表文件"""
-    schedule_file = user_data_file(username, 'schedule.json')
-
-    if not os.path.exists(schedule_file):
-        return {
-            'week': week,
-            'schedule': {},
-            'is_freshman': _is_freshman(username),
-            'message': '课表文件不存在，请先生成课表'
-        }
-
-    try:
-        with open(schedule_file, 'r', encoding='utf-8') as f:
-            schedule_data = json.load(f)
-
-        if week is not None:
-            week_str = str(week)
-            if week_str in schedule_data:
-                return {'week': week, 'schedule': {week_str: schedule_data[week_str]}}
-            else:
-                return {'week': week, 'schedule': {}, 'message': f'第{week}周没有课程'}
-
-        return {
-            'week': None,
-            'schedule': schedule_data,
-            'semester_start': (config if config is not None else get_config()).get('semester_start', '2026-03-02'),
-            'is_freshman': _is_freshman(username),
-        }
-    except Exception as e:
-        return {'week': week, 'schedule': {}, 'message': f'读取课表失败: {str(e)}'}
+    config = config if config is not None else get_config()
+    result = effective_schedule(context_user(username), read_raw_schedule(username,config), config, get_schedule_period_times(username))
+    schedule = result['schedule']
+    if week is not None: schedule = {str(week):schedule[str(week)]} if str(week) in schedule else {}
+    return {'week':week, 'schedule':schedule, 'semester_start':config.get('semester_start','2026-03-02'),
+        'is_freshman':_is_freshman(username), 'revision':result['revision'], 'personal_schedule_notices':result['notices'], 'semester_key':result['semester_key'], 'owner_token':result['owner_token']}
 
 
 def is_calendar_cache_stale(username, kind, config=None):

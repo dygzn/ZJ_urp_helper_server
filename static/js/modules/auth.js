@@ -1,3 +1,4 @@
+import { resetScheduleEditor } from './schedule-editor.js';
 import { pageResources } from './lifecycle.js';
 import { state } from './store.js';
 import { closeCalendarExport } from './calendar.js';
@@ -148,6 +149,11 @@ export function rememberBoundUsername(username) {
         state._examSessions = null;
         if (state.calendarExportKind) closeCalendarExport();
         state.cachedSchedule = null;
+        state.scheduleRevision = 0;
+        state.scheduleSemesterKey = null;
+        state.scheduleOwnerToken = null;
+        state.personalScheduleNotices = [];
+        resetScheduleEditor();
         state.currentScheduleMap.clear();
         state.cachedExams = null;
         state.cachedScheduleExams = [];

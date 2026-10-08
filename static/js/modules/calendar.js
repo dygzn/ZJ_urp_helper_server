@@ -43,7 +43,7 @@ export async function openCalendarExport(kind) {
             generation = state.academicCacheGeneration;
             document.getElementById('sidebar-username').textContent = account;
         }
-        const scheduleStale = !!schedulePayload?.data?.cache_stale;
+        const scheduleStale = !!schedulePayload?.data?.cache_stale && !Object.values(schedulePayload?.data?.schedule || {}).some(courses => courses.some(course => course.source === 'custom'));
         const examStale = !!examPayload?.cache_stale;
         if (kind === 'schedule' && scheduleStale) {
             throw new Error('后台已切换学期，请先更新课程表再导出。');

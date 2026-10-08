@@ -2,11 +2,12 @@
 用户认证相关路由
 """
 import re
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from database import get_db
 from services.user_service import get_device_id, get_user_by_device, bind_user
 from services.urp_service import urp_login, check_login_status
 from services.config_service import get_current_urp_url
+from services.credential_service import CredentialCipher, CredentialError
 from services.temporary_session_service import (
     delete_temporary_session, save_temporary_session, user_data_file,
 )
@@ -54,6 +55,17 @@ def login():
     device_id = get_device_id()
     if not device_id:
         return jsonify({'success': False, 'message': '登录准备失败，请刷新页面后重试'}), 400
+
+    if bind_account:
+        try:
+            CredentialCipher().validate_configuration()
+        except CredentialError:
+            current_app.logger.exception('教务账号绑定的密码加密配置不可用')
+            return jsonify({
+                'success': False,
+                'code': 'ACCOUNT_STORAGE_UNAVAILABLE',
+                'message': '当前无法保存账号，请取消勾选后临时登录，或联系管理员。',
+            }), 503
 
     success, message, cookies = urp_login(username, password, persist_cookies=bind_account)
 

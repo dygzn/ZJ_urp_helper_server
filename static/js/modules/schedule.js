@@ -1,3 +1,5 @@
+import { mountScheduleEditor, resetScheduleEditor, clearScheduleDraft, renderScheduleDraft, renderPersonalScheduleNotices, appendScheduleEditActions } from './schedule-editor.js';
+import { exactCoursesForWeek, courseClockLabel, slotDate, hasCourseTimeConflict } from './schedule-editor-model.js';
 import { mountScheduleMenu } from './schedule-menu.js';
 import { pageResources } from './lifecycle.js';
 import { currentSemesterStartValue } from './calendar.js';
@@ -294,6 +296,7 @@ export async function updateScheduleData(event) {
 }
 
 export function resetScheduleDisplay() {
+    clearScheduleDraft();
     state.currentScheduleMap.clear();
     state.scheduleHeightAnimation?.cancel();
     state.scheduleHeightAnimation = null;
@@ -399,14 +402,29 @@ export async function loadSchedule(week = null, autoFetched = false) {
             generation = state.academicCacheGeneration;
             document.getElementById('sidebar-username').textContent = state.currentUsername;
         }
-        if (data.success && data.data?.cache_stale) {
+        if (data.success && data.data?.owner_token) {
+            if (state.scheduleOwnerToken && state.scheduleOwnerToken !== data.data.owner_token) resetScheduleEditor();
+            state.scheduleOwnerToken = data.data.owner_token;
+        }
+        if (data.success && data.data?.semester_key) {
+            if (state.scheduleSemesterKey && state.scheduleSemesterKey !== data.data.semester_key) resetScheduleEditor();
+            state.scheduleSemesterKey = data.data.semester_key;
+        }
+        if (data.success && data.data?.cache_stale && !Object.values(data.data.schedule || {}).some(courses => courses.some(course => course.source === 'custom'))) {
             resetScheduleDisplay();
+            resetScheduleEditor();
+            state.cachedSchedule = null;
+            state.scheduleRevision = data.data.revision || 0;
+            if (data.data.semester_start) state.semesterStart = new Date(data.data.semester_start + 'T00:00:00');
+            displaySchedule({});
             showMessage('后台已切换学期，请点击“更新课程表”获取本学期课程后再查看或导出。', true);
             return;
         }
 
         if (data.success && data.data) {
             const schedule = data.data.schedule || {};
+            state.scheduleRevision = data.data.revision || 0;
+            state.personalScheduleNotices = data.data.personal_schedule_notices || [];
             const hasData = Object.keys(schedule).length > 0;
             state.scheduleExamsStale = !!data.data.exams_cache_stale;
             state.cachedScheduleExams = !state.scheduleExamsStale && Array.isArray(data.data.exams) ? data.data.exams : [];
@@ -416,19 +434,23 @@ export async function loadSchedule(week = null, autoFetched = false) {
             }
 
             if (data.data.semester_start) {
-                state.semesterStart = new Date(data.data.semester_start + 'T00:00:00');
+                const nextSemesterStart = new Date(data.data.semester_start + 'T00:00:00');
+                if (state.semesterStart instanceof Date && state.semesterStart.getTime() !== nextSemesterStart.getTime()) resetScheduleEditor();
+                state.semesterStart = nextSemesterStart;
                 // API 返回后重新算一次，覆盖之前的降级值
                 if (useActualWeek) {
                     week = calcActualWeek() ?? week;
                 }
             }
 
-            if (hasData || state.cachedScheduleExams.length > 0) {
+            if (hasData || state.cachedScheduleExams.length > 0 || autoFetched) {
                 state.cachedSchedule = schedule;
                 renderFromCache(schedule, week);
             } else if (!autoFetched) {
                 // 没有缓存数据，自动从教务系统获取
                 resetScheduleDisplay();
+                state.cachedSchedule = {};
+                displaySchedule({});
                 showMessage('正在从教务系统获取课表...');
                 try {
                     const updateResp = await operation.wait(resources.api.request('/api/update_schedule', {
@@ -437,6 +459,7 @@ export async function loadSchedule(week = null, autoFetched = false) {
                     const updateData = await operation.wait(updateResp.json());
                     if (!request.isCurrent() || generation !== state.academicCacheGeneration) return;
                     if (updateData.success) {
+                        state.cachedSchedule = null;
                         loadSchedule(week, true);
                         return;
                     } else {
@@ -471,9 +494,13 @@ export function renderScheduleWeek(schedule, panel, courseColorMap = buildSchedu
     if (!scheduleDays || !scheduleGrid || !scheduleHeader) return;
     const daysCourses = { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [] };
     let hasEvening = false;
+    const week = Number(panel.dataset.week) || state.currentWeek;
+    const times = state.userIsFreshman ? PERIOD_TIMES_FRESHMAN : PERIOD_TIMES_DEFAULT;
+    const unplacedCourses = [];
     Object.values(schedule).forEach(weekCourses => {
         if (!Array.isArray(weekCourses)) return;
         weekCourses.forEach(course => {
+            if (course.start_at && course.end_at) return;
             const day = Number(course['星期']);
             const section = Number.parseInt(course['节次'], 10);
             const duration = Number.parseInt(course['节数'], 10) || 1;
@@ -483,14 +510,19 @@ export function renderScheduleWeek(schedule, panel, courseColorMap = buildSchedu
         });
     });
 
-    const week = Number(panel.dataset.week) || state.currentWeek;
+    for (const segment of exactCoursesForWeek(getScheduleDataSource(schedule), week, currentSemesterStartValue(), times)) {
+        const course = buildScheduleCourseCardData(segment.raw, segment.day);
+        course.section = segment.section; course.duration = segment.duration;
+        if (!segment.section) { unplacedCourses.push(course); continue; }
+        if (segment.section + segment.duration - 1 >= 9) hasEvening = true;
+        daysCourses[segment.day].push(course);
+    }
     // 每次注册使用新标识，避免重复课程、相邻周以及过期元素指向同一对象。
     const registerCourse = (course, day) => {
         const key = `${week}_${course.kind || 'course'}_${day}_${course.section ?? 'unplaced'}_${++state.scheduleCourseId}`;
         state.currentScheduleMap.set(key, course);
         return key;
     };
-    const times = state.userIsFreshman ? PERIOD_TIMES_FRESHMAN : PERIOD_TIMES_DEFAULT;
     const weekExams = state.otherMajorScheduleData ? [] : state.cachedScheduleExams
         .filter(exam => Number(exam.week) === week)
         .map(exam => buildScheduleExamCardData(exam, times));
@@ -504,7 +536,8 @@ export function renderScheduleWeek(schedule, panel, courseColorMap = buildSchedu
         daysCourses[exam.dayNumber].push(exam);
     });
     const hasWeekend = daysCourses[6].length > 0 || daysCourses[7].length > 0
-        || weekExams.some(exam => exam.dayNumber >= 6 && exam.dayNumber <= 7);
+        || weekExams.some(exam => exam.dayNumber >= 6 && exam.dayNumber <= 7)
+        || unplacedCourses.some(course => ['星期六','星期日'].includes(course.day));
 
     let html = '';
     for (let day = 1; day <= 7; day++) {
@@ -518,17 +551,19 @@ export function renderScheduleWeek(schedule, panel, courseColorMap = buildSchedu
             const isExam = course.kind === 'exam';
             const startTime = times[course.section - 1]?.start;
             const endTime = times[course.section + course.duration - 2]?.end;
-            const courseTime = startTime && endTime ? `${startTime}-${endTime}` : '';
+            const courseTime = courseClockLabel(course.raw || {}) || (startTime && endTime ? `${startTime}-${endTime}` : '');
             const color = courseColorMap.get(getScheduleCourseColorKey(course)) || '#2563eb';
+            course.conflict = !isExam && hasCourseTimeConflict(course, daysCourses[day], slotDate(week, day, currentSemesterStartValue()), times);
             const courseId = registerCourse(course, day);
             html += `<button type="button" class="course-card${isExam ? ' schedule-exam-card' : ''}${course.duration === 1 ? ' is-single-period' : ''}"
                 style="${position} --course-color: ${isExam ? 'var(--ui-exam-ink)' : color};"
                 title="${escapeHtml(`${course.name}${isExam ? ` · 考试 · ${course.time}` : courseTime ? ` · ${courseTime}` : ''}${course.location ? ` · ${course.location}` : ''}`)}"
-                data-course-id="${escapeHtml(courseId)}" data-day="${day}" tabindex="${panel.getAttribute?.('aria-hidden') === 'true' ? -1 : 0}" onclick="showCourseDetail(this)">
+                data-course-id="${escapeHtml(courseId)}" data-event-id="${escapeHtml(course.raw?.event_id || '')}" data-day="${day}" tabindex="${panel.getAttribute?.('aria-hidden') === 'true' ? -1 : 0}" onclick="showCourseDetail(this)">
                 <span class="course-card-name">${escapeHtml(course.name)}</span>
                 ${isExam ? `<span class="schedule-exam-time" aria-label="${escapeHtml(course.time)}"><span>${escapeHtml(course.time.split('-')[0])}</span><span aria-hidden="true">-</span><span>${escapeHtml(course.time.split('-')[1])}</span></span>` : ''}
+                ${course.conflict ? '<span class="schedule-conflict-label">时间重叠</span>' : ''}
                 ${course.location ? `<span class="course-card-location">${escapeHtml(course.location)}</span>` : ''}
-                ${!isExam && courseTime ? `<span class="course-card-period desktop-only">${courseTime} · 第${course.section}${course.duration > 1 ? `-${course.section + course.duration - 1}` : ''}节</span>` : ''}
+                ${!isExam && courseTime ? `<span class="course-card-period${course.raw?.source === 'custom' || course.raw?.version ? '' : ' desktop-only'}">${escapeHtml(courseTime)} · 第${course.section}${course.duration > 1 ? `-${course.section + course.duration - 1}` : ''}节</span>` : ''}
                 ${isExam ? '<span class="schedule-exam-label">考试</span>' : ''}
             </button>`;
         });
@@ -537,7 +572,7 @@ export function renderScheduleWeek(schedule, panel, courseColorMap = buildSchedu
     scheduleDays.innerHTML = html;
     const unplaced = panel.querySelector('.schedule-unplaced-exams');
     if (unplaced) {
-        unplaced.hidden = weekExams.length === 0;
+        unplaced.hidden = weekExams.length === 0 && unplacedCourses.length === 0;
         unplaced.innerHTML = weekExams.length ? '<p class="schedule-unplaced-note">本周考试</p>'
             + weekExams.map(exam => {
                 const extra = unplacedExams.find(item => item.name === exam.name && item.dayNumber === exam.dayNumber
@@ -546,6 +581,7 @@ export function renderScheduleWeek(schedule, panel, courseColorMap = buildSchedu
                 const date = getCalendarDate(currentSemesterStartValue(), week, exam.dayNumber);
                 return `<button type="button" class="schedule-unplaced-exam" data-course-id="${escapeHtml(registerCourse(exam, exam.dayNumber))}" data-day="${exam.dayNumber}" tabindex="${panel.getAttribute?.('aria-hidden') === 'true' ? -1 : 0}" onclick="showCourseDetail(this)"><strong>${escapeHtml(exam.name)}</strong><span class="schedule-exam-summary-time">${date ? `${escapeHtml(date)} ` : ''}${escapeHtml(exam.day)} ${escapeHtml(exam.time)}</span><span class="schedule-exam-summary-location">${escapeHtml(exam.location || '考试位置待定')}</span>${note ? `<small>${escapeHtml(note)}</small>` : ''}</button>`;
             }).join('') : '';
+        unplaced.innerHTML += unplacedCourses.map(course => `<button type="button" class="schedule-unplaced-course" data-day="${course.dayNumber}" data-course-id="${escapeHtml(registerCourse(course, course.dayNumber))}" onclick="showCourseDetail(this)" tabindex="${panel.getAttribute?.('aria-hidden') === 'true' ? -1 : 0}"><strong>${escapeHtml(course.name)}</strong><span>${escapeHtml(courseClockLabel(course.raw))}</span>${course.location ? `<span>${escapeHtml(course.location)}</span>` : ''}</button>`).join('');
     }
     scheduleGrid.classList.toggle('has-evening', hasEvening);
     setScheduleWeekendVisibility(hasWeekend, scheduleGrid, scheduleHeader);
@@ -559,7 +595,7 @@ export function displaySchedule(schedule) {
     const courseColorMap = buildScheduleCourseColorMap(source);
     const swipe = ensureScheduleSwipePanels();
     if (!swipe) {
-        renderScheduleWeek(schedule, document.querySelector('.schedule-week-panel'), courseColorMap);
+        renderScheduleWeek(schedule, document.querySelector?.('.schedule-week-panel'), courseColorMap);
         return;
     }
 
@@ -588,6 +624,8 @@ export function displaySchedule(schedule) {
     swipe.track.classList.remove('is-dragging', 'is-animating', 'is-changing');
     swipe.viewport.classList.remove('is-swiping', 'is-settling');
     setScheduleSwipeTransform(0);
+    renderScheduleDraft();
+    renderPersonalScheduleNotices();
 }
 
 export function getScheduleCourseColorKey(course = {}) {
@@ -645,9 +683,11 @@ export function showCourseDetail(el) {
         ...course,
         week,
         date: date || '学期起始日期待核对',
-        clockTime: clock ? `${clock.start}–${clock.end}` : '',
+        clockTime: courseClockLabel(course.raw || {}) || (clock ? `${clock.start}–${clock.end}` : ''),
     });
 
+    if (course.conflict) document.getElementById('course-detail-body').insertAdjacentHTML('afterbegin', '<p class="schedule-editor-error">此时段与其他课程或考试重叠，请核对安排。</p>');
+    appendScheduleEditActions(document.getElementById('course-detail-body'), course, el);
     openUiModal(modal);
     if (window.courseDetailTransition) window.courseDetailTransition.open(modal, el);
 }
@@ -766,6 +806,7 @@ export function mountSchedule(container, { scheduleWeek = null } = {}) {
     initScheduleSwipe();
     initScheduleActions();
     mountScheduleMenu();
+    mountScheduleEditor();
     return refreshScheduleDisplay(scheduleWeek);
 }
 

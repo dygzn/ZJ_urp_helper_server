@@ -82,8 +82,13 @@ function buildScheduleCalendarEvents(schedule, semesterStart, periodTimes) {
     for (const [week, courses] of Object.entries(schedule || {})) {
         if (!Array.isArray(courses)) continue;
         for (const course of courses) {
-            const date = getCalendarDate(semesterStart, week, course['星期']);
-            const time = getCalendarPeriodTime(course['节次'], course['节数'], periodTimes);
+            const exactStart = course.start_at && new Date(course.start_at);
+            const exactEnd = course.end_at && new Date(course.end_at);
+            const chinaParts = date => new Date(date.getTime() + 8 * 3600000).toISOString();
+            const exact = course.time_mode !== 'period' && exactStart && exactEnd && Number.isFinite(exactStart.getTime()) && exactEnd > exactStart;
+            const date = exact ? chinaParts(exactStart).slice(0,10) : getCalendarDate(semesterStart, week, course['星期']);
+            const endDate = exact ? chinaParts(exactEnd).slice(0,10) : date;
+            const time = exact ? {start:chinaParts(exactStart).slice(11,16),end:chinaParts(exactEnd).slice(11,16)} : getCalendarPeriodTime(course['节次'], course['节数'], periodTimes);
             const name = String(course['课程名'] || '').trim();
             if (!date || !time || !name) {
                 skipped++;
@@ -99,16 +104,17 @@ function buildScheduleCalendarEvents(schedule, semesterStart, periodTimes) {
             const occurrence = (occurrences.get(identity) || 0) + 1;
             occurrences.set(identity, occurrence);
             events.push({
-                id: `${identity}:${occurrence}`,
-                date, start: time.start, end: time.end, summary: name, location,
+                id: course.event_id ? JSON.stringify(['course', semesterStart, course.event_id]) : `${identity}:${occurrence}`,
+                date, endDate, start: time.start, end: time.end, summary: name, location,
                 description: calendarDetailLines([
                     ['课程号', course['课程号']], ['教师', course['教师']], ['学分', course['学分']],
                     ['课程属性', course['课程属性']], ['考试类型', course['考试类型']],
                     ['修读方式', course['修读方式']], ['选课状态', course['选课状态']],
                     ['周次', `第${week}周`], ['星期', `星期${course['星期']}`],
-                    ['日期', date], ['节次', `第${section}-${section + duration - 1}节`],
+                    ['日期', date], ['节次', section > 0 && duration > 0 ? `第${section}-${section + duration - 1}节` : '自定时间'],
                     ['时间', `${time.start}–${time.end}`], ['地点', location],
                     ['校区', course['校区']], ['教学楼', course['教学楼']], ['教室', course['教室']],
+                    ...(course.extra_fields || []).map(field => [field.name, field.value]),
                 ]).join('\n'),
             });
         }
@@ -204,7 +210,7 @@ function serializeCalendar(events, name, generatedAt = new Date(), namespace = '
         lines.push(
             'BEGIN:VEVENT', `UID:${calendarEventId(event, namespace)}`, `DTSTAMP:${stamp}`,
             `DTSTART:${calendarUtcStamp(event.date, event.start)}`,
-            `DTEND:${calendarUtcStamp(event.date, event.end)}`,
+            `DTEND:${calendarUtcStamp(event.endDate || event.date, event.end)}`,
             `SUMMARY:${escapeCalendarText(event.summary)}`,
             `LOCATION:${escapeCalendarText(event.location)}`,
             `DESCRIPTION:${escapeCalendarText(event.description)}`,

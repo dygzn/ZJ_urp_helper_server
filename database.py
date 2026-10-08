@@ -785,6 +785,9 @@ def init_db(config_override=None):
         _create_indexes(conn)
         _create_wechat_account_bindings(conn, db_config['type'])
         _create_lab_credentials(conn, db_config['type'])
+        from services.personal_schedule_service import create_personal_tables
+        create_personal_tables(conn, db_config['type'])
+        _exec_ignore(conn, 'CREATE INDEX idx_temporary_sessions_session_id ON temporary_sessions(session_id)')
         # MySQL DDL 会隐式提交，凭据加密和账号提升必须放在所有 DDL 后。
         _migrate_urp_credentials(conn, db_config['type'])
         _migrate_plural_user_accounts(conn)
@@ -908,6 +911,8 @@ def test_database_config(database_config):
     except Exception as exc:
         return False, str(exc)
 MIGRATION_TABLES = {
+    'personal_schedule_state': ['owner_key', 'semester_key', 'revision'],
+    'personal_schedule_items': ['id', 'owner_key', 'semester_key', 'kind', 'source_id', 'series_id', 'original_week', 'event_json', 'version', 'updated_at'],
     'wechat_account_bindings': ['openid', 'username', 'bind_time', 'updated_at'],
     'user_account': ['username', 'password', 'registered_at', 'last_bind_time', 'archived_at'],
     # 旧 users 是设备绑定记录；先从它提取最新绑定凭据，再导入
@@ -1003,6 +1008,8 @@ def migrate_sqlite_to_current_database(sqlite_path=None):
                             result[table] = 0
                             continue
                         select_sql = f"SELECT {', '.join(usable_columns)} FROM {table}"
+                        if table in ('personal_schedule_state', 'personal_schedule_items'):
+                            select_sql += " WHERE owner_key LIKE 'account:%'"
                         if table == 'users' and {'username', 'bind_time', 'device_id'} <= set(usable_columns):
                             # 同一学号、同一绑定时间存在多条设备记录时，
                             # 固定设备顺序，保证迁移结果可重复。
