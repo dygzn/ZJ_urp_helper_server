@@ -91,3 +91,48 @@ export function hasCourseTimeConflict(course,courses,date,periodTimes) {
         const span=interval(other);return span && own[0]<span[1] && own[1]>span[0];
     });
 }
+export function resizeScheduleSpan(span,edge,section) {
+    const end=span.section+span.duration-1;
+    if(edge==='start') {const start=Math.max(1,Math.min(end,section));return {section:start,duration:end-start+1};}
+    return {section:span.section,duration:Math.max(1,Math.min(10,section)-span.section+1)};
+}
+export function scheduleSeriesCourses(course,schedule) {
+    const unique=new Map();
+    for(const item of Object.values(schedule || {}).flat())if(item.event_id && item.series_id===course?.series_id)unique.set(item.event_id,item);
+    return [...unique.values()];
+}
+export function scheduleRepeatSummary(course,schedule,action='edit') {
+    if(!course)return '全部周：第1–25周，每周一次，共25次';
+    const targets=scheduleSeriesCourses(course,schedule).filter(item=>action!=='restore' || item.version>0);
+    const affected=action==='restore' && course.affected_weeks?course.affected_weeks:targets.map(item=>item.original_week);
+    const weeks=[...new Set(affected)].sort((a,b)=>a-b),runs=[];
+    for(let i=0;i<weeks.length;i++){const first=weeks[i];while(i+1<weeks.length && weeks[i+1]===weeks[i]+1)i++;runs.push(first===weeks[i]?String(first):`${first}–${weeks[i]}`);}
+    return `全部周：第${runs.join('、') || course.original_week}周，共${affected.length}次，仅此上课时段`;
+}
+export function projectScheduleMutation(course,payload,schedule,semesterStart) {
+    if(payload.scope!=='all')return [{...payload,event_id:course?.event_id}];
+    const targets=course?scheduleSeriesCourses(course,schedule).filter(item=>payload.action!=='restore' || item.version>0):Array.from({length:25},(_,i)=>({original_week:i+1}));
+    const anchor=course?course.original_week:Math.floor((new Date(payload.start_at)-new Date(`${semesterStart}T00:00:00+08:00`))/(7*86400000))+1;
+    return targets.map(target=>({event_id:target.event_id,课程名:payload.name || course?.['课程名'] || '新增课程',
+        start_at:new Date(new Date(payload.start_at).getTime()+(target.original_week-anchor)*7*86400000).toISOString(),
+        end_at:new Date(new Date(payload.end_at).getTime()+(target.original_week-anchor)*7*86400000).toISOString()}));
+}
+export function findScheduleConflicts(course,payload,schedule,semesterStart,exams=[]) {
+    if(!payload.start_at || !payload.end_at)return [];
+    const proposed=projectScheduleMutation(course,payload,schedule,semesterStart);
+    const removed=new Set(proposed.map(item=>item.event_id).filter(Boolean));
+    const candidates=Object.values(schedule || {}).flat().filter(item=>!removed.has(item.event_id));
+    candidates.push(...exams);
+    const conflicts=new Map();
+    for(const span of proposed)for(const other of candidates){
+        if(!other.start_at || !other.end_at)continue;
+        if(new Date(span.start_at)<new Date(other.end_at) && new Date(span.end_at)>new Date(other.start_at))
+            conflicts.set(other.event_id || JSON.stringify([other['课程名'],other.start_at,other.end_at]),other);
+    }
+    return [...conflicts.values()];
+}
+export function courseResizeTimes(course,week,span,semesterStart,periodTimes) {
+    const clocks=periodSpanTimes(week,span.day,span.section,span.duration,semesterStart,periodTimes);
+    if(!clocks)return null;
+    return span.edge==='start'?{start_at:clocks.start_at,end_at:course.end_at}:{start_at:course.start_at,end_at:clocks.end_at};
+}

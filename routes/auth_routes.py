@@ -61,11 +61,12 @@ def login():
             CredentialCipher().validate_configuration()
         except CredentialError:
             current_app.logger.exception('教务账号绑定的密码加密配置不可用')
+            # 保持现有业务失败约定，避免代理将 503 替换为维护页 HTML。
             return jsonify({
                 'success': False,
                 'code': 'ACCOUNT_STORAGE_UNAVAILABLE',
                 'message': '当前无法保存账号，请取消勾选后临时登录，或联系管理员。',
-            }), 503
+            })
 
     success, message, cookies = urp_login(username, password, persist_cookies=bind_account)
 

@@ -36,6 +36,14 @@ def create_personal_tables(conn, db_type):
         event_json {text} NOT NULL, version INTEGER NOT NULL, updated_at VARCHAR(40) NOT NULL,
         PRIMARY KEY (owner_key, semester_key, id)
     ){suffix}''')
+    undo_index = ', INDEX idx_personal_schedule_undo_expiry (expires_at)' if db_type == 'mysql' else ''
+    conn.execute(f'''CREATE TABLE IF NOT EXISTS personal_schedule_undo (
+        token VARCHAR(32) NOT NULL PRIMARY KEY, owner_key VARCHAR(160) NOT NULL,
+        semester_key VARCHAR(64) NOT NULL, revision INTEGER NOT NULL,
+        expires_at DOUBLE NOT NULL, changes_json {text} NOT NULL{undo_index}
+    ){suffix}''')
+    if db_type != 'mysql':
+        conn.execute('CREATE INDEX IF NOT EXISTS idx_personal_schedule_undo_expiry ON personal_schedule_undo (expires_at)')
 
 
 def context_user(username):
@@ -110,7 +118,7 @@ def identify_schedule(schedule, semester_start, period_times):
             begin = date.replace(hour=period_times[section][0][0], minute=period_times[section][0][1])
             end = date.replace(hour=period_times[end_period][1][0], minute=period_times[end_period][1][1])
             item.update(event_id=f'{series}:{week}:{index}', series_id=series, source='urp', original_week=week,
-                start_at=_iso(begin), end_at=_iso(end), version=0, time_mode='period', extra_fields=[])
+                start_at=_iso(begin), end_at=_iso(end), original_start_at=_iso(begin), original_end_at=_iso(end), version=0, time_mode='period', extra_fields=[])
             item['source_id'] = item['event_id']
             result[str(week)].append(item)
     return result
@@ -134,7 +142,7 @@ def read_personal_schedule(owner, semester_key):
         raise
 
 
-def write_personal_schedule(owner, semester_key, revision, changes):
+def write_personal_schedule(owner, semester_key, revision, changes, record_undo=False, undo_token=None):
     with get_db() as conn:
         if isinstance(conn, sqlite3.Connection): conn.execute('BEGIN IMMEDIATE')
         if owner.startswith('session:'):
@@ -146,8 +154,22 @@ def write_personal_schedule(owner, semester_key, revision, changes):
         changed = conn.execute('UPDATE personal_schedule_state SET revision=revision+1 WHERE owner_key=? AND semester_key=? AND revision=?',
             (owner, semester_key, revision))
         if changed.rowcount != 1: raise ScheduleError('课表已被其他操作修改，请刷新后重试', 409)
+        if undo_token:
+            locking = '' if isinstance(conn, sqlite3.Connection) else ' FOR UPDATE'
+            undo = conn.execute('SELECT * FROM personal_schedule_undo WHERE token=? AND owner_key=? AND semester_key=?' + locking,
+                (undo_token, owner, semester_key)).fetchone()
+            if not undo or undo['expires_at'] <= time.time(): raise ScheduleError('撤销已过期或已使用', 409)
+            if undo['revision'] != revision: raise ScheduleError('已有后续修改，无法撤销之前的操作', 409)
+            changes = json.loads(undo['changes_json'])
+        inverse = []
         stamp = _iso(datetime.now(CHINA))
         for item in changes:
+            if record_undo:
+                previous = conn.execute('SELECT * FROM personal_schedule_items WHERE owner_key=? AND semester_key=? AND id=?',
+                    (owner, semester_key, item['id'])).fetchone()
+                inverse.append({'id':item['id'], 'kind':previous['kind'], 'source_id':previous['source_id'],
+                    'series_id':previous['series_id'], 'original_week':previous['original_week'],
+                    'event':json.loads(previous['event_json'])} if previous else {'id':item['id'], 'delete':True})
             conn.execute('DELETE FROM personal_schedule_items WHERE owner_key=? AND semester_key=? AND id=?',
                 (owner, semester_key, item['id']))
             if item.get('delete'): continue
@@ -155,6 +177,14 @@ def write_personal_schedule(owner, semester_key, revision, changes):
                 (id,owner_key,semester_key,kind,source_id,series_id,original_week,event_json,version,updated_at)
                 VALUES (?,?,?,?,?,?,?,?,?,?)''', (item['id'],owner,semester_key,item['kind'],item.get('source_id'),
                 item['series_id'],item['original_week'],json.dumps(item['event'],ensure_ascii=False),revision+1,stamp))
+        if record_undo or undo_token:
+            conn.execute('DELETE FROM personal_schedule_undo WHERE owner_key=?', (owner,))
+            conn.execute('DELETE FROM personal_schedule_undo WHERE expires_at<=?', (time.time(),))
+        if record_undo:
+            token, expires_at = uuid.uuid4().hex, time.time()+30
+            conn.execute('INSERT INTO personal_schedule_undo (token,owner_key,semester_key,revision,expires_at,changes_json) VALUES (?,?,?,?,?,?)',
+                (token, owner, semester_key, revision+1, expires_at, json.dumps(inverse,ensure_ascii=False)))
+            return {'token':token, 'expires_at':expires_at, 'revision':revision+1}
         return revision + 1
 
 
@@ -163,7 +193,7 @@ def clear_temporary_personal_schedule(session_ids):
     try:
         with get_db() as conn:
             for session_id in session_ids:
-                for table in ('personal_schedule_items', 'personal_schedule_state'):
+                for table in ('personal_schedule_items', 'personal_schedule_state', 'personal_schedule_undo'):
                     conn.execute(f'DELETE FROM {table} WHERE owner_key=?', ('session:'+session_id,))
     except Exception as exc:
         if not _missing_table(exc): raise
@@ -200,7 +230,9 @@ def effective_schedule(user, raw_schedule, config, period_times):
                 for field in ('start_at','end_at','version','time_mode'):
                     if field in event: merged_event[field]=event[field]
                 overrides[row['source_id']] = merged_event
-            else: notices.append({'event_id':row['id'], 'name':event.get('课程名','课程'), 'message':'原教务课程已不在当前缓存，可恢复教务时间或清除调整'})
+            else:
+                event['affected_weeks'] = sorted(r['original_week'] for r in items if r['kind']=='override' and r['series_id']==row['series_id'])
+                notices.append({'event_id':row['id'], 'name':event.get('课程名','课程'), 'message':'原教务课程已不在当前缓存，可恢复教务时间或清除调整', 'course':event})
         else: custom.append(event)
     merged = {}
     for week, courses in schedule.items():
@@ -232,6 +264,16 @@ def _fields(payload):
 
 def mutate_schedule(user, action, payload, raw_schedule, config, period_times):
     if not isinstance(payload,dict): raise ScheduleError('请求格式错误')
+    if action == 'undo':
+        owner, key = schedule_owner(user), schedule_semester_key(config)
+        if payload.get('owner_token') != _hash(owner) or payload.get('semester_key') != key:
+            raise ScheduleError('账号或学期已变更，无法撤销之前的操作',409)
+        try: revision = int(payload['revision'])
+        except (ValueError,TypeError,KeyError): raise ScheduleError('课表版本无效')
+        token = payload.get('token')
+        if not isinstance(token,str) or len(token)!=32 or revision<0: raise ScheduleError('撤销请求无效')
+        write_personal_schedule(owner,key,revision,[],undo_token=token)
+        return effective_schedule(user,raw_schedule,config,period_times)
     if payload.get('scope') not in ('week','all'): raise ScheduleError('请选择仅本周或全部周')
     try: revision, week = int(payload['revision']), int(payload['week'])
     except (ValueError,TypeError,KeyError): raise ScheduleError('课表版本或周次无效')
@@ -310,5 +352,7 @@ def mutate_schedule(user, action, payload, raw_schedule, config, period_times):
         changed_end=parse_time(change['event']['end_at'])
         if not 1 <= (changed_begin.date()-semester_begin.date()).days//7+1 <= 25 or changed_end>semester_begin+timedelta(weeks=26):
             raise ScheduleError('部分课程将超出本学期，请选择仅本周或调整日期')
-    write_personal_schedule(owner,key,revision,changes)
-    return effective_schedule(user,raw_schedule,config,period_times)
+    undo = write_personal_schedule(owner,key,revision,changes,record_undo=True)
+    result = effective_schedule(user,raw_schedule,config,period_times)
+    result['undo'] = undo
+    return result

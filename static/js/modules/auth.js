@@ -321,6 +321,18 @@ export function skipBind() {
     loadAnnouncementIndicator();
 }
 
+function loginResponseError(response) {
+    const status = response.status;
+    const message = status === 504
+        ? '登录服务响应超时（HTTP 504），请稍后重试。'
+        : !response.ok
+            ? `登录服务暂不可用（HTTP ${status}），请稍后重试或联系管理员。`
+            : '登录服务返回了异常响应，请刷新页面后重试。';
+    const error = new Error(message);
+    error.name = 'LoginResponseError';
+    return error;
+}
+
 export async function handleLogin(event) {
     const operation = resources.capture();
     event.preventDefault();
@@ -334,9 +346,11 @@ export async function handleLogin(event) {
     const errorDiv = document.getElementById('login-error');
 
     errorDiv.textContent = '';
+    let response;
+    let loginConfirmed = false;
 
     try {
-        const response = await operation.wait(resources.fetch('/api/login', {
+        response = await operation.wait(resources.fetch('/api/login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -350,9 +364,20 @@ export async function handleLogin(event) {
             })
         }));
 
-        const data = await operation.wait(response.json());
+        let data;
+        try {
+            data = await operation.wait(response.json());
+        } catch (error) {
+            if (error?.name === 'AbortError') throw error;
+            throw loginResponseError(response);
+        }
+        if (!data || typeof data !== 'object' || Array.isArray(data)
+                || typeof data.success !== 'boolean' || (!response.ok && data.success)) {
+            throw loginResponseError(response);
+        }
 
         if (data.success) {
+            loginConfirmed = true;
             document.getElementById('password').value = '';
             state.temporaryReloginPromptShown = false;
             apiClient.resetAuthState();
@@ -395,7 +420,13 @@ export async function handleLogin(event) {
     } catch (error) {
         if (error?.name === 'AbortError') return;
         console.error('登录失败:', error);
-        errorDiv.textContent = '网络错误，请重试';
+        errorDiv.textContent = loginConfirmed
+            ? '账号已登录，但页面加载异常，请刷新页面。'
+            : error?.name === 'LoginResponseError' || error?.name === 'ApiError'
+                ? error.message
+                : !response && error?.name === 'TypeError'
+                    ? '网络连接失败，请检查网络后重试。'
+                    : '登录过程中发生异常，请刷新页面后重试。';
     }
 }
 

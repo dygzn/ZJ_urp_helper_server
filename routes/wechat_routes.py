@@ -91,10 +91,11 @@ def bind_wechat_account(wechat_session):
         CredentialCipher().validate_configuration()
     except CredentialError:
         current_app.logger.exception('微信教务账号绑定的密码加密配置不可用')
+        # 与网页端一致，预期的绑定失败使用业务 JSON，不触发维护页。
         return jsonify(
             success=False, code='ACCOUNT_STORAGE_UNAVAILABLE',
             message='当前无法保存教务账号，请联系管理员稍后再试。',
-        ), 503
+        )
     existing = get_account(wechat_session['openid'])
     if existing and existing['username'] != username:
         return jsonify(success=False, message='请先解绑当前学号'), 409

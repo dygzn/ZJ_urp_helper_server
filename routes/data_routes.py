@@ -362,6 +362,7 @@ def api_evaluation(user):
 @data_bp.route('/api/schedule/personal', methods=['POST'])
 @data_bp.route('/api/schedule/personal/<event_id>', methods=['PATCH', 'DELETE'])
 @data_bp.route('/api/schedule/overrides/<event_id>', methods=['PUT', 'DELETE'])
+@data_bp.route('/api/schedule/undo', methods=['POST'])
 @require_binding
 def api_personal_schedule(user, event_id=None):
     from services.personal_schedule_service import mutate_schedule, ScheduleError
@@ -371,13 +372,16 @@ def api_personal_schedule(user, event_id=None):
         return jsonify({'success':False,'message':'请求格式错误'}),400
     payload = dict(payload)
     if event_id: payload['event_id'] = event_id
-    if '/overrides/' in request.path:
+    if request.path == '/api/schedule/undo':
+        action = 'undo'
+    elif '/overrides/' in request.path:
         action = 'restore' if request.method == 'DELETE' else 'override'
     else:
         action = {'POST':'create','PATCH':'update','DELETE':'delete'}[request.method]
     try:
         config = get_config()
         result = mutate_schedule(user,action,payload,read_raw_schedule(user['username'],config),config,get_schedule_period_times(user['username']))
-        return jsonify({'success':True,'message':'课程已保存' if action not in ('delete','restore') else '课表已更新','data':result})
+        message = '已撤销刚才的修改' if action=='undo' else '课程已保存' if action not in ('delete','restore') else '课表已更新'
+        return jsonify({'success':True,'message':message,'data':result})
     except ScheduleError as exc:
         return jsonify({'success':False,'message':str(exc)}),exc.status
