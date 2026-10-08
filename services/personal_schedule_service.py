@@ -303,7 +303,17 @@ def mutate_schedule(user, action, payload, raw_schedule, config, period_times):
         if not template: raise ScheduleError('请选择当前课表中的已有课程')
     end = begin = None
     if action in ('create','update','override'):
-        begin, end = parse_time(payload.get('start_at')), parse_time(payload.get('end_at'))
+        if payload.get('time_mode')=='period' and ('section' in payload or 'date' in payload):
+            try: section, duration = int(payload['section']), int(payload['duration'])
+            except (ValueError,TypeError,KeyError): raise ScheduleError('请选择有效的开始与结束节次')
+            if section<1 or duration<1 or section+duration-1>10: raise ScheduleError('课程节次须在第1–10节范围内')
+            first,last=period_times.get(section),period_times.get(section+duration-1)
+            if not first or not last: raise ScheduleError('当前年级的上课时间尚未配置')
+            date=parse_time(payload.get('date') or payload.get('start_at'))
+            begin=date.replace(hour=first[0][0],minute=first[0][1])
+            end=date.replace(hour=last[1][0],minute=last[1][1])
+        else:
+            begin, end = parse_time(payload.get('start_at')), parse_time(payload.get('end_at'))
         if end<=begin: raise ScheduleError('结束须晚于开始')
         start=_start(config)
         if not 1 <= (begin.date()-start.date()).days//7+1 <= 25: raise ScheduleError('开始日期不在当前学期内')
@@ -322,7 +332,8 @@ def mutate_schedule(user, action, payload, raw_schedule, config, period_times):
             shift=timedelta(weeks=target_week-actual_week)
             item={k:copy.deepcopy(v) for k,v in template.items() if k in ('课程号','学分','教师','课程属性','考试类型','修读方式','选课状态','校区','教学楼','位置','教室')}
             item.update(event_id=f'{series}:{target_week}',series_id=series,source='custom',source_id=None,
-                original_week=target_week,课程名=name.strip(),extra_fields=extras,start_at=_iso(begin+shift),end_at=_iso(end+shift))
+                original_week=target_week,课程名=name.strip(),extra_fields=extras,start_at=_iso(begin+shift),end_at=_iso(end+shift),
+                time_mode='period' if payload.get('time_mode')=='period' else 'precise')
             if classroom.strip(): item['教室']=classroom.strip(); item['位置']=classroom.strip()
             elif 'classroom' in payload: item['教室']='';item['位置']=''
             if not item.get('位置'): item['位置']=next((r['value'] for r in extras if r['name'] in ('地点','位置','教室')),'')
@@ -338,7 +349,7 @@ def mutate_schedule(user, action, payload, raw_schedule, config, period_times):
                 changes.append({'id':target['event_id'],'delete':True});continue
             item=copy.deepcopy(target)
             shift=timedelta(weeks=target['original_week']-selected['original_week'])
-            item.update(start_at=_iso(begin+shift),end_at=_iso(end+shift),time_mode='period' if payload.get('time_mode')=='period' and action=='override' else 'precise')
+            item.update(start_at=_iso(begin+shift),end_at=_iso(end+shift),time_mode='period' if payload.get('time_mode')=='period' else 'precise')
             if action=='update':
                 item.update(课程名=name.strip(),教室=classroom.strip(),extra_fields=extras)
                 item['位置']=classroom.strip() or next((r['value'] for r in extras if r['name'] in ('地点','位置','教室')),'')

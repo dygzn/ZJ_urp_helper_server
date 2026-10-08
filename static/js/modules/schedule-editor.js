@@ -4,7 +4,7 @@ import { displaySchedule, PERIOD_TIMES_DEFAULT, PERIOD_TIMES_FRESHMAN } from './
 import { currentSemesterStartValue } from './calendar.js';
 import { closeUiModal, showUiToast } from './ui.js';
 import { mountScheduleEditorGestures, cancelScheduleEditingGesture } from './schedule-editor-gestures.js';
-import { courseTemplateOptions, applyCourseTemplate, periodSpanTimes, chinaDateTime, courseClockLabel, courseDropTimes, courseResizeTimes, scheduleRepeatSummary, findScheduleConflicts, slotDate } from './schedule-editor-model.js';
+import { courseTemplateOptions, applyCourseTemplate, periodSpanTimes, chinaDateTime, courseClockLabel, coursePeriodSelection, scheduleRepeatSummary, findScheduleConflicts, slotDate } from './schedule-editor-model.js';
 import { mountScheduleEditorTimes } from './schedule-editor-form.js';
 const resources = pageResources('schedule');
 export const scheduleEditor = {epoch:0,cancelGestures:null,draft:null,dialog:null,scopeDialog:null,pending:false,course:null,returnFocus:null,times:null,conflict:null,undo:null,undoTimer:null};
@@ -61,10 +61,19 @@ function rememberScheduleDraftForm() {
     const draft=scheduleEditor.draft,form=scheduleEditor.dialog?.querySelector('form');
     if(!draft || !form || scheduleEditor.course || scheduleEditor.pending)return;
     draft.values={name:form.elements.name.value,classroom:form.elements.classroom.value,start_at:form.elements.start_at.value+':00+08:00',end_at:form.elements.end_at.value+':00+08:00',
+        time_mode:'period',
         mode:form.querySelector('[data-editor-template]').hidden?'custom':'existing',template_event_id:form.elements.template.value,
         extra_fields:[...form.querySelectorAll('.schedule-extra-row')].map(row=>({name:row.querySelector('input').value,value:row.querySelector('textarea').value}))};
+    const date=form.elements.start_date.value,start=currentSemesterStartValue();
+    const week=Math.floor((Date.parse(date+'T00:00:00Z')-Date.parse(start+'T00:00:00Z'))/(7*86400000))+1;
+    if(week>=1 && week<=25){draft.week=week;draft.day=new Date(date+'T00:00:00Z').getUTCDay() || 7;draft.section=Number(form.elements.start_section.value);draft.duration=Number(form.elements.end_section.value)-draft.section+1;}
 }
-function closeEditor() {rememberScheduleDraftForm();scheduleEditor.dialog?.close();restoreEditorFocus();}
+function showRememberedDraft() {
+    if(!scheduleEditor.draft || scheduleEditor.course || scheduleEditor.pending)return;
+    if(state.currentWeek!==scheduleEditor.draft.week){state.currentWeek=scheduleEditor.draft.week;displaySchedule(state.cachedSchedule);}
+    else renderScheduleDraft();
+}
+function closeEditor() {rememberScheduleDraftForm();scheduleEditor.dialog?.close();showRememberedDraft();restoreEditorFocus();}
 function extraRow(field={name:'',value:''}) {
     const row=document.createElement('div');row.className='schedule-extra-row';
     row.innerHTML='<label>数据名<input name="extra-name" maxlength="60"></label><label>数据内容<textarea name="extra-value" maxlength="2000" rows="1"></textarea></label><button type="button" class="btn-secondary" aria-label="删除这项信息">删除</button>';
@@ -173,7 +182,8 @@ function inputPayload(scope) {
     const rows=[...form.querySelectorAll('.schedule-extra-row')].map(row=>({name:row.querySelector('input').value.trim(),value:row.querySelector('textarea').value.trim()})).filter(row=>row.name || row.value);
     if(rows.some(row=>!row.name || !row.value)){form.querySelector('[data-editor-error]').textContent='请完整填写每项的数据名和内容，或删除未使用的信息';return null;}
     return {scope,revision:state.scheduleRevision,week:scheduleEditor.draft?.week || state.currentWeek,
-        name:form.elements.name.value.trim(),classroom:form.elements.classroom.value.trim(),time_mode:'precise',
+        name:form.elements.name.value.trim(),classroom:form.elements.classroom.value.trim(),time_mode:'period',date:form.elements.start_date.value,
+        section:Number(form.elements.start_section.value),duration:Number(form.elements.end_section.value)-Number(form.elements.start_section.value)+1,
         start_at:`${start}:00+08:00`,end_at:`${end}:00+08:00`,extra_fields:rows,
         ...(form.querySelector('[data-editor-template]').hidden || !form.elements.template.value?{}:{template_event_id:form.elements.template.value})};
 }
@@ -200,7 +210,9 @@ export async function writeSchedule(path,method,payload) {
         clearScheduleUndo();state.cachedSchedule=result.data.schedule;state.scheduleRevision=result.data.revision;
         if(result.data.semester_key)state.scheduleSemesterKey=result.data.semester_key;
         state.personalScheduleNotices=result.data.notices || [];state.calendarExportData=null;
-        if(method==='POST' && path!=='/api/schedule/undo')clearScheduleDraft();displaySchedule(state.cachedSchedule);
+        if(method==='POST' && path!=='/api/schedule/undo')clearScheduleDraft();
+        if(payload.date){const week=Math.floor((Date.parse(payload.date+'T00:00:00Z')-Date.parse(currentSemesterStartValue()+'T00:00:00Z'))/(7*86400000))+1;if(week>=1 && week<=25)state.currentWeek=week;}
+        displaySchedule(state.cachedSchedule);
         scheduleEditor.dialog?.close();scheduleEditor.scopeDialog?.close();restoreEditorFocus();
         showUiToast(result.message || '课程已保存','success');
         if(result.data.undo)showScheduleUndo(result.data.undo);
@@ -224,28 +236,29 @@ export function promptScheduleScope(title,onSelect,description='',course=null,ac
     dialog._select=onSelect;if(!dialog.open)dialog.showModal();dialog.querySelector('[data-scope="week"]').focus();
 }
 export function moveScheduleCourse(course,slot) {
-    const times=courseDropTimes(course,state.currentWeek,slot,currentSemesterStartValue(),editorPeriods());
+    const span={...slot,duration:coursePeriodSelection(course,editorPeriods()).duration};
+    const times=periodSpanTimes(state.currentWeek,span.day,span.section,span.duration,currentSemesterStartValue(),editorPeriods());
     if(!times){showUiToast('此位置无法容纳完整课程，请在详情中修改精确时间','info');return;}
-    return changeScheduleCourseTimes(course,times);
+    return changeScheduleCourseTimes(course,times,span);
 }
 export function resizeScheduleCourse(course,span) {
-    const times=courseResizeTimes(course,state.currentWeek,span,currentSemesterStartValue(),editorPeriods());
+    const times=periodSpanTimes(state.currentWeek,span.day,span.section,span.duration,currentSemesterStartValue(),editorPeriods());
     if(!times || new Date(times.end_at)<=new Date(times.start_at)){showUiToast('结束时间须晚于开始时间，请在编辑器中调整','info');return;}
-    return changeScheduleCourseTimes(course,times);
+    return changeScheduleCourseTimes(course,times,span);
 }
-function changeScheduleCourseTimes(course,times) {
+function changeScheduleCourseTimes(course,times,span) {
     promptScheduleScope(`调整 ${course['课程名']} 的时间`,scope=>{
         const path=`/api/schedule/${course.source==='custom'?'personal':'overrides'}/${encodeURIComponent(course.event_id)}`;
         const payload={scope,revision:state.scheduleRevision,week:state.currentWeek,...times,
-            name:course['课程名'],classroom:course['教室'] || '',time_mode:course.source==='urp' && course.time_mode==='period'?'period':'precise',extra_fields:course.extra_fields || []};
+            name:course['课程名'],classroom:course['教室'] || '',time_mode:'period',date:chinaDateTime(times.start_at).slice(0,10),
+            section:span.section,duration:span.duration,extra_fields:course.extra_fields || []};
         if(showScheduleConflicts(course,payload,false,()=>writeSchedule(path,course.source==='custom'?'PATCH':'PUT',payload)))return;
         return writeSchedule(path,course.source==='custom'?'PATCH':'PUT',payload);
     },`原时间：${chinaDateTime(course.start_at).replace('T',' ')} 至 ${chinaDateTime(course.end_at).replace('T',' ')}。\n新时间：${chinaDateTime(times.start_at).replace('T',' ')} 至 ${chinaDateTime(times.end_at).replace('T',' ')}。`,course);
 }
 function applyScheduleDraftPlacement(draft,change={}) {
     if(draft.values){
-        const times=change.mode==='move'?courseDropTimes({...draft.values,source:'custom'},draft.week,draft,currentSemesterStartValue(),editorPeriods()):
-            courseResizeTimes(draft.values,draft.week,{...draft,edge:change.edge},currentSemesterStartValue(),editorPeriods());
+        const times=periodSpanTimes(draft.week,draft.day,draft.section,draft.duration,currentSemesterStartValue(),editorPeriods());
         if(!times || new Date(times.end_at)<=new Date(times.start_at)){showUiToast('结束时间须晚于开始时间，请在编辑器中调整','info');return;}
         draft.values={...draft.values,...times};
     }
@@ -282,7 +295,7 @@ export function mountScheduleEditor() {
     <div class="schedule-editor-basics"><label>课程名称<input name="name" required maxlength="120" autocomplete="off"></label><label>教室（选填）<input name="classroom" maxlength="200" autocomplete="off"></label></div>
     <input name="start_at" type="hidden"><input name="end_at" type="hidden">
     <div class="schedule-editor-time-fields"><div class="schedule-editor-date-line"><label>日期<input name="start_date" type="date" required></label></div>
-    <div class="schedule-editor-times"><label>开始时间<input name="start_clock" type="time" required step="60"></label><label>结束时间<input name="end_clock" type="time" required step="60"></label></div>
+    <div class="schedule-editor-times"><label>开始节次<select name="start_section" required></select></label><label>结束节次<select name="end_section" required></select></label></div>
     </div>
     <div class="schedule-editor-extras"><button type="button" class="btn-secondary" data-editor-add-field>＋ 添加信息</button><div data-editor-fields></div></div>
     <p data-editor-error class="schedule-editor-error" role="alert"></p>
@@ -294,12 +307,12 @@ export function mountScheduleEditor() {
     scope.innerHTML='<header><h2 id="schedule-scope-title">选择生效范围</h2><button type="button" data-scope-cancel>关闭</button></header><p data-scope-description></p><p class="schedule-editor-conflict" data-scope-conflict hidden></p><footer><button class="btn-primary" type="button" data-scope="week">仅本周</button><button class="btn-secondary" type="button" data-scope="all">全部周</button><button class="btn-primary" type="button" data-scope-proceed hidden>仍然保存</button><button class="btn-secondary" type="button" data-scope-cancel>取消</button></footer>';
     document.body.append(dialog,scope);scheduleEditor.dialog=dialog;scheduleEditor.scopeDialog=scope;
     const form=dialog.querySelector('form');
-    scheduleEditor.times=mountScheduleEditorTimes(form,resources);
+    scheduleEditor.times=mountScheduleEditorTimes(form,resources,editorPeriods);
     resources.listen(form,'input',()=>{clearScheduleConflict();rememberScheduleDraftForm();});
     resources.listen(form,'submit',event=>event.preventDefault());
     resources.listen(dialog.querySelector('[data-editor-close]'),'click',closeEditor);
     resources.listen(dialog.querySelector('[data-editor-cancel]'),'click',closeEditor);
-    resources.listen(dialog,'close',()=>{rememberScheduleDraftForm();if(!scheduleEditor.pending)restoreEditorFocus();});
+    resources.listen(dialog,'close',()=>{rememberScheduleDraftForm();showRememberedDraft();if(!scheduleEditor.pending)restoreEditorFocus();});
     for(const modal of [dialog,scope]){
         resources.listen(modal,'cancel',event=>{if(scheduleEditor.pending)event.preventDefault();else if(modal===dialog)rememberScheduleDraftForm();});
         resources.listen(modal,'click',event=>{if(event.target!==modal || scheduleEditor.pending)return;const r=modal.getBoundingClientRect();if(event.clientX<r.left || event.clientX>r.right || event.clientY<r.top || event.clientY>r.bottom){if(modal===dialog)rememberScheduleDraftForm();modal.close();}});
@@ -340,9 +353,8 @@ export function mountScheduleEditor() {
         },'',course,action);
     });
     const describePlacement=(course,slot,resize=false)=>{
-        const exactCourse=course || (scheduleEditor.draft?.values?.start_at && scheduleEditor.draft?.values?.end_at?{...scheduleEditor.draft.values,source:'custom'}:null);
-        const times=exactCourse?resize?courseResizeTimes(exactCourse,state.currentWeek,slot,currentSemesterStartValue(),editorPeriods()):courseDropTimes(exactCourse,state.currentWeek,slot,currentSemesterStartValue(),editorPeriods()):
-            periodSpanTimes(state.currentWeek,slot.day,slot.section,slot.duration,currentSemesterStartValue(),editorPeriods());
+        const duration=course && !resize?coursePeriodSelection(course,editorPeriods()).duration:slot.duration;
+        const times=periodSpanTimes(state.currentWeek,slot.day,slot.section,duration,currentSemesterStartValue(),editorPeriods());
         return times?`周${'一二三四五六日'[slot.day-1]} · 第${slot.section}${slot.duration>1?'–'+(slot.section+slot.duration-1):''}节\n${courseClockLabel(times)}`:'此位置无法容纳完整课程';
     };
     scheduleEditor.cancelGestures=mountScheduleEditorGestures({isEnabled:canEditSchedule,getDraft:()=>scheduleEditor.draft,onDraft:createScheduleDraft,onDismiss:clearScheduleDraft,

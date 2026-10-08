@@ -549,21 +549,16 @@ export function renderScheduleWeek(schedule, panel, courseColorMap = buildSchedu
             const position = scheduleCourseGridPlacement(course.section, course.duration)
                 + ` --schedule-event-lanes: ${course.lanes}; --schedule-event-lane: ${course.lane};`;
             const isExam = course.kind === 'exam';
-            const startTime = times[course.section - 1]?.start;
-            const endTime = times[course.section + course.duration - 2]?.end;
-            const courseTime = courseClockLabel(course.raw || {}) || (startTime && endTime ? `${startTime}-${endTime}` : '');
             const color = courseColorMap.get(getScheduleCourseColorKey(course)) || '#2563eb';
             course.conflict = !isExam && hasCourseTimeConflict(course, daysCourses[day], slotDate(week, day, currentSemesterStartValue()), times);
             const courseId = registerCourse(course, day);
             html += `<button type="button" class="course-card${isExam ? ' schedule-exam-card' : ''}${course.duration === 1 ? ' is-single-period' : ''}"
                 style="${position} --course-color: ${isExam ? 'var(--ui-exam-ink)' : color};"
-                title="${escapeHtml(`${course.name}${isExam ? ` · 考试 · ${course.time}` : courseTime ? ` · ${courseTime}` : ''}${course.location ? ` · ${course.location}` : ''}`)}"
+                title="${escapeHtml(`${course.name}${isExam ? ` · 考试 · ${course.time}` : ''}${course.location ? ` · ${course.location}` : ''}`)}"
                 data-course-id="${escapeHtml(courseId)}" data-event-id="${escapeHtml(course.raw?.event_id || '')}" data-day="${day}" tabindex="${panel.getAttribute?.('aria-hidden') === 'true' ? -1 : 0}" onclick="showCourseDetail(this)">
                 <span class="course-card-name">${escapeHtml(course.name)}</span>
                 ${isExam ? `<span class="schedule-exam-time" aria-label="${escapeHtml(course.time)}"><span>${escapeHtml(course.time.split('-')[0])}</span><span aria-hidden="true">-</span><span>${escapeHtml(course.time.split('-')[1])}</span></span>` : ''}
-                ${course.conflict ? '<span class="schedule-conflict-label">时间重叠</span>' : ''}
                 ${course.location ? `<span class="course-card-location">${escapeHtml(course.location)}</span>` : ''}
-                ${!isExam && courseTime ? `<span class="course-card-period${course.raw?.source === 'custom' ? '' : ' desktop-only'}">${escapeHtml(courseTime)} · 第${course.section}${course.duration > 1 ? `-${course.section + course.duration - 1}` : ''}节</span>` : ''}
                 ${isExam ? '<span class="schedule-exam-label">考试</span>' : ''}
             </button>`;
         });

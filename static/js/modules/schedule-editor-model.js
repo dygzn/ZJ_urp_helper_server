@@ -74,9 +74,21 @@ export function shiftCourseTimes(course,slotTimes) {
     return {...slotTimes,end_at:new Date(new Date(slotTimes.start_at).getTime()+duration).toISOString()};
 }
 export function courseDropTimes(course,week,slot,semesterStart,periodTimes) {
-    const precise=course.source==='custom' || course.time_mode==='precise' || (!course.time_mode && !!course.version);
+    const precise=course.time_mode!=='period' && (course.source==='custom' || course.time_mode==='precise' || (!course.time_mode && !!course.version));
     const span=periodSpanTimes(week,slot.day,slot.section,precise?1:Math.max(1,Number(course['节数']) || 1),semesterStart,periodTimes);
     return span && precise?shiftCourseTimes(course,span):span;
+}
+export function coursePeriodSelection(course,periodTimes) {
+    const count=periodTimes.length,clamp=value=>Math.max(1,Math.min(count,value));
+    const begin=chinaDateTime(course.start_at),finish=chinaDateTime(course.end_at);
+    if(!begin || !finish)return {section:clamp(Number(course['节次']) || 1),duration:Math.min(Number(course['节数']) || 1,count-clamp(Number(course['节次']) || 1)+1)};
+    const minutes=clock=>Number(clock.slice(0,2))*60+Number(clock.slice(3,5));
+    const startIndex=periodTimes.findIndex(period=>minutes(period.end)>minutes(begin.slice(11)));
+    const section=startIndex<0?count:startIndex+1;
+    let end=section;
+    if(finish.slice(0,10)>begin.slice(0,10))end=count;
+    else periodTimes.forEach((period,i)=>{if(minutes(period.start)<minutes(finish.slice(11)))end=Math.max(end,i+1);});
+    return {section,duration:clamp(end)-section+1};
 }
 export function hasCourseTimeConflict(course,courses,date,periodTimes) {
     const interval=item=>{
