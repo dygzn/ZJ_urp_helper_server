@@ -563,7 +563,7 @@ export function renderScheduleWeek(schedule, panel, courseColorMap = buildSchedu
                 ${isExam ? `<span class="schedule-exam-time" aria-label="${escapeHtml(course.time)}"><span>${escapeHtml(course.time.split('-')[0])}</span><span aria-hidden="true">-</span><span>${escapeHtml(course.time.split('-')[1])}</span></span>` : ''}
                 ${course.conflict ? '<span class="schedule-conflict-label">时间重叠</span>' : ''}
                 ${course.location ? `<span class="course-card-location">${escapeHtml(course.location)}</span>` : ''}
-                ${!isExam && courseTime ? `<span class="course-card-period${course.raw?.source === 'custom' || course.raw?.version ? '' : ' desktop-only'}">${escapeHtml(courseTime)} · 第${course.section}${course.duration > 1 ? `-${course.section + course.duration - 1}` : ''}节</span>` : ''}
+                ${!isExam && courseTime ? `<span class="course-card-period${course.raw?.source === 'custom' ? '' : ' desktop-only'}">${escapeHtml(courseTime)} · 第${course.section}${course.duration > 1 ? `-${course.section + course.duration - 1}` : ''}节</span>` : ''}
                 ${isExam ? '<span class="schedule-exam-label">考试</span>' : ''}
             </button>`;
         });

@@ -93,8 +93,10 @@ export function mountScheduleEditorGestures({onDraft,onResize,onMove,onCourseRes
         if(candidate){
             const sourceRect=candidate.element.getBoundingClientRect();
             const handle=target.closest?.('[data-schedule-resize-edge]');
-            const edge=handle?.dataset.scheduleResizeEdge || (point.y-sourceRect.top<Math.min(14,sourceRect.height*.2)?'start':sourceRect.bottom-point.y<Math.min(14,sourceRect.height*.2)?'end':null);
+            const edgeZone=candidate.draft?sourceRect.height/3:Math.min(14,sourceRect.height*.2);
+            const edge=handle?.dataset.scheduleResizeEdge || (point.y-sourceRect.top<edgeZone?'start':sourceRect.bottom-point.y<edgeZone?'end':null);
             if(edge){candidate.mode='resize';candidate.edge=edge;}
+            candidate.lastPoint=point;
             candidate.span=candidate.draft?originalDraft:{section:course.section,duration:course.duration};
             tap=null;
             editorPointer.timer=resources.setTimeout(()=>{
@@ -102,6 +104,7 @@ export function mountScheduleEditorGestures({onDraft,onResize,onMove,onCourseRes
                 if(editorPointer.id===null || editorPointer.moved || candidate.element.isConnected===false)return;
                 geometry=scheduleGridGeometry();rect=candidate.element.getBoundingClientRect();
                 if(!geometry.columns.length)return;
+                editorPointer.x=candidate.lastPoint.x;editorPointer.y=candidate.lastPoint.y;
                 rowStep=(geometry.columns[0].bottom-geometry.columns[0].top+geometry.gap)/geometry.rows;
                 initialSlot=slotAt({x:rect.left+rect.width/2,y:rect.top+rowStep/2},geometry);
                 originalStyle={transform:candidate.element.style.transform,height:candidate.element.style.height,zIndex:candidate.element.style.zIndex};
@@ -117,7 +120,7 @@ export function mountScheduleEditorGestures({onDraft,onResize,onMove,onCourseRes
                 for(const direction of ['up','down']){const arrow=document.createElement('span');arrow.className='schedule-drag-arrow';arrow.dataset.dragArrow=direction;arrow.textContent=direction==='up'?'↑':'↓';preview.append(arrow);}
                 caption=document.createElement('span');caption.className='schedule-drag-caption';caption.textContent=describeSpan?.(candidate.course,{...resizedSpan,day:initialSlot?.day,edge:candidate.edge}) || (candidate.mode==='resize'?'上下拖动调整长度':'拖到新的星期和节次');preview.append(caption);
                 preview.style.left=`${rect.left}px`;preview.style.top=`${rect.top}px`;preview.style.width=`${rect.width}px`;preview.style.height=`${rect.height}px`;document.body.append(preview);
-            },450);
+            },candidate.draft?300:450);
         }
     };
     const render=event=>{
@@ -147,7 +150,10 @@ export function mountScheduleEditorGestures({onDraft,onResize,onMove,onCourseRes
         if(event.pointerId!==editorPointer.id)return;
         if(createdOnDown){consume(event);return;}
         if(!editorPointer.active){
-            if(Math.hypot(event.clientX-editorPointer.x,event.clientY-editorPointer.y)>8){editorPointer.moved=true;tap=null;if(editorPointer.timer!==null)resources.clearTimeout(editorPointer.timer);editorPointer.timer=null;}
+            const dx=Math.abs(event.clientX-editorPointer.x),dy=Math.abs(event.clientY-editorPointer.y);
+            const moved=candidate?.draft && candidate.mode==='resize'?dx>10 || dy>18:Math.hypot(dx,dy)>8;
+            if(moved){editorPointer.moved=true;tap=null;if(editorPointer.timer!==null)resources.clearTimeout(editorPointer.timer);editorPointer.timer=null;}
+            else if(candidate)candidate.lastPoint={x:event.clientX,y:event.clientY};
             return;
         }
         consume(event);pending=event;

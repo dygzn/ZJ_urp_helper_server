@@ -68,7 +68,6 @@ function closeEditor() {rememberScheduleDraftForm();scheduleEditor.dialog?.close
 function extraRow(field={name:'',value:''}) {
     const row=document.createElement('div');row.className='schedule-extra-row';
     row.innerHTML='<label>数据名<input name="extra-name" maxlength="60"></label><label>数据内容<textarea name="extra-value" maxlength="2000" rows="1"></textarea></label><button type="button" class="btn-secondary" aria-label="删除这项信息">删除</button>';
-    resources.listen(row.querySelector('textarea'),'focus',()=>row.classList.add('is-expanded'));
     row.querySelector('input').value=field.name;row.querySelector('textarea').value=field.value;
     resources.listen(row.querySelector('button'),'click',()=>{row.remove();scheduleEditor.dialog.querySelector('[data-editor-add-field]').focus();});
     return row;
@@ -164,7 +163,7 @@ export function openScheduleCourseEditor({draft=null,course=null,returnFocus=nul
     form.querySelector('[data-editor-restore]').hidden=!course || course.source!=='urp' || !course.version;
     form.querySelector('.schedule-course-edit-actions').hidden=!course || (course.source!=='custom' && !course.version);
     if(course?.source==='urp'){form.elements.name.disabled=true;form.elements.classroom.disabled=true;form.querySelector('[data-editor-add-field]').disabled=true;}
-    if (!dialog.open)dialog.showModal();(course?.source==='urp'?form.elements.start_clock:form.elements.name).focus();
+    if (!dialog.open)dialog.showModal();dialog.querySelector('[data-editor-close]').focus({preventScroll:true});
 }
 function inputPayload(scope) {
     const form=scheduleEditor.dialog.querySelector('form');
@@ -278,18 +277,18 @@ export function mountScheduleEditor() {
     if(scheduleEditor.dialog)return;
     const dialog=document.createElement('dialog');dialog.className='schedule-editor-dialog';dialog.id='schedule-course-editor';dialog.setAttribute('aria-labelledby','schedule-course-editor-title');
     dialog.innerHTML=`<header><h2 id="schedule-course-editor-title">新增课程</h2><button type="button" data-editor-close>关闭</button></header>
-    <form><div data-editor-mode role="group" aria-label="课程来源"><button class="btn-secondary" type="button" data-mode="existing" aria-pressed="false">选择已有课程</button><button class="btn-secondary" type="button" data-mode="custom" aria-pressed="true">自定义课程</button></div>
+    <form><div class="schedule-editor-form-content"><div data-editor-mode role="group" aria-label="课程来源"><button class="btn-secondary" type="button" data-mode="existing" aria-pressed="false">选择已有课程</button><button class="btn-secondary" type="button" data-mode="custom" aria-pressed="true">自定义课程</button></div>
     <label data-editor-template hidden>已有课程<select name="template"></select></label>
     <div class="schedule-editor-basics"><label>课程名称<input name="name" required maxlength="120" autocomplete="off"></label><label>教室（选填）<input name="classroom" maxlength="200" autocomplete="off"></label></div>
     <input name="start_at" type="hidden"><input name="end_at" type="hidden">
-    <div class="schedule-editor-time-fields"><div class="schedule-editor-date-line"><label>日期<input name="start_date" type="date" required></label><label class="schedule-editor-cross-day"><input name="cross_day" type="checkbox" data-editor-cross-day>跨日</label></div>
+    <div class="schedule-editor-time-fields"><div class="schedule-editor-date-line"><label>日期<input name="start_date" type="date" required></label></div>
     <div class="schedule-editor-times"><label>开始时间<input name="start_clock" type="time" required step="60"></label><label>结束时间<input name="end_clock" type="time" required step="60"></label></div>
-    <label data-editor-end-date hidden>结束日期<input name="end_date" type="date"></label></div>
+    </div>
     <div class="schedule-editor-extras"><button type="button" class="btn-secondary" data-editor-add-field>＋ 添加信息</button><div data-editor-fields></div></div>
     <p data-editor-error class="schedule-editor-error" role="alert"></p>
     <p class="schedule-editor-help" data-editor-source></p><p class="schedule-editor-help" data-editor-scope></p>
     <div class="schedule-editor-conflict" data-editor-conflict hidden><p></p><button type="button" class="btn-secondary" data-editor-save-conflict>仍然保存</button></div>
-    <footer><button class="btn-primary" type="button" data-save="week">仅本周保存</button><button class="btn-secondary" type="button" data-save="all">全部周保存</button><button class="btn-secondary" type="button" data-editor-cancel>取消</button></footer>
+    </div><footer><button class="btn-primary" type="button" data-save="week">仅本周保存</button><button class="btn-secondary" type="button" data-save="all">全部周保存</button><button class="btn-secondary" type="button" data-editor-cancel>取消</button></footer>
     <div class="schedule-course-edit-actions"><button class="btn-secondary" type="button" data-editor-delete hidden>删除课程</button><button class="btn-secondary" type="button" data-editor-restore hidden>恢复教务时间</button></div></form>`;
     const scope=document.createElement('dialog');scope.className='schedule-editor-dialog schedule-scope-dialog';scope.id='schedule-scope-choice';scope.setAttribute('aria-labelledby','schedule-scope-title');
     scope.innerHTML='<header><h2 id="schedule-scope-title">选择生效范围</h2><button type="button" data-scope-cancel>关闭</button></header><p data-scope-description></p><p class="schedule-editor-conflict" data-scope-conflict hidden></p><footer><button class="btn-primary" type="button" data-scope="week">仅本周</button><button class="btn-secondary" type="button" data-scope="all">全部周</button><button class="btn-primary" type="button" data-scope-proceed hidden>仍然保存</button><button class="btn-secondary" type="button" data-scope-cancel>取消</button></footer>';
