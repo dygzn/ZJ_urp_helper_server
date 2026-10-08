@@ -51,31 +51,18 @@
                     <button id="tab-announcements-button" class="tab-btn" type="button" data-tab="announcements" onclick="switchTab('announcements')" role="tab" aria-controls="tab-announcements" aria-selected="false" tabindex="-1">公告管理</button>
                     <span class="admin-nav-group" aria-hidden="true">其他管理</span>
                     <button id="tab-ad-stats-button" class="tab-btn" type="button" data-tab="ad-stats" onclick="switchTab('ad-stats')" role="tab" aria-controls="tab-ad-stats" aria-selected="false" tabindex="-1">广告管理</button>
-                    <button id="tab-feedback-button" class="tab-btn" type="button" data-tab="feedback" onclick="switchTab('feedback')" role="tab" aria-controls="tab-feedback" aria-selected="false" tabindex="-1">反馈</button>
-                    <button id="tab-withdrawals-button" class="tab-btn" type="button" data-tab="withdrawals" onclick="switchTab('withdrawals')" role="tab" aria-controls="tab-withdrawals" aria-selected="false" tabindex="-1">提现</button>
-                    <button id="tab-config-button" class="tab-btn" type="button" data-tab="config" onclick="switchTab('config')" role="tab" aria-controls="tab-config" aria-selected="false" tabindex="-1">配置</button>
+                    <button id="tab-feedback-button" class="tab-btn" type="button" data-tab="feedback" onclick="switchTab('feedback')" role="tab" aria-controls="tab-feedback" aria-selected="false" tabindex="-1">用户反馈</button>
+                    <button id="tab-withdrawals-button" class="tab-btn" type="button" data-tab="withdrawals" onclick="switchTab('withdrawals')" role="tab" aria-controls="tab-withdrawals" aria-selected="false" tabindex="-1">提现管理</button>
+                    <button id="tab-config-button" class="tab-btn" type="button" data-tab="config" onclick="switchTab('config')" role="tab" aria-controls="tab-config" aria-selected="false" tabindex="-1">系统配置</button>
                     <span class="admin-nav-group" aria-hidden="true">偶尔使用</span>
                     <button id="tab-wechat-button" class="tab-btn" type="button" data-tab="wechat" onclick="switchTab('wechat')" role="tab" aria-controls="tab-wechat" aria-selected="false" tabindex="-1">微信绑定</button>
                     <button id="tab-service-status-button" class="tab-btn" type="button" data-tab="service-status" onclick="switchTab('service-status')" data-admin-tab="service-status" role="tab" aria-controls="tab-service-status" aria-selected="false" tabindex="-1">个人状态</button>
                 </nav>
 
-                <section id="tab-wechat" class="tab-content" role="tabpanel" aria-labelledby="tab-wechat-button">
-                    <div class="section-header"><h2>小程序微信绑定</h2><button class="icon-btn" type="button" onclick="loadWechatBindings()">刷新</button></div>
-                    <p class="config-desc">微信直接绑定学号，解绑不影响网页设备和会员权益。广告内容在“广告管理”中统一维护。</p>
-                    <form onsubmit="event.preventDefault(); loadWechatBindings(1)"><div class="form-group"><label for="wechat-username-filter">按学号查询</label><input id="wechat-username-filter" maxlength="64" placeholder="输入完整学号，留空查询全部"></div><button class="btn-primary" type="submit">查询</button></form>
-                    <div id="wechat-bindings-list" class="users-list"></div>
-                    <div class="wechat-pagination"><button id="wechat-prev" type="button" class="btn-secondary" onclick="loadWechatBindings(wechatPage - 1)">上一页</button><span id="wechat-page"></span><button id="wechat-next" type="button" class="btn-secondary" onclick="loadWechatBindings(wechatPage + 1)">下一页</button></div>
-                </section>
                 <section id="tab-users" class="tab-content active" role="tabpanel" aria-labelledby="tab-users-button">
-                    <div class="section-header"><h2>用户统计</h2><button class="icon-btn" type="button" onclick="loadUsers()">刷新</button></div>
+                    <div class="section-header"><h2>用户增长</h2><button class="icon-btn" type="button" onclick="loadUsers()">刷新</button></div>
                     <p class="config-desc">包含当前绑定与归档历史，按学号去重统计；重新绑定不会重复计入新增用户。</p>
                     <div id="users-list" class="users-list"><div class="loading">加载中...</div></div>
-                </section>
-
-                <section id="tab-ad-stats" class="tab-content" role="tabpanel" aria-labelledby="tab-ad-stats-button">
-                    <div class="section-header"><h2>广告管理</h2><button class="icon-btn" type="button" onclick="loadAdStats()">刷新</button></div>
-                    <form id="ad-config-form" class="ad-editor" onsubmit="saveAdvertisement(event)"><div class="ad-editor-fields"><h3>广告配置</h3><p>保存后生效，关闭时首页和详情页均不展示广告。</p><label><input id="ad-enabled" type="checkbox"> 启用广告</label><label for="ad-title">主页标题</label><input id="ad-title" maxlength="80" type="text"><label for="ad-summary">主页简介</label><input id="ad-summary" maxlength="200" type="text"><label for="ad-image_url">缩略图 URL（可选）</label><input id="ad-image_url" maxlength="2000" type="url"><label for="ad-detail_title">详情标题（可选，默认使用主页标题）</label><input id="ad-detail_title" maxlength="120" type="text"><label for="ad-cover_url">详情封面 URL（可选）</label><input id="ad-cover_url" maxlength="2000" type="url"><label for="ad-body">详细正文（支持换行）</label><textarea id="ad-body" maxlength="20000" rows="8"></textarea><label for="ad-contact">联系信息（可选）</label><input id="ad-contact" maxlength="200" type="text"><label for="ad-button_text">跳转按钮文字（可选）</label><input id="ad-button_text" maxlength="40" type="text"><label for="ad-button_url">跳转链接（可选）</label><input id="ad-button_url" maxlength="2000" type="url"><button id="ad-save" class="btn-primary" type="submit" disabled>保存广告配置</button><p id="ad-config-status" role="status"></p></div><aside><h3>实时预览</h3><p>主页缩略内容</p><div id="ad-preview-summary" class="ad-preview-box"></div><p>点击后的详细内容</p><div id="ad-preview-detail" class="ad-preview-box"></div></aside></form>
-                    <div id="ad-stats" class="ad-stats"><div class="loading">加载中...</div></div>
                 </section>
 
                 <section id="tab-monitor" class="tab-content" role="tabpanel" aria-labelledby="tab-monitor-button">
@@ -83,49 +70,6 @@
                     <p class="config-desc">查看当前在线用户和最近访问，进入本栏目后会自动更新。</p>
                     <div class="monitor-summary"><span>在线人数：</span><strong id="online-count">-</strong></div>
                     <div id="online-users-list" class="online-users-list monitor-table-wrap"><div class="loading">加载中...</div></div>
-                </section>
-
-                <section id="tab-announcements" class="tab-content" role="tabpanel" aria-labelledby="tab-announcements-button">
-                    <div class="section-header"><h2>公告管理</h2><div class="button-group"><button class="icon-btn" type="button" onclick="loadAnnouncements()">刷新</button><button class="btn-primary" type="button" onclick="showCreateAnnouncementModal()">发布公告</button></div></div>
-                    <p class="config-desc">发布站内通知，并维护已发布的内容。</p>
-                    <div id="announcements-list" class="announcements-list"><div class="loading">加载中...</div></div>
-                </section>
-
-                <section id="tab-service-status" class="tab-content" role="tabpanel" aria-labelledby="tab-service-status-button">
-                    <div class="section-header"><h2>个人状态</h2><button class="icon-btn" type="button" onclick="loadAdminServiceStatus()">刷新</button></div>
-                    <div class="config-section admin-service-status-panel">
-                        <div class="admin-service-status-heading">
-                            <div>
-                                <h3>接单状态</h3>
-                                <p class="config-desc">用户会在“找我做事”页面看到这里保存的内容。</p>
-                            </div>
-                            <span id="admin-service-status-updated" class="admin-service-status-updated">尚未更新</span>
-                        </div>
-                        <form id="admin-service-status-form" class="admin-form" onsubmit="saveAdminServiceStatus(event)">
-                            <div class="database-field">
-                                <label for="admin-service-status-text">当前状态</label>
-                                <input id="admin-service-status-text" type="text" maxlength="40" required placeholder="例如：空闲、上课、睡觉">
-                            </div>
-                            <div class="admin-service-status-presets" aria-label="快捷状态">
-                                <button type="button" class="admin-service-status-preset" data-service-status="空闲" onclick="selectServiceStatus('空闲')">空闲</button>
-                                <button type="button" class="admin-service-status-preset" data-service-status="上课" onclick="selectServiceStatus('上课')">上课</button>
-                                <button type="button" class="admin-service-status-preset" data-service-status="睡觉" onclick="selectServiceStatus('睡觉')">睡觉</button>
-                                <button type="button" class="admin-service-status-preset" data-service-status="忙碌" onclick="selectServiceStatus('忙碌')">忙碌</button>
-                            </div>
-                            <label class="admin-toggle-row" for="admin-accepting-orders">
-                                <span><strong>当前可以接单</strong><small>关闭后用户会看到“暂不接单”</small></span>
-                                <input type="checkbox" id="admin-accepting-orders">
-                            </label>
-                            <button class="btn-primary btn-full" type="submit">保存状态</button>
-                        </form>
-                        <div id="admin-service-status-message" class="hint-message"></div>
-                    </div>
-                </section>
-
-                <section id="tab-feedback" class="tab-content" role="tabpanel" aria-labelledby="tab-feedback-button">
-                    <div class="section-header"><h2>用户反馈</h2><button class="icon-btn" type="button" onclick="loadAdminFeedbacks()">刷新</button></div>
-                    <p class="config-desc">查看反馈详情、回复用户并跟进处理。</p>
-                    <div id="feedback-list" class="feedback-list"><div class="loading">加载中...</div></div>
                 </section>
 
                 <section id="tab-members" class="tab-content" role="tabpanel" aria-labelledby="tab-members-button">
@@ -145,7 +89,25 @@
                     </div>
                     <div class="config-section"><label class="admin-check-row"><span><strong>成绩查询需要会员</strong><small>开启后普通用户无法直接查询成绩</small></span><input type="checkbox" id="grades-member-required" onchange="handleUpdateGradesMemberRequired()"></label><span id="grades-member-status" class="hint-message"></span></div>
                     <div class="config-section"><label class="admin-check-row"><span><strong>显示前端充值页面</strong><small>关闭后前端不显示会员购买导航和充值页面</small></span><input type="checkbox" id="member-page-enabled" onchange="handleUpdateMemberPageEnabled()"></label><span id="member-page-status" class="hint-message"></span></div>
-                    <div id="members-list" class="members-list"><div class="empty-state">&#36755;&#20837;&#23398;&#21495;&#21518;&#26597;&#35810;&#25110;&#35843;&#25972;&#20250;&#21592;&#29366;&#24577;</div></div>
+                    <div id="members-list" class="members-list"><div class="empty-state">输入学号后查询或调整会员状态</div></div>
+                </section>
+
+                <section id="tab-announcements" class="tab-content" role="tabpanel" aria-labelledby="tab-announcements-button">
+                    <div class="section-header"><h2>公告管理</h2><div class="button-group"><button class="icon-btn" type="button" onclick="loadAnnouncements()">刷新</button><button class="btn-primary" type="button" onclick="showCreateAnnouncementModal()">发布公告</button></div></div>
+                    <p class="config-desc">发布站内通知，并维护已发布的内容。</p>
+                    <div id="announcements-list" class="announcements-list"><div class="loading">加载中...</div></div>
+                </section>
+
+                <section id="tab-ad-stats" class="tab-content" role="tabpanel" aria-labelledby="tab-ad-stats-button">
+                    <div class="section-header"><h2>广告管理</h2><button class="icon-btn" type="button" onclick="loadAdStats()">刷新</button></div>
+                    <form id="ad-config-form" class="ad-editor" onsubmit="saveAdvertisement(event)"><div class="ad-editor-fields"><h3>广告配置</h3><p>保存后生效，关闭时首页和详情页均不展示广告。</p><label><input id="ad-enabled" type="checkbox"> 启用广告</label><label for="ad-title">主页标题</label><input id="ad-title" maxlength="80" type="text"><label for="ad-summary">主页简介</label><input id="ad-summary" maxlength="200" type="text"><label for="ad-image_url">缩略图 URL（可选）</label><input id="ad-image_url" maxlength="2000" type="url"><label for="ad-detail_title">详情标题（可选，默认使用主页标题）</label><input id="ad-detail_title" maxlength="120" type="text"><label for="ad-cover_url">详情封面 URL（可选）</label><input id="ad-cover_url" maxlength="2000" type="url"><label for="ad-body">详细正文（支持换行）</label><textarea id="ad-body" maxlength="20000" rows="8"></textarea><label for="ad-contact">联系信息（可选）</label><input id="ad-contact" maxlength="200" type="text"><label for="ad-button_text">跳转按钮文字（可选）</label><input id="ad-button_text" maxlength="40" type="text"><label for="ad-button_url">跳转链接（可选）</label><input id="ad-button_url" maxlength="2000" type="url"><button id="ad-save" class="btn-primary" type="submit" disabled>保存广告配置</button><p id="ad-config-status" role="status"></p></div><aside><h3>实时预览</h3><p>主页缩略内容</p><div id="ad-preview-summary" class="ad-preview-box"></div><p>点击后的详细内容</p><div id="ad-preview-detail" class="ad-preview-box"></div></aside></form>
+                    <div id="ad-stats" class="ad-stats"><div class="loading">加载中...</div></div>
+                </section>
+
+                <section id="tab-feedback" class="tab-content" role="tabpanel" aria-labelledby="tab-feedback-button">
+                    <div class="section-header"><h2>用户反馈</h2><button class="icon-btn" type="button" onclick="loadAdminFeedbacks()">刷新</button></div>
+                    <p class="config-desc">查看反馈详情、回复用户并跟进处理。</p>
+                    <div id="feedback-list" class="feedback-list"><div class="loading">加载中...</div></div>
                 </section>
 
                 <section id="tab-withdrawals" class="tab-content" role="tabpanel" aria-labelledby="tab-withdrawals-button">
@@ -217,13 +179,52 @@
                         </div>
                     </div>
                 </section>
+
+                <section id="tab-wechat" class="tab-content" role="tabpanel" aria-labelledby="tab-wechat-button">
+                    <div class="section-header"><h2>微信绑定</h2><button class="icon-btn" type="button" onclick="loadWechatBindings()">刷新</button></div>
+                    <p class="config-desc">微信直接绑定学号，解绑不影响网页设备和会员权益。广告内容在“广告管理”中统一维护。</p>
+                    <form onsubmit="event.preventDefault(); loadWechatBindings(1)"><div class="form-group"><label for="wechat-username-filter">按学号查询</label><input id="wechat-username-filter" maxlength="64" placeholder="输入完整学号，留空查询全部"></div><button class="btn-primary" type="submit">查询</button></form>
+                    <div id="wechat-bindings-list" class="users-list"></div>
+                    <div class="wechat-pagination"><button id="wechat-prev" type="button" class="btn-secondary" onclick="loadWechatBindings(wechatPage - 1)">上一页</button><span id="wechat-page"></span><button id="wechat-next" type="button" class="btn-secondary" onclick="loadWechatBindings(wechatPage + 1)">下一页</button></div>
+                </section>
+
+                <section id="tab-service-status" class="tab-content" role="tabpanel" aria-labelledby="tab-service-status-button">
+                    <div class="section-header"><h2>个人状态</h2><button class="icon-btn" type="button" onclick="loadAdminServiceStatus()">刷新</button></div>
+                    <div class="config-section admin-service-status-panel">
+                        <div class="admin-service-status-heading">
+                            <div>
+                                <h3>接单状态</h3>
+                                <p class="config-desc">用户会在“找我做事”页面看到这里保存的内容。</p>
+                            </div>
+                            <span id="admin-service-status-updated" class="admin-service-status-updated">尚未更新</span>
+                        </div>
+                        <form id="admin-service-status-form" class="admin-form" onsubmit="saveAdminServiceStatus(event)">
+                            <div class="database-field">
+                                <label for="admin-service-status-text">当前状态</label>
+                                <input id="admin-service-status-text" type="text" maxlength="40" required placeholder="例如：空闲、上课、睡觉">
+                            </div>
+                            <div class="admin-service-status-presets" aria-label="快捷状态">
+                                <button type="button" class="admin-service-status-preset" data-service-status="空闲" onclick="selectServiceStatus('空闲')">空闲</button>
+                                <button type="button" class="admin-service-status-preset" data-service-status="上课" onclick="selectServiceStatus('上课')">上课</button>
+                                <button type="button" class="admin-service-status-preset" data-service-status="睡觉" onclick="selectServiceStatus('睡觉')">睡觉</button>
+                                <button type="button" class="admin-service-status-preset" data-service-status="忙碌" onclick="selectServiceStatus('忙碌')">忙碌</button>
+                            </div>
+                            <label class="admin-toggle-row" for="admin-accepting-orders">
+                                <span><strong>当前可以接单</strong><small>关闭后用户会看到“暂不接单”</small></span>
+                                <input type="checkbox" id="admin-accepting-orders">
+                            </label>
+                            <button class="btn-primary btn-full" type="submit">保存状态</button>
+                        </form>
+                        <div id="admin-service-status-message" class="hint-message"></div>
+                    </div>
+                </section>
             </div>
         </div>
     </div>
 
-    <div id="announcement-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="announcement-modal-title"><div class="modal-content"><button class="modal-close" type="button" onclick="closeAnnouncementModal()" aria-label="关闭">&times;</button><h2 id="announcement-modal-title">发布新公告</h2><form id="announcement-form" onsubmit="handleAnnouncementSubmit(event)"><div class="form-group"><label for="announcement-title">公告标题</label><input type="text" id="announcement-title" required placeholder="请输入公告标题"></div><div class="form-group"><label for="announcement-content">公告内容</label><textarea id="announcement-content" rows="8" required placeholder="请输入公告内容"></textarea></div><label><input type="checkbox" id="announcement-active" checked> 启用此公告</label><div class="button-group"><button type="submit" class="btn-primary">保存</button><button type="button" class="btn-secondary" onclick="closeAnnouncementModal()">取消</button></div></form></div></div>
+    <div id="announcement-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="announcement-modal-title"><div class="modal-content"><button class="modal-close" type="button" onclick="closeAnnouncementModal()" aria-label="关闭">关闭</button><h2 id="announcement-modal-title">发布新公告</h2><form id="announcement-form" onsubmit="handleAnnouncementSubmit(event)"><div class="form-group"><label for="announcement-title">公告标题</label><input type="text" id="announcement-title" required placeholder="请输入公告标题"></div><div class="form-group"><label for="announcement-content">公告内容</label><textarea id="announcement-content" rows="8" required placeholder="请输入公告内容"></textarea></div><label><input type="checkbox" id="announcement-active" checked> 启用此公告</label><div class="button-group"><button type="submit" class="btn-primary">保存</button><button type="button" class="btn-secondary" onclick="closeAnnouncementModal()">取消</button></div></form></div></div>
 
-    <div id="feedback-reply-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="feedback-reply-modal-title"><div class="modal-content"><button class="modal-close" type="button" onclick="closeFeedbackReplyModal()" aria-label="关闭">&times;</button><h2 id="feedback-reply-modal-title">回复反馈</h2><div id="feedback-reply-original" class="feedback-reply-original"></div><form onsubmit="handleFeedbackReplySubmit(event)"><div class="form-group"><label for="feedback-reply-content">回复内容</label><textarea id="feedback-reply-content" rows="5" placeholder="请输入回复内容"></textarea></div><div class="button-group"><button type="submit" class="btn-primary">发送回复</button><button type="button" class="btn-secondary" onclick="closeFeedbackReplyModal()">取消</button></div></form></div></div>
+    <div id="feedback-reply-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="feedback-reply-modal-title"><div class="modal-content"><button class="modal-close" type="button" onclick="closeFeedbackReplyModal()" aria-label="关闭">关闭</button><h2 id="feedback-reply-modal-title">回复反馈</h2><div id="feedback-reply-original" class="feedback-reply-original"></div><form onsubmit="handleFeedbackReplySubmit(event)"><div class="form-group"><label for="feedback-reply-content">回复内容</label><textarea id="feedback-reply-content" rows="5" placeholder="请输入回复内容"></textarea></div><div class="button-group"><button type="submit" class="btn-primary">发送回复</button><button type="button" class="btn-secondary" onclick="closeFeedbackReplyModal()">取消</button></div></form></div></div>
 
     <div id="admin-toast-region" class="admin-toast-region" aria-live="polite" aria-atomic="true"></div>
     <div id="overlay" class="overlay" onclick="adminHandleOverlayClick(event)"></div>

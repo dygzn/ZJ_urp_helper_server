@@ -36,8 +36,11 @@ export function gradesBackToMenu({ restoreFocus = true } = {}) {
     resources.api.cancelRequest('grades');
     const pageTitle = document.getElementById('grades-page-title');
     if (pageTitle) pageTitle.hidden = false;
-    if (restoreFocus) focusUiElement(pageTitle);
-    return gradesLoadDashboard();
+    const trigger = state.gradesReturnFocus;
+    state.gradesReturnFocus = null;
+    const loading = gradesLoadDashboard();
+    if (restoreFocus) focusUiElement(trigger?.isConnected !== false ? trigger || pageTitle : pageTitle);
+    return loading;
 }
 
 export function gradesCloseQueryMenu() {
@@ -64,7 +67,15 @@ export function gradesShowResult(title) {
         : title === '本学期成绩' ? 'current'
         : title === '不及格成绩' ? 'failed'
         : title.startsWith('及格成绩（') ? 'semester' : 'exam';
+    if (query !== 'summary') {
+        const active = document.activeElement;
+        const menu = document.getElementById('grades-query-menu');
+        state.gradesReturnFocus = menu?.contains?.(active)
+            ? document.getElementById('grades-query-summary') : active;
+    }
     gradesSelectQuery(query);
+    const back = document.getElementById('grades-result-back');
+    if (back) back.hidden = query === 'summary';
     const pageTitle = document.getElementById('grades-page-title');
     if (pageTitle) pageTitle.hidden = false;
     const result = document.getElementById('grades-result');

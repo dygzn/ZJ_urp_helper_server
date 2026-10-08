@@ -305,7 +305,9 @@ export function handleSchedulePointerDown(event) {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
     // 新一次按下与上一轮滑动的合成点击无关，课程按钮也需要清除旧标记。
     state.suppressScheduleSwipeClick = false;
-    if (event.target.closest && event.target.closest('button, select, a, input, textarea')) return;
+    const control = event.target.closest?.('button, select, a, input, textarea');
+    // 课程卡片也是按钮：允许从卡片或其文字开始拖动，轻点仍由原点击逻辑打开详情。
+    if (control && !control.classList?.contains('course-card')) return;
 
     if (state.scheduleSwipeTransition) {
         scheduleQueuedPointer.pointerId = event.pointerId;

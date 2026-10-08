@@ -110,7 +110,7 @@ export function renderShortcutApiKeyStatus(data) {
                 <code>${escapeHtml(prefix)}...</code>
                 <small>${escapeHtml(createTime)}</small>
             </div>
-            <button class="btn-secondary" type="button" onclick="generateShortcutApiKey()">重新生成</button>
+            <button class="btn-secondary" type="button" onclick="generateShortcutApiKey()">重新生成密钥</button>
         </div>`;
 }
 
@@ -158,8 +158,8 @@ export async function generateShortcutApiKey() {
     if (state.shortcutApiHasKey) {
         const confirmed = await operation.wait(requestUiConfirmation({
             title: '重新生成快捷指令密钥',
-            message: '重新生成后，旧密钥会立即失效，确定继续吗？',
-            confirmText: '重新生成',
+            message: '重新生成后，旧密钥会立即失效，使用旧密钥的快捷指令需要更新。是否继续？',
+            confirmText: '重新生成密钥',
             danger: true,
         }));
         if (!confirmed) return;
@@ -362,19 +362,16 @@ export async function loadInvitationEarnings() {
         });
     }
 
-    let btnText, btnDisabled, btnOpacity;
+    let btnText, btnDisabled;
     if (hasPending) {
         btnText = '审核中';
         btnDisabled = true;
-        btnOpacity = '0.5';
     } else if (available <= 0) {
         btnText = '暂无可提现';
         btnDisabled = true;
-        btnOpacity = '0.5';
     } else {
         btnText = '提现';
         btnDisabled = false;
-        btnOpacity = '1';
     }
 
     html += `<div class="earnings-summary">
@@ -422,7 +419,7 @@ export async function loadInvitationEarnings() {
 
     html += `<div class="earnings-total">
         <span class="earnings-label">可提现</span><span class="earnings-amount">¥${available.toFixed(2)}</span>
-        <button class="btn-withdraw" onclick="showWithdrawDialog()" ${btnDisabled ? 'disabled' : ''} style="opacity:${btnOpacity}">${btnText}</button>
+        <button class="btn-withdraw" onclick="showWithdrawDialog()" ${btnDisabled ? 'disabled' : ''}>${btnText}</button>
     </div>`;
     if (withdrawn > 0) {
         html += `<div class="earnings-withdrawn"><span>已占用：¥${withdrawn.toFixed(2)}</span></div>`;
@@ -463,7 +460,7 @@ export async function loadMemberOrders() {
         }));
         const data = await operation.wait(resp.json());
         if (!data.success || !data.data.length) {
-            container.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:12px 0;">暂无购买记录</p>';
+            container.innerHTML = '<p class="member-orders-empty">暂无购买记录</p>';
             return;
         }
 
@@ -471,13 +468,13 @@ export async function loadMemberOrders() {
         const activeOrders = data.data.filter(o => o.active_pay_url);
         if (activeOrders.length > 0 && payLinksDiv) {
             const typeMap = { basic: '初级会员', advanced: '高级会员' };
-            let linksHtml = '<div style="font-weight:600;margin-bottom:8px;">有效期内的支付链接</div>';
+            let linksHtml = '<div class="member-pay-links-title">有效期内的支付链接</div>';
             for (const order of activeOrders) {
                 const expireMin = Math.ceil(order.expire_seconds / 60);
                 linksHtml += `
-                    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;flex-wrap:wrap;gap:8px;">
-                        <span>${typeMap[order.member_type]} ¥${order.amount} · <span style="color:var(--error);">剩余${expireMin}分钟</span></span>
-                        <a href="${order.active_pay_url}" class="btn-primary" style="font-size:13px;padding:6px 16px;text-decoration:none;">立即支付</a>
+                    <div class="member-pay-link-row">
+                        <span>${typeMap[order.member_type]} ¥${order.amount} · <span class="member-order-error">剩余${expireMin}分钟</span></span>
+                        <a href="${order.active_pay_url}" class="btn-primary member-order-pay">立即支付</a>
                     </div>`;
             }
             payLinksDiv.innerHTML = linksHtml;
@@ -488,7 +485,7 @@ export async function loadMemberOrders() {
         const statusMap = { pending: '待支付', paid: '已支付', failed: '失败' };
         let html = '<div class="orders-list">';
         for (const order of data.data) {
-            let payLinkHtml = order.active_pay_url ? ` <a class="btn-primary" href="${order.active_pay_url}" style="font-size:12px;padding:2px 10px;text-decoration:none;">去支付</a>` : '';
+            let payLinkHtml = order.active_pay_url ? ` <a class="btn-primary member-order-pay member-order-pay-compact" href="${order.active_pay_url}">去支付</a>` : '';
             html += `
                 <div class="order-item">
                     <div class="order-info">
@@ -503,7 +500,7 @@ export async function loadMemberOrders() {
         container.innerHTML = html;
     } catch (e) {
         if (e?.name === 'AbortError') return;
-        container.innerHTML = '<p style="color:var(--error);">加载失败</p>';
+        container.innerHTML = '<p class="member-order-error">加载失败</p>';
     }
 }
 
@@ -517,15 +514,15 @@ export function updatePayTypeUI() {
 export function showPayDialog(memberType) {
     state._currentPayMemberType = memberType;
     const prices = { basic: '3', advanced: '5' };
-    const typeNames = { basic: '\u521d\u7ea7\u4f1a\u5458', advanced: '\u9ad8\u7ea7\u4f1a\u5458' };
+    const typeNames = { basic: '初级会员', advanced: '高级会员' };
     const defaultPay = document.getElementById('pay-type-alipay');
     if (defaultPay) defaultPay.checked = true;
     updatePayTypeUI();
-    document.getElementById('pay-modal-title').textContent = `\u5f00\u901a${typeNames[memberType]}`;
-    document.getElementById('pay-modal-desc').textContent = `\u4ef7\u683c\uff1a\u00a5${prices[memberType]}/\u534a\u5e74\uff0c\u7eed\u8d39\u4f1a\u81ea\u52a8\u53e0\u52a0\u5230\u539f\u5230\u671f\u65e5\u540e`;
+    document.getElementById('pay-modal-title').textContent = `开通${typeNames[memberType]}`;
+    document.getElementById('pay-modal-desc').textContent = `价格：¥${prices[memberType]}/半年，续费会自动叠加到原到期日后`;
     document.getElementById('pay-error').textContent = '';
     document.getElementById('pay-confirm-btn').disabled = false;
-    document.getElementById('pay-confirm-btn').textContent = '\u786e\u8ba4\u652f\u4ed8';
+    document.getElementById('pay-confirm-btn').textContent = '确认支付';
     const modal = document.getElementById('pay-modal');
     openUiModal(modal);
 }
@@ -543,7 +540,7 @@ export async function confirmPay() {
     const btn = document.getElementById('pay-confirm-btn');
     const errDiv = document.getElementById('pay-error');
     btn.disabled = true;
-    btn.textContent = '\u6b63\u5728\u521b\u5efa\u652f\u4ed8...';
+    btn.textContent = '正在创建支付...';
     errDiv.textContent = '';
     try {
         const resp = await operation.wait(resources.fetch('/api/member/create_order', {
@@ -553,9 +550,9 @@ export async function confirmPay() {
         }));
         const data = await operation.wait(resp.json());
         if (!data.success) {
-            errDiv.textContent = data.message || '\u521b\u5efa\u8ba2\u5355\u5931\u8d25';
+            errDiv.textContent = data.message || '创建订单失败';
             btn.disabled = false;
-            btn.textContent = '\u786e\u8ba4\u652f\u4ed8';
+            btn.textContent = '确认支付';
             return;
         }
         const payUrl = data.data.pay_url;
@@ -563,15 +560,15 @@ export async function confirmPay() {
             closePayDialog();
             window.location.href = payUrl;
         } else {
-            errDiv.textContent = '\u83b7\u53d6\u652f\u4ed8\u94fe\u63a5\u5931\u8d25\uff0c\u8bf7\u91cd\u8bd5';
+            errDiv.textContent = '获取支付链接失败，请重试';
             btn.disabled = false;
-            btn.textContent = '\u786e\u8ba4\u652f\u4ed8';
+            btn.textContent = '确认支付';
         }
     } catch (e) {
         if (e?.name === 'AbortError') return;
-        errDiv.textContent = '\u7f51\u7edc\u9519\u8bef\uff0c\u8bf7\u91cd\u8bd5';
+        errDiv.textContent = '网络错误，请重试';
         btn.disabled = false;
-        btn.textContent = '\u786e\u8ba4\u652f\u4ed8';
+        btn.textContent = '确认支付';
     }
 }
 

@@ -33,14 +33,14 @@ export async function doFullEvaluation() {
 
         if (!data.has_courses) {
             resultDiv.className = 'evaluation-result result-success';
-            resultDiv.innerHTML = `<div style="text-align:center;padding:20px;"><div style="font-size:40px;margin-bottom:10px;color:var(--success);">✓</div><div style="font-size:17px;color:var(--success);font-weight:600;">${data.message || '没有未评估的课程'}</div></div>`;
+            resultDiv.innerHTML = `<div class="evaluation-success"><div class="evaluation-success-icon">✓</div><div class="evaluation-success-message">${data.message || '没有未评估的课程'}</div></div>`;
             btn.disabled = false; btn.textContent = '完成教学评估'; return;
         }
 
         // 显示找到的课程
-        let coursesHtml = '<div style="margin-bottom:15px;">';
+        let coursesHtml = '<div class="evaluation-course-preview">';
         data.courses.forEach(course => {
-            coursesHtml += `<div style="background:var(--bg-secondary);padding:10px 14px;margin-bottom:6px;border-radius:10px;"><span style="font-weight:600;">${course['未评课程']}</span><span style="color:var(--text-secondary);margin-left:10px;">教师: ${course['教师']}</span></div>`;
+            coursesHtml += `<div class="evaluation-course evaluation-course-compact"><span class="evaluation-course-name">${course['未评课程']}</span><span class="evaluation-course-teacher evaluation-course-teacher-inline">教师: ${course['教师']}</span></div>`;
         });
         coursesHtml += '</div>';
         resultDiv.innerHTML = coursesHtml + '<div class="loading">正在提交评教...</div>';
@@ -51,7 +51,7 @@ export async function doFullEvaluation() {
         if (evalData.success) {
             state.unevaluatedCoursesData = [];
             resultDiv.className = 'evaluation-result result-success';
-            resultDiv.innerHTML = `<div style="text-align:center;padding:20px;"><div style="font-size:40px;margin-bottom:10px;color:var(--success);">✓</div><div style="font-size:17px;color:var(--success);font-weight:600;">${evalData.message || '评估成功'}</div></div>`;
+            resultDiv.innerHTML = `<div class="evaluation-success"><div class="evaluation-success-icon">✓</div><div class="evaluation-success-message">${evalData.message || '评估成功'}</div></div>`;
         } else {
             resultDiv.className = 'evaluation-result result-error';
             resultDiv.textContent = evalData.message || '评价失败';
@@ -83,7 +83,7 @@ export async function checkUnevaluatedCourses() {
             } else {
                 state.unevaluatedCoursesData = [];
                 resultDiv.className = 'evaluation-result result-success';
-                resultDiv.innerHTML = `<div style="text-align:center;padding:20px;"><div style="font-size:40px;margin-bottom:10px;color:var(--success);">✓</div><div style="font-size:17px;color:var(--success);font-weight:600;">${data.message}</div></div>`;
+                resultDiv.innerHTML = `<div class="evaluation-success"><div class="evaluation-success-icon">✓</div><div class="evaluation-success-message">${data.message}</div></div>`;
             }
         } else {
             resultDiv.className = 'evaluation-result result-error';
@@ -98,11 +98,11 @@ export async function checkUnevaluatedCourses() {
 
 export function displayUnevaluatedCourses(courses) {
     const resultDiv = document.getElementById('evaluation-result');
-    let html = '<div class="unevaluated-courses"><h3 style="margin-bottom:15px;font-weight:600;">未评估课程列表</h3>';
+    let html = '<div class="unevaluated-courses"><h3 class="evaluation-courses-title">未评估课程列表</h3>';
     courses.forEach(course => {
-        html += `<div style="background:var(--bg-secondary);padding:14px 16px;margin-bottom:8px;border-radius:12px;"><div style="font-size:15px;font-weight:600;margin-bottom:4px;">${course['未评课程']}</div><div style="font-size:14px;color:var(--text-secondary);">教师: ${course['教师']}</div></div>`;
+        html += `<div class="evaluation-course"><div class="evaluation-course-name evaluation-course-heading">${course['未评课程']}</div><div class="evaluation-course-teacher">教师: ${course['教师']}</div></div>`;
     });
-    html += '<div style="text-align:center;margin-top:20px;"><button class="btn-primary" onclick="doEvaluation()">完成评估</button></div></div>';
+    html += '<div class="evaluation-course-actions"><button class="btn-primary" onclick="doEvaluation()">完成评估</button></div></div>';
     resultDiv.innerHTML = html;
 }
 
@@ -116,14 +116,22 @@ export async function doEvaluation() {
         showUiToast('没有未评估的课程', 'info');
         return;
     }
+    const courses = [...state.unevaluatedCoursesData];
+    const confirmed = await operation.wait(requestUiConfirmation({
+        title: '确认完成评估',
+        message: `即将对列表中的 ${courses.length} 项待评课程提交默认好评，该操作不可撤销，是否继续？`,
+        confirmText: '提交评估',
+        danger: true,
+    }));
+    if (!confirmed || !scope.isActive()) return;
     resultDiv.innerHTML = '<div class="loading">正在提交评教...</div>';
     try {
-        const response = await operation.wait(resources.fetch('/api/evaluation', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Device-ID': getDeviceId() }, body: JSON.stringify({ courses: state.unevaluatedCoursesData }) }));
+        const response = await operation.wait(resources.fetch('/api/evaluation', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Device-ID': getDeviceId() }, body: JSON.stringify({ courses }) }));
         const data = await operation.wait(response.json());
         if (data.success) {
             state.unevaluatedCoursesData = [];
             resultDiv.className = 'evaluation-result result-success';
-            resultDiv.innerHTML = `<div style="text-align:center;padding:20px;"><div style="font-size:40px;margin-bottom:10px;color:var(--success);">✓</div><div style="font-size:17px;color:var(--success);font-weight:600;">${data.message || '评价完成'}</div></div>`;
+            resultDiv.innerHTML = `<div class="evaluation-success"><div class="evaluation-success-icon">✓</div><div class="evaluation-success-message">${data.message || '评价完成'}</div></div>`;
         } else {
             resultDiv.className = 'evaluation-result result-error';
             resultDiv.textContent = data.message || '评价失败';
@@ -163,7 +171,7 @@ export async function oneClickEvaluation() {
         }
         if (!data.has_courses) {
             resultDiv.className = 'evaluation-result result-success';
-            resultDiv.innerHTML = `<div style="text-align:center;padding:20px;"><div style="font-size:40px;margin-bottom:10px;color:var(--success);">✓</div><div style="font-size:17px;color:var(--success);font-weight:600;">没有未评估的课程</div></div>`;
+            resultDiv.innerHTML = `<div class="evaluation-success"><div class="evaluation-success-icon">✓</div><div class="evaluation-success-message">没有未评估的课程</div></div>`;
             btn.disabled = false; btn.textContent = '一键评教'; return;
         }
         resultDiv.innerHTML = '<div class="loading">正在提交评教...</div>';
@@ -172,7 +180,7 @@ export async function oneClickEvaluation() {
         if (evalData.success) {
             state.unevaluatedCoursesData = [];
             resultDiv.className = 'evaluation-result result-success';
-            resultDiv.innerHTML = `<div style="text-align:center;padding:20px;"><div style="font-size:40px;margin-bottom:10px;color:var(--success);">✓</div><div style="font-size:17px;color:var(--success);font-weight:600;">${evalData.message}</div></div>`;
+            resultDiv.innerHTML = `<div class="evaluation-success"><div class="evaluation-success-icon">✓</div><div class="evaluation-success-message">${evalData.message}</div></div>`;
         } else {
             resultDiv.className = 'evaluation-result result-error';
             resultDiv.textContent = evalData.message || '评价失败';

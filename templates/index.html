@@ -21,7 +21,7 @@
     <div id="sidebar" class="sidebar" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="sidebar-title">
         <div class="sidebar-header">
             <h2 id="sidebar-title"><span class="tablet-only">URP教务助手</span><span class="mobile-only">更多功能</span></h2>
-            <button class="close-btn" type="button" onclick="closeSidebar()" aria-label="关闭导航菜单"><span class="tablet-only" aria-hidden="true">×</span><span class="mobile-only">关闭</span></button>
+            <button class="close-btn" type="button" onclick="closeSidebar()" aria-label="关闭导航菜单">关闭</button>
         </div>
         <nav class="sidebar-nav">
             <div id="mobile-announcement-slot" class="mobile-only mobile-announcement-slot"></div>
@@ -205,6 +205,7 @@
                         </section>
                         <div id="grades-result" class="grades-result grades-table-panel">
                             <div class="grades-result-header grades-table-header">
+                                <button id="grades-result-back" class="in-page-back grades-result-back" type="button" onclick="gradesBackToMenu()" hidden>← 返回成绩概览</button>
                                 <h3 id="grades-result-title">一键查本学期成绩</h3>
                                 <p id="grades-result-description" class="page-section-desc"></p>
                             </div>
@@ -214,7 +215,7 @@
                 </div>
             </div>
 
-            <div id="page-evaluation" class="page"><div class="page-access-gate" data-page-access-gate hidden></div><div class="evaluation-container"><h2>教学评估</h2><p class="page-section-desc">查询待评课程，支持一键提交默认评教。</p><div class="action-bar"><button class="btn-secondary" id="do-eval-btn" type="button" onclick="checkUnevaluatedCourses()">刷新查询</button><button class="btn-primary" id="one-click-eval-btn" type="button" onclick="oneClickEvaluation()">一键评教</button></div><div id="evaluation-result" class="evaluation-result"></div></div></div>
+            <div id="page-evaluation" class="page"><div class="page-access-gate" data-page-access-gate hidden></div><div class="evaluation-container"><h2>教学评估</h2><p class="page-section-desc">查询待评课程，支持一键提交默认评教。</p><div class="action-bar"><button class="btn-secondary" id="do-eval-btn" type="button" onclick="checkUnevaluatedCourses()">查询待评课程</button><button class="btn-primary" id="one-click-eval-btn" type="button" onclick="oneClickEvaluation()">一键评教</button></div><div id="evaluation-result" class="evaluation-result"></div></div></div>
 
             <div id="page-service-status" class="page">
                 <div class="service-status-container">
@@ -492,24 +493,43 @@
 
     <div id="password-disclaimer-modal" class="modal password-disclaimer-modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="password-disclaimer-title">
         <div class="modal-content password-disclaimer-card">
-            <button id="password-disclaimer-close" class="modal-close" type="button" onclick="closePasswordDisclaimer()" aria-label="关闭密码保存免责声明">×</button>
+            <button id="password-disclaimer-close" class="modal-close" type="button" onclick="closePasswordDisclaimer()" aria-label="关闭密码保存免责声明">关闭</button>
             <h2 id="password-disclaimer-title">密码保存免责声明</h2>
             <p class="password-disclaimer-copy">勾选并绑定成功后，网站会保存学号和教务密码，方便下次直接使用。教务密码会加密保存在服务器上，仅在需要自动登录教务系统时解密使用。请勿在公共设备上勾选，也不要与其他服务共用密码。未勾选时，本次输入的密码不会保存；网站会暂时保留本次登录所需的信息，到期自动清除。登录失效后需重新输入学号和密码。</p>
             <button class="btn-primary btn-full" type="button" onclick="closePasswordDisclaimer()">我已了解</button>
         </div>
     </div>
 
-    <div id="rebind-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="rebind-modal-title"><div class="modal-content"><button class="modal-close" type="button" onclick="closeRebindDialog()" aria-label="关闭">×</button><h2 id="rebind-modal-title">重新绑定账号</h2><p class="modal-desc">确认后会解绑当前设备账号，然后重新打开绑定窗口。</p><form id="rebind-form" onsubmit="handleRebind(event)"><button type="submit" class="btn-primary btn-full">确认解绑并重新绑定</button></form><div id="rebind-error" class="error-message"></div></div></div>
+    <div id="rebind-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="rebind-modal-title"><div class="modal-content"><button class="modal-close" type="button" onclick="closeRebindDialog()" aria-label="关闭">关闭</button><h2 id="rebind-modal-title">重新绑定账号</h2><p class="modal-desc">确认后会解绑当前设备账号，然后重新打开绑定窗口。</p><form id="rebind-form" onsubmit="handleRebind(event)"><button type="submit" class="btn-primary btn-full">确认解绑并重新绑定</button></form><div id="rebind-error" class="error-message"></div></div></div>
 
-    <div id="announcement-dialog" class="modal announcement-dialog" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="announcement-dialog-heading"><div class="modal-content announcement-dialog-card"><button id="announcement-dialog-close" class="modal-close" type="button" onclick="closeAnnouncementDialog()" aria-label="关闭">×</button><h2 id="announcement-dialog-heading">系统公告</h2><div id="announcement-dialog-scroll" class="announcement-dialog-scroll"><p id="announcement-dialog-status" class="announcement-dialog-status" role="status">加载中...</p><button id="announcement-retry" class="btn-secondary announcement-retry" type="button" onclick="loadAnnouncementsForDialog()" hidden>重试</button><article id="announcement-dialog-article" hidden><div class="announcement-dialog-meta"><time id="announcement-dialog-time"></time><span id="announcement-dialog-position"></span></div><h3 id="announcement-dialog-title"></h3><div id="announcement-dialog-content"></div></article></div><div class="announcement-dialog-footer"><button id="announcement-previous" class="btn-secondary" type="button" onclick="showPreviousAnnouncement()" disabled>上一条</button><button id="announcement-next" class="btn-secondary" type="button" onclick="showNextAnnouncement()" disabled>下一条</button></div></div></div>
+    <div id="announcement-dialog" class="modal announcement-dialog" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="announcement-dialog-heading"><div class="modal-content announcement-dialog-card"><button id="announcement-dialog-close" class="modal-close" type="button" onclick="closeAnnouncementDialog()" aria-label="关闭">关闭</button><h2 id="announcement-dialog-heading">系统公告</h2><div id="announcement-dialog-scroll" class="announcement-dialog-scroll"><p id="announcement-dialog-status" class="announcement-dialog-status" role="status">加载中...</p><button id="announcement-retry" class="btn-secondary announcement-retry" type="button" onclick="loadAnnouncementsForDialog()" hidden>重试</button><article id="announcement-dialog-article" hidden><div class="announcement-dialog-meta"><time id="announcement-dialog-time"></time><span id="announcement-dialog-position"></span></div><h3 id="announcement-dialog-title"></h3><div id="announcement-dialog-content"></div></article></div><div class="announcement-dialog-footer"><button id="announcement-previous" class="btn-secondary" type="button" onclick="showPreviousAnnouncement()" disabled>上一条</button><button id="announcement-next" class="btn-secondary" type="button" onclick="showNextAnnouncement()" disabled>下一条</button></div></div></div>
 
-    <div id="withdraw-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="withdraw-modal-title"><div class="modal-content"><button class="modal-close" type="button" onclick="closeWithdrawDialog()" aria-label="关闭">×</button><h2 id="withdraw-modal-title">申请提现</h2><div id="withdraw-available" class="withdraw-available"><div class="loading">加载中...</div></div><form id="withdraw-form" onsubmit="handleWithdraw(event)"><div class="form-group"><label for="withdraw-real-name">真实姓名</label><input type="text" id="withdraw-real-name" required placeholder="请输入真实姓名"></div><div class="form-group"><label for="withdraw-alipay">支付宝账号</label><input type="text" id="withdraw-alipay" required placeholder="请输入支付宝账号"></div><button type="submit" class="btn-primary btn-full">提交提现申请</button></form><div id="withdraw-error" class="error-message"></div><div id="withdraw-history" class="withdraw-history"></div></div></div>
+    <div id="withdraw-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="withdraw-modal-title"><div class="modal-content"><button class="modal-close" type="button" onclick="closeWithdrawDialog()" aria-label="关闭">关闭</button><h2 id="withdraw-modal-title">申请提现</h2><div id="withdraw-available" class="withdraw-available"><div class="loading">加载中...</div></div><form id="withdraw-form" onsubmit="handleWithdraw(event)"><div class="form-group"><label for="withdraw-real-name">真实姓名</label><input type="text" id="withdraw-real-name" required placeholder="请输入真实姓名"></div><div class="form-group"><label for="withdraw-alipay">支付宝账号</label><input type="text" id="withdraw-alipay" required placeholder="请输入支付宝账号"></div><button type="submit" class="btn-primary btn-full">提交提现申请</button></form><div id="withdraw-error" class="error-message"></div><div id="withdraw-history" class="withdraw-history"></div></div></div>
 
-    <div id="pay-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="pay-modal-title"><div class="modal-content pay-modal-card"><button class="modal-close" type="button" onclick="closePayDialog()" aria-label="关闭">×</button><h2 id="pay-modal-title">&#24320;&#36890;&#20250;&#21592;</h2><p id="pay-modal-desc" class="modal-desc"></p><div class="pay-section-title">&#36873;&#25321;&#25903;&#20184;&#26041;&#24335;</div><div class="pay-type-options" role="radiogroup" aria-label="&#25903;&#20184;&#26041;&#24335;"><label class="pay-type-option pay-type-option-active" for="pay-type-alipay"><input type="radio" id="pay-type-alipay" name="pay-type" value="alipay" checked onchange="updatePayTypeUI()"><span class="pay-type-mark pay-type-alipay">&#25903;</span><span class="pay-type-copy"><strong>&#25903;&#20184;&#23453;</strong><small>&#25512;&#33616;&#20351;&#29992;&#25903;&#20184;&#23453;&#23436;&#25104;&#25903;&#20184;</small></span></label></div><button id="pay-confirm-btn" class="btn-primary btn-full pay-confirm-btn" type="button" onclick="confirmPay()">&#30830;&#35748;&#25903;&#20184;</button><div id="pay-error" class="error-message"></div></div></div>
+    <div id="pay-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="pay-modal-title">
+        <div class="modal-content pay-modal-card">
+            <button class="modal-close" type="button" onclick="closePayDialog()" aria-label="关闭">关闭</button>
+            <h2 id="pay-modal-title">开通会员</h2>
+            <p id="pay-modal-desc" class="modal-desc"></p>
+            <div class="pay-section-title">选择支付方式</div>
+            <div class="pay-type-options" role="radiogroup" aria-label="支付方式">
+                <label class="pay-type-option pay-type-option-active" for="pay-type-alipay">
+                    <input type="radio" id="pay-type-alipay" name="pay-type" value="alipay" checked onchange="updatePayTypeUI()">
+                    <span class="pay-type-mark pay-type-alipay">支</span>
+                    <span class="pay-type-copy">
+                        <strong>支付宝</strong>
+                        <small>推荐使用支付宝完成支付</small>
+                    </span>
+                </label>
+            </div>
+            <button id="pay-confirm-btn" class="btn-primary btn-full pay-confirm-btn" type="button" onclick="confirmPay()">确认支付</button>
+            <div id="pay-error" class="error-message"></div>
+        </div>
+    </div>
 
-    <div id="semester-picker-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="semester-picker-title"><div class="modal-content"><button class="modal-close" type="button" onclick="closeSemesterPicker()" aria-label="关闭">×</button><h2 id="semester-picker-title">选择学期</h2><div id="semester-picker-list" class="semester-picker-list"></div></div></div>
+    <div id="semester-picker-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="semester-picker-title"><div class="modal-content"><button class="modal-close" type="button" onclick="closeSemesterPicker()" aria-label="关闭">关闭</button><h2 id="semester-picker-title">选择学期</h2><div id="semester-picker-list" class="semester-picker-list"></div></div></div>
 
-    <div id="exam-picker-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="exam-picker-title"><div class="modal-content"><button class="modal-close" type="button" onclick="closeExamPicker()" aria-label="关闭">×</button><h2 id="exam-picker-title">选择学期</h2><div id="exam-picker-body" class="exam-picker-body"></div></div></div>
+    <div id="exam-picker-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="exam-picker-title"><div class="modal-content"><button class="modal-close" type="button" onclick="closeExamPicker()" aria-label="关闭">关闭</button><h2 id="exam-picker-title">选择学期</h2><div id="exam-picker-body" class="exam-picker-body"></div></div></div>
 
     <div id="exams-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="exams-modal-title">
         <div class="modal-content exams-dialog">
@@ -530,7 +550,7 @@
 
     <div id="calendar-export-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="calendar-export-title">
         <div class="modal-content calendar-export-modal-content">
-            <button class="modal-close" type="button" onclick="closeCalendarExport()" aria-label="关闭">×</button>
+            <button class="modal-close" type="button" onclick="closeCalendarExport()" aria-label="关闭">关闭</button>
             <h2 id="calendar-export-title">导出日历</h2>
             <p id="calendar-export-description" class="modal-desc"></p>
             <form onsubmit="downloadCalendarExport(event)">
@@ -542,9 +562,9 @@
         </div>
     </div>
 
-    <div id="other-major-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="other-major-modal-title"><div class="modal-content"><button class="modal-close" type="button" onclick="closeOtherMajorModal()" aria-label="关闭">×</button><h2 id="other-major-modal-title">其它专业课程</h2><div id="other-major-modal-body" class="other-major-modal-body"></div></div></div>
+    <div id="other-major-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="other-major-modal-title"><div class="modal-content"><button class="modal-close" type="button" onclick="closeOtherMajorModal()" aria-label="关闭">关闭</button><h2 id="other-major-modal-title">其它专业课程</h2><div id="other-major-modal-body" class="other-major-modal-body"></div></div></div>
 
-    <div id="historical-schedule-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="historical-schedule-modal-title"><div class="modal-content historical-schedule-modal-content"><button class="modal-close" type="button" onclick="closeHistoricalSchedule()" aria-label="关闭">×</button><h2 id="historical-schedule-modal-title">历年课表查询</h2><p class="modal-desc">选择学期后展示该学期全部课程</p><label class="historical-schedule-select-wrap" for="historical-semester-select"><span>学年学期</span><select id="historical-semester-select" onchange="loadHistoricalSchedule(this.value)"></select></label><div id="historical-schedule-body" class="historical-schedule-body"><div class="loading">加载中...</div></div></div></div>
+    <div id="historical-schedule-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="historical-schedule-modal-title"><div class="modal-content historical-schedule-modal-content"><button class="modal-close" type="button" onclick="closeHistoricalSchedule()" aria-label="关闭">关闭</button><h2 id="historical-schedule-modal-title">历年课表查询</h2><p class="modal-desc">选择学期后展示该学期全部课程</p><label class="historical-schedule-select-wrap" for="historical-semester-select"><span>学年学期</span><select id="historical-semester-select" onchange="loadHistoricalSchedule(this.value)"></select></label><div id="historical-schedule-body" class="historical-schedule-body"><div class="loading">加载中...</div></div></div></div>
 
     <div id="ui-toast-region" class="ui-toast-region" aria-live="polite" aria-atomic="true"></div>
 
