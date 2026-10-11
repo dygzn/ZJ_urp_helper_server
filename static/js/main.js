@@ -59,6 +59,7 @@ function start() {
     auth.capturePendingInvitationToken();
     auth.sanitizeIndexUrl();
     state.isGuestMode = true;
+    announcements.initializeAnnouncements();
     auth.checkBindStatus();
 }
 

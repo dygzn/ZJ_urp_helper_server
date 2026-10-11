@@ -3,8 +3,25 @@ import { state } from './store.js';
 import { getDeviceId } from './auth.js';
 import { closeUiModal, openUiModal } from './ui.js';
 const resources = pageResources('announcements');
+let initialized = false;
+let indicatorRequest = null;
 
 export const locallyReadAnnouncementIds = new Set();
+
+export function initializeAnnouncements() {
+    const refresh = () => {
+        if (document.visibilityState === 'hidden'
+            || state.uiModalState.activeModal?.id === 'announcement-dialog') return;
+        return loadAnnouncementIndicator();
+    };
+    if (!initialized) {
+        initialized = true;
+        resources.listen(document, 'visibilitychange', refresh);
+        resources.listen(window, 'pageshow', refresh);
+        resources.setInterval(refresh, 60_000);
+    }
+    return refresh();
+}
 
 export function updateAnnouncementIndicator(items = state.announcementItems) {
     const trigger = document.getElementById('announcement-trigger');
@@ -34,18 +51,25 @@ export function rememberAnnouncements(items) {
     return state.announcementItems;
 }
 
-export async function loadAnnouncementIndicator() {
+export function loadAnnouncementIndicator() {
+    if (indicatorRequest) return indicatorRequest;
     const operation = resources.capture();
-    try {
-        const response = await operation.wait(resources.fetch('/api/announcements', {
-            headers: { 'X-Device-ID': getDeviceId() },
-        }));
-        const data = await operation.wait(response.json());
-        if (data.success) rememberAnnouncements(data.announcements || []);
-    } catch (error) {
-        if (error?.name === 'AbortError') return;
-        console.error('更新公告提示失败:', error);
-    }
+    indicatorRequest = (async () => {
+        try {
+            const response = await operation.wait(resources.api.request('/api/announcements', {
+                headers: { 'X-Device-ID': getDeviceId() },
+                cache: 'no-store',
+            }));
+            const data = await operation.wait(response.json());
+            if (data.success && state.uiModalState.activeModal?.id !== 'announcement-dialog') {
+                rememberAnnouncements(data.announcements || []);
+            }
+        } catch (error) {
+            if (error?.name === 'AbortError') return;
+            console.error('更新公告提示失败:', error);
+        }
+    })().finally(() => { indicatorRequest = null; });
+    return indicatorRequest;
 }
 
 export async function openAnnouncementDialog() {
