@@ -37,6 +37,7 @@
             {% endif %}
         </nav>
         <div class="sidebar-footer">
+            <button id="sidebar-miniapp-trigger" class="miniapp-sidebar-trigger btn-secondary" type="button" onclick="openMiniAppDialog()" aria-haspopup="dialog" aria-controls="miniapp-dialog" disabled>微信小程序</button>
             <button class="rebind-btn" type="button" onclick="showRebindDialog()">换绑账号</button>
             <p class="user-info">当前用户: <span id="sidebar-username">未登录</span></p>
         </div>
@@ -46,7 +47,7 @@
         <header class="header">
             <a class="desktop-only desktop-brand" href="#" onclick="event.preventDefault();openHomeShortcut('home')">URP教务助手</a>
             <div id="desktop-navigation" class="desktop-only"></div>
-            <details id="desktop-nav-more" class="desktop-only desktop-menu"><summary>更多</summary><div class="desktop-menu-items"></div></details>
+            <details id="desktop-nav-more" class="desktop-only desktop-menu"><summary>更多</summary><div class="desktop-menu-items"><button id="desktop-miniapp-trigger" class="miniapp-menu-trigger btn-secondary" type="button" onclick="openMiniAppDialog()" aria-haspopup="dialog" aria-controls="miniapp-dialog" disabled>微信小程序</button></div></details>
             <button class="desktop-only desktop-account btn-secondary" type="button" onclick="showRebindDialog()">账号</button>
             <button id="menu-trigger" class="menu-btn" type="button" onclick="openSidebar()" aria-label="打开导航菜单" aria-controls="sidebar" aria-expanded="false"><span></span><span></span><span></span></button>
             <h1 id="page-title" tabindex="-1">首页</h1>
@@ -111,6 +112,7 @@
                 <section class="more-section" aria-labelledby="more-settings-heading">
                     <h3 id="more-settings-heading">账号与设置</h3>
                     <div class="more-list">
+                        <button id="more-miniapp-trigger" class="more-row" type="button" onclick="openMiniAppDialog()" aria-haspopup="dialog" aria-controls="miniapp-dialog" disabled><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h4M14 21h3M21 14v3M21 21h-1"/></svg><span>微信小程序</span><span class="more-row-detail">查看小程序码</span><span class="more-arrow" aria-hidden="true">›</span></button>
                         <button id="more-appearance-trigger" class="more-row appearance-trigger" type="button" aria-haspopup="dialog" aria-controls="appearance-dialog"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3a9 9 0 100 18h1a2 2 0 001-3.7 1.5 1.5 0 01.8-2.8H17a4 4 0 004-4A7.5 7.5 0 0012 3z"/><circle cx="7" cy="10" r=".7"/><circle cx="11" cy="7" r=".7"/><circle cx="16" cy="8" r=".7"/></svg><span>外观</span><span class="more-row-detail">主题与明暗模式</span><span class="more-arrow" aria-hidden="true">›</span></button>
                         <button class="more-row" type="button" onclick="showRebindDialog()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 7h14l-3-3M17 17H3l3 3M21 7l-3 3M3 17l3-3"/></svg><span>换绑账号</span><span class="more-row-detail">管理教务账号</span><span class="more-arrow" aria-hidden="true">›</span></button>
                     </div>
@@ -126,6 +128,11 @@
                     <symbol id="home-icon-warning" viewBox="0 0 24 24"><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/><path d="M12 9v4M12 17h.01"/></symbol>
                 </defs></svg>
                 <div class="home-heading"><div><span class="home-heading-kicker">教务助手</span><h2 id="home-page-heading">你好，欢迎使用</h2><p class="home-heading-description">上课时间、考试安排和常用查询，都在这里。</p></div><time id="home-today-date"></time></div>
+                <aside id="miniapp-notice" class="miniapp-notice" aria-labelledby="miniapp-notice-title" hidden>
+                    <div class="miniapp-notice-copy"><strong id="miniapp-notice-title">微信里也能打开教务助手</strong><p>小程序入口也能在「更多」中找到。</p></div>
+                    <button id="miniapp-notice-open" class="btn-secondary" type="button" onclick="openMiniAppDialog()" aria-haspopup="dialog" aria-controls="miniapp-dialog">查看小程序码</button>
+                    <button id="miniapp-notice-dismiss" class="miniapp-notice-dismiss" type="button" onclick="dismissMiniAppNotice()" aria-label="关闭小程序提示，不再提醒">关闭</button>
+                </aside>
                 <section class="urgent-card" aria-labelledby="home-next-title">
                     <div class="urgent-header"><h2 id="home-next-title">接下来</h2><button class="refresh-btn" type="button" onclick="refreshUrgentEvent()" aria-label="刷新课程和考试安排"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg><span>刷新</span></button></div>
                     <div id="urgent-content" class="urgent-content"><div class="loading">正在读取课程和考试安排…</div></div>
@@ -541,6 +548,17 @@
     <div id="rebind-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="rebind-modal-title"><div class="modal-content"><button class="modal-close" type="button" onclick="closeRebindDialog()" aria-label="关闭">关闭</button><h2 id="rebind-modal-title">重新绑定账号</h2><p class="modal-desc">确认后会解绑当前设备账号，然后重新打开绑定窗口。</p><form id="rebind-form" onsubmit="handleRebind(event)"><button type="submit" class="btn-primary btn-full">确认解绑并重新绑定</button></form><div id="rebind-error" class="error-message"></div></div></div>
 
     <div id="announcement-dialog" class="modal announcement-dialog" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="announcement-dialog-heading"><div class="modal-content announcement-dialog-card"><button id="announcement-dialog-close" class="modal-close" type="button" onclick="closeAnnouncementDialog()" aria-label="关闭">关闭</button><h2 id="announcement-dialog-heading">系统公告</h2><div id="announcement-dialog-scroll" class="announcement-dialog-scroll"><p id="announcement-dialog-status" class="announcement-dialog-status" role="status">加载中...</p><button id="announcement-retry" class="btn-secondary announcement-retry" type="button" onclick="loadAnnouncementsForDialog()" hidden>重试</button><article id="announcement-dialog-article" hidden><div class="announcement-dialog-meta"><time id="announcement-dialog-time"></time><span id="announcement-dialog-position"></span></div><h3 id="announcement-dialog-title"></h3><div id="announcement-dialog-content"></div></article></div><div class="announcement-dialog-footer"><button id="announcement-previous" class="btn-secondary" type="button" onclick="showPreviousAnnouncement()" disabled>上一条</button><button id="announcement-next" class="btn-secondary" type="button" onclick="showNextAnnouncement()" disabled>下一条</button></div></div></div>
+
+    <div id="miniapp-dialog" class="modal miniapp-dialog" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="miniapp-dialog-title" aria-describedby="miniapp-dialog-help">
+        <div class="modal-content miniapp-dialog-card">
+            <button id="miniapp-dialog-close" class="modal-close" type="button" onclick="closeMiniAppDialog()" aria-label="关闭微信小程序码">关闭</button>
+            <h2 id="miniapp-dialog-title">微信小程序</h2>
+            <p class="miniapp-dialog-description">在微信里打开教务助手</p>
+            <div class="miniapp-code-frame"><img src="{{ static_versioned('images/wechat-miniapp-code.jpg') }}" width="258" height="258" alt="教务助手微信小程序码" draggable="false"></div>
+            <p id="miniapp-dialog-help">用微信扫一扫打开。手机上可先保存图片，再到微信扫一扫中从相册选择。</p>
+            <a class="btn-primary miniapp-save" href="{{ static_versioned('images/wechat-miniapp-code.jpg') }}" download="教务助手微信小程序码.jpg">保存小程序码</a>
+        </div>
+    </div>
 
     <div id="withdraw-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="withdraw-modal-title"><div class="modal-content"><button class="modal-close" type="button" onclick="closeWithdrawDialog()" aria-label="关闭">关闭</button><h2 id="withdraw-modal-title">申请提现</h2><div id="withdraw-available" class="withdraw-available"><div class="loading">加载中...</div></div><form id="withdraw-form" onsubmit="handleWithdraw(event)"><div class="form-group"><label for="withdraw-real-name">真实姓名</label><input type="text" id="withdraw-real-name" required placeholder="请输入真实姓名"></div><div class="form-group"><label for="withdraw-alipay">支付宝账号</label><input type="text" id="withdraw-alipay" required placeholder="请输入支付宝账号"></div><button type="submit" class="btn-primary btn-full">提交提现申请</button></form><div id="withdraw-error" class="error-message"></div><div id="withdraw-history" class="withdraw-history"></div></div></div>
 

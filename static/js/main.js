@@ -12,6 +12,7 @@ import * as calendar from './modules/calendar.js';
 import * as ui from './modules/ui.js';
 import * as navigation from './modules/navigation.js';
 import * as announcements from './modules/announcements.js';
+import * as miniapp from './modules/miniapp.js';
 import * as feedback from './modules/feedback.js';
 import * as member from './modules/member.js';
 import * as evaluation from './modules/evaluation.js';
@@ -20,7 +21,7 @@ import * as lab from './modules/lab.js';
 import * as ad from './modules/ad.js';
 
 const domains = { auth, router, schedule: { ...scheduleGestures, ...schedule, ...scheduleEditor }, grades, home, exams, calendar, ui, navigation,
-    announcements, feedback, member, evaluation, service, lab, ad };
+    announcements, miniapp, feedback, member, evaluation, service, lab, ad };
 
 // Modules communicate through imports. This bridge serves existing HTML attributes
 // and integrations; new HTML may use URP.auth.openLogin(), URP.router.switchPage(), etc.
@@ -60,7 +61,7 @@ function start() {
     auth.sanitizeIndexUrl();
     state.isGuestMode = true;
     announcements.initializeAnnouncements();
-    auth.checkBindStatus();
+    auth.checkBindStatus().finally(() => miniapp.initializeMiniAppPromo());
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
