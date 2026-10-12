@@ -113,9 +113,6 @@ export function switchPage(pageName, params = {}) {
         else more.removeAttribute('aria-current');
     }
 
-    // 保存当前页面到 localStorage
-    localStorage.setItem('current_page', pageName);
-
     // 加载对应页面的数据
     const mounted = loadPageData(pageName, { ...params, scheduleWeek });
     Promise.resolve(mounted).catch(error => {

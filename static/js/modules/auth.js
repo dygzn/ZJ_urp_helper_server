@@ -3,9 +3,9 @@ import { pageResources } from './lifecycle.js';
 import { state } from './store.js';
 import { closeCalendarExport } from './calendar.js';
 import { boundUsernameStorageKey } from './ad.js';
-import { getAvailablePageNames, switchPage } from './router.js';
+import { switchPage } from './router.js';
 import { loadAnnouncementIndicator } from './announcements.js';
-import { closeUiModal, openUiModal, requestUiConfirmation, showUiToast, urpUi } from './ui.js';
+import { closeUiModal, openUiModal, requestUiConfirmation, showUiToast } from './ui.js';
 const resources = pageResources('auth');
 
 export const pendingInvitationTokenKey = 'pending_invitation_token';
@@ -248,10 +248,7 @@ export async function checkBindStatus() {
                 ? `${state.currentUsername} · 临时` : state.currentUsername;
             if (!data.temporary) ensureOwnInvitationTokenInUrl();
 
-            const urlPage = new URLSearchParams(window.location.search).get('page');
-            let lastPage = urlPage || localStorage.getItem('current_page') || 'home';
-            if (lastPage === 'tools') lastPage = 'home';
-            switchPage(lastPage);
+            switchPage('home');
             loadAnnouncementIndicator();
         } else {
             const wasTemporary = Boolean(state.temporarySessionExpiresAt);
@@ -397,12 +394,7 @@ export async function handleLogin(event) {
                 }
                 document.getElementById('sidebar-username').textContent = data.temporary
                     ? `${state.currentUsername} · 临时` : state.currentUsername;
-                const availablePages = getAvailablePageNames();
-                const storedPage = localStorage.getItem('current_page') || 'home';
-                const currentPage = urpUi
-                    ? urpUi.normalizePageName(storedPage, availablePages, 'home')
-                    : (availablePages.includes(storedPage) ? storedPage : 'home');
-                switchPage(currentPage);
+                switchPage('home');
                 loadAnnouncementIndicator();
                 if (data.temporary) showUiToast(data.message || '已登录，本次输入的密码不会保存。登录失效后请重新输入。', 'info');
             } else {
