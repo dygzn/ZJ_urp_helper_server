@@ -88,7 +88,8 @@
 
         const triggers = app
             ? [createTrigger(document.querySelector('.header'), 'appearance-trigger-header'),
-               createTrigger(document.querySelector('.sidebar-footer'), 'appearance-trigger-sidebar')]
+               createTrigger(document.querySelector('.sidebar-footer'), 'appearance-trigger-sidebar'),
+               document.getElementById('more-appearance-trigger')]
             : [createTrigger(document.querySelector('.admin-header-actions'), 'appearance-trigger-admin')];
 
         const dialog = document.createElement('dialog');

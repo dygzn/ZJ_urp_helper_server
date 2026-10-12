@@ -5758,3 +5758,109 @@ width: 100% !important;
 @layer components.workspace {
 .schedule-course-draft.is-editor-dragging .schedule-draft-drag-cue {visibility:hidden;}
 }
+
+@layer components.workspace {
+:where(body.urp-app) .more-page {
+    max-width: 720px;
+    margin-inline: auto;
+    padding-bottom: 12px;
+}
+:where(body.urp-app) .more-heading { margin-bottom: 20px; }
+:where(body.urp-app) .more-heading h2 { margin: 0; font-size: 28px; letter-spacing: -.03em; }
+:where(body.urp-app) .more-heading p { margin: 7px 0 0; color: var(--ui-muted); font-size: 14px; }
+:where(body.urp-app) .more-account {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    border: 1px solid var(--ui-line);
+    border-radius: var(--ui-radius);
+    background: var(--ui-surface);
+}
+:where(body.urp-app) .more-account-icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 44px;
+    height: 44px;
+    border-radius: var(--ui-radius-sm);
+    background: var(--ui-accent-soft);
+    color: var(--ui-accent);
+}
+:where(body.urp-app) .more-account-icon svg { width: 24px; height: 24px; }
+:where(body.urp-app) .more-account-copy { min-width: 0; flex: 1; }
+:where(body.urp-app) .more-account-copy > span { color: var(--ui-muted); font-size: 12px; }
+:where(body.urp-app) .more-account-copy p { margin: 4px 0 0; font-size: 16px; font-weight: 650; overflow-wrap: anywhere; }
+:where(body.urp-app) .more-account .mobile-account-status { margin: 0; padding: 0; border: 0; }
+:where(body.urp-app) .more-account .login-status-indicator { margin: 0; padding: 0; border: 0; background: transparent; font-size: 12px; white-space: nowrap; }
+:where(body.urp-app) .more-section { margin-top: 24px; }
+:where(body.urp-app) .more-section h3 { margin: 0 0 10px; font-size: 14px; font-weight: 650; color: var(--ui-muted); }
+:where(body.urp-app) .more-feature-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+:where(body.urp-app) .more-feature-grid .more-feature {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    min-width: 0;
+    min-height: 124px;
+    margin: 0;
+    padding: 15px;
+    border: 1px solid var(--ui-line);
+    border-radius: var(--ui-radius);
+    background: var(--ui-surface);
+    color: var(--ui-ink);
+    text-decoration: none;
+    white-space: normal;
+}
+:where(body.urp-app) .more-feature-grid .more-feature:hover { background: var(--ui-accent-soft); border-color: var(--ui-control-line); }
+:where(body.urp-app) .more-feature .nav-icon { width: 25px; height: 25px; margin: 0; color: var(--ui-accent); flex-shrink: 0; }
+:where(body.urp-app) .more-feature strong { display: block; font-size: 15px; font-weight: 650; line-height: 1.4; }
+:where(body.urp-app) .more-feature small { display: block; margin-top: 4px; color: var(--ui-muted); font-size: 12px; font-weight: 400; line-height: 1.5; }
+:where(body.urp-app) .more-arrow { color: var(--ui-muted); font-size: 22px; font-weight: 400; line-height: 1; }
+:where(body.urp-app) .more-feature > .more-arrow { position: absolute; top: 15px; right: 15px; }
+:where(body.urp-app) .more-feature-grid .more-feature-wide { grid-column: 1 / -1; flex-direction: row; align-items: center; justify-content: flex-start; min-height: 76px; gap: 12px; padding-right: 40px; }
+:where(body.urp-app) .more-feature-wide > .more-arrow { top: 50%; transform: translateY(-50%); }
+:where(body.urp-app) .more-list { overflow: hidden; border: 1px solid var(--ui-line); border-radius: var(--ui-radius); background: var(--ui-surface); }
+:where(body.urp-app) .more-list .more-row,
+:where(body.urp-app) .more-list .announcement-trigger {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 58px;
+    height: auto;
+    margin: 0;
+    padding: 14px 15px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: var(--ui-ink);
+    font: 550 14px/1.4 var(--ui-font);
+    text-align: left;
+    white-space: normal;
+    text-decoration: none;
+    cursor: pointer;
+}
+:where(body.urp-app) .more-list > * + * { border-top: 1px solid var(--ui-line); }
+:where(body.urp-app) .more-list .mobile-announcement-slot:empty { display: none; }
+:where(body.urp-app) .more-list .more-row:hover,
+:where(body.urp-app) .more-list .announcement-trigger:hover { background: var(--ui-surface-soft); }
+:where(body.urp-app) .more-list .more-row:focus-visible,
+:where(body.urp-app) .more-list .announcement-trigger:focus-visible { outline: 2px solid var(--ui-accent); outline-offset: -3px; }
+:where(body.urp-app) .more-row .nav-icon,
+:where(body.urp-app) .more-list .announcement-trigger svg { width: 22px; height: 22px; margin: 0; flex-shrink: 0; color: var(--ui-accent); }
+:where(body.urp-app) .more-row-detail { margin-left: auto; color: var(--ui-muted); font-size: 12px; font-weight: 400; }
+:where(body.urp-app) .more-list .announcement-unread-dot { top: 12px; left: 30px; right: auto; }
+}
+
+@layer components.appearance {
+:where(html[data-ui-template="glass"]) :where(body.urp-app) :is(.more-account, .more-feature-grid .more-feature, .more-list) {
+    background: var(--glass-light), var(--glass-fill);
+    border-color: var(--glass-edge);
+    border-radius: var(--glass-control-radius);
+    box-shadow: var(--glass-control-shadow);
+}
+:where(html[data-ui-template="glass"]) :where(body.urp-app) .more-list .more-row,
+:where(html[data-ui-template="glass"]) :where(body.urp-app) .more-list .announcement-trigger { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+}

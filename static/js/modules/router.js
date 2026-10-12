@@ -30,7 +30,7 @@ export function getAvailablePageNames() {
     if (fromDom.length > 0) return fromDom;
 
     return [
-        'home', 'schedule', 'exams', 'grades', 'evaluation',
+        'home', 'schedule', 'exams', 'grades', 'more', 'evaluation',
         'service-status', 'feedback', 'shortcut-api', 'member',
     ].filter(pageName => document.getElementById(`page-${pageName}`));
 }
@@ -78,6 +78,7 @@ export function switchPage(pageName, params = {}) {
         'schedule': '日程表',
         'exams': '考试安排',
         'grades': '成绩查询',
+        'more': '更多功能',
         'evaluation': '教学评估',
         'service-status': '找我做事',
         'feedback': '反馈建议',

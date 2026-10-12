@@ -1,4 +1,5 @@
 import { pageResources } from './lifecycle.js';
+import { state, store } from './store.js';
 import { focusUiElement, syncUiOverlay, toggleUiClass } from './ui.js';
 import { focusCurrentPage, switchPage } from './router.js';
 const resources = pageResources('navigation');
@@ -21,6 +22,7 @@ export function initMobileWorkspaceLayout() {
     const account = document.getElementById('mobile-account-status');
     const announcement = document.getElementById('announcement-trigger');
     const announcementSlot = document.getElementById('mobile-announcement-slot');
+    const moreUsername = document.getElementById('more-account-name');
     const header = status?.parentElement;
     if (!query || !status || !account || !header) return;
     const sync = () => {
@@ -35,6 +37,14 @@ export function initMobileWorkspaceLayout() {
     };
     query.addEventListener?.('change', sync);
     sync();
+    const syncAccount = () => {
+        if (moreUsername) moreUsername.textContent = state.currentUsername
+            ? `${state.currentUsername}${state.temporarySessionExpiresAt ? ' · 临时' : ''}` : '访客';
+    };
+    syncAccount();
+    resources.addCleanup(store.subscribe((value, key) => {
+        if (['currentUsername', 'temporarySessionExpiresAt', 'isGuestMode'].includes(key)) syncAccount();
+    }));
 }
 
 export function createDesktopWorkspaceLayout(scope = resources) {
@@ -83,6 +93,11 @@ export function createDesktopWorkspaceLayout(scope = resources) {
 }
 
 export function openSidebar() {
+    if (isMobileWorkspace()) {
+        switchPage('more');
+        focusCurrentPage('more');
+        return;
+    }
     if (isDesktopWorkspace()) return;
     const sidebar = document.getElementById('sidebar');
     const trigger = getSidebarTrigger();
@@ -102,7 +117,7 @@ export function closeSidebar({ restoreFocus = true } = {}) {
     if (sidebar?.contains?.(document.activeElement)) document.activeElement?.blur?.();
     toggleUiClass(sidebar, 'active', false);
     sidebar?.setAttribute('aria-hidden', 'true');
-    ['menu-trigger', 'mobile-nav-more'].forEach(id => {
+    ['menu-trigger'].forEach(id => {
         document.getElementById(id)?.setAttribute('aria-expanded', 'false');
     });
     syncUiOverlay();
