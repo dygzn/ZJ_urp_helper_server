@@ -8,6 +8,7 @@ from collections import defaultdict
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 import hashlib
+import re
 
 from constants import REFERRAL_LEVELS as _CONFIG_REFERRAL_LEVELS
 from constants import REFERRAL_MILESTONES as _CONFIG_REFERRAL_MILESTONES
@@ -37,6 +38,17 @@ def _money(value):
         return Decimal(str(value if value is not None else '0')).quantize(MONEY_QUANT)
     except (InvalidOperation, TypeError, ValueError):
         return Decimal('0.00')
+
+
+def _payment_amount(value):
+    """严格解析支付协议金额；结算不能四舍五入或把非法值当作零。"""
+    text = str(value)
+    if len(text) > 32 or not re.fullmatch(r'[0-9]+(?:\.[0-9]{1,2})?', text):
+        raise ValueError('无效的支付金额')
+    amount = Decimal(text)
+    if amount <= 0:
+        raise ValueError('支付金额必须大于零')
+    return amount
 
 
 def _money_string(value):
