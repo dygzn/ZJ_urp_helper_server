@@ -333,6 +333,8 @@ def _other_major_schedule_sample(raw):
 def api_unevaluated_courses(user):
     try:
         courses = get_unevaluated_courses(user['username'])
+        if courses is None:
+            return jsonify({'success': False, 'message': '查询失败，请稍后重试'})
         if not courses:
             return jsonify({
                 'success': True,
