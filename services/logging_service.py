@@ -5,7 +5,7 @@
 from flask import request
 
 from services.online_service import online_tracker
-from services.user_service import get_user_by_device
+from services.user_service import get_device_id, get_user_by_device
 
 
 ENDPOINT_NAMES = {
@@ -55,7 +55,7 @@ def init_logging(app, tracker=None, user_lookup=None):
         if not path.startswith('/api/') or path.startswith('/api/admin/monitor'):
             return response
 
-        device_id = (request.headers.get('X-Device-ID') or '').strip()
+        device_id = get_device_id()
         if not device_id:
             return response
 
