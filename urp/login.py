@@ -32,6 +32,7 @@ MAX_CAPTCHA_ATTEMPTS = 8
 SAVE_DEBUG_FILES = os.environ.get('URP_SAVE_DEBUG_FILES', '').lower() in {
     '1', 'true', 'yes', 'on'
 }
+DEBUG_FILE_DIRECTORY = os.path.join('logs', 'urp-debug')
 DEBUG_FILE_THROTTLE_SECONDS = 60
 _debug_file_times = {}
 _debug_file_lock = threading.Lock()
@@ -336,8 +337,8 @@ def _save_debug_file(filename, content):
         _debug_file_times[filename] = now
 
     try:
-        os.makedirs('data', exist_ok=True)
-        path = os.path.join('data', filename)
+        os.makedirs(DEBUG_FILE_DIRECTORY, mode=0o700, exist_ok=True)
+        path = os.path.join(DEBUG_FILE_DIRECTORY, filename)
         if isinstance(content, bytes):
             Path(path).write_bytes(content)
         else:

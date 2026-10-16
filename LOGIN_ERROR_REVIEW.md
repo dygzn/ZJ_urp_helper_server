@@ -39,3 +39,11 @@
 - worktree：`/Users/dygzn/.codex/worktrees/fix-login-errors/web`。
 - [与main比较](https://github.com/dygzn/ZJ_urp_helper_server/compare/main...codex/fix-login-errors)
 - 主工作区原有3个外观文件未提交修改保持原样。此次没有合并、部署或修改此前待审支付/夜间分支。
+
+## 跟进：配置目录出现HTML
+
+已定位 `_save_debug_file()` 把明确开启的登录诊断快照写入 `data/`，与配置混放；当前主工作区data目录没有HTML，但旧worktree中存在上述固定文件名。未读取快照内容，也没有取得线上进程环境，不能断言线上开关当前状态。
+
+将调试输出目录改为 `logs/urp-debug/`，默认仍关闭；新目录使用0700权限并被Git忽略，已有配置和旧HTML保留原样。新增6项临时目录回归：关闭时零文件、HTML与二进制隔离、60秒节流、旧文件不覆写、写入失败不影响登录。原代码4项失败，修复后全部通过。部署开关及历史文件说明已补入DEPLOYMENT_SECURITY.md。
+
+跟进验证：完整Python测试156项，154通过，仍仅上述2项快捷指令生成产物缺失失败；修改Python语法、diff检查及日志目录Git忽略规则均通过。本次无前端改动。
