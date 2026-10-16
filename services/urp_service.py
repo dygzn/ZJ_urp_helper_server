@@ -3,6 +3,7 @@ URP 教务系统交互服务
 """
 import os
 import json
+import logging
 import re
 import threading
 import time
@@ -31,8 +32,9 @@ def urp_login(username, password, persist_cookies=True):
         urp = URP_login(url, username, password, persist_cookies=persist_cookies)
         success, message, cookies = urp.login()
         return success, message, cookies
-    except Exception as e:
-        return False, f"登录异常: {str(e)}", None
+    except Exception:
+        logging.getLogger(__name__).warning('教务登录服务异常')
+        return False, '登录服务暂时出现异常，请稍后重试或联系管理员。', None
 
 
 def check_login_status(username, password, cookies):
