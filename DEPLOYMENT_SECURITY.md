@@ -69,8 +69,4 @@ node --test tests/*.js
 
 ## 登录诊断快照
 
-`URP_SAVE_DEBUG_FILES` 默认关闭；只有明确设置为 `1`、`true`、`yes` 或 `on` 才会保存登录诊断快照，该变量在进程启动时读取，修改后需要重启应用进程。`FLASK_DEBUG` 不会自动开启此开关。
-
-显式开启后，教务登录前后页面、VPN 门户/认证响应和验证码统一保存到 `logs/urp-debug/`，每个固定文件名至少间隔60秒更新一次。该目录已被Git忽略，新建目录仅当前用户可访问；默认关闭时不创建文件或目录，调试写入失败不会中断登录。
-
-旧版本会把 `last_jiaowu_login.html`、`last_jiaowu_after_login.html`、`last_vpn_portal_response.html` 等直接写进 `data/`。它们是上游响应的调试副本，与 `data/config.json`、数据库和登录Cookie无关；新版本不再向该目录写入快照，也不自动迁移或删除旧文件。关闭调试开关不会删除历史文件。
+登录和VPN认证不再保存网页响应、认证响应或验证码快照；原有 `URP_SAVE_DEBUG_FILES` 开关已移除，即使部署环境残留该变量也不会重新启用写盘。登录排障使用普通错误日志中的阶段、原因分类和HTTP状态。升级不会自动删除已有历史快照。

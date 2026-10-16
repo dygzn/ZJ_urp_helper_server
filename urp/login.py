@@ -7,7 +7,6 @@ import re
 import threading
 import time
 from html.parser import HTMLParser
-from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
 import requests
@@ -29,13 +28,6 @@ VPN_AUTH_USERNAME = os.environ.get('VPN_AUTH_USERNAME')
 VPN_AUTH_PASSWORD = os.environ.get('VPN_AUTH_PASSWORD')
 VPN_AUTH_BODY = os.environ.get('VPN_AUTH_BODY')
 MAX_CAPTCHA_ATTEMPTS = 8
-SAVE_DEBUG_FILES = os.environ.get('URP_SAVE_DEBUG_FILES', '').lower() in {
-    '1', 'true', 'yes', 'on'
-}
-DEBUG_FILE_DIRECTORY = os.path.join('logs', 'urp-debug')
-DEBUG_FILE_THROTTLE_SECONDS = 60
-_debug_file_times = {}
-_debug_file_lock = threading.Lock()
 VPN_COOKIE_PREFIX = 'VSG_'
 _VPN_LOCK = threading.Lock()
 _KEEPALIVE_STARTED = False
@@ -325,29 +317,6 @@ def _html_hint(resp):
     return f'{page_type}; URL={url}; Content-Type={content_type}; Body={snippet}'
 
 
-def _save_debug_file(filename, content):
-    if not SAVE_DEBUG_FILES:
-        return False
-
-    now = time.monotonic()
-    with _debug_file_lock:
-        last_write = _debug_file_times.get(filename)
-        if last_write is not None and now - last_write < DEBUG_FILE_THROTTLE_SECONDS:
-            return False
-        _debug_file_times[filename] = now
-
-    try:
-        os.makedirs(DEBUG_FILE_DIRECTORY, mode=0o700, exist_ok=True)
-        path = os.path.join(DEBUG_FILE_DIRECTORY, filename)
-        if isinstance(content, bytes):
-            Path(path).write_bytes(content)
-        else:
-            Path(path).write_text(content or '', encoding='utf-8')
-        return True
-    except Exception:
-        return False
-
-
 def _looks_like_image(resp):
     content_type = (resp.headers.get('Content-Type') or '').lower()
     content = resp.content or b''
@@ -522,11 +491,9 @@ class URP_login:
             timeout=20,
         )
         resp.encoding = 'utf-8'
-        _save_debug_file('last_vpn_auth_response.txt', resp.text)
         if resp.status_code != 200 or '0x00000000' not in resp.text:
             return False, f'VPN auth failed; status={resp.status_code}; {_html_hint(resp)}'
-        portal = self.x.get(VPN_PORTAL_PAGE, timeout=20)
-        _save_debug_file('last_vpn_portal_response.html', portal.text)
+        self.x.get(VPN_PORTAL_PAGE, timeout=20)
         save_shared_vpn_cookies(self.x.cookies.get_dict())
         start_vpn_keepalive()
         return True, 'VPN auth success'
@@ -547,7 +514,6 @@ class URP_login:
         for _ in range(2):
             resp = self.x.get(self._url(), headers=headers, timeout=20)
             resp.encoding = 'gbk'
-            _save_debug_file('last_jiaowu_login.html', resp.text)
             reason = _login_failure_reason(resp)
             if reason in ('maintenance', 'unavailable'):
                 raise LoginPageUnavailableError(_LOGIN_FAILURE_MESSAGES[reason])
@@ -567,13 +533,11 @@ class URP_login:
             timeout=20,
         )
         if not _looks_like_image(resp):
-            _save_debug_file('last_vpn_captcha_response.html', resp.text)
             if self._requires_vpn_auth() and allow_vpn_retry:
                 recover_vpn_session(self.x, self._url())
                 self._save_cookies()
                 return self._read_captcha(ocr, allow_vpn_retry=False)
             raise CaptchaUnavailableError('暂时无法获取登录验证码，请稍后重试。')
-        _save_debug_file('last_jiaowu_captcha.gif', resp.content)
         return _normalize_captcha(ocr.classification(resp.content))
 
     def _submit_login(self, form_url, parser, captcha_text):
@@ -596,7 +560,6 @@ class URP_login:
             timeout=30,
         )
         resp.encoding = 'gbk'
-        _save_debug_file('last_jiaowu_after_login.html', resp.text)
         return resp
 
     def login(self):

@@ -19,7 +19,6 @@ htmlcov/
 *.code-workspace
 
 # Generated logs and OS files
-/logs/urp-debug/
 *.log
 *.pid
 .DS_Store
