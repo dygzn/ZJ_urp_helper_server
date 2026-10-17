@@ -121,6 +121,23 @@ def member_create_order(user):
 
     # 检查 5 分钟内是否有未支付的订单
     with get_db() as conn:
+        membership = conn.execute(
+            'SELECT expire_time FROM memberships WHERE username = ?', (username,)
+        ).fetchone()
+        expire_base = now
+        if membership:
+            try:
+                expire_base = max(now, datetime.fromisoformat(membership['expire_time']))
+            except (TypeError, ValueError):
+                pass
+        projected_expire = expire_base + timedelta(days=MEMBER_DURATION_DAYS)
+        if projected_expire >= datetime(2028, 7, 1) and data.get('operation_warning_confirmed') is not True:
+            return jsonify({
+                'success': False,
+                'requires_confirmation': True,
+                'message': '网站2028年六月之后可能不运营，你确定要继续吗？',
+                'data': {'expire_time': projected_expire.isoformat()},
+            })
         recent = conn.execute(
             "SELECT order_no, pay_url, create_time FROM orders WHERE username=? AND status='pending' AND member_type=? ORDER BY create_time DESC LIMIT 1",
             (username, member_type)

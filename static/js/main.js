@@ -14,7 +14,7 @@ import * as navigation from './modules/navigation.js';
 import * as announcements from './modules/announcements.js';
 import * as miniapp from './modules/miniapp.js';
 import * as feedback from './modules/feedback.js';
-import * as member from './modules/member.js';
+import * as member from './modules/member.js?v=20261017-membership-warning';
 import * as evaluation from './modules/evaluation.js';
 import * as service from './modules/service.js';
 import * as lab from './modules/lab.js';

@@ -474,7 +474,7 @@ export async function loadMemberOrders() {
                 linksHtml += `
                     <div class="member-pay-link-row">
                         <span>${typeMap[order.member_type]} ¥${order.amount} · <span class="member-order-error">剩余${expireMin}分钟</span></span>
-                        <a href="${order.active_pay_url}" class="btn-primary member-order-pay">立即支付</a>
+                        <button type="button" data-member-type="${escapeHtml(order.member_type)}" data-pay-type="${escapeHtml(order.pay_type || 'alipay')}" onclick="resumeMemberPay(this)" class="btn-primary member-order-pay">立即支付</button>
                     </div>`;
             }
             payLinksDiv.innerHTML = linksHtml;
@@ -485,7 +485,7 @@ export async function loadMemberOrders() {
         const statusMap = { pending: '待支付', paid: '已支付', failed: '失败' };
         let html = '<div class="orders-list">';
         for (const order of data.data) {
-            let payLinkHtml = order.active_pay_url ? ` <a class="btn-primary member-order-pay member-order-pay-compact" href="${order.active_pay_url}">去支付</a>` : '';
+            let payLinkHtml = order.active_pay_url ? ` <button type="button" class="btn-primary member-order-pay member-order-pay-compact" data-member-type="${escapeHtml(order.member_type)}" data-pay-type="${escapeHtml(order.pay_type || 'alipay')}" onclick="resumeMemberPay(this)">去支付</button>` : '';
             html += `
                 <div class="order-item">
                     <div class="order-info">
@@ -532,6 +532,57 @@ export function closePayDialog() {
     state._currentPayMemberType = null;
 }
 
+async function createMemberPayment(memberType, payType) {
+    const operation = resources.capture();
+    const requestOrder = async (confirmed = false) => {
+        const resp = await operation.wait(resources.fetch('/api/member/create_order', {
+            method: 'POST',
+            headers: { 'X-Device-ID': getDeviceId(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ member_type: memberType, pay_type: payType,
+                operation_warning_confirmed: confirmed }),
+        }));
+        return operation.wait(resp.json());
+    };
+    let data = await requestOrder();
+    if (data.requires_confirmation) {
+        const payModal = document.getElementById('pay-modal');
+        const restorePayModal = state.uiModalState.activeModal === payModal;
+        const returnFocus = state.uiModalState.returnFocus;
+        const confirmed = await operation.wait(requestUiConfirmation({
+            title: '会员充值提醒',
+            message: data.message,
+            confirmText: '继续充值',
+        }));
+        if (restorePayModal) {
+            openUiModal(payModal, { initialFocusSelector: '.modal-close' });
+            state.uiModalState.returnFocus = returnFocus;
+        }
+        if (!confirmed) return null;
+        data = await requestOrder(true);
+    }
+    if (!data.success) throw new Error(data.message || '创建订单失败');
+    if (!data.data?.pay_url) throw new Error('获取支付链接失败，请重试');
+    return data.data.pay_url;
+}
+
+export async function resumeMemberPay(button) {
+    if (button.disabled) return;
+    const operation = resources.capture();
+    button.disabled = true;
+    try {
+        const payUrl = await createMemberPayment(button.dataset.memberType, button.dataset.payType || 'alipay');
+        if (payUrl) window.location.href = payUrl;
+    } catch (error) {
+        if (error?.name === 'AbortError') return;
+        showUiToast(error.message || '网络错误，请重试', 'error');
+    } finally {
+        if (operation.isActive()) {
+            button.disabled = false;
+            if (!state.uiModalState.activeModal) button.focus();
+        }
+    }
+}
+
 export async function confirmPay() {
     const operation = resources.capture();
     const memberType = state._currentPayMemberType;
@@ -539,36 +590,25 @@ export async function confirmPay() {
     const payType = document.querySelector('input[name="pay-type"]:checked')?.value || 'alipay';
     const btn = document.getElementById('pay-confirm-btn');
     const errDiv = document.getElementById('pay-error');
+    if (btn.disabled) return;
     btn.disabled = true;
     btn.textContent = '正在创建支付...';
     errDiv.textContent = '';
     try {
-        const resp = await operation.wait(resources.fetch('/api/member/create_order', {
-            method: 'POST',
-            headers: { 'X-Device-ID': getDeviceId(), 'Content-Type': 'application/json' },
-            body: JSON.stringify({ member_type: memberType, pay_type: payType })
-        }));
-        const data = await operation.wait(resp.json());
-        if (!data.success) {
-            errDiv.textContent = data.message || '创建订单失败';
-            btn.disabled = false;
-            btn.textContent = '确认支付';
-            return;
-        }
-        const payUrl = data.data.pay_url;
+        const payUrl = await createMemberPayment(memberType, payType);
         if (payUrl) {
             closePayDialog();
             window.location.href = payUrl;
-        } else {
-            errDiv.textContent = '获取支付链接失败，请重试';
-            btn.disabled = false;
-            btn.textContent = '确认支付';
         }
     } catch (e) {
         if (e?.name === 'AbortError') return;
-        errDiv.textContent = '网络错误，请重试';
-        btn.disabled = false;
-        btn.textContent = '确认支付';
+        errDiv.textContent = e.message || '网络错误，请重试';
+    } finally {
+        if (operation.isActive()) {
+            btn.disabled = false;
+            btn.textContent = '确认支付';
+            if (state.uiModalState.activeModal === document.getElementById('pay-modal')) btn.focus();
+        }
     }
 }
 
