@@ -43,21 +43,21 @@
 
 :where(:root) {
 --ui-dark-color-scheme: dark;
-    --ui-dark-canvas: #0f172a;
-    --ui-dark-admin-canvas: #0f172a;
-    --ui-dark-surface: #1e293b;
-    --ui-dark-surface-soft: #162235;
-    --ui-dark-surface-quiet: #243247;
-    --ui-dark-ink: #f8fafc;
-    --ui-dark-muted: #cbd5e1;
-    --ui-dark-subtle: #aebfd2;
-    --ui-dark-line: #334155;
-    --ui-dark-control-line: #52647c;
+    --ui-dark-canvas: #000000;
+    --ui-dark-admin-canvas: #000000;
+    --ui-dark-surface: #121212;
+    --ui-dark-surface-soft: #0a0a0a;
+    --ui-dark-surface-quiet: #1c1c1c;
+    --ui-dark-ink: #f5f5f5;
+    --ui-dark-muted: #cccccc;
+    --ui-dark-subtle: #aaaaaa;
+    --ui-dark-line: #303030;
+    --ui-dark-control-line: #555555;
     --ui-dark-control-hover-line: #93c5fd;
     --ui-dark-accent: #93c5fd;
     --ui-dark-accent-hover: #bfdbfe;
-    --ui-dark-accent-soft: #233c5e;
-    --ui-dark-on-accent: #0f172a;
+    --ui-dark-accent-soft: #202020;
+    --ui-dark-on-accent: #000000;
     --ui-dark-success: #86efac;
     --ui-dark-success-hover: #bbf7d0;
     --ui-dark-success-rgb: 134, 239, 172;

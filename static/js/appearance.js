@@ -4,7 +4,14 @@
 
     const storageKey = 'urp_ui_template';
     const colorStorageKey = 'urp_ui_color_mode';
-    const choices = ['workspace', 'glass'];
+    const templates = [
+        { id: 'workspace', name: '清晰工作台', description: '蓝色操作，清楚利落', canvas: '#f3f6fa' },
+        { id: 'glass', name: '液态玻璃', description: '通透材质，流动高光', canvas: '#e9e7e2' },
+        { id: 'paper', name: '纸间书桌', description: '暖纸白与棕墨，像翻开一本笔记', canvas: '#f2eee4' },
+        { id: 'garden', name: '苔庭', description: '灰绿与松色，柔和安静', canvas: '#edf1e8' },
+        { id: 'clay', name: '陶土', description: '暖沙与赭红，轻轻叠起的纸板', canvas: '#f3e9df' },
+    ];
+    const choices = templates.map(template => template.id);
     const colorModes = ['light', 'dark', 'system'];
     const root = document.documentElement;
     const themeMeta = document.querySelector('meta[name="theme-color"]');
@@ -13,8 +20,8 @@
 
     function syncThemeColor(choice) {
         const dark = root.dataset.colorScheme ? root.dataset.colorScheme === 'dark' : systemDark.matches;
-        if (themeMeta) themeMeta.content = dark ? '#0f172a'
-            : choice === 'glass' ? '#e9e7e2' : canvasColor;
+        if (themeMeta) themeMeta.content = dark ? '#000000'
+            : templates.find(template => template.id === choice)?.canvas || canvasColor;
     }
 
     function readColorMode() {
@@ -112,16 +119,12 @@
             </fieldset>
             <h3 class="appearance-section-title">页面模板</h3>
             <div class="appearance-options" role="radiogroup" aria-label="页面模板">
-                <label class="appearance-option">
-                    <input type="radio" name="ui-template" value="workspace">
-                    <span class="appearance-preview appearance-preview-workspace" aria-hidden="true"><i></i><b></b><b></b></span>
-                    <span class="appearance-option-copy"><strong>清晰工作台</strong><small>清楚的蓝色操作与高对比内容面</small></span>
-                </label>
-                <label class="appearance-option">
-                    <input type="radio" name="ui-template" value="glass">
-                    <span class="appearance-preview appearance-preview-glass" aria-hidden="true"><i></i><b></b><b></b></span>
-                    <span class="appearance-option-copy"><strong>液态玻璃</strong><small>玻璃材质与流动高光</small></span>
-                </label>
+                ${templates.map(template => `
+                    <label class="appearance-option">
+                        <input type="radio" name="ui-template" value="${template.id}">
+                        <span class="appearance-preview appearance-preview-${template.id}" aria-hidden="true"><i></i><b></b><b></b></span>
+                        <span class="appearance-option-copy"><strong>${template.name}</strong><small>${template.description}</small></span>
+                    </label>`).join('')}
             </div>`;
         document.body.append(dialog);
 

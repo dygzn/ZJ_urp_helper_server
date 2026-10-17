@@ -92,41 +92,41 @@
 
 :where(html[data-ui-template="glass"]) {
 --ui-dark-color-scheme: dark;
-    --ui-dark-canvas: #0f172a;
-    --ui-dark-admin-canvas: #0f172a;
-    --ui-dark-solid-surface: #1e293b;
-    --ui-dark-solid-surface-soft: #243247;
-    --ui-dark-surface: #1e293b;
-    --ui-dark-surface-soft: #162235;
-    --ui-dark-ink: #f8fafc;
-    --ui-dark-muted: #cbd5e1;
-    --ui-dark-subtle: #aebfd2;
-    --ui-dark-line: #334155;
-    --ui-dark-accent: #e2e8f0;
-    --ui-dark-accent-hover: #f8fafc;
-    --ui-dark-accent-soft: #334155;
-    --ui-dark-primary-fill: #cbd5e1;
-    --ui-dark-primary-hover-fill: #e2e8f0;
-    --ui-dark-primary-image: linear-gradient(150deg, #e2e8f0, #aebfd2);
-    --ui-dark-primary-hover-image: linear-gradient(150deg, #f8fafc, #cbd5e1);
-    --glass-dark-fill: linear-gradient(145deg, rgb(38 53 72 / 94%), rgb(22 34 53 / 90%));
-    --glass-dark-control-fill: linear-gradient(145deg, rgb(51 65 85 / 94%), rgb(30 41 59 / 94%));
-    --glass-dark-input-fill: linear-gradient(145deg, #243247, #162235);
-    --glass-dark-current-fill: linear-gradient(145deg, #334155, #1e293b);
-    --glass-dark-course-fill: linear-gradient(150deg, #263548, #1e293b);
-    --glass-dark-dialog-fill: linear-gradient(145deg, #243247, #162235);
-    --glass-dark-selected-fill: linear-gradient(155deg, #3b4b62, #1e293b);
-    --glass-dark-hover-fill: linear-gradient(145deg, #334155, #243247);
+    --ui-dark-canvas: #000000;
+    --ui-dark-admin-canvas: #000000;
+    --ui-dark-solid-surface: #121212;
+    --ui-dark-solid-surface-soft: #1c1c1c;
+    --ui-dark-surface: #121212;
+    --ui-dark-surface-soft: #0a0a0a;
+    --ui-dark-ink: #f5f5f5;
+    --ui-dark-muted: #cccccc;
+    --ui-dark-subtle: #aaaaaa;
+    --ui-dark-line: #303030;
+    --ui-dark-accent: #e5e5e5;
+    --ui-dark-accent-hover: #f5f5f5;
+    --ui-dark-accent-soft: #303030;
+    --ui-dark-primary-fill: #cccccc;
+    --ui-dark-primary-hover-fill: #e5e5e5;
+    --ui-dark-primary-image: linear-gradient(150deg, #e5e5e5, #aaaaaa);
+    --ui-dark-primary-hover-image: linear-gradient(150deg, #f5f5f5, #cccccc);
+    --glass-dark-fill: linear-gradient(145deg, rgb(24 24 24 / 94%), rgb(10 10 10 / 90%));
+    --glass-dark-control-fill: linear-gradient(145deg, rgb(30 30 30 / 94%), rgb(18 18 18 / 94%));
+    --glass-dark-input-fill: linear-gradient(145deg, #1c1c1c, #0a0a0a);
+    --glass-dark-current-fill: linear-gradient(145deg, #303030, #121212);
+    --glass-dark-course-fill: linear-gradient(150deg, #181818, #121212);
+    --glass-dark-dialog-fill: linear-gradient(145deg, #1c1c1c, #0a0a0a);
+    --glass-dark-selected-fill: linear-gradient(155deg, #383838, #121212);
+    --glass-dark-hover-fill: linear-gradient(145deg, #303030, #1c1c1c);
     --glass-dark-light: radial-gradient(ellipse at var(--glass-light-x, 18%) var(--glass-light-y, 0%), rgb(255 255 255 / 4%), transparent 68%);
-    --glass-dark-shadow: inset 1px 1px 0 rgb(255 255 255 / 16%), inset -1px -1px 0 rgb(15 23 42 / 36%), 0 12px 32px rgb(0 0 0 / 25%);
+    --glass-dark-shadow: inset 1px 1px 0 rgb(255 255 255 / 16%), inset -1px -1px 0 rgb(0 0 0 / 36%), 0 12px 32px rgb(0 0 0 / 25%);
     --glass-dark-control-shadow: inset 1px 1px rgb(255 255 255 / 16%), 0 4px 12px rgb(0 0 0 / 22%);
-    --glass-dark-scene-background: radial-gradient(ellipse at 3% 28%, #243247, transparent 75%), linear-gradient(135deg, #0f172a, #162235);
-    --glass-dark-scene-lobe-opacity: .08;
+    --glass-dark-scene-background: #000000;
+    --glass-dark-scene-lobe-opacity: 0;
     --glass-dark-edge: rgb(255 255 255 / 18%);
     --glass-dark-glint: rgb(255 255 255 / 16%);
-    --glass-dark-muted-fill: #334155;
-    --glass-dark-inset-fill: #162235;
-    --glass-dark-contrast-line: #aebfd2;
+    --glass-dark-muted-fill: #303030;
+    --glass-dark-inset-fill: #0a0a0a;
+    --glass-dark-contrast-line: #aaaaaa;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -217,7 +217,7 @@
             --glass-current-fill: var(--glass-fill);
             --glass-course-fill: var(--glass-fill);
             --glass-dialog-fill: var(--glass-fill);
-            --glass-selected-fill: linear-gradient(#334155, #243247);
+            --glass-selected-fill: linear-gradient(var(--ui-surface-quiet), var(--ui-solid-surface-soft));
             --glass-light: linear-gradient(transparent, transparent);
             --glass-blur: none;
 }
@@ -231,7 +231,7 @@
             --glass-current-fill: var(--glass-fill);
             --glass-course-fill: var(--glass-fill);
             --glass-dialog-fill: var(--glass-fill);
-            --glass-selected-fill: linear-gradient(#334155, #243247);
+            --glass-selected-fill: linear-gradient(var(--ui-surface-quiet), var(--ui-solid-surface-soft));
             --glass-light: linear-gradient(transparent, transparent);
             --glass-blur: none;
 }

@@ -1,0 +1,139 @@
+/* Natural materials are token presets; component geometry stays in component layers. */
+@layer themes {
+    :where(html[data-ui-template="paper"]) {
+        --natural-canvas: #f2eee4;
+        --natural-surface: #fffdf7;
+        --natural-soft: #f6f1e7;
+        --natural-quiet: #e9e1d2;
+        --natural-ink: #342f27;
+        --natural-muted: #695f50;
+        --natural-subtle: #746958;
+        --natural-line: #d9d0bf;
+        --natural-control-line: #b5a58c;
+        --natural-accent: #755333;
+        --natural-accent-hover: #5a3c23;
+        --natural-accent-soft: #ede2cc;
+        --natural-heading-font: "Iowan Old Style", "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+        --natural-canvas-image: radial-gradient(rgba(90, 70, 43, .045) .65px, transparent .65px);
+        --natural-canvas-size: 5px 5px;
+        --natural-header-fill: #fffdf7;
+        --natural-header-shadow: 0 3px 0 #e5ddce;
+        --natural-panel-shadow: 0 2px 0 #e6dece;
+        --ui-radius: 7px;
+        --ui-radius-sm: 5px;
+        --ui-dark-accent: #dbbd8f;
+        --ui-dark-accent-hover: #ecd4b3;
+        --ui-dark-accent-soft: #29251f;
+        --ui-dark-control-hover-line: #dbbd8f;
+    }
+
+    :where(html[data-ui-template="garden"]) {
+        --natural-canvas: #edf1e8;
+        --natural-surface: #fbfcf7;
+        --natural-soft: #f1f5ed;
+        --natural-quiet: #e2eadc;
+        --natural-ink: #25372e;
+        --natural-muted: #52634e;
+        --natural-subtle: #61715b;
+        --natural-line: #cdd8c6;
+        --natural-control-line: #9aad91;
+        --natural-accent: #315e4a;
+        --natural-accent-hover: #234633;
+        --natural-accent-soft: #dfebd9;
+        --natural-heading-font: var(--ui-font);
+        --natural-canvas-image: none;
+        --natural-canvas-size: auto;
+        --natural-header-fill: #f1f5ed;
+        --natural-header-shadow: none;
+        --natural-panel-shadow: 0 3px 14px rgba(49, 72, 38, .035);
+        --ui-radius: 22px;
+        --ui-radius-sm: 12px;
+        --ui-dark-accent: #b9d5b0;
+        --ui-dark-accent-hover: #d6e7cf;
+        --ui-dark-accent-soft: #202820;
+        --ui-dark-control-hover-line: #b9d5b0;
+    }
+
+    :where(html[data-ui-template="clay"]) {
+        --natural-canvas: #f3e9df;
+        --natural-surface: #fffaf4;
+        --natural-soft: #f8efe5;
+        --natural-quiet: #eddfd0;
+        --natural-ink: #49382f;
+        --natural-muted: #765d4e;
+        --natural-subtle: #806451;
+        --natural-line: #dec8b8;
+        --natural-control-line: #bb9e86;
+        --natural-accent: #994c35;
+        --natural-accent-hover: #783b29;
+        --natural-accent-soft: #f4ddcd;
+        --natural-heading-font: var(--ui-font);
+        --natural-canvas-image: none;
+        --natural-canvas-size: auto;
+        --natural-header-fill: #fffaf4;
+        --natural-header-shadow: 0 3px 0 #dec8b8;
+        --natural-panel-shadow: 3px 3px 0 #e5d5c5;
+        --ui-radius: 12px;
+        --ui-radius-sm: 7px;
+        --ui-dark-accent: #f0b595;
+        --ui-dark-accent-hover: #f9d1ba;
+        --ui-dark-accent-soft: #2e231f;
+        --ui-dark-control-hover-line: #f0b595;
+    }
+
+    :where(html:is([data-ui-template="paper"], [data-ui-template="garden"], [data-ui-template="clay"]):not([data-color-scheme="dark"])) {
+        --ui-canvas: var(--natural-canvas);
+        --ui-admin-canvas: var(--natural-canvas);
+        --ui-surface: var(--natural-surface);
+        --ui-surface-soft: var(--natural-soft);
+        --ui-surface-quiet: var(--natural-quiet);
+        --ui-course-surface: #ffffff;
+        --ui-ink: var(--natural-ink);
+        --ui-muted: var(--natural-muted);
+        --ui-subtle: var(--natural-subtle);
+        --ui-line: var(--natural-line);
+        --ui-control-line: var(--natural-control-line);
+        --ui-control-hover-line: var(--natural-accent);
+        --ui-accent: var(--natural-accent);
+        --ui-accent-hover: var(--natural-accent-hover);
+        --ui-accent-soft: var(--natural-accent-soft);
+    }
+
+    /* Manual dark mode inherits the shared black surfaces and semantic state colors. */
+    :where(html:is([data-ui-template="paper"], [data-ui-template="garden"], [data-ui-template="clay"])[data-color-scheme="dark"]) {
+        --natural-canvas-image: none;
+        --natural-header-fill: var(--ui-surface);
+        --natural-header-shadow: none;
+        --natural-panel-shadow: none;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        :where(html:is([data-ui-template="paper"], [data-ui-template="garden"], [data-ui-template="clay"]):not([data-color-scheme])) {
+            --ui-canvas: var(--ui-dark-canvas);
+            --ui-admin-canvas: var(--ui-dark-admin-canvas);
+            --ui-surface: var(--ui-dark-surface);
+            --ui-surface-soft: var(--ui-dark-surface-soft);
+            --ui-surface-quiet: var(--ui-dark-surface-quiet);
+            --ui-ink: var(--ui-dark-ink);
+            --ui-muted: var(--ui-dark-muted);
+            --ui-subtle: var(--ui-dark-subtle);
+            --ui-line: var(--ui-dark-line);
+            --ui-control-line: var(--ui-dark-control-line);
+            --ui-control-hover-line: var(--ui-dark-control-hover-line);
+            --ui-accent: var(--ui-dark-accent);
+            --ui-accent-hover: var(--ui-dark-accent-hover);
+            --ui-accent-soft: var(--ui-dark-accent-soft);
+            --natural-canvas-image: none;
+            --natural-header-fill: var(--ui-surface);
+            --natural-header-shadow: none;
+            --natural-panel-shadow: none;
+        }
+    }
+
+    @media (prefers-contrast: more) {
+        :where(html:is([data-ui-template="paper"], [data-ui-template="garden"], [data-ui-template="clay"]):not([data-color-scheme="dark"])) {
+            --ui-line: var(--natural-control-line);
+            --natural-canvas-image: none;
+        }
+    }
+}
