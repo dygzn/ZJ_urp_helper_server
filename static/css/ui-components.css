@@ -1,5 +1,9 @@
 /* Component rules: zero-weight ancestors, class-weight control targets. */
 @layer components.workspace {
+
+:where(body.urp-app) .evaluation-result {
+    overflow-wrap: anywhere;
+}
 :where(body.urp-app) .grades-result-back[hidden] {
     display: none;
 }
