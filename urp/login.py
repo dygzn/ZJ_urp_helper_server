@@ -1,15 +1,16 @@
 import base64
 import json
+import logging
 import os
 import random
 import re
 import threading
 import time
 from html.parser import HTMLParser
-from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
 import requests
+from bs4 import BeautifulSoup
 from services.credential_service import CredentialCipher
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -27,12 +28,6 @@ VPN_AUTH_USERNAME = os.environ.get('VPN_AUTH_USERNAME')
 VPN_AUTH_PASSWORD = os.environ.get('VPN_AUTH_PASSWORD')
 VPN_AUTH_BODY = os.environ.get('VPN_AUTH_BODY')
 MAX_CAPTCHA_ATTEMPTS = 8
-SAVE_DEBUG_FILES = os.environ.get('URP_SAVE_DEBUG_FILES', '').lower() in {
-    '1', 'true', 'yes', 'on'
-}
-DEBUG_FILE_THROTTLE_SECONDS = 60
-_debug_file_times = {}
-_debug_file_lock = threading.Lock()
 VPN_COOKIE_PREFIX = 'VSG_'
 _VPN_LOCK = threading.Lock()
 _KEEPALIVE_STARTED = False
@@ -40,6 +35,85 @@ _KEEPALIVE_STARTED = False
 
 class VPNUnavailableError(RuntimeError):
     """Raised when VPN recovery cannot safely continue the request."""
+
+
+class LoginPageUnavailableError(RuntimeError):
+    """教务登录页不可用；异常消息只包含面向用户的提示。"""
+
+
+class CaptchaUnavailableError(RuntimeError):
+    """验证码接口没有返回可识别的图片。"""
+
+
+_LOGIN_FAILURE_MESSAGES = {
+    'credentials': '学号或密码不正确，请核对后重试。',
+    'captcha': '登录验证码校验未通过，请重试。',
+    'locked': '教务账号暂时被限制登录，请到学校教务系统确认账号状态。',
+    'maintenance': '学校教务系统正在维护，请稍后重试。',
+    'unavailable': '学校教务系统暂不可用，请稍后重试。',
+    'vpn': '教务连接暂不可用，请稍后重试。',
+    'unknown': '教务登录失败，请稍后重试，或先到学校教务系统确认账号能否登录。',
+}
+_logger = logging.getLogger(__name__)
+
+
+def _login_failure_reason(response):
+    """只根据明确的错误区域或直接执行的 alert 识别原因，不回传上游原文。"""
+    if response.status_code >= 400:
+        return 'unavailable'
+
+    soup = BeautifulSoup(response.text, 'html.parser')
+    has_form = bool(soup.find('form'))
+    for node in soup.find_all(True):
+        if node.name is None:  # 祖先已被移除。
+            continue
+        style = re.sub(r'\s+', '', node.get('style', '').lower())
+        hidden_style = re.search(
+            r'(?:^|;)(?:display:none|visibility:(?:hidden|collapse))(?:!important)?(?:;|$)',
+            style,
+        )
+        if (node.name in ('template', 'noscript') or node.has_attr('hidden')
+                or node.get('aria-hidden', '').lower() == 'true' or hidden_style):
+            node.decompose()
+    messages = [node.get_text(' ', strip=True) for node in soup.select(
+        '.errorTop, .error, .error-message, #error, #errorMsg, #errorMessage, '
+        '[role="alert"], font[color="red"]'
+    )]
+    for script in soup.find_all('script'):
+        script_type = script.get('type', '').strip().lower()
+        if script.has_attr('src') or script_type not in (
+            '', 'text/javascript', 'application/javascript',
+            'text/ecmascript', 'application/ecmascript', 'module',
+        ):
+            continue
+        # 登录页常含未执行的表单校验函数，不能据此认定密码或验证码错误。
+        match = re.match(
+            r'''\s*(?:<!--\s*)?(?:window\.)?alert\s*\(\s*(['"])(.*?)\1\s*\)''',
+            script.get_text(), re.S,
+        )
+        if match:
+            messages.append(match.group(2))
+    for node in soup(['script', 'style', 'noscript']):
+        node.decompose()
+    # 独立错误页可能没有专用样式，正常登录表单的说明文字不作为错误依据。
+    if not has_form:
+        messages.append(soup.get_text(' ', strip=True))
+
+    for message in messages:
+        if re.search(r'(?:系统|网站).{0,8}(?:正在维护|维护中)|非开放时间', message):
+            return 'maintenance'
+        if re.search(r'(?:账号|帐号|账户|用户).{0,8}(?:锁定|冻结|停用|禁用|限制登录)', message):
+            return 'locked'
+        if re.search(r'(?:验证码|校验码).{0,10}(?:错误|不正确|不匹配|失效|过期)', message):
+            return 'captcha'
+        if re.search(
+            r'(?:密码|用户名|学号|账号|帐号).{0,8}(?:错误|不正确|不存在)|'
+            r'用户不存在|无此用户', message,
+        ):
+            return 'credentials'
+    if is_vpn_failure_response(response):
+        return 'vpn'
+    return None
 
 
 def _filter_shared_vpn_cookies(cookies):
@@ -128,6 +202,8 @@ def _page_title(html):
 
 
 def _looks_logged_in(response):
+    if response.status_code >= 400:
+        return False
     if is_vpn_failure_response(response) or _looks_like_urp_login_page(response):
         return False
     return _looks_like_urp_home_page(response)
@@ -239,29 +315,6 @@ def _html_hint(resp):
     else:
         page_type = 'HTML_PAGE'
     return f'{page_type}; URL={url}; Content-Type={content_type}; Body={snippet}'
-
-
-def _save_debug_file(filename, content):
-    if not SAVE_DEBUG_FILES:
-        return False
-
-    now = time.monotonic()
-    with _debug_file_lock:
-        last_write = _debug_file_times.get(filename)
-        if last_write is not None and now - last_write < DEBUG_FILE_THROTTLE_SECONDS:
-            return False
-        _debug_file_times[filename] = now
-
-    try:
-        os.makedirs('data', exist_ok=True)
-        path = os.path.join('data', filename)
-        if isinstance(content, bytes):
-            Path(path).write_bytes(content)
-        else:
-            Path(path).write_text(content or '', encoding='utf-8')
-        return True
-    except Exception:
-        return False
 
 
 def _looks_like_image(resp):
@@ -438,11 +491,9 @@ class URP_login:
             timeout=20,
         )
         resp.encoding = 'utf-8'
-        _save_debug_file('last_vpn_auth_response.txt', resp.text)
         if resp.status_code != 200 or '0x00000000' not in resp.text:
             return False, f'VPN auth failed; status={resp.status_code}; {_html_hint(resp)}'
-        portal = self.x.get(VPN_PORTAL_PAGE, timeout=20)
-        _save_debug_file('last_vpn_portal_response.html', portal.text)
+        self.x.get(VPN_PORTAL_PAGE, timeout=20)
         save_shared_vpn_cookies(self.x.cookies.get_dict())
         start_vpn_keepalive()
         return True, 'VPN auth success'
@@ -463,19 +514,16 @@ class URP_login:
         for _ in range(2):
             resp = self.x.get(self._url(), headers=headers, timeout=20)
             resp.encoding = 'gbk'
-            _save_debug_file('last_jiaowu_login.html', resp.text)
+            reason = _login_failure_reason(resp)
+            if reason in ('maintenance', 'unavailable'):
+                raise LoginPageUnavailableError(_LOGIN_FAILURE_MESSAGES[reason])
             if is_vpn_failure_response(resp):
-                raise VPNUnavailableError(
-                    _vpn_unavailable_message(_html_hint(resp))
-                )
+                raise VPNUnavailableError(_LOGIN_FAILURE_MESSAGES['vpn'])
             try:
                 return resp.url, _parse_login_form(resp.text)
             except RuntimeError:
                 continue
-        title = _page_title(resp.text) or '无标题'
-        raise RuntimeError(
-            f'教务登录页连续两次未返回登录表单（HTTP {resp.status_code}，页面：{title[:40]}）'
-        )
+        raise LoginPageUnavailableError('暂时无法打开学校教务登录页，请稍后重试。')
 
     def _read_captcha(self, ocr, allow_vpn_retry=True):
         resp = self.x.get(
@@ -485,13 +533,11 @@ class URP_login:
             timeout=20,
         )
         if not _looks_like_image(resp):
-            _save_debug_file('last_vpn_captcha_response.html', resp.text)
             if self._requires_vpn_auth() and allow_vpn_retry:
                 recover_vpn_session(self.x, self._url())
                 self._save_cookies()
                 return self._read_captcha(ocr, allow_vpn_retry=False)
-            raise RuntimeError(f'captcha response was not an image; status={resp.status_code}; {_html_hint(resp)}')
-        _save_debug_file('last_jiaowu_captcha.gif', resp.content)
+            raise CaptchaUnavailableError('暂时无法获取登录验证码，请稍后重试。')
         return _normalize_captcha(ocr.classification(resp.content))
 
     def _submit_login(self, form_url, parser, captcha_text):
@@ -514,41 +560,63 @@ class URP_login:
             timeout=30,
         )
         resp.encoding = 'gbk'
-        _save_debug_file('last_jiaowu_after_login.html', resp.text)
         return resp
 
     def login(self):
-        success, message = self._ensure_vpn_session()
-        if not success:
-            return False, message, None
-
+        stage = 'vpn'
         try:
+            success, _ = self._ensure_vpn_session()
+            if not success:
+                _logger.warning('教务登录失败: stage=vpn')
+                return False, _LOGIN_FAILURE_MESSAGES['vpn'], None
+
+            stage = 'ocr'
             import ddddocr
+            stage = 'login_page'
             form_url, parser = self._get_login_page()
+            stage = 'ocr'
             ocr = ddddocr.DdddOcr(show_ad=False)
             last_response = None
             for attempt in range(MAX_CAPTCHA_ATTEMPTS):
+                stage = 'captcha'
                 captcha_text = self._read_captcha(ocr)
                 if not captcha_text:
                     continue
+                stage = 'submit'
                 last_response = self._submit_login(form_url, parser, captcha_text)
                 if _looks_logged_in(last_response):
+                    stage = 'save_cookies'
                     self._save_cookies()
                     if self._requires_vpn_auth():
                         save_shared_vpn_cookies(self.x.cookies.get_dict())
                     return True, '登录成功', self.x.cookies.get_dict()
+                reason = _login_failure_reason(last_response)
+                if reason and reason != 'captcha':
+                    _logger.warning('教务登录失败: reason=%s HTTP=%s', reason, last_response.status_code)
+                    return False, _LOGIN_FAILURE_MESSAGES[reason], None
                 if attempt + 1 < MAX_CAPTCHA_ATTEMPTS:
+                    stage = 'login_page'
                     form_url, parser = self._get_login_page()
                     time.sleep(0.5)
             if last_response is not None:
-                return False, f'登录失败，最后页面: {_html_hint(last_response)}', None
-            return False, '登录失败，验证码识别为空', None
-        except Exception as e:
-            error = str(e)
-            if any(key in error.lower() for key in ('numpy', 'ddddocr', 'onnxruntime', 'cv2', 'opencv', 'pil')):
-                diagnostics = _ocr_dependency_diagnostics()
-                return False, f'OCR依赖加载失败: {error}; 依赖检测: {diagnostics}; 请在服务器重装 OCR 依赖后重启服务', None
-            return False, f'登录异常: {error}', None
+                reason = _login_failure_reason(last_response) or 'unknown'
+                _logger.warning('教务登录失败: reason=%s HTTP=%s', reason, last_response.status_code)
+                return False, _LOGIN_FAILURE_MESSAGES[reason], None
+            return False, '登录验证码自动识别未成功，请重试。', None
+        except requests.Timeout:
+            message = '学校教务系统响应超时，请稍后重试。'
+        except requests.RequestException:
+            message = '暂时无法连接学校教务系统，请稍后重试。'
+        except VPNUnavailableError:
+            message = _LOGIN_FAILURE_MESSAGES['vpn']
+        except (LoginPageUnavailableError, CaptchaUnavailableError) as exc:
+            message = str(exc)
+        except Exception:
+            message = ('登录验证码识别服务暂不可用，请稍后重试或联系管理员。'
+                       if stage == 'ocr' else '登录服务暂时出现异常，请稍后重试或联系管理员。')
+        # 不记录上游响应正文、完整 URL 或原始异常，避免带出凭据和登录票据。
+        _logger.warning('教务登录异常: stage=%s', stage)
+        return False, message, None
 
     def is_logined(self):
         def relogin_if_possible():
