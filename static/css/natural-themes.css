@@ -114,6 +114,7 @@
             --ui-surface: var(--ui-dark-surface);
             --ui-surface-soft: var(--ui-dark-surface-soft);
             --ui-surface-quiet: var(--ui-dark-surface-quiet);
+            --ui-course-surface: var(--ui-dark-surface);
             --ui-ink: var(--ui-dark-ink);
             --ui-muted: var(--ui-dark-muted);
             --ui-subtle: var(--ui-dark-subtle);

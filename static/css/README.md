@@ -6,7 +6,7 @@
 - `components.workspace`：`ui-components.css` 中的当前组件布局，及后台、外观选择器专用组件。按组件或交互状态选择元素；祖先、页面 ID 与主题作用域使用 `:where()`，避免把定位范围变成优先级竞争。
 - 直接定位控件时，旧的 ID 使用 `[id="..."]` 保持类级权重，避免零权重的目标规则被通用类隐藏；页面 ID 仅用于限定祖先范围时仍放在 `:where()` 内。
 - `components.appearance`：可选材质的组件使用规则与现有玻璃导航交互布局，仍在 `ui-components.css`。消费颜色、填充、阴影、模糊与圆角 Token。
-- `themes`：`taste-theme.css`、`liquid-glass.css` 只定义 Token。系统明暗配色使用 `prefers-color-scheme`；减少透明效果和高对比度偏好通过同一组 Token 回退。
+- `themes`：`taste-theme.css`、`liquid-glass.css`、`natural-themes.css` 只定义 Token。系统明暗配色使用 `prefers-color-scheme`；减少透明效果和高对比度偏好通过同一组 Token 回退。自然外观的材质规则在 `appearance.css` 顶层的 `components.appearance`，不可嵌套进 `components.workspace` 形成未声明的子层。
 - `utilities`：可见性、减少动态效果等明确的功能约束。历史上必须覆盖内联状态的少量 `!important` 集中在此，主题不得引入 `!important`。
 
 `--ui-*` 是共享语义；`--glass-*` 是浏览器玻璃材质参数。课程颜色仍按课程身份产生，深色只通过色条的 `color-mix()` 调整亮度；详情过渡使用相同处理，不修改课程配色映射和业务数据。旧浏览器不支持 `color-mix()` 时，深色色条回退到高对比度实色。
