@@ -237,19 +237,19 @@ def handle_feedback(user):
 
         return jsonify({'success': True, 'message': '反馈提交成功'})
 
-    # GET
-    device_id = user['device_id']
+    # 反馈归属跟随认证账号，设备换绑不能继承原账号的私密内容。
+    username = user['username']
 
     with get_db() as conn:
         my_rows = conn.execute('''
             SELECT id, device_id, username, content, visibility, create_time
-            FROM feedbacks WHERE device_id = ? ORDER BY create_time DESC
-        ''', (device_id,)).fetchall()
+            FROM feedbacks WHERE username = ? ORDER BY create_time DESC
+        ''', (username,)).fetchall()
 
         public_rows = conn.execute('''
             SELECT id, device_id, username, content, visibility, create_time
-            FROM feedbacks WHERE device_id != ? AND visibility = 'public' ORDER BY create_time DESC
-        ''', (device_id,)).fetchall()
+            FROM feedbacks WHERE username != ? AND visibility = 'public' ORDER BY create_time DESC
+        ''', (username,)).fetchall()
 
         def build_feedback(row, is_own):
             feedback = {
@@ -293,12 +293,12 @@ def user_reply_feedback(feedback_id, user):
 
     with get_db() as conn:
         feedback = conn.execute('''
-            SELECT id, device_id, visibility FROM feedbacks WHERE id = ?
+            SELECT id, username, visibility FROM feedbacks WHERE id = ?
         ''', (feedback_id,)).fetchone()
 
         if not feedback:
             return jsonify({'success': False, 'message': '反馈不存在'})
-        if feedback['device_id'] != device_id and feedback['visibility'] != 'public':
+        if feedback['username'] != user['username'] and feedback['visibility'] != 'public':
             return jsonify({'success': False, 'message': '无权回复此反馈'})
 
         conn.execute('''

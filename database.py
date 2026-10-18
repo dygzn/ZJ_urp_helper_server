@@ -621,6 +621,7 @@ def _create_indexes(conn):
         'CREATE INDEX idx_announcement_active ON announcements(is_active)',
         'CREATE INDEX idx_user_read ON user_read_announcements(device_id)',
         'CREATE INDEX idx_feedback_device ON feedbacks(device_id)',
+        'CREATE INDEX idx_feedback_username_time ON feedbacks(username, create_time)',
         'CREATE INDEX idx_feedback_visibility ON feedbacks(visibility)',
         'CREATE INDEX idx_feedback_reply_fid ON feedback_replies(feedback_id)',
         'CREATE INDEX idx_log_time ON request_logs(request_time)',
