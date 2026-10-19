@@ -801,19 +801,24 @@ class URP_query:
         response = self._request('GET', f'{self.url}ksApCxAction.do',
                                params={'oper': 'getKsapXx', 'yzxh': self.account},
                                headers=headers, verify=False)
+        response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
 
         exam_table = next(
             (t for t in soup.find_all('table')
-             if t.find_all('th') and any('考试名' in th.get_text() for th in t.find_all('th'))),
+             if any('考试名' in th.get_text() and th.find_parent('table') is t
+                    for th in t.find_all('th'))),
             None
         )
         if not exam_table:
             raise Exception("未找到考试安排表格，学校可能暂未开放考试查询")
 
         exams_by_week = {}
-        for row in exam_table.find_all('tr', class_='odd'):
-            cols = row.find_all('td')
+        # 行样式不决定是否为考试；只读取该表自己的行和直接单元格。
+        for row in exam_table.find_all('tr'):
+            if row.find_parent('table') is not exam_table:
+                continue
+            cols = row.find_all('td', recursive=False)
             if len(cols) < 10:
                 continue
             exam = {
