@@ -89,20 +89,21 @@ class URP_query:
             return []
 
         score_table = None
-        for elem in anchor.next_siblings:
-            if getattr(elem, 'name', None) == 'a' and elem.get('name'):
+        # 按文档顺序包含表格本身；遇到下一命名锚点时停止，避免串读学期。
+        for elem in anchor.find_all_next(['a', 'table']):
+            if elem.name == 'a' and elem.get('name'):
                 break
-            if getattr(elem, 'name', None):
-                t = elem.find('table', class_='displayTag', id='user')
-                if t:
-                    score_table = t
-                    break
+            if elem.name == 'table' and elem.get('id') == 'user' and 'displayTag' in elem.get('class', []):
+                score_table = elem
+                break
         if not score_table:
             return []
 
         courses = []
         for r in score_table.find_all('tr'):
-            tds = r.find_all('td')
+            if r.find_parent('table') is not score_table:
+                continue
+            tds = r.find_all('td', recursive=False)
             if len(tds) < 8:
                 continue
             course = tds[2].get_text(strip=True)
