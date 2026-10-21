@@ -14,6 +14,7 @@ from services.member_service import (
     _get_server_url,
     _money,
     _money_string,
+    _payment_amount,
     ensure_invitation_earnings,
     get_invitation_earning_total,
     get_referral_milestone_status,
@@ -150,7 +151,11 @@ def member_create_order(user):
         else:
             # 超时订单标记为失败
             with get_db() as conn:
-                conn.execute("UPDATE orders SET status='failed' WHERE order_no=?", (recent['order_no'],))
+                # 查询后的支付回调可能已经提交；只让仍待支付的订单过期。
+                conn.execute(
+                    "UPDATE orders SET status='failed' WHERE order_no=? AND status='pending'",
+                    (recent['order_no'],),
+                )
 
     order_no = uuid.uuid4().hex[:20]
     server_url = _get_server_url()
@@ -213,11 +218,23 @@ def member_pay_notify():
         if not hmac.compare_digest(sign_received.encode('utf-8'), sign_expected.encode('utf-8')):
             return 'fail', 400
 
+        # 官方协议只有 state=1 表示付款成功；验签不等于确认已支付。
+        if state != '1':
+            return 'fail', 400
+        try:
+            paid_amount = _payment_amount(amount)
+        except ValueError:
+            return 'fail', 400
+
         with get_db() as conn:
             order = _lock_order(conn, order_no)
             if not order:
                 return 'fail', 400
-            if _money(amount) != _money(order['amount']):
+            try:
+                expected_amount = _payment_amount(order['amount'])
+            except ValueError:
+                return 'fail', 400
+            if paid_amount != expected_amount:
                 return 'fail', 400
             if order['status'] == 'paid':
                 ensure_invitation_earnings(conn, order_no=order_no)
