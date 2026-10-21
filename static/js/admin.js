@@ -1630,7 +1630,7 @@ async function loadAdminWithdrawals() {
     try {
         const resp = await fetch('/api/admin/withdrawals', { headers: { 'X-Admin-Key': adminKey } });
         const data = await resp.json();
-        if (!data.success) { listDiv.innerHTML = `<p style="color:var(--error);">${data.message || '加载失败'}</p>`; return; }
+        if (!data.success) { listDiv.innerHTML = `<p style="color:var(--error);">${escapeHtml(data.message || '加载失败')}</p>`; return; }
         const items = data.data;
         if (!items.length) { listDiv.innerHTML = '<p style="text-align:center;color:#888;">暂无提现申请</p>'; return; }
         const statusMap = { pending: '待审核', approved: '已通过', rejected: '已拒绝' };
@@ -1642,10 +1642,10 @@ async function loadAdminWithdrawals() {
             const withdrawn = parseFloat(w.withdrawn) || 0;
             const availableAfter = parseFloat(w.available_after) || 0;
             html += `<tr>
-                <td data-label="申请人"><div class="commission-user">${w.username}</div></td>
+                <td data-label="申请人"><div class="commission-user">${escapeHtml(w.username)}</div></td>
                 <td data-label="收款信息">
-                    <div class="withdraw-payee">${w.real_name}</div>
-                    <div class="commission-muted">${w.alipay_account}</div>
+                    <div class="withdraw-payee">${escapeHtml(w.real_name)}</div>
+                    <div class="commission-muted">${escapeHtml(w.alipay_account)}</div>
                 </td>
                 <td data-label="提现金额"><strong>¥${amount.toFixed(2)}</strong></td>
                 <td data-label="佣金情况">
@@ -1655,10 +1655,10 @@ async function loadAdminWithdrawals() {
                         <span>通过后剩 ¥${availableAfter.toFixed(2)}</span>
                     </div>
                 </td>
-                <td data-label="状态"><span class="admin-status-pill ${statusClass[w.status] || ''}">${statusMap[w.status] || w.status}</span></td>
+                <td data-label="状态"><span class="admin-status-pill ${statusClass[w.status] || ''}">${escapeHtml(statusMap[w.status] || w.status)}</span></td>
                 <td data-label="时间">
-                    <div>${w.create_time ? w.create_time.slice(0, 16) : ''}</div>
-                    ${w.review_time ? `<div class="commission-muted">审核 ${w.review_time.slice(0, 16)}</div>` : ''}
+                    <div>${escapeHtml(w.create_time ? w.create_time.slice(0, 16) : '')}</div>
+                    ${w.review_time ? `<div class="commission-muted">审核 ${escapeHtml(w.review_time.slice(0, 16))}</div>` : ''}
                 </td>
                 <td data-label="操作">${w.status === 'pending' ? `
                     <button class="btn-sm btn-success" onclick="approveWithdrawal(${w.id})">通过</button>
@@ -1669,7 +1669,7 @@ async function loadAdminWithdrawals() {
         html += '</tbody></table></div>';
         listDiv.innerHTML = html;
     } catch (e) {
-        listDiv.innerHTML = `<p style="color:var(--error);">${e.message || '加载失败'}</p>`;
+        listDiv.innerHTML = `<p style="color:var(--error);">${escapeHtml(e.message || '加载失败')}</p>`;
     }
 }
 async function approveWithdrawal(id) {
