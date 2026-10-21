@@ -45,8 +45,12 @@ class URP_query:
             start_vpn_keepalive()
 
     def _request(self, method, url, **kwargs):
+        # 所有教务请求与 VPN 重试都限制等待；保留调用方的更短预算。
+        if kwargs.get('timeout') is None:
+            kwargs['timeout'] = 10
         response = self.x.request(method, url, **kwargs)
         if not _is_vpn_url(self.url) or not is_vpn_failure_response(response):
+            response.raise_for_status()
             return response
 
         fresh = recover_vpn_session(self.x, self.url)
@@ -58,6 +62,7 @@ class URP_query:
                 '\u5df2\u81ea\u52a8\u91cd\u8fde\u4f46\u672a\u6210\u529f\uff0c'
                 '\u8bf7\u7a0d\u540e\u91cd\u8bd5'
             )
+        retry.raise_for_status()
         return retry
 
     # ==================== 成绩查询 ====================
