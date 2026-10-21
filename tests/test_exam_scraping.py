@@ -142,7 +142,6 @@ class ExamScrapingTests(unittest.TestCase):
 
     def update_api(self, html, status=200):
         with self.app.test_request_context('/api/update_exams', method='POST'), \
-                patch('routes.data_routes.check_login_status', return_value=(True, {})), \
                 patch('routes.data_routes.get_current_urp_url', return_value='https://urp.example.invalid/'), \
                 patch.object(requests.Session, 'request', return_value=response_for(html, status)):
             return api_update_exams.__wrapped__({'username': 'student', 'password': ''}).get_json()

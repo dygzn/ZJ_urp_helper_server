@@ -155,6 +155,7 @@ class EvaluationFailureTests(unittest.TestCase):
         app.register_blueprint(data_bp)
         self.client = app.test_client()
         self.start_patch(patch('services.urp_service.get_current_urp_url', return_value=BASE_URL))
+        self.start_patch(patch('auth.check_login_status', return_value=(True, {})))
 
     def start_patch(self, patcher):
         result = patcher.start()

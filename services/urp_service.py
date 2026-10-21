@@ -10,26 +10,79 @@ import time
 from datetime import datetime, timedelta
 from services.personal_schedule_service import effective_schedule, context_user, parse_time, CHINA
 from database import get_db
-from services.config_service import get_config, get_current_urp_url
+from services.config_service import get_config, get_current_urp_url, normalize_urp_url, urp_url_fingerprint
 from services.temporary_session_service import current_temporary_session, user_data_file
+from urp.session_store import VPN_COOKIE_PREFIX, delete_user_cookies, user_cookie_exists
+from urp.login import _is_vpn_url
 
-# 登录状态验证缓存：{username: timestamp}，15分钟内只验证一次
+# 登录状态按学号及 URL 隔离；临时会话不共享持久登录缓存。
 _login_cache = {}
+_login_locks = {}
+_login_locks_guard = threading.Lock()
 LOGIN_CACHE_TTL = 900
 _auto_update_state_lock = threading.Lock()
 _auto_update_running = set()
 _auto_update_context = threading.local()
 
 
-def urp_login(username, password, persist_cookies=True):
+class _LoginDetails(dict):
+    def __init__(self, cookies=None, relogged=False):
+        super().__init__(cookies or {})
+        self.relogged = relogged
+
+
+def _login_key(username, url):
+    return username, urp_url_fingerprint(url)
+
+
+def _get_login_lock(key):
+    with _login_locks_guard:
+        return _login_locks.setdefault(key, threading.Lock())
+
+
+def invalidate_login_cache(username, url=None):
+    if url is not None:
+        _login_cache.pop(_login_key(username, url), None)
+        return
+    for key in list(_login_cache):
+        if key[0] == username:
+            _login_cache.pop(key, None)
+
+
+def _has_fresh_login_cache(username, url, now):
+    timestamp = _login_cache.get(_login_key(username, url))
+    if current_temporary_session(username) or _is_vpn_url(url):
+        return False
+    return (
+        timestamp is not None
+        and now - timestamp < LOGIN_CACHE_TTL
+        and user_cookie_exists(username, url)
+    )
+
+
+def _clear_non_vpn_session_cookies(urp):
+    session = getattr(urp, 'x', None)
+    cookies = getattr(session, 'cookies', None)
+    if cookies is None:
+        return
+    for cookie in list(cookies):
+        if str(cookie.name).upper().startswith(VPN_COOKIE_PREFIX):
+            continue
+        try:
+            cookies.clear(cookie.domain, cookie.path, cookie.name)
+        except KeyError:
+            pass
+
+
+def urp_login(username, password, persist_cookies=True, url=None):
     """
     登录URP教务系统
     返回: (success: bool, message: str, cookies: dict)
     """
     from urp import URP_login
-    url = get_current_urp_url()
+    target_url = normalize_urp_url(url or get_current_urp_url())
     try:
-        urp = URP_login(url, username, password, persist_cookies=persist_cookies)
+        urp = URP_login(target_url, username, password, persist_cookies=persist_cookies)
         success, message, cookies = urp.login()
         return success, message, cookies
     except Exception:
@@ -37,45 +90,50 @@ def urp_login(username, password, persist_cookies=True):
         return False, '登录服务暂时出现异常，请稍后重试或联系管理员。', None
 
 
-def check_login_status(username, password, cookies):
-    """检查教务登录状态；临时会话只使用自己的十分钟文件目录。"""
-    now = time.time()
-    url = get_current_urp_url()
-    temporary = current_temporary_session(username)
-
+def check_login_status(username, password, cookies=None, url=None):
+    """
+    检查登录状态，如果未登录则重新登录
+    返回: (is_logged_in: bool, cookies: dict)
+    """
     from urp import URP_login
-    from urp.login import _is_vpn_url
 
-    cookie_file = user_data_file(username, 'cookie.json')
-    if not temporary and not _is_vpn_url(url) and username in _login_cache and now - _login_cache[username] < LOGIN_CACHE_TTL:
-        if os.path.exists(cookie_file):
+    target_url = normalize_urp_url(url or get_current_urp_url())
+    temporary = current_temporary_session(username)
+    key = _login_key(username, target_url)
+    now = time.time()
+    if _has_fresh_login_cache(username, target_url, now):
+        return True, {}
+
+    with _get_login_lock((key, temporary['session_id']) if temporary else key):
+        now = time.time()
+        if _has_fresh_login_cache(username, target_url, now):
             return True, {}
 
-    urp = URP_login(url, username, password, cookie_path=cookie_file, stored_password=True)
-    if urp.is_logined():
-        if not temporary:
-            _login_cache[username] = now
-        return True, urp.x.cookies.get_dict()
-
-    # 临时模式只有 Cookie；失效后等待用户重新输入密码，不尝试自动登录。
-    if temporary:
-        return False, {}
-
-    if not temporary:
-        _login_cache.pop(username, None)
-    if os.path.exists(cookie_file):
-        os.remove(cookie_file)
-
-    try:
-        success, _, new_cookies = urp.login()
-        if success:
+        urp = URP_login(target_url, username, password, stored_password=True)
+        if urp.is_logined():
             if not temporary:
-                _login_cache[username] = now
-            return True, new_cookies or urp.x.cookies.get_dict()
-        return False, {}
-    except Exception as exc:
-        print(f"重新登录失败: {str(exc)}")
-        return False, {}
+                _login_cache[key] = now
+            return True, _LoginDetails(urp.x.cookies.get_dict())
+
+        if temporary:
+            return False, {}
+
+        invalidate_login_cache(username, target_url)
+        delete_user_cookies(username, target_url)
+        _clear_non_vpn_session_cookies(urp)
+        try:
+            success, message, new_cookies = urp.login()
+        except Exception:
+            logging.getLogger(__name__).warning('教务重新登录异常')
+            return False, {'message': '登录服务暂时出现异常，请稍后重试或联系管理员。'}
+        if not success:
+            return False, {'message': message}
+
+        _login_cache[key] = time.time()
+        return True, _LoginDetails(
+            new_cookies or urp.x.cookies.get_dict(),
+            relogged=True,
+        )
 
 
 def _get_freshman_year():
@@ -378,15 +436,16 @@ def _finish_auto_update(username):
         _auto_update_running.discard(username)
 
 
-def start_auto_update(username, password):
+def start_auto_update(username, password, url=None):
     """异步启动每日更新；同一用户已有任务时直接跳过。"""
+    target_url = normalize_urp_url(url or get_current_urp_url())
     if not _try_start_auto_update(username):
         return False
 
     def worker():
         _auto_update_context.slot_acquired = True
         try:
-            check_and_auto_update(username, password)
+            check_and_auto_update(username, password, url=target_url)
         finally:
             _auto_update_context.slot_acquired = False
             _finish_auto_update(username)
@@ -399,22 +458,23 @@ def start_auto_update(username, password):
     return True
 
 
-def check_and_auto_update(username, password):
+def check_and_auto_update(username, password, url=None):
     """检查是否需要自动更新课表和考试表（每日首次访问）。"""
     slot_acquired = getattr(_auto_update_context, 'slot_acquired', False)
     if not slot_acquired and not _try_start_auto_update(username):
         return False, '更新进行中'
 
     try:
-        return _perform_auto_update(username, password)
+        return _perform_auto_update(username, password, url=url)
     finally:
         if not slot_acquired:
             _finish_auto_update(username)
 
 
-def _perform_auto_update(username, password):
+def _perform_auto_update(username, password, url=None):
     """执行一次自动更新；网络请求期间不持有数据库连接。"""
     from datetime import date
+    target_url = normalize_urp_url(url or get_current_urp_url())
     today = date.today().isoformat()
 
     with get_db() as conn:
@@ -437,14 +497,12 @@ def _perform_auto_update(username, password):
             return False, '今日已更新'
 
     try:
-        from urp import URP_login, URP_query
-        url = get_current_urp_url()
+        from urp import URP_query
+        logged_in, _ = check_login_status(username, password, {}, url=target_url)
+        if not logged_in:
+            return False, '自动更新失败：教务登录不可用'
 
-        urp = URP_login(url, username, password, stored_password=True)
-        if not urp.is_logined():
-            urp.login()
-
-        query = URP_query(url, username)
+        query = URP_query(target_url, username)
         query.schedule_cx()
         query.exam_cx()
 

@@ -16,7 +16,9 @@ from urp.login import (
     recover_vpn_session,
     start_vpn_keepalive,
 )
-from services.temporary_session_service import user_data_file
+from services.temporary_session_service import user_data_file, current_temporary_session
+from services.config_service import normalize_urp_url
+from urp.session_store import load_user_cookies
 
 # 共享请求头（评教相关）
 _EVAL_HEADERS_BASE = {
@@ -33,11 +35,15 @@ _EVAL_HEADERS_BASE = {
 
 class URP_query:
     def __init__(self, url, account):
-        self.url = url
+        self.url = normalize_urp_url(url)
         self.account = account
         self.x = requests.session()
-        with open(user_data_file(self.account, 'cookie.json'), 'r', encoding='utf-8') as f:
-            self.x.cookies.update(json.load(f))
+        user_cookies, _ = load_user_cookies(
+            self.account,
+            self.url,
+            allow_legacy=bool(current_temporary_session(self.account)),
+        )
+        self.x.cookies.update(user_cookies)
         if _is_vpn_url(self.url):
             shared_vpn_cookies = load_shared_vpn_cookies()
             if shared_vpn_cookies:

@@ -9,7 +9,7 @@ from services.urp_service import urp_login, check_login_status
 from services.config_service import get_current_urp_url
 from services.credential_service import CredentialCipher, CredentialError
 from services.temporary_session_service import (
-    delete_temporary_session, save_temporary_session, user_data_file,
+    delete_temporary_session, save_temporary_session,
 )
 
 auth_bp = Blueprint('auth', __name__)
@@ -81,7 +81,7 @@ def login():
                 'username': username,
             })
 
-        expires_at = save_temporary_session(device_id, username, cookies)
+        expires_at = save_temporary_session(device_id, username, cookies, url=get_current_urp_url())
         return jsonify({
             'success': True,
             'bound': False,
@@ -126,28 +126,44 @@ def api_check_login_status():
     username = user['username']
     password = user['password']
 
-    from urp import URP_login
     url = get_current_urp_url()
 
     try:
-        urp = URP_login(url, username, password, cookie_path=user_data_file(username, 'cookie.json'), stored_password=True)
-        is_logged_in = urp.is_logined()
+        is_logged_in, login_details = check_login_status(
+            username,
+            password,
+            {},
+            url=url,
+        )
+        if is_logged_in:
+            message = (
+                '重新登录成功'
+                if getattr(login_details, 'relogged', False)
+                else '登录状态正常'
+            )
+            return jsonify({
+                'success': True,
+                'logged_in': True,
+                'username': username,
+                'message': message,
+            })
 
-        if is_logged_in is True:
-            return jsonify({'success': True, 'logged_in': True, 'username': username, 'message': '登录状态正常'})
-        else:
-            if user.get('temporary'):
-                return jsonify({
-                    'success': True,
-                    'logged_in': False,
-                    'requires_relogin': True,
-                    'username': username,
-                    'message': '登录已失效，请重新输入学号和密码。',
-                })
-            success, message, _ = urp.login()
-            if success:
-                return jsonify({'success': True, 'logged_in': True, 'username': username, 'message': '重新登录成功'})
-            else:
-                return jsonify({'success': True, 'logged_in': False, 'username': username, 'message': message or '重新登录失败'})
-    except Exception as e:
-        return jsonify({'success': False, 'logged_in': False, 'message': f'检查登录状态失败: {str(e)}'})
+        if user.get('temporary'):
+            return jsonify({
+                'success': True, 'logged_in': False, 'requires_relogin': True,
+                'username': username,
+                'message': '登录已失效，请重新输入学号和密码。',
+            })
+
+        message = None
+        if isinstance(login_details, dict):
+            message = login_details.get('message')
+        return jsonify({
+            'success': True,
+            'logged_in': False,
+            'username': username,
+            'message': message or '重新登录失败',
+        })
+    except Exception:
+        current_app.logger.warning('教务登录状态检查异常')
+        return jsonify({'success': False, 'logged_in': False, 'message': '检查登录状态失败，请稍后重试。'})

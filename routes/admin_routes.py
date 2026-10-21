@@ -7,7 +7,7 @@ import time
 from flask import Blueprint, request, jsonify, render_template
 from database import get_db, get_database_config, test_database_config, migrate_sqlite_to_current_database
 from auth import require_admin
-from services.config_service import get_config, save_config
+from services.config_service import get_config, save_config, is_valid_urp_url, normalize_urp_url, update_config
 from services.ad_config_service import get_ad_config, validate_ad_config
 
 from services.member_service import ensure_invitation_earnings, _money, _money_string
@@ -313,27 +313,60 @@ def admin_set_member_page_enabled():
 @admin_bp.route('/api/admin/config/url', methods=['POST'])
 @require_admin
 def admin_switch_url():
-    data = request.get_json()
-    config = get_config()
+    data = request.get_json() or {}
 
     if 'urls' in data:
         urls = data['urls']
-        if isinstance(urls, list) and len(urls) >= 2:
-            config['urp_urls'] = urls
-            save_config(config)
-            return jsonify({'success': True, 'message': 'URL列表已更新', 'config': config})
-        else:
-            return jsonify({'success': False, 'message': 'URL列表格式错误，需要至少2个URL'})
+        if (
+            not isinstance(urls, list)
+            or len(urls) < 2
+            or not all(is_valid_urp_url(url) for url in urls)
+        ):
+            return jsonify({
+                'success': False,
+                'message': 'URL列表格式错误，需要至少2个有效HTTP/HTTPS地址',
+            })
+
+        normalized = [normalize_urp_url(url) for url in urls]
+
+        def replace_urls(config):
+            config['urp_urls'] = normalized
+            index = config.get('current_url_index', 0)
+            if isinstance(index, bool) or not isinstance(index, int) or not 0 <= index < len(normalized):
+                config['current_url_index'] = 0
+
+        config = update_config(replace_urls)
+        return jsonify({
+            'success': True,
+            'message': 'URL列表已更新',
+            'config': _public_config(config),
+        })
 
     if 'url_index' in data:
         url_index = data['url_index']
-        urls = config.get('urp_urls', [])
-        if 0 <= url_index < len(urls):
+        if isinstance(url_index, bool) or not isinstance(url_index, int):
+            return jsonify({'success': False, 'message': 'URL索引必须是整数'})
+
+        class InvalidUrlSwitch(ValueError):
+            pass
+
+        def switch_index(config):
+            urls = config.get('urp_urls', [])
+            if not (0 <= url_index < len(urls)):
+                raise InvalidUrlSwitch('URL索引超出范围')
+            if not is_valid_urp_url(urls[url_index]):
+                raise InvalidUrlSwitch('目标URL无效')
             config['current_url_index'] = url_index
-            save_config(config)
-            return jsonify({'success': True, 'message': f'已切换到URL: {urls[url_index]}', 'config': config})
-        else:
-            return jsonify({'success': False, 'message': 'URL索引超出范围'})
+
+        try:
+            config = update_config(switch_index)
+        except InvalidUrlSwitch as exc:
+            return jsonify({'success': False, 'message': str(exc)})
+        return jsonify({
+            'success': True,
+            'message': f"已切换到URL: {config['urp_urls'][url_index]}",
+            'config': _public_config(config),
+        })
 
     return jsonify({'success': False, 'message': '缺少必要参数'})
 

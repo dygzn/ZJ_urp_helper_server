@@ -7,7 +7,7 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for
 from werkzeug.exceptions import HTTPException
 from database import ensure_api_keys_table, init_db
 from services.logging_service import init_logging
-from services.config_service import configure_app_security, get_config
+from services.config_service import configure_app_security, get_config, get_current_urp_url
 from services.ad_service import EVENT_COLUMNS, record_ad_event
 from services.ad_config_service import get_ad_config
 from services.temporary_session_service import start_temporary_session_cleanup
@@ -51,6 +51,11 @@ def initialize_database():
 
 # 初始化数据库
 initialize_database()
+
+@app.before_request
+def snapshot_request_urp_url():
+    get_current_urp_url()
+
 
 @app.before_request
 def ensure_temporary_session_cleanup():

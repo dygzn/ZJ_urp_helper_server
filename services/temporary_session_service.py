@@ -43,15 +43,20 @@ def _forget_runtime_state(device_id, username):
         _logger.exception('清理临时登录的进程内状态失败')
 
 
-def save_temporary_session(device_id, username, cookies):
+def save_temporary_session(device_id, username, cookies, url=None):
     """只保存会话标识、学号、到期时间和教务 Cookie。"""
+    from services.config_service import get_current_urp_url, urp_url_fingerprint
+    from urp.session_store import _filter_user_cookies
+
+    origin = urp_url_fingerprint(url or get_current_urp_url())
     session_id = uuid.uuid4().hex
     directory = _session_directory(session_id)
     os.makedirs(directory, mode=0o700, exist_ok=False)
     try:
         cookie_fd = os.open(os.path.join(directory, 'cookie.json'), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         with os.fdopen(cookie_fd, 'w', encoding='utf-8') as stream:
-            json.dump(cookies or {}, stream, ensure_ascii=False)
+            json.dump({'url_fingerprint': origin, 'cookies': _filter_user_cookies(cookies)},
+                      stream, ensure_ascii=False)
         expires_at = int(time.time()) + TEMPORARY_SESSION_SECONDS
         with get_db() as conn:
             old = conn.execute(

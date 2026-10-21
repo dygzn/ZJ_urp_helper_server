@@ -6,17 +6,18 @@ import hmac
 from datetime import datetime
 from flask import request, jsonify
 from database import get_db
-from services.config_service import get_admin_key, get_config
+from services.config_service import get_admin_key, get_config, get_current_urp_url
 from services.user_service import get_device_id, get_user_by_device
-from services.urp_service import check_login_status, _login_cache
+from services.urp_service import check_login_status, invalidate_login_cache
 from services.wechat_auth_service import get_wechat_request_session
 
 
-def _expired_login_response(user):
+def _expired_login_response(user, details=None):
     message = ('登录已失效，请重新输入学号和密码。'
                if user.get('temporary') else '登录已失效，请重新绑定')
+    if not user.get('temporary') and isinstance(details, dict) and details.get('message'):
+        message = details['message']
     return jsonify({'success': False, 'message': message})
-
 
 def require_admin(f):
     """管理员权限装饰器"""
@@ -60,19 +61,29 @@ def require_login(f):
 
         username = user['username']
         password = user['password']
+        urp_url = get_current_urp_url()
 
-        is_logged_in, _ = check_login_status(username, password, {})
-
+        is_logged_in, login_details = check_login_status(
+            username,
+            password,
+            {},
+            url=urp_url,
+        )
         if not is_logged_in:
-            return _expired_login_response(user)
+            return _expired_login_response(user, login_details)
 
         try:
             return f(user=user, *args, **kwargs)
         except Exception:
-            _login_cache.pop(username, None)
-            is_logged_in, _ = check_login_status(username, password, {})
+            invalidate_login_cache(username, urp_url)
+            is_logged_in, login_details = check_login_status(
+                username,
+                password,
+                {},
+                url=urp_url,
+            )
             if not is_logged_in:
-                return _expired_login_response(user)
+                return _expired_login_response(user, login_details)
             try:
                 return f(user=user, *args, **kwargs)
             except Exception:
@@ -159,23 +170,34 @@ def require_grade_login(level='basic'):
 
             username = user['username']
             password = user['password']
+            urp_url = get_current_urp_url()
             config = get_config()
             if config.get('grades_require_member', True):
                 ok, error = _check_member_access(username, level)
                 if not ok:
                     return jsonify(error)
 
-            is_logged_in, _ = check_login_status(username, password, {})
+            is_logged_in, login_details = check_login_status(
+                username,
+                password,
+                {},
+                url=urp_url,
+            )
             if not is_logged_in:
-                return _expired_login_response(user)
+                return _expired_login_response(user, login_details)
 
             try:
                 return f(user=user, *args, **kwargs)
             except Exception:
-                _login_cache.pop(username, None)
-                is_logged_in, _ = check_login_status(username, password, {})
+                invalidate_login_cache(username, urp_url)
+                is_logged_in, login_details = check_login_status(
+                    username,
+                    password,
+                    {},
+                    url=urp_url,
+                )
                 if not is_logged_in:
-                    return _expired_login_response(user)
+                    return _expired_login_response(user, login_details)
                 try:
                     return f(user=user, *args, **kwargs)
                 except Exception:
@@ -196,35 +218,32 @@ def require_member_login(level='basic'):
 
             username = user['username']
             password = user['password']
-            with get_db() as conn:
-                row = conn.execute(
-                    'SELECT member_type, expire_time FROM memberships WHERE username = ?',
-                    (username,)
-                ).fetchone()
+            urp_url = get_current_urp_url()
+            ok, error = _check_member_access(username, level)
+            if not ok:
+                return jsonify(error)
 
-            if not row:
-                level_name = '初级会员' if level == 'basic' else '高级会员'
-                return jsonify({'success': False, 'message': f'此功能需要{level_name}，请前往会员购买页面开通', 'require_member': level})
-
-            member_type = row['member_type']
-            expire_time = datetime.fromisoformat(row['expire_time'])
-            if datetime.now() > expire_time:
-                return jsonify({'success': False, 'message': '您的会员已过期，请前往会员购买页面续费', 'require_member': level})
-
-            if level == 'advanced' and member_type != 'advanced':
-                return jsonify({'success': False, 'message': '此功能需要高级会员，请前往会员购买页面升级', 'require_member': level})
-
-            is_logged_in, _ = check_login_status(username, password, {})
+            is_logged_in, login_details = check_login_status(
+                username,
+                password,
+                {},
+                url=urp_url,
+            )
             if not is_logged_in:
-                return _expired_login_response(user)
+                return _expired_login_response(user, login_details)
 
             try:
                 return f(user=user, *args, **kwargs)
             except Exception:
-                _login_cache.pop(username, None)
-                is_logged_in, _ = check_login_status(username, password, {})
+                invalidate_login_cache(username, urp_url)
+                is_logged_in, login_details = check_login_status(
+                    username,
+                    password,
+                    {},
+                    url=urp_url,
+                )
                 if not is_logged_in:
-                    return _expired_login_response(user)
+                    return _expired_login_response(user, login_details)
                 try:
                     return f(user=user, *args, **kwargs)
                 except Exception:
