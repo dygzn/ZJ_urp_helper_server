@@ -1,0 +1,57 @@
+{
+  "pages": [
+    "pages/home/index",
+    "pages/schedule/index",
+    "pages/grades/index",
+    "pages/exams/index",
+    "pages/account/index",
+    "pages/bind/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "URP 助手",
+    "navigationBarBackgroundColor": "#f7f8fa",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f7f8fa",
+    "backgroundTextStyle": "light"
+  },
+  "tabBar": {
+    "color": "#8a94a6",
+    "selectedColor": "#1e4e79",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/home/index",
+        "text": "首页",
+        "iconPath": "assets/icons/home.png",
+        "selectedIconPath": "assets/icons/home-selected.png"
+      },
+      {
+        "pagePath": "pages/schedule/index",
+        "text": "课表",
+        "iconPath": "assets/icons/schedule.png",
+        "selectedIconPath": "assets/icons/schedule-selected.png"
+      },
+      {
+        "pagePath": "pages/grades/index",
+        "text": "成绩",
+        "iconPath": "assets/icons/grades.png",
+        "selectedIconPath": "assets/icons/grades-selected.png"
+      },
+      {
+        "pagePath": "pages/exams/index",
+        "text": "考试",
+        "iconPath": "assets/icons/exams.png",
+        "selectedIconPath": "assets/icons/exams-selected.png"
+      },
+      {
+        "pagePath": "pages/account/index",
+        "text": "我的",
+        "iconPath": "assets/icons/account.png",
+        "selectedIconPath": "assets/icons/account-selected.png"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

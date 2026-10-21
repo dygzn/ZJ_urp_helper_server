@@ -1,0 +1,45 @@
+<view class="page safe-bottom bind-page">
+  <view class="page-header">
+    <text class="page-title">绑定教务账号</text>
+    <text class="page-subtitle">微信身份验证成功后，只需输入一次教务系统账号。</text>
+  </view>
+
+  <view class="card bind-card">
+    <view class="field">
+      <text class="field-label">教务账号</text>
+      <input
+        class="field-input"
+        type="text"
+        name="username"
+        value="{{username}}"
+        placeholder="请输入学号"
+        maxlength="32"
+        bindinput="onUsernameInput"
+      />
+    </view>
+    <view class="field">
+      <text class="field-label">教务密码</text>
+      <input
+        class="field-input"
+        type="password"
+        name="password"
+        value="{{password}}"
+        placeholder="请输入教务系统密码"
+        maxlength="128"
+        bindinput="onPasswordInput"
+      />
+    </view>
+    <button
+      class="primary-button bind-button"
+      bindtap="submit"
+      loading="{{submitting}}"
+      disabled="{{submitting}}"
+    >绑定并继续</button>
+    <text wx:if="{{status}}" class="form-status {{statusType}}">{{status}}</text>
+  </view>
+
+  <view class="notice-card">
+    <text class="notice-title">账号说明</text>
+    <text class="notice-text">绑定成功后，网页端与小程序会共用课表、成绩和考试数据。</text>
+  </view>
+</view>

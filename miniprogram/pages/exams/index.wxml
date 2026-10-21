@@ -1,0 +1,31 @@
+<view class="page safe-bottom exams-page">
+  <view class="page-header exams-header">
+    <view>
+      <text class="page-title">考试</text>
+      <text class="page-subtitle">考试时间、地点和座位号。</text>
+    </view>
+    <button class="plain-button refresh-button" bindtap="refreshExams" loading="{{updating}}" disabled="{{updating}}">刷新</button>
+  </view>
+
+  <view wx:if="{{loading}}" class="state">正在读取考试安排…</view>
+  <view wx:elif="{{errorMessage}}" class="state state-error">
+    <text>{{errorMessage}}</text>
+    <button class="secondary-button state-action" bindtap="loadExams">重试</button>
+  </view>
+  <view wx:elif="{{!bound}}" class="card state">
+    <text>绑定教务账号后查看考试安排</text>
+    <button class="primary-button state-action" bindtap="goBind">立即绑定</button>
+  </view>
+  <view wx:elif="{{!exams.length}}" class="card state">暂时没有缓存的考试安排</view>
+  <view wx:else>
+    <view wx:for="{{exams}}" wx:key="index" class="exam-card">
+      <view class="exam-head">
+        <text class="exam-course">{{item.course || item.exam_name || '未命名考试'}}</text>
+        <text class="exam-week">第 {{item.week || '--'}} 周</text>
+      </view>
+      <view class="exam-row"><text>考试时间</text><text>{{item.displayTime}}</text></view>
+      <view class="exam-row"><text>考试地点</text><text>{{item.displayLocation || '地点待定'}}</text></view>
+      <view class="exam-row"><text>座位号</text><text>{{item.displaySeat || '暂未安排'}}</text></view>
+    </view>
+  </view>
+</view>

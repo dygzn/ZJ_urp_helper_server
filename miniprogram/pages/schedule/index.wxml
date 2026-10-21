@@ -1,0 +1,46 @@
+<view class="page safe-bottom schedule-page">
+  <view class="page-header schedule-header">
+    <view>
+      <text class="page-title">课程表</text>
+      <text class="page-subtitle">第 {{week}} 周 · {{semesterStart || '当前学期'}}</text>
+    </view>
+    <button class="plain-button refresh-button" bindtap="refreshSchedule" loading="{{updating}}" disabled="{{updating}}">刷新</button>
+  </view>
+
+  <view wx:if="{{bound}}" class="week-controls">
+    <button class="secondary-button week-button" bindtap="previousWeek" disabled="{{week <= 1 || loading}}">上一周</button>
+    <text class="week-label">第 {{week}} 周</text>
+    <button class="secondary-button week-button" bindtap="nextWeek" disabled="{{loading}}">下一周</button>
+  </view>
+
+  <view wx:if="{{loading}}" class="state">正在读取课表…</view>
+  <view wx:elif="{{errorMessage}}" class="state state-error">
+    <text>{{errorMessage}}</text>
+    <button class="secondary-button state-action" bindtap="loadInitialSchedule">重试</button>
+  </view>
+  <view wx:elif="{{!bound}}" class="card state">
+    <text>绑定教务账号后查看课程表</text>
+    <button class="primary-button state-action" bindtap="goBind">立即绑定</button>
+  </view>
+  <view wx:elif="{{!groups.length}}" class="card state">
+    <text>第 {{week}} 周暂无课程</text>
+  </view>
+  <block wx:else>
+    <view wx:for="{{groups}}" wx:key="day" class="day-card">
+      <view class="day-heading">
+        <text class="day-label">{{item.label}}</text>
+        <text class="day-count">{{item.courses.length}} 门课</text>
+      </view>
+      <view wx:for="{{item.courses}}" wx:for-item="course" wx:key="index" class="course-card">
+        <view class="course-main">
+          <text class="course-name">{{course.courseName}}</text>
+          <text class="course-location">{{course.location || '地点待定'}}</text>
+        </view>
+        <view class="course-meta">
+          <text>第 {{course.period}} 节</text>
+          <text wx:if="{{course.duration}}">共 {{course.duration}} 节</text>
+        </view>
+      </view>
+    </view>
+  </block>
+</view>
