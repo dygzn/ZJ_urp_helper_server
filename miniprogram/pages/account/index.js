@@ -13,7 +13,17 @@ Page({
   },
 
   onShow() {
+    app.watchAccountPage(this);
     this.loadBinding();
+  },
+
+  onUnload() {
+    app.forgetAccountPage(this);
+  },
+
+  clearAccountData() {
+    this.hasLoaded = false;
+    this.setData({ loading: false, bound: false, errorMessage: '', username: '', message: '', rebindLoading: false });
   },
 
   onPullDownRefresh() {
@@ -21,12 +31,14 @@ Page({
   },
 
   loadBinding() {
+    const context = app.beginAccountRequest(this);
     this.setData({ loading: true, errorMessage: '' });
     return auth
       .ensureSession()
-      .then(() => request({ path: '/api/wechat/account' }))
+      .then(() => app.isCurrentAccountRequest(this, context)
+        ? request({ path: '/api/wechat/account' }) : null)
       .then(data => {
-        app.updateBinding(data);
+        if (!app.acceptAccountResponse(this, context, data)) return null;
         this.setData({
           loading: false,
           bound: Boolean(data.bound),
@@ -36,6 +48,7 @@ Page({
         return data;
       })
       .catch(error => {
+        if (!app.isCurrentAccountRequest(this, context)) return null;
         wx.showToast({ title: (error.message || '读取绑定状态失败，请重试').slice(0, 20), icon: 'none' });
         this.setData({
           loading: false,

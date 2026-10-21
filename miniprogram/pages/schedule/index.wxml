@@ -4,7 +4,7 @@
       <text class="page-title">课程表</text>
       <text class="page-subtitle">第 {{week}} 周 · {{semesterStart || '当前学期'}}</text>
     </view>
-    <button class="plain-button refresh-button" bindtap="refreshSchedule" loading="{{updating}}" disabled="{{updating}}">刷新</button>
+    <button class="plain-button refresh-button" bindtap="refreshSchedule" loading="{{updating}}" disabled="{{updating}}">更新</button>
   </view>
 
   <view wx:if="{{bound}}" class="week-controls">

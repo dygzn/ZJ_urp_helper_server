@@ -14,7 +14,17 @@ Page({
   },
 
   onShow() {
+    app.watchAccountPage(this);
     this.loadHome();
+  },
+
+  onUnload() {
+    app.forgetAccountPage(this);
+  },
+
+  clearAccountData() {
+    this.hasLoaded = false;
+    this.setData({ loading: false, bound: false, errorMessage: '', username: '', urgent: null, urgentLoading: false, urgentError: '' });
   },
 
   onPullDownRefresh() {
@@ -22,12 +32,14 @@ Page({
   },
 
   loadHome() {
+    const context = app.beginAccountRequest(this);
     this.setData({ loading: true, errorMessage: '', urgentError: '' });
     return auth
       .ensureSession()
-      .then(() => request({ path: '/api/wechat/account' }))
+      .then(() => app.isCurrentAccountRequest(this, context)
+        ? request({ path: '/api/wechat/account' }) : null)
       .then(binding => {
-        app.updateBinding(binding);
+        if (!app.acceptAccountResponse(this, context, binding)) return null;
         this.setData({
           bound: Boolean(binding.bound),
           username: binding.username || '',
@@ -38,6 +50,7 @@ Page({
         return null;
       })
       .catch(error => {
+        if (!app.isCurrentAccountRequest(this, context)) return null;
         wx.showToast({ title: (error.message || '读取首页信息失败，请重试').slice(0, 20), icon: 'none' });
         this.setData({
           loading: false,
@@ -48,13 +61,16 @@ Page({
   },
 
   loadUrgent() {
+    const context = app.beginAccountRequest(this);
     this.setData({ urgentLoading: true, urgentError: '' });
     return request({ path: '/api/wechat/urgent_event' })
       .then(data => {
+        if (!app.isCurrentAccountRequest(this, context)) return null;
         this.setData({ urgent: data.event || null, urgentLoading: false });
         return data;
       })
       .catch(error => {
+        if (!app.isCurrentAccountRequest(this, context)) return null;
         wx.showToast({ title: (error.message || '紧急事项读取失败').slice(0, 20), icon: 'none' });
         this.setData({
           urgentLoading: false,

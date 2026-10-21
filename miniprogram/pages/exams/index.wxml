@@ -4,7 +4,7 @@
       <text class="page-title">考试</text>
       <text class="page-subtitle">考试时间、地点和座位号。</text>
     </view>
-    <button class="plain-button refresh-button" bindtap="refreshExams" loading="{{updating}}" disabled="{{updating}}">刷新</button>
+    <button class="plain-button refresh-button" bindtap="refreshExams" loading="{{updating}}" disabled="{{updating}}">更新</button>
   </view>
 
   <view wx:if="{{loading}}" class="state">正在读取考试安排…</view>
