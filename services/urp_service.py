@@ -7,6 +7,7 @@ import logging
 import re
 import threading
 import time
+from weakref import WeakValueDictionary
 from datetime import datetime, timedelta
 from services.personal_schedule_service import effective_schedule, context_user, parse_time, CHINA
 from database import get_db
@@ -17,7 +18,8 @@ from urp.login import _is_vpn_url
 
 # 登录状态按学号及 URL 隔离；临时会话不共享持久登录缓存。
 _login_cache = {}
-_login_locks = {}
+# 持有者和等待者保留锁的强引用；最后一个请求结束后回收锁及其键。
+_login_locks = WeakValueDictionary()
 _login_locks_guard = threading.Lock()
 LOGIN_CACHE_TTL = 900
 _auto_update_state_lock = threading.Lock()
