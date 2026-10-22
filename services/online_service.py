@@ -46,20 +46,13 @@ class OnlineUserTracker:
         observed_at = time.time() if now is None else float(now)
         with self._lock:
             self._prune_expired(observed_at)
-            users = sorted(
-                self._users.values(),
-                key=lambda user: user['last_seen'],
-                reverse=True,
-            )
-            users = [
-                {
-                    'device_id': user['device_id'],
-                    'username': user['username'],
-                    'last_active': user['last_active'],
-                    'last_endpoint': user['last_endpoint'],
-                }
-                for user in users
-            ]
+            records = list(self._users.values())
+        # touch 替换整条记录；快照复制列表后可在锁外排序和投影。
+        users = sorted(records, key=lambda user: user['last_seen'], reverse=True)
+        users = [
+            {key: user[key] for key in ('device_id', 'username', 'last_active', 'last_endpoint')}
+            for user in users
+        ]
 
         return {
             'online_count': len(users),

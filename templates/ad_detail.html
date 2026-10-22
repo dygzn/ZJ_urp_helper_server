@@ -2,8 +2,8 @@
 <html lang="zh-CN" class="urp-root">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#f3f6fa">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#fafafa">
     <script src="{{ static_versioned('js/appearance.js') }}"></script>
     <script src="{{ static_versioned('js/liquid-glass.js') }}" defer></script>
     <title>{{ (ad.detail_title or ad.title) if ad.enabled else '暂无活动' }} - URP教务助手</title>
@@ -11,19 +11,22 @@
     <link rel="stylesheet" href="{{ static_versioned('css/ad-template.css') }}">
     <link rel="stylesheet" href="{{ static_versioned('css/taste-theme.css') }}">
     <link rel="stylesheet" href="{{ static_versioned('css/ui-components.css') }}">
+    <link rel="stylesheet" href="{{ static_versioned('css/nova-workspace.css') }}">
     <link rel="stylesheet" href="{{ static_versioned('css/appearance.css') }}">
     <link rel="stylesheet" href="{{ static_versioned('css/liquid-glass.css') }}">
     <link rel="stylesheet" href="{{ static_versioned('css/natural-themes.css') }}">
 </head>
 <body class="campaign-body"><main class="campaign-page" data-ad-copy-root>
-<nav class="campaign-nav"><a href="/">← 返回教务助手</a><span>推广</span></nav>
+<nav class="campaign-nav"><a href="/"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m12 19-7-7 7-7" />
+  <path d="M19 12H5" /></svg>返回教务助手</a><span>推广</span></nav>
 {% if ad.enabled %}
 <article class="campaign-card">
 {% if ad.cover_url %}<img class="campaign-cover" src="{{ ad.cover_url }}" alt="活动封面" onerror="this.hidden=true">{% endif %}
 <div class="campaign-content"><span class="campaign-label">精选活动</span><h1>{{ ad.detail_title or ad.title }}</h1><p class="campaign-summary">{{ ad.summary }}</p><div class="campaign-rule"></div><div class="campaign-prose">{{ ad.body }}</div>
 {% if ad.contact or ad.button_url %}<footer class="campaign-actions">
 {% if ad.contact %}<div><small>联系信息</small><p class="campaign-contact">{{ ad.contact }}</p><button type="button" data-copy-value="{{ ad.contact }}"><span data-copy-label>复制联系信息</span></button><p data-copy-feedback aria-live="polite"></p></div>{% endif %}
-{% if ad.button_url %}<a class="campaign-button" href="{{ ad.button_url }}" target="_blank" rel="noopener noreferrer">{{ ad.button_text or '了解更多' }} ↗</a>{% endif %}
+{% if ad.button_url %}<a class="campaign-button" href="{{ ad.button_url }}" target="_blank" rel="noopener noreferrer">{{ ad.button_text or '了解更多' }} <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7 7h10v10" />
+  <path d="M7 17 17 7" /></svg></a>{% endif %}
 </footer>{% endif %}</div></article>
 {% else %}<article class="campaign-card campaign-content"><h1>暂无活动</h1><p>当前没有正在展示的广告。</p><a href="/">返回教务助手</a></article>{% endif %}
 </main><script src="{{ static_versioned('js/service-status-ui.js') }}"></script><script src="{{ static_versioned('js/ad-detail.js') }}"></script></body></html>

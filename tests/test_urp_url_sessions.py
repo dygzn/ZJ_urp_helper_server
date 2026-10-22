@@ -274,10 +274,16 @@ class CookieConsumerTests(unittest.TestCase):
 class LoginStateTests(unittest.TestCase):
     def setUp(self):
         urp_service._login_cache.clear()
+        urp_service._login_failures.clear()
+        login_module._VPN_HEALTH.clear()
+        login_module._VPN_FAILURES.clear()
         urp_service._login_locks.clear()
 
     def tearDown(self):
         urp_service._login_cache.clear()
+        urp_service._login_failures.clear()
+        login_module._VPN_HEALTH.clear()
+        login_module._VPN_FAILURES.clear()
         urp_service._login_locks.clear()
 
     def test_four_status_requests_share_one_real_login(self):
@@ -543,7 +549,7 @@ class LoginStateTests(unittest.TestCase):
         self.assertEqual(results, [True, True, True, True])
         self.assertEqual(login_count, 1)
 
-    def test_vpn_url_revalidates_instead_of_using_ttl_cache(self):
+    def test_vpn_url_reuses_short_ttl_cache(self):
         with tempfile.TemporaryDirectory() as directory, patch.object(
             session_store,
             'USER_DATA_DIR',
@@ -569,7 +575,7 @@ class LoginStateTests(unittest.TestCase):
                     )[0]
                 )
 
-        self.assertEqual(login_class.call_count, 2)
+        self.assertEqual(login_class.call_count, 1)
 
     def test_invalidate_one_url_keeps_other_url_cache(self):
         first_key = (
@@ -616,7 +622,7 @@ class LoginStateTests(unittest.TestCase):
             'VPN 通道暂不可用，请稍后重试',
         )
 
-    def test_failed_vpn_recovery_runs_once_per_login_instance(self):
+    def test_failed_vpn_recovery_is_cooled_down_across_status_requests(self):
         expected_message = '教务连接暂不可用，请稍后重试。'
         with tempfile.TemporaryDirectory() as directory, patch.object(
             session_store,
@@ -676,7 +682,7 @@ class LoginStateTests(unittest.TestCase):
             second_details['message'],
             expected_message,
         )
-        self.assertEqual(password_auth.call_count, 2)
+        self.assertEqual(password_auth.call_count, 1)
 
     def test_vpn_auth_exception_is_wrapped_once_without_exposing_detail(self):
         expected_message = '教务连接暂不可用，请稍后重试。'

@@ -18,8 +18,10 @@ URL = 'http://lock-test.example/urp/'
 class LoginLockRetentionTests(unittest.TestCase):
     def setUp(self):
         urp_service._login_cache.clear()
+        urp_service._login_failures.clear()
         urp_service._login_locks.clear()
         self.addCleanup(urp_service._login_cache.clear)
+        self.addCleanup(urp_service._login_failures.clear)
         self.addCleanup(urp_service._login_locks.clear)
 
     def assert_registry_empty(self):
@@ -34,7 +36,9 @@ class LoginLockRetentionTests(unittest.TestCase):
                 g.temporary_session = {'username': 'student', 'session_id': f'{number:032x}'}
                 self.assertTrue(urp_service.check_login_status('student', None, url=URL)[0])
         self.assert_registry_empty()
-        self.assertEqual(urp_service._login_cache, {})
+        # 新版允许隔离的临时会话短缓存，但不能写入持久账号缓存。
+        self.assertNotIn(urp_service._login_key('student', URL), urp_service._login_cache)
+        self.assertTrue(all(len(key) == 3 for key in urp_service._login_cache))
 
     def test_completed_distinct_accounts_do_not_accumulate_locks(self):
         for number in range(2000):

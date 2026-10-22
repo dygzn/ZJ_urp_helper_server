@@ -164,22 +164,16 @@ def get_announcements():
 
     with get_db() as conn:
         rows = conn.execute('''
-            SELECT id, title, content, create_time
-            FROM announcements
-            WHERE is_active = 1
-            ORDER BY create_time DESC
-        ''').fetchall()
-
+            SELECT a.id, a.title, a.content, a.create_time,
+                   r.announcement_id AS read_id, r.never_show
+            FROM announcements a LEFT JOIN user_read_announcements r
+              ON r.announcement_id = a.id AND r.device_id = ?
+            WHERE a.is_active = 1 ORDER BY a.create_time DESC
+        ''', (device_id,)).fetchall()
         announcements = []
         for row in rows:
-            read_row = conn.execute('''
-                SELECT never_show FROM user_read_announcements
-                WHERE device_id = ? AND announcement_id = ?
-            ''', (device_id, row['id'])).fetchone()
-
-            is_read = read_row is not None
-            never_show = read_row['never_show'] if read_row else 0
-
+            is_read = row['read_id'] is not None
+            never_show = row['never_show'] or 0
             announcements.append({
                 'id': row['id'],
                 'title': row['title'],
@@ -251,6 +245,13 @@ def handle_feedback(user):
             FROM feedbacks WHERE username != ? AND visibility = 'public' ORDER BY create_time DESC
         ''', (username,)).fetchall()
 
+        reply_map = {}
+        for reply in conn.execute('''
+            SELECT r.* FROM feedback_replies r JOIN feedbacks f ON f.id = r.feedback_id
+            WHERE f.username = ? OR f.visibility = 'public' ORDER BY r.create_time ASC
+        ''', (username,)).fetchall():
+            reply_map.setdefault(reply['feedback_id'], []).append(reply)
+
         def build_feedback(row, is_own):
             feedback = {
                 'id': row['id'],
@@ -261,10 +262,7 @@ def handle_feedback(user):
                 'is_own': is_own,
                 'replies': []
             }
-            replies = conn.execute('''
-                SELECT id, device_id, username, content, create_time
-                FROM feedback_replies WHERE feedback_id = ? ORDER BY create_time ASC
-            ''', (row['id'],)).fetchall()
+            replies = reply_map.get(row['id'], [])
             for r in replies:
                 feedback['replies'].append({
                     'id': r['id'],
@@ -318,6 +316,10 @@ def admin_get_feedback():
             FROM feedbacks ORDER BY create_time DESC
         ''').fetchall()
 
+        reply_map = {}
+        for reply in conn.execute('SELECT * FROM feedback_replies ORDER BY create_time ASC').fetchall():
+            reply_map.setdefault(reply['feedback_id'], []).append(reply)
+
         feedbacks = []
         for row in rows:
             feedback = {
@@ -329,10 +331,7 @@ def admin_get_feedback():
                 'create_time': row['create_time'],
                 'replies': []
             }
-            replies = conn.execute('''
-                SELECT id, device_id, username, content, create_time
-                FROM feedback_replies WHERE feedback_id = ? ORDER BY create_time ASC
-            ''', (row['id'],)).fetchall()
+            replies = reply_map.get(row['id'], [])
             for r in replies:
                 feedback['replies'].append({
                     'id': r['id'],

@@ -8,22 +8,29 @@ import re
 import threading
 import time
 from weakref import WeakValueDictionary
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from services.personal_schedule_service import effective_schedule, context_user, parse_time, CHINA
 from database import get_db
 from services.config_service import get_config, get_current_urp_url, normalize_urp_url, urp_url_fingerprint
 from services.temporary_session_service import current_temporary_session, user_data_file
 from urp.session_store import VPN_COOKIE_PREFIX, delete_user_cookies, user_cookie_exists
-from urp.login import _is_vpn_url
+from urp.login import _is_vpn_url, _with_login_budget
 
 # 登录状态按学号及 URL 隔离；临时会话不共享持久登录缓存。
 _login_cache = {}
 # 持有者和等待者保留锁的强引用；最后一个请求结束后回收锁及其键。
 _login_locks = WeakValueDictionary()
 _login_locks_guard = threading.Lock()
+_login_failures = {}
+LOGIN_SHORT_TTL = 30
+LOGIN_FAILURE_TTL = 5
+LOGIN_CACHE_LIMIT = 4096
 LOGIN_CACHE_TTL = 900
 _auto_update_state_lock = threading.Lock()
 _auto_update_running = set()
+_auto_update_next = {}
+AUTO_UPDATE_MAX_WORKERS = 4
 _auto_update_context = threading.local()
 
 
@@ -37,29 +44,69 @@ def _login_key(username, url):
     return username, urp_url_fingerprint(url)
 
 
+def _status_key(username, url):
+    key = _login_key(username, url)
+    temporary = current_temporary_session(username)
+    return key + (temporary['session_id'],) if temporary else key
+
+
 def _get_login_lock(key):
     with _login_locks_guard:
-        return _login_locks.setdefault(key, threading.Lock())
+        lock = _login_locks.get(key)
+        if lock is None:
+            lock = threading.Lock()
+            _login_locks[key] = lock
+        return lock
+
+
+@contextmanager
+def _hold_login_lock(key):
+    # 本地强引用覆盖持有和等待阶段；闲置锁由弱引用注册表自动回收。
+    lock = _get_login_lock(key)
+    acquired = lock.acquire(timeout=8)
+    try:
+        yield acquired
+    finally:
+        if acquired:
+            lock.release()
 
 
 def invalidate_login_cache(username, url=None):
-    if url is not None:
-        _login_cache.pop(_login_key(username, url), None)
-        return
-    for key in list(_login_cache):
-        if key[0] == username:
-            _login_cache.pop(key, None)
+    fingerprint = urp_url_fingerprint(url) if url is not None else None
+    with _login_locks_guard:
+        for cache in (_login_cache, _login_failures):
+            for key in list(cache):
+                if key[0] == username and (fingerprint is None or key[1] == fingerprint):
+                    cache.pop(key, None)
+
+
+def _remember_login(key, value, failure=False):
+    now = time.time()
+    with _login_locks_guard:
+        cache = _login_failures if failure else _login_cache
+        ttl = LOGIN_FAILURE_TTL if failure else LOGIN_CACHE_TTL
+        for old_key, old in list(cache.items()):
+            timestamp = old[0] if failure else old
+            if now - timestamp >= ttl or now < timestamp:
+                cache.pop(old_key, None)
+        if len(cache) >= LOGIN_CACHE_LIMIT:
+            cache.pop(next(iter(cache)))
+        cache[key] = value
 
 
 def _has_fresh_login_cache(username, url, now):
-    timestamp = _login_cache.get(_login_key(username, url))
-    if current_temporary_session(username) or _is_vpn_url(url):
-        return False
-    return (
-        timestamp is not None
-        and now - timestamp < LOGIN_CACHE_TTL
-        and user_cookie_exists(username, url)
-    )
+    timestamp = _login_cache.get(_status_key(username, url))
+    ttl = LOGIN_SHORT_TTL if current_temporary_session(username) or _is_vpn_url(url) else LOGIN_CACHE_TTL
+    return (timestamp is not None and 0 <= now - timestamp < ttl
+            and user_cookie_exists(username, url))
+
+
+def _login_failure(key, message, retryable=False):
+    details = {'message': message}
+    if retryable:
+        details['retryable'] = True
+    _remember_login(key, (time.time(), details), failure=True)
+    return False, details
 
 
 def _clear_non_vpn_session_cookies(urp):
@@ -86,12 +133,15 @@ def urp_login(username, password, persist_cookies=True, url=None):
     try:
         urp = URP_login(target_url, username, password, persist_cookies=persist_cookies)
         success, message, cookies = urp.login()
+        if success:
+            invalidate_login_cache(username, target_url)
         return success, message, cookies
     except Exception:
         logging.getLogger(__name__).warning('教务登录服务异常')
         return False, '登录服务暂时出现异常，请稍后重试或联系管理员。', None
 
 
+@_with_login_budget
 def check_login_status(username, password, cookies=None, url=None):
     """
     检查登录状态，如果未登录则重新登录
@@ -101,22 +151,28 @@ def check_login_status(username, password, cookies=None, url=None):
 
     target_url = normalize_urp_url(url or get_current_urp_url())
     temporary = current_temporary_session(username)
-    key = _login_key(username, target_url)
-    now = time.time()
-    if _has_fresh_login_cache(username, target_url, now):
+    key = _status_key(username, target_url)
+    if _has_fresh_login_cache(username, target_url, time.time()):
         return True, {}
 
-    with _get_login_lock((key, temporary['session_id']) if temporary else key):
+    with _hold_login_lock(key) as acquired:
+        if not acquired:
+            return False, {'retryable': True, 'message': '登录检查进行中，请稍后重试。'}
         now = time.time()
         if _has_fresh_login_cache(username, target_url, now):
             return True, {}
+        failed = _login_failures.get(key)
+        if failed and 0 <= now - failed[0] < LOGIN_FAILURE_TTL:
+            return False, dict(failed[1])
 
         urp = URP_login(target_url, username, password, stored_password=True)
         if urp.is_logined():
-            if not temporary:
-                _login_cache[key] = now
+            _remember_login(key, time.time())
+            _login_failures.pop(key, None)
             return True, _LoginDetails(urp.x.cookies.get_dict())
 
+        if getattr(urp, 'login_check_uncertain', False) is True:
+            return _login_failure(key, '教务连接暂不可用，请稍后重试。', retryable=True)
         if temporary:
             return False, {}
 
@@ -127,15 +183,12 @@ def check_login_status(username, password, cookies=None, url=None):
             success, message, new_cookies = urp.login()
         except Exception:
             logging.getLogger(__name__).warning('教务重新登录异常')
-            return False, {'message': '登录服务暂时出现异常，请稍后重试或联系管理员。'}
+            return _login_failure(key, '登录服务暂时出现异常，请稍后重试或联系管理员。', retryable=True)
         if not success:
-            return False, {'message': message}
+            return _login_failure(key, message)
 
-        _login_cache[key] = time.time()
-        return True, _LoginDetails(
-            new_cookies or urp.x.cookies.get_dict(),
-            relogged=True,
-        )
+        _remember_login(key, time.time())
+        return True, _LoginDetails(new_cookies or urp.x.cookies.get_dict(), relogged=True)
 
 
 def _get_freshman_year():
@@ -427,7 +480,9 @@ def is_auto_update_running(username):
 
 def _try_start_auto_update(username):
     with _auto_update_state_lock:
-        if username in _auto_update_running:
+        if (username in _auto_update_running
+                or len(_auto_update_running) >= AUTO_UPDATE_MAX_WORKERS
+                or time.monotonic() < _auto_update_next.get(username, 0)):
             return False
         _auto_update_running.add(username)
         return True
@@ -467,7 +522,13 @@ def check_and_auto_update(username, password, url=None):
         return False, '更新进行中'
 
     try:
-        return _perform_auto_update(username, password, url=url)
+        result = _perform_auto_update(username, password, url=url)
+        delay = 300 if result[0] or result[1] == '今日已更新' else 60
+        with _auto_update_state_lock:
+            if len(_auto_update_next) >= 4096:
+                _auto_update_next.clear()
+            _auto_update_next[username] = time.monotonic() + delay
+        return result
     finally:
         if not slot_acquired:
             _finish_auto_update(username)

@@ -191,6 +191,12 @@ export function getDeviceId() {
 export function checkLoginStatus() {
     // 并发调用者等待同一次检查，避免提前返回让后续查询抢跑。
     if (state.loginStatusPromise) return state.loginStatusPromise;
+    const cached = state.loginStatusResult;
+    if (cached && cached.generation === state.academicCacheGeneration
+        && Date.now() - cached.at >= 0 && Date.now() - cached.at < 30000
+        && (!state.temporarySessionExpiresAt || Date.now() < state.temporarySessionExpiresAt)) {
+        return Promise.resolve(cached.data);
+    }
     const pending = performLoginStatusCheck().finally(() => {
         if (state.loginStatusPromise === pending) state.loginStatusPromise = null;
     });
@@ -207,9 +213,11 @@ export async function performLoginStatusCheck() {
     statusDot.className = 'status-dot status-checking';
     statusText.textContent = '检查中';
     try {
-        const response = await operation.wait(apiClient.request('/api/check_login_status', { signal: request.signal }));
+        const response = await operation.wait(apiClient.request('/api/check_login_status', { signal: request.signal, timeout: 60000 }));
         const data = await operation.wait(response.json());
         if (!request.isCurrent() || generation !== state.academicCacheGeneration) return;
+        state.loginStatusResult = data.success && data.logged_in
+            ? { generation, at: Date.now(), data } : null;
         if (data.success && data.logged_in) {
             statusDot.className = 'status-dot status-online';
             statusText.textContent = '已登录';
@@ -493,6 +501,7 @@ document.addEventListener('visibilitychange', () => {
     }
 });
 document.addEventListener('api:auth-expired', event => {
+    state.loginStatusResult = null;
     const statusDot = document.querySelector('.status-dot');
     const statusText = document.querySelector('.status-text');
     if (statusDot) statusDot.className = 'status-dot status-offline';

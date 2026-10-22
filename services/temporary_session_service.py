@@ -48,6 +48,8 @@ def save_temporary_session(device_id, username, cookies, url=None):
     from services.config_service import get_current_urp_url, urp_url_fingerprint
     from urp.session_store import _filter_user_cookies
 
+    from services.user_service import invalidate_request_identity
+    invalidate_request_identity()
     origin = urp_url_fingerprint(url or get_current_urp_url())
     session_id = uuid.uuid4().hex
     directory = _session_directory(session_id)
@@ -80,6 +82,8 @@ def save_temporary_session(device_id, username, cookies, url=None):
 
 
 def delete_temporary_session(device_id):
+    from services.user_service import invalidate_request_identity
+    invalidate_request_identity()
     with get_db() as conn:
         row = conn.execute(
             'SELECT session_id, username FROM temporary_sessions WHERE device_id = ?',
@@ -99,7 +103,7 @@ def delete_temporary_session(device_id):
         g.temporary_session = None
 
 
-def cleanup_expired_sessions(now=None):
+def cleanup_expired_sessions(now=None, *, scan_orphans=True):
     """删除过期记录及其独立文件；可由定时线程和请求入口重复调用。"""
     now = int(time.time()) if now is None else int(now)
     with get_db() as conn:
@@ -115,11 +119,11 @@ def cleanup_expired_sessions(now=None):
             row['session_id'] for row in conn.execute(
                 'SELECT session_id FROM temporary_sessions'
             ).fetchall()
-        }
+        } if scan_orphans else set()
     for row in removed:
         _remove_session_directory(row['session_id'])
         _forget_runtime_state(row['device_id'], row['username'])
-    if os.path.isdir(TEMPORARY_DATA_ROOT):
+    if scan_orphans and os.path.isdir(TEMPORARY_DATA_ROOT):
         for session_id in os.listdir(TEMPORARY_DATA_ROOT):
             directory = _session_directory(session_id)
             if session_id in active_ids or not os.path.isdir(directory):
@@ -141,7 +145,14 @@ def get_temporary_session(device_id):
         return None
     session = dict(row)
     if session['expires_at'] <= int(time.time()):
-        cleanup_expired_sessions()
+        with get_db() as conn:
+            deleted = conn.execute(
+                'DELETE FROM temporary_sessions WHERE device_id = ? AND session_id = ? AND expires_at <= ?',
+                (device_id, session['session_id'], int(time.time())),
+            ).rowcount > 0
+        if deleted:
+            _remove_session_directory(session['session_id'])
+            _forget_runtime_state(device_id, session['username'])
         return None
     return session
 
@@ -173,9 +184,14 @@ def start_temporary_session_cleanup():
         _cleanup_pid = pid
 
         def worker():
+            next_orphan_scan = 0
             while True:
                 try:
-                    cleanup_expired_sessions()
+                    now = time.monotonic()
+                    scan_orphans = now >= next_orphan_scan
+                    cleanup_expired_sessions(scan_orphans=scan_orphans)
+                    if scan_orphans:
+                        next_orphan_scan = now + 300
                 except Exception:
                     # 临时数据库故障时，下轮继续；鉴权入口仍会检查到期时间。
                     pass

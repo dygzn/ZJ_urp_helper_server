@@ -2,13 +2,14 @@
 配置管理服务
 """
 import json
+import copy
 import os
 import secrets
 import hashlib
 import tempfile
 import threading
 from urllib.parse import urlparse
-from flask import g, has_request_context
+from flask import g, has_request_context, request
 from constants import CONFIG_FILE
 
 
@@ -119,6 +120,9 @@ def configure_app_security(app):
 
 def get_config():
     """获取系统配置"""
+    cache_key = 'urp.config_snapshot'
+    if has_request_context() and cache_key in request.environ:
+        return copy.deepcopy(request.environ[cache_key])
     default_config = {
         'urp_url': 'http://your-urp-url.com',
         'current_url_index': 0,
@@ -145,12 +149,16 @@ def get_config():
     if not isinstance(config, dict):
         return default_config
     config.setdefault('member_page_enabled', True)
+    if has_request_context():
+        request.environ[cache_key] = copy.deepcopy(config)
     return config
 
 
 def save_config(config):
     """保存系统配置"""
     save_json_file(CONFIG_FILE, config)
+    if has_request_context():
+        request.environ.pop('urp.config_snapshot', None)
 
 
 def get_current_urp_url():
@@ -174,6 +182,8 @@ def get_current_urp_url():
 
 def update_config(mutator):
     with _CONFIG_LOCK:
+        if has_request_context():
+            request.environ.pop('urp.config_snapshot', None)
         config = get_config()
         mutator(config)
         save_config(config)

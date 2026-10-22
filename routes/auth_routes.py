@@ -4,7 +4,7 @@
 import re
 from flask import Blueprint, request, jsonify, current_app
 from database import get_db
-from services.user_service import get_device_id, get_user_by_device, bind_user
+from services.user_service import get_device_id, get_user_by_device, bind_user, unbind_user
 from services.urp_service import urp_login, check_login_status
 from services.config_service import get_current_urp_url
 from services.credential_service import CredentialCipher, CredentialError
@@ -106,8 +106,7 @@ def request_rebind():
         delete_temporary_session(device_id)
         return jsonify({'success': True, 'message': '已退出本次登录，请重新登录'})
 
-    with get_db() as conn:
-        conn.execute('DELETE FROM users WHERE device_id = ?', (device_id,))
+    unbind_user(device_id)
 
     return jsonify({
         'success': True,
@@ -147,6 +146,9 @@ def api_check_login_status():
                 'username': username,
                 'message': message,
             })
+
+        if isinstance(login_details, dict) and login_details.get('retryable'):
+            return jsonify(success=False, logged_in=False, retryable=True, message=login_details['message'])
 
         if user.get('temporary'):
             return jsonify({

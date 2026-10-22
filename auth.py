@@ -2,6 +2,7 @@
 认证装饰器
 """
 from functools import wraps
+from urp.login import URPSessionExpiredError
 import hmac
 from datetime import datetime
 from flask import request, jsonify
@@ -13,6 +14,8 @@ from services.wechat_auth_service import get_wechat_request_session
 
 
 def _expired_login_response(user, details=None):
+    if isinstance(details, dict) and details.get('retryable'):
+        return jsonify(success=False, retryable=True, message=details['message'])
     message = ('登录已失效，请重新输入学号和密码。'
                if user.get('temporary') else '登录已失效，请重新绑定')
     if not user.get('temporary') and isinstance(details, dict) and details.get('message'):
@@ -74,7 +77,7 @@ def require_login(f):
 
         try:
             return f(user=user, *args, **kwargs)
-        except Exception:
+        except URPSessionExpiredError:
             invalidate_login_cache(username, urp_url)
             is_logged_in, login_details = check_login_status(
                 username,
@@ -188,7 +191,7 @@ def require_grade_login(level='basic'):
 
             try:
                 return f(user=user, *args, **kwargs)
-            except Exception:
+            except URPSessionExpiredError:
                 invalidate_login_cache(username, urp_url)
                 is_logged_in, login_details = check_login_status(
                     username,
@@ -234,7 +237,7 @@ def require_member_login(level='basic'):
 
             try:
                 return f(user=user, *args, **kwargs)
-            except Exception:
+            except URPSessionExpiredError:
                 invalidate_login_cache(username, urp_url)
                 is_logged_in, login_details = check_login_status(
                     username,

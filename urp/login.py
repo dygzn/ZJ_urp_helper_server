@@ -8,6 +8,8 @@ import threading
 import tempfile
 import time
 from html.parser import HTMLParser
+from contextvars import ContextVar
+from functools import wraps
 from urllib.parse import urljoin, urlparse
 
 import requests
@@ -36,6 +38,39 @@ _VPN_LOCK = threading.Lock()
 _KEEPALIVE_STARTED = False
 _VPN_RECOVERY_GENERATION = 0
 _VPN_LAST_RECOVERY_FAILURE = None
+VPN_HEALTH_TTL = 30
+VPN_FAILURE_COOLDOWN = 5
+_VPN_HEALTH = {}
+_VPN_FAILURES = {}
+
+
+_LOGIN_DEADLINE = ContextVar('urp_login_deadline', default=None)
+
+
+def _with_login_budget(function):
+    @wraps(function)
+    def wrapped(*args, **kwargs):
+        existing = _LOGIN_DEADLINE.get()
+        token = _LOGIN_DEADLINE.set(existing if existing is not None else time.monotonic() + 45)
+        try:
+            return function(*args, **kwargs)
+        finally:
+            _LOGIN_DEADLINE.reset(token)
+    return wrapped
+
+
+def _request_timeout(maximum):
+    deadline = _LOGIN_DEADLINE.get()
+    if deadline is None:
+        return maximum
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise requests.Timeout('login time budget exhausted')
+    return min(maximum, remaining)
+
+
+class URPSessionExpiredError(requests.HTTPError):
+    """上游明确返回教务登录页，允许调用者重新认证。"""
 
 
 class VPNUnavailableError(RuntimeError):
@@ -264,6 +299,7 @@ def save_shared_vpn_cookies(cookies):
 
 
 def clear_shared_vpn_cookies():
+    _VPN_HEALTH.clear()
     try:
         if os.path.exists(VPN_COOKIE_FILE):
             os.remove(VPN_COOKIE_FILE)
@@ -375,7 +411,7 @@ def vpn_session_alive(session, url=VPN_KEEPALIVE_URL):
             url,
             headers={'Referer': VPN_PORTAL_PAGE},
             verify=False,
-            timeout=8,
+            timeout=_request_timeout(8),
         )
     except Exception:
         return False
@@ -421,65 +457,84 @@ def _vpn_unavailable_message(detail=''):
     return f'{message}\uff1b{detail}' if detail else message
 
 
-def recover_vpn_session(session, url=VPN_KEEPALIVE_URL):
-    global _VPN_RECOVERY_GENERATION, _VPN_LAST_RECOVERY_FAILURE
-    observed_generation = _VPN_RECOVERY_GENERATION
-    with _VPN_LOCK:
-        if (
-            observed_generation != _VPN_RECOVERY_GENERATION
-            and _VPN_LAST_RECOVERY_FAILURE is not None
-        ):
-            raise VPNUnavailableError(_VPN_LAST_RECOVERY_FAILURE)
+def _vpn_cookie_version(cookies):
+    return tuple(sorted(_filter_shared_vpn_cookies(cookies).items()))
 
+
+def _remember_vpn_health(key):
+    # 限制失效版本及历史通道的数量；只有恢复锁内写入。
+    if len(_VPN_HEALTH) >= 128:
+        _VPN_HEALTH.clear()
+    _VPN_HEALTH[key] = time.monotonic() + VPN_HEALTH_TTL
+
+
+@_with_login_budget
+def recover_vpn_session(session, url=VPN_KEEPALIVE_URL, *, force=False):
+    """复用短期通道健康结论；明确 VPN 错误可强制淘汰当前版本。
+
+    HTTP Session 始终属于调用方，仅 VSG_ Cookie 在账号之间共享。
+    """
+    global _VPN_RECOVERY_GENERATION, _VPN_LAST_RECOVERY_FAILURE
+    channel = (os.path.abspath(VPN_COOKIE_FILE), normalize_urp_url(url))
+    observed_generation = _VPN_RECOVERY_GENERATION
+    failed_version = _vpn_cookie_version(session.cookies.get_dict()) if force else None
+
+    def reuse(current):
+        version = _vpn_cookie_version(current)
+        key = (channel, version)
+        # 若另一请求已经恢复到新版本，旧请求不再重复认证。
+        stale_failure = force and failed_version == version and observed_generation == _VPN_RECOVERY_GENERATION
+        if current and not stale_failure and _VPN_HEALTH.get(key, 0) > time.monotonic():
+            session.cookies.update(current)
+            return True
+        return False
+
+    current = load_shared_vpn_cookies()
+    if reuse(current):
+        return current
+    with _VPN_LOCK:
         current = load_shared_vpn_cookies()
+        if reuse(current):
+            return current
+        version = _vpn_cookie_version(current)
+        failure = _VPN_FAILURES.get(channel)
+        if failure and time.monotonic() < failure[0] and version in failure[1]:
+            raise VPNUnavailableError(failure[2])
         if current:
             session.cookies.update(current)
-            if vpn_session_alive(session, url):
+            must_recover = force and failed_version == version and observed_generation == _VPN_RECOVERY_GENERATION
+            if not must_recover and vpn_session_alive(session, url):
                 _VPN_LAST_RECOVERY_FAILURE = None
-                _VPN_RECOVERY_GENERATION += 1
+                _VPN_FAILURES.pop(channel, None)
+                _remember_vpn_health((channel, version))
                 return current
 
         clear_shared_vpn_cookies()
         helper = URP_login(url, '', '')
         try:
             success, message = helper._vpn_password_auth()
+            if not success:
+                raise VPNUnavailableError(_vpn_unavailable_message(message))
+            fresh = load_shared_vpn_cookies()
+            if not fresh:
+                raise VPNUnavailableError(_vpn_unavailable_message('VPN 认证未返回有效会话'))
+            session.cookies.update(fresh)
+            if not vpn_session_alive(session, url):
+                clear_shared_vpn_cookies()
+                raise VPNUnavailableError(_vpn_unavailable_message('VPN 重连后仍无法访问教务系统'))
         except Exception as exc:
-            error = VPNUnavailableError(
-                _vpn_unavailable_message(str(exc))
-            )
+            error = exc if isinstance(exc, VPNUnavailableError) else VPNUnavailableError(_vpn_unavailable_message(str(exc)))
             _VPN_LAST_RECOVERY_FAILURE = str(error)
             _VPN_RECOVERY_GENERATION += 1
-            raise error from exc
-        if not success:
-            error = VPNUnavailableError(_vpn_unavailable_message(message))
-            _VPN_LAST_RECOVERY_FAILURE = str(error)
-            _VPN_RECOVERY_GENERATION += 1
-            raise error
-
-        fresh = load_shared_vpn_cookies()
-        if not fresh:
-            error = VPNUnavailableError(
-                _vpn_unavailable_message(
-                    'VPN \u8ba4\u8bc1\u672a\u8fd4\u56de\u6709\u6548\u4f1a\u8bdd'
-                )
-            )
-            _VPN_LAST_RECOVERY_FAILURE = str(error)
-            _VPN_RECOVERY_GENERATION += 1
-            raise error
-        session.cookies.update(fresh)
-        if not vpn_session_alive(session, url):
-            clear_shared_vpn_cookies()
-            error = VPNUnavailableError(
-                _vpn_unavailable_message(
-                    'VPN \u91cd\u8fde\u540e\u4ecd\u65e0\u6cd5'
-                    '\u8bbf\u95ee\u6559\u52a1\u7cfb\u7edf'
-                )
-            )
-            _VPN_LAST_RECOVERY_FAILURE = str(error)
-            _VPN_RECOVERY_GENERATION += 1
-            raise error
+            if len(_VPN_FAILURES) >= 128:
+                _VPN_FAILURES.clear()
+            # 清除文件后的空版本与本次失败版本共享冷却；新 cookie 可立即验证。
+            _VPN_FAILURES[channel] = (time.monotonic() + VPN_FAILURE_COOLDOWN, (version, ()), str(error))
+            raise error from (exc if error is not exc else None)
         _VPN_LAST_RECOVERY_FAILURE = None
+        _VPN_FAILURES.pop(channel, None)
         _VPN_RECOVERY_GENERATION += 1
+        _remember_vpn_health((channel, _vpn_cookie_version(fresh)))
         return fresh
 
 
@@ -491,6 +546,7 @@ class URP_login:
         self._stored_password = stored_password
         self.cookie_path = cookie_path
         self._vpn_recovery_failure = None
+        self.login_check_uncertain = False
         self.persist_cookies = persist_cookies
         self.x = requests.session()
         self.x.verify = False
@@ -535,7 +591,7 @@ class URP_login:
             password = base64.b64encode(vpn_password.encode('utf-8')).decode('ascii')
             auth_body = f'username={username}&password={password}&encode=1&rmbpwd_browser=0'
         self._set_vpn_bootstrap_cookies()
-        self.x.get(VPN_LOGIN_PAGE, timeout=20)
+        self.x.get(VPN_LOGIN_PAGE, timeout=_request_timeout(20))
         resp = self.x.post(
             VPN_AUTH_URL,
             headers={
@@ -546,12 +602,12 @@ class URP_login:
                 'Referer': VPN_LOGIN_PAGE,
             },
             data=auth_body,
-            timeout=20,
+            timeout=_request_timeout(20),
         )
         resp.encoding = 'utf-8'
         if resp.status_code != 200 or '0x00000000' not in resp.text:
             return False, f'VPN auth failed; status={resp.status_code}; {_html_hint(resp)}'
-        self.x.get(VPN_PORTAL_PAGE, timeout=20)
+        self.x.get(VPN_PORTAL_PAGE, timeout=_request_timeout(20))
         save_shared_vpn_cookies(self.x.cookies.get_dict())
         start_vpn_keepalive()
         return True, 'VPN auth success'
@@ -572,7 +628,7 @@ class URP_login:
     def _get_login_page(self):
         headers = {'Referer': VPN_PORTAL_PAGE} if self._requires_vpn_auth() else {}
         for _ in range(2):
-            resp = self.x.get(self._url(), headers=headers, timeout=20)
+            resp = self.x.get(self._url(), headers=headers, timeout=_request_timeout(20))
             resp.encoding = 'gbk'
             reason = _login_failure_reason(resp)
             if reason in ('maintenance', 'unavailable'):
@@ -590,11 +646,11 @@ class URP_login:
             self._url('validateCodeAction.do'),
             params={'random': str(random.random())},
             headers={'Referer': self._url()},
-            timeout=20,
+            timeout=_request_timeout(20),
         )
         if not _looks_like_image(resp):
             if self._requires_vpn_auth() and allow_vpn_retry:
-                recover_vpn_session(self.x, self._url())
+                recover_vpn_session(self.x, self._url(), force=True)
                 return self._read_captcha(ocr, allow_vpn_retry=False)
             raise CaptchaUnavailableError('暂时无法获取登录验证码，请稍后重试。')
         return _normalize_captcha(ocr.classification(resp.content))
@@ -616,11 +672,12 @@ class URP_login:
                 'Content-Type': 'application/x-www-form-urlencoded',
             },
             allow_redirects=True,
-            timeout=30,
+            timeout=_request_timeout(30),
         )
         resp.encoding = 'gbk'
         return resp
 
+    @_with_login_budget
     def login(self):
         stage = 'vpn'
         try:
@@ -677,7 +734,10 @@ class URP_login:
         _logger.warning('教务登录异常: stage=%s', stage)
         return False, message, None
 
+    @_with_login_budget
     def is_logined(self):
+        # 保持 bool 接口；调用者可区分暂不可确认与已明确失效。
+        self.login_check_uncertain = False
         cookies, source = load_user_cookies(self.account, self.url, cookie_path=self.cookie_path)
         if not cookies:
             return False
@@ -686,26 +746,27 @@ class URP_login:
         if self._requires_vpn_auth():
             success, _ = self._ensure_vpn_session()
             if not success:
+                self.login_check_uncertain = True
                 return False
 
         try:
-            response = self.x.get(
-                self._url('menu/top.jsp'),
-                timeout=5,
-                verify=False,
-            )
+            response = self.x.get(self._url('menu/top.jsp'), timeout=_request_timeout(5), verify=False)
         except Exception:
+            self.login_check_uncertain = True
             return False
 
         status_code = getattr(response, 'status_code', 200)
         if isinstance(status_code, int) and status_code >= 400:
+            self.login_check_uncertain = True
             return False
-        if (
-            is_vpn_failure_response(response)
-            or _looks_like_urp_login_page(response)
-        ):
+        if is_vpn_failure_response(response):
+            self.login_check_uncertain = True
+            return False
+        if _looks_like_urp_login_page(response):
             return False
         if self.account not in response.text:
+            # 只有已识别的教务页面能证明当前是另一账号；代理页等属未知。
+            self.login_check_uncertain = not _looks_like_urp_home_page(response)
             return False
         if source == 'legacy':
             self._save_cookies()

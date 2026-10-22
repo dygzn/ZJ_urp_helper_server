@@ -164,7 +164,7 @@ export function displayFeedbackList(myFeedbacks, publicFeedbacks) {
     if (myFeedbacks.length === 0 && publicFeedbacks.length === 0) {
         contentDiv.innerHTML = `
             <div class="empty-state">
-                <div class="empty-state-icon">&#128172;</div>
+                <div class="empty-state-icon"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="/static/icons/lucide.svg#message-square"/></svg></div>
                 <div class="empty-state-text">还没有反馈</div>
                 <div class="feedback-empty-hint">写下第一个问题或建议，管理员看到后就能跟进。</div>
             </div>

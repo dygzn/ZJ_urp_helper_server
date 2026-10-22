@@ -41,6 +41,10 @@ class SequenceSession:
 
 
 class SharedCookieTests(unittest.TestCase):
+    def setUp(self):
+        login_module._VPN_HEALTH.clear()
+        login_module._VPN_FAILURES.clear()
+
     def test_loading_legacy_file_excludes_user_session_cookies(self):
         payload = {
             'cookies': {
@@ -128,6 +132,10 @@ class SharedCookieTests(unittest.TestCase):
 
 
 class ResponseClassificationTests(unittest.TestCase):
+    def setUp(self):
+        login_module._VPN_HEALTH.clear()
+        login_module._VPN_FAILURES.clear()
+
     def test_http_200_vpn_timeout_page_is_not_alive(self):
         response = make_response(
             '<script>var errcode="0x10000001";'
@@ -168,6 +176,10 @@ class ResponseClassificationTests(unittest.TestCase):
 
 
 class VPNRecoveryTests(unittest.TestCase):
+    def setUp(self):
+        login_module._VPN_HEALTH.clear()
+        login_module._VPN_FAILURES.clear()
+
     def test_recovery_reauthenticates_and_returns_fresh_vpn_cookies(self):
         stale = make_response(
             '<script>var errmsg="session expired";'
@@ -184,6 +196,7 @@ class VPNRecoveryTests(unittest.TestCase):
             login_module,
             'load_shared_vpn_cookies',
             side_effect=[
+                {'VSG_SESSIONID': 'stale'},
                 {'VSG_SESSIONID': 'stale'},
                 {'VSG_SESSIONID': 'fresh'},
             ],
@@ -354,7 +367,7 @@ class VPNRecoveryTests(unittest.TestCase):
                     'https://223.112.21.198:6443/7b68f983/',
                 )
 
-        self.assertEqual(password_auth.call_count, 2)
+        self.assertEqual(password_auth.call_count, 1)
 
     def test_stale_keepalive_cannot_erase_recovered_global_cookie(self):
         class ObservedLock:
@@ -449,6 +462,10 @@ class VPNRecoveryTests(unittest.TestCase):
 
 
 class QueryRetryTests(unittest.TestCase):
+    def setUp(self):
+        login_module._VPN_HEALTH.clear()
+        login_module._VPN_FAILURES.clear()
+
     def make_query(self, url, responses):
         query = object.__new__(query_module.URP_query)
         query.url = url

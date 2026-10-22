@@ -33,7 +33,7 @@ export async function doFullEvaluation() {
 
         if (!data.has_courses) {
             resultDiv.className = 'evaluation-result result-success';
-            resultDiv.innerHTML = `<div class="evaluation-success"><div class="evaluation-success-icon">✓</div><div class="evaluation-success-message">${escapeHtml(data.message || '没有未评估的课程')}</div></div>`;
+            resultDiv.innerHTML = `<div class="evaluation-success"><div class="evaluation-success-icon"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="/static/icons/lucide.svg#circle-check"/></svg></div><div class="evaluation-success-message">${escapeHtml(data.message || '没有未评估的课程')}</div></div>`;
             btn.disabled = false; btn.textContent = '完成教学评估'; return;
         }
 
@@ -51,7 +51,7 @@ export async function doFullEvaluation() {
         if (evalData.success) {
             state.unevaluatedCoursesData = [];
             resultDiv.className = 'evaluation-result result-success';
-            resultDiv.innerHTML = `<div class="evaluation-success"><div class="evaluation-success-icon">✓</div><div class="evaluation-success-message">${escapeHtml(evalData.message || '评估成功')}</div></div>`;
+            resultDiv.innerHTML = `<div class="evaluation-success"><div class="evaluation-success-icon"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="/static/icons/lucide.svg#circle-check"/></svg></div><div class="evaluation-success-message">${escapeHtml(evalData.message || '评估成功')}</div></div>`;
         } else {
             resultDiv.className = 'evaluation-result result-error';
             resultDiv.textContent = evalData.message || '评价失败';
@@ -83,7 +83,7 @@ export async function checkUnevaluatedCourses() {
             } else {
                 state.unevaluatedCoursesData = [];
                 resultDiv.className = 'evaluation-result result-success';
-                resultDiv.innerHTML = `<div class="evaluation-success"><div class="evaluation-success-icon">✓</div><div class="evaluation-success-message">${escapeHtml(data.message)}</div></div>`;
+                resultDiv.innerHTML = `<div class="evaluation-success"><div class="evaluation-success-icon"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="/static/icons/lucide.svg#circle-check"/></svg></div><div class="evaluation-success-message">${escapeHtml(data.message)}</div></div>`;
             }
         } else {
             resultDiv.className = 'evaluation-result result-error';
@@ -131,7 +131,7 @@ export async function doEvaluation() {
         if (data.success) {
             state.unevaluatedCoursesData = [];
             resultDiv.className = 'evaluation-result result-success';
-            resultDiv.innerHTML = `<div class="evaluation-success"><div class="evaluation-success-icon">✓</div><div class="evaluation-success-message">${escapeHtml(data.message || '评价完成')}</div></div>`;
+            resultDiv.innerHTML = `<div class="evaluation-success"><div class="evaluation-success-icon"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="/static/icons/lucide.svg#circle-check"/></svg></div><div class="evaluation-success-message">${escapeHtml(data.message || '评价完成')}</div></div>`;
         } else {
             resultDiv.className = 'evaluation-result result-error';
             resultDiv.textContent = data.message || '评价失败';
@@ -171,7 +171,7 @@ export async function oneClickEvaluation() {
         }
         if (!data.has_courses) {
             resultDiv.className = 'evaluation-result result-success';
-            resultDiv.innerHTML = `<div class="evaluation-success"><div class="evaluation-success-icon">✓</div><div class="evaluation-success-message">没有未评估的课程</div></div>`;
+            resultDiv.innerHTML = `<div class="evaluation-success"><div class="evaluation-success-icon"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="/static/icons/lucide.svg#circle-check"/></svg></div><div class="evaluation-success-message">没有未评估的课程</div></div>`;
             btn.disabled = false; btn.textContent = '一键评教'; return;
         }
         resultDiv.innerHTML = '<div class="loading">正在提交评教...</div>';
@@ -180,7 +180,7 @@ export async function oneClickEvaluation() {
         if (evalData.success) {
             state.unevaluatedCoursesData = [];
             resultDiv.className = 'evaluation-result result-success';
-            resultDiv.innerHTML = `<div class="evaluation-success"><div class="evaluation-success-icon">✓</div><div class="evaluation-success-message">${escapeHtml(evalData.message)}</div></div>`;
+            resultDiv.innerHTML = `<div class="evaluation-success"><div class="evaluation-success-icon"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="/static/icons/lucide.svg#circle-check"/></svg></div><div class="evaluation-success-message">${escapeHtml(evalData.message)}</div></div>`;
         } else {
             resultDiv.className = 'evaluation-result result-error';
             resultDiv.textContent = evalData.message || '评价失败';

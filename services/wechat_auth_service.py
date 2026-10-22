@@ -182,7 +182,7 @@ def resolve_session_token(token):
     now = _now()
     with get_db() as conn:
         row = conn.execute(
-            'SELECT token_hash, openid, expires_at FROM wechat_sessions '
+            'SELECT token_hash, openid, expires_at, last_seen_at FROM wechat_sessions '
             'WHERE token_hash = ?',
             (token_hash,),
         ).fetchone()
@@ -201,10 +201,16 @@ def resolve_session_token(token):
             )
             return None
 
-        conn.execute(
-            'UPDATE wechat_sessions SET last_seen_at = ? WHERE token_hash = ?',
-            (now.isoformat(), token_hash),
-        )
+        try:
+            last_seen = datetime.fromisoformat(str(row['last_seen_at']))
+            should_touch = (now - last_seen).total_seconds() >= 300 or now < last_seen
+        except (TypeError, ValueError):
+            should_touch = True
+        if should_touch:
+            conn.execute(
+                'UPDATE wechat_sessions SET last_seen_at = ? WHERE token_hash = ? AND last_seen_at = ?',
+                (now.isoformat(), token_hash, row['last_seen_at']),
+            )
         openid = row['openid']
 
     binding = get_binding(openid)
