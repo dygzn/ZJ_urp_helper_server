@@ -51,20 +51,24 @@ class CookieRecoveryRegressionTests(unittest.TestCase):
                 self.assertTrue(details.relogged)
                 self.helper.login.assert_called_once()
 
-    def test_maintenance_root_preserves_cookie_without_relogin(self):
+    def test_maintenance_root_preserves_cookie_after_failed_relogin(self):
+        self.helper.login.side_effect = None
+        self.helper.login.return_value = (False, '学校教务系统暂不可用', None)
         self.helper.x.get = Mock(side_effect=[response('maintenance', 503), response('maintenance', 503)])
         valid, details = service.check_login_status('student', 'stored', url=URL)
         self.assertFalse(valid)
         self.assertTrue(details['retryable'])
-        self.helper.login.assert_not_called()
+        self.helper.login.assert_called_once()
         self.assertTrue(session_store.user_cookie_exists('student', URL))
 
-    def test_transport_timeout_does_not_delete_or_replay_password(self):
+    def test_transport_timeout_preserves_cookie_when_normal_login_also_fails(self):
+        self.helper.login.side_effect = None
+        self.helper.login.return_value = (False, '学校教务系统响应超时', None)
         self.helper.x.get = Mock(side_effect=requests.ReadTimeout())
         valid, details = service.check_login_status('student', 'stored', url=URL)
         self.assertFalse(valid)
         self.assertTrue(details['retryable'])
-        self.helper.login.assert_not_called()
+        self.helper.login.assert_called_once()
         self.assertEqual(self.helper.x.get.call_count, 1)
         self.assertTrue(session_store.user_cookie_exists('student', URL))
 

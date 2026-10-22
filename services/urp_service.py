@@ -171,13 +171,17 @@ def check_login_status(username, password, cookies=None, url=None):
             _login_failures.pop(key, None)
             return True, _LoginDetails(urp.x.cookies.get_dict())
 
-        if getattr(urp, 'login_check_uncertain', False) is True:
+        uncertain = getattr(urp, 'login_check_uncertain', False) is True
+        if uncertain and (temporary or _is_vpn_url(target_url)):
             return _login_failure(key, '教务连接暂不可用，请稍后重试。', retryable=True)
         if temporary:
             return False, {}
 
         invalidate_login_cache(username, target_url)
-        delete_user_cookies(username, target_url)
+        # 普通地址的探测端点可能单独不可用；仍尝试正常登录流程。
+        # 未确认失效时仅清理本次 Session，磁盘 Cookie 留到登录成功后原子替换。
+        if not uncertain:
+            delete_user_cookies(username, target_url)
         _clear_non_vpn_session_cookies(urp)
         try:
             success, message, new_cookies = urp.login()
@@ -185,7 +189,7 @@ def check_login_status(username, password, cookies=None, url=None):
             logging.getLogger(__name__).warning('教务重新登录异常')
             return _login_failure(key, '登录服务暂时出现异常，请稍后重试或联系管理员。', retryable=True)
         if not success:
-            return _login_failure(key, message)
+            return _login_failure(key, message, retryable=uncertain)
 
         _remember_login(key, time.time())
         return True, _LoginDetails(new_cookies or urp.x.cookies.get_dict(), relogged=True)
