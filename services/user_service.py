@@ -2,6 +2,8 @@
 用户绑定管理服务
 """
 from datetime import datetime
+import time
+from functools import wraps
 from flask import g, has_request_context, request
 from database import get_db, migrate_account_password
 from services.credential_service import CredentialCipher
@@ -16,6 +18,30 @@ def get_device_id():
     return device_id
 
 
+def invalidate_request_identity():
+    if has_request_context():
+        request.environ.pop('urp.identity_cache', None)
+        g.temporary_session = None
+
+
+def _request_identity_cache(function):
+    @wraps(function)
+    def resolve(device_id):
+        if not has_request_context():
+            return function(device_id)
+        cache = request.environ.setdefault('urp.identity_cache', {})
+        if device_id in cache:
+            user, temporary = cache[device_id]
+            if not temporary or temporary['expires_at'] > time.time():
+                g.temporary_session = temporary
+                return dict(user) if user else None
+        user = function(device_id)
+        cache[device_id] = (dict(user) if user else None, getattr(g, 'temporary_session', None))
+        return user
+    return resolve
+
+
+@_request_identity_cache
 def get_user_by_device(device_id):
     """根据设备绑定获取账号主表资料。
 
@@ -85,6 +111,9 @@ def get_user_by_username(username):
 
 def bind_user(device_id, username, password, invitation_token=None):
     """更新账号主表并绑定设备；账号主表是唯一凭据来源。"""
+    invalidate_request_identity()
+    from services.urp_service import invalidate_login_cache
+    invalidate_login_cache(username)
     password = CredentialCipher().encrypt(password)
     with get_db() as conn:
         now = datetime.now().isoformat()
@@ -125,6 +154,7 @@ def unbind_user(device_id, conn=None):
     管理员审批已经持有事务时可传入同一个连接，避免解绑和审批状态
     分别提交造成半完成状态。
     """
+    invalidate_request_identity()
     if conn is not None:
         cursor = conn.execute(
             'DELETE FROM users WHERE device_id = ?',

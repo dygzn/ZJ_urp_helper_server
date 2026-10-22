@@ -10,7 +10,9 @@ from urllib.parse import urlsplit
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 from urp.login import (
     VPNUnavailableError,
+    URPSessionExpiredError,
     _is_vpn_url,
+    _looks_like_urp_login_page,
     is_vpn_failure_response,
     load_shared_vpn_cookies,
     recover_vpn_session,
@@ -57,9 +59,10 @@ class URP_query:
         response = self.x.request(method, url, **kwargs)
         if not _is_vpn_url(self.url) or not is_vpn_failure_response(response):
             response.raise_for_status()
+            self._check_login_response(response)
             return response
 
-        fresh = recover_vpn_session(self.x, self.url)
+        fresh = recover_vpn_session(self.x, self.url, force=True)
         self.x.cookies.update(fresh)
         retry = self.x.request(method, url, **kwargs)
         if is_vpn_failure_response(retry):
@@ -69,14 +72,23 @@ class URP_query:
                 '\u8bf7\u7a0d\u540e\u91cd\u8bd5'
             )
         retry.raise_for_status()
+        self._check_login_response(retry)
         return retry
+
+    def _check_login_response(self, response):
+        if _looks_like_urp_login_page(response):
+            from services.urp_service import invalidate_login_cache
+            invalidate_login_cache(self.account, self.url)
+            raise URPSessionExpiredError('教务会话已过期，请重试查询。', response=response)
 
     # ==================== 成绩查询 ====================
 
     def _fetch_score_html(self):
         """获取成绩总览页面 HTML"""
-        score_url = f"{self.url}gradeLnAllAction.do?type=ln&oper=qbinfo&"
-        return self._request('GET', score_url, verify=False, timeout=10).text
+        if not hasattr(self, '_score_html'):
+            score_url = f"{self.url}gradeLnAllAction.do?type=ln&oper=qbinfo&"
+            self._score_html = self._request('GET', score_url, verify=False, timeout=10).text
+        return self._score_html
 
     def get_semesters(self):
         """获取所有学期列表（解析页面锚点）"""

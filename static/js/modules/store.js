@@ -11,6 +11,7 @@ const initialState = {
     shortcutApiPlainKey: '',
     shortcutApiHasKey: false,
     loginStatusPromise: null,
+    loginStatusResult: null,
     cachedSchedule: null,
     currentScheduleMap: new Map(),
     scheduleCourseId: 0,

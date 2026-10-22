@@ -93,7 +93,9 @@ def shortcut_query():
     user = get_user_by_username(username)
     if not user:
         return _shortcut_error(action, 'login_required', '未找到该学号的绑定信息')
-    is_logged_in, _ = check_login_status(username, user['password'], {})
+    is_logged_in, details = check_login_status(username, user['password'], {})
+    if not is_logged_in and isinstance(details, dict) and details.get('retryable'):
+        return _shortcut_error(action, 'urp_unavailable', details['message'])
     if not is_logged_in:
         return _shortcut_error(
             action,

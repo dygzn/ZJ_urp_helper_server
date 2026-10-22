@@ -20,7 +20,9 @@ def require_wechat_account(login=False, member=False, grades=False):
                     return jsonify(success=False, code='MEMBER_REQUIRED',
                                    message='此功能需要有效会员，请前往网页端开通或续费会员后重试。小程序内不提供充值。'), 403
             if login:
-                valid, _ = urp_service.check_login_status(account['username'], account['password'], {})
+                valid, details = urp_service.check_login_status(account['username'], account['password'], {})
+                if not valid and isinstance(details, dict) and details.get('retryable'):
+                    return jsonify(success=False, code='URP_UNAVAILABLE', retryable=True, message=details['message']), 503
                 if not valid:
                     return jsonify(success=False, code='URP_LOGIN_REQUIRED', message='教务登录失效，请解绑后重新验证学号和密码'), 409
             return fn(account=account, *args, **kwargs)

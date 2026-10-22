@@ -1,0 +1,314 @@
+/* Nova-inspired product geometry for native HTML. Not React/shadcn components.
+   Layout lives in workspace; the existing appearance layer owns optional materials. */
+@layer components.workspace {
+:where(body.urp-app, body.urp-admin, body.campaign-body) {
+    font-size: var(--ui-text-base);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+}
+:where(body.urp-app, body.urp-admin, body.campaign-body) :is(h1, h2, h3, h4) {
+    text-wrap: balance;
+    letter-spacing: -.025em;
+}
+:where(body.urp-app, body.urp-admin, body.campaign-body) :is(button, a, summary, input, select, textarea) {
+    -webkit-tap-highlight-color: transparent;
+}
+:where(body.urp-app, body.urp-admin, body.campaign-body) :is(button, summary) {
+    touch-action: manipulation;
+}
+:where(body.urp-app, body.urp-admin, body.campaign-body) :is(.btn-primary, .btn-secondary, .login-btn, .icon-btn, .appearance-trigger, .refresh-btn, .home-agenda-link, .in-page-back, .campaign-button) {
+    min-height: var(--ui-control-height);
+    padding: 10px 16px;
+    border-radius: var(--ui-radius-sm);
+    font-size: var(--ui-text-sm);
+    font-weight: 550;
+    line-height: 1.4;
+    letter-spacing: 0;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 3%);
+    transition: background-color var(--ui-duration), border-color var(--ui-duration), box-shadow var(--ui-duration), transform var(--ui-duration);
+}
+:where(body.urp-app, body.urp-admin) .btn-secondary {
+    color: var(--ui-ink);
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-line);
+}
+:where(body.urp-app, body.urp-admin) .btn-secondary:hover:not(:disabled) {
+    color: var(--ui-ink);
+    background: var(--ui-surface-soft);
+    border-color: var(--ui-control-line);
+}
+:where(body.urp-app, body.urp-admin, body.campaign-body) :is(.btn-primary, .btn-secondary):active:not(:disabled) { transform: translateY(1px); }
+:where(body.urp-app, body.urp-admin) :is(input:where(:not([type=checkbox]):not([type=radio])), select, textarea) {
+    min-height: var(--ui-control-height);
+    border: 1px solid var(--ui-control-line);
+    border-radius: var(--ui-radius-sm);
+    background: var(--ui-surface);
+    color: var(--ui-ink);
+    font-family: var(--ui-font);
+    line-height: 1.5;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 2%);
+    transition: border-color var(--ui-duration), box-shadow var(--ui-duration);
+}
+:where(body.urp-app, body.urp-admin) :is(input, select, textarea):focus {
+    border-color: var(--ui-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ui-accent) 15%, transparent);
+    outline: none;
+}
+:where(body.urp-app, body.urp-admin) :is(input, textarea)::placeholder { color: var(--ui-subtle); opacity: 1; }
+:where(body.urp-app, body.urp-admin) :is(input, select, textarea)[aria-invalid=true] {
+    border-color: var(--ui-danger);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ui-danger) 12%, transparent);
+}
+:where(body.urp-app, body.urp-admin) :is(label, .field-label) { font-weight: 550; }
+.field-label { display: block; margin-bottom: 8px; font-size: 13px; color: var(--ui-ink); }
+:where(body.urp-app, body.urp-admin) :is(.page-section-desc, .config-desc) { line-height: 1.75; }
+:where(body.urp-app, body.urp-admin) :is(.error-message, .hint-message, .lab-message, .feedback-form-status) {
+    font-size: 13px;
+    line-height: 1.65;
+    overflow-wrap: anywhere;
+}
+.ui-icon, .admin-nav-icon { width: 18px; height: 18px; flex: 0 0 auto; vertical-align: middle; }
+.brand-mark {
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 29px;
+    height: 29px;
+    border: 1px solid color-mix(in srgb, var(--ui-accent) 80%, var(--ui-ink));
+    border-radius: 8px;
+    color: var(--ui-on-accent);
+    background: var(--ui-accent);
+    font: 750 18px/1 var(--ui-font);
+    letter-spacing: -.08em;
+}
+.skip-link {
+    position: fixed;
+    z-index: 2000;
+    top: 8px;
+    left: 12px;
+    padding: 12px 18px;
+    transform: translateY(-150%);
+    border: 1px solid var(--ui-accent);
+    border-radius: var(--ui-radius-sm);
+    background: var(--ui-surface);
+    color: var(--ui-accent);
+}
+.skip-link:focus { transform: none; }
+/* Navigation remains attached to the existing router and responsive move logic. */
+:where(body.urp-app) .header { border-bottom: 1px solid var(--ui-line); background: var(--ui-surface); box-shadow: none; }
+:where(body.urp-app) .desktop-brand { align-items: center; gap: 9px; color: var(--ui-ink); font-size: 15px; letter-spacing: -.02em; white-space: nowrap; }
+:where(body.urp-app) .nav-item { font-weight: 500; transition: background-color var(--ui-duration), color var(--ui-duration); }
+:where(body.urp-app) .nav-item.active { font-weight: 650; }
+:where(body.urp-app) :is(.desktop-menu > summary, .appearance-trigger, .desktop-account, .announcement-trigger) {
+    color: var(--ui-muted);
+    border-color: var(--ui-line);
+    background: var(--ui-surface);
+    font-weight: 500;
+}
+:where(body.urp-app) :is(.desktop-menu > summary, .appearance-trigger, .desktop-account, .announcement-trigger):hover { color: var(--ui-ink); background: var(--ui-surface-soft); }
+:where(body.urp-app) .desktop-menu-items { padding: 6px; border: 1px solid var(--ui-line); border-radius: var(--ui-radius); box-shadow: var(--ui-shadow-popover); }
+:where(body.urp-app) .desktop-menu-items :is(a, button) { border-radius: 6px; }
+:where(body.urp-app) .login-status-indicator { background: transparent; color: var(--ui-muted); font-size: 12px; }
+:where(body.urp-app) .sidebar { border-right: 1px solid var(--ui-line); }
+:where(body.urp-app) .sidebar-header { border-bottom: 1px solid var(--ui-line); padding-block: 20px; }
+:where(body.urp-app) .sidebar-footer { border-top: 1px solid var(--ui-line); }
+:where(body.urp-app) .content-wrapper { padding-block: 32px; }
+:where(body.urp-app) .site-footer { padding-block: 24px; font-size: 11px; }
+/* Home uses one information hierarchy: heading, next event, agenda and shortcuts. */
+:where(body.urp-app) :where(#page-home) .home-heading { gap: 8px 20px; padding-bottom: 8px; }
+:where(body.urp-app) :where(#page-home) .home-heading h2 { font-size: var(--ui-text-title); font-weight: 680; line-height: 1.35; }
+:where(body.urp-app) :where(#page-home) .home-heading-kicker { color: var(--ui-subtle); font-size: 12px; }
+:where(body.urp-app) :where(#page-home) .home-heading-description { color: var(--ui-muted); font-size: 14px; }
+:where(body.urp-app) :where(#page-home) :is(.urgent-header h2, .home-agenda-heading h2, .home-welcome h2) { font-size: 15px; font-weight: 650; }
+:where(body.urp-app) :where(#page-home) .event-card {
+    padding: var(--ui-space-6);
+    border: 1px solid var(--ui-line);
+    border-radius: var(--ui-radius);
+    background: var(--ui-surface);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 2%);
+}
+:where(body.urp-app) :where(#page-home) .event-card-current { border-color: color-mix(in srgb, var(--ui-accent) 32%, var(--ui-line)); background: var(--ui-surface); }
+:where(body.urp-app) :where(#page-home) .event-type { color: var(--ui-muted); font-size: 12px; font-weight: 500; }
+:where(body.urp-app) :where(#page-home) .event-title { font-size: 21px; font-weight: 650; letter-spacing: -.025em; }
+:where(body.urp-app) :where(#page-home) .event-card .countdown { font-weight: 650; font-variant-numeric: tabular-nums; }
+:where(body.urp-app) :where(#page-home) :is(.refresh-btn, .home-agenda-link) { border-color: var(--ui-line); color: var(--ui-muted); box-shadow: none; }
+:where(body.urp-app) :where(#page-home) .home-agenda-list { padding-inline: 20px; }
+:where(body.urp-app) :where(#page-home) .home-agenda-item { min-height: 88px; }
+:where(body.urp-app) :where(#page-home) .home-agenda-item time { font-size: 12px; font-variant-numeric: tabular-nums; }
+:where(body.urp-app) :where(#page-home) .home-shortcuts { gap: 0; border: 1px solid var(--ui-line); border-radius: var(--ui-radius); overflow: hidden; background: var(--ui-surface); }
+:where(body.urp-app) :where(#page-home) .home-shortcuts button {
+    min-height: 88px;
+    padding: 14px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    transform: none;
+    gap: 10px;
+}
+:where(body.urp-app) :where(#page-home) .home-shortcuts button:nth-child(odd) { border-right: 1px solid var(--ui-line); }
+:where(body.urp-app) :where(#page-home) .home-shortcuts button:nth-child(n+3) { border-top: 1px solid var(--ui-line); }
+:where(body.urp-app) :where(#page-home) .home-shortcuts button:hover { background: var(--ui-surface-soft); box-shadow: none; transform: none; }
+:where(body.urp-app) :where(#page-home) .home-shortcut-icon { width: 32px; height: 32px; color: var(--ui-muted); }
+:where(body.urp-app) :where(#page-home) .home-shortcut-copy strong { font-size: 14px; font-weight: 600; }
+:where(body.urp-app) :where(#page-home) .home-shortcut-copy > span { font-size: 12px; }
+:where(body.urp-app) :where(#page-home) .home-secondary-shortcuts button { min-height: 60px; border-color: var(--ui-line); }
+:where(body.urp-app) :where(#page-home) .home-state { min-height: 164px; padding: var(--ui-space-6); align-items: center; }
+:where(body.urp-app) :where(#page-home) .home-state-icon { color: var(--ui-muted); background: var(--ui-surface-soft); }
+:where(body.urp-app) :where(#page-home) .home-agenda-empty { padding: 28px 20px; border: 1px dashed var(--ui-control-line); border-radius: var(--ui-radius); background: var(--ui-surface); }
+:where(body.urp-app) .miniapp-notice { padding: 12px 16px; background: var(--ui-surface); border: 1px solid var(--ui-line); border-radius: var(--ui-radius-sm); }
+.loading { display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--ui-muted); font-size: 13px; }
+.loading::after { content: ""; width: 14px; height: 14px; flex: 0 0 auto; border: 2px solid var(--ui-line); border-top-color: var(--ui-accent); border-radius: 50%; margin-left: 0; animation: none; }
+@media (prefers-reduced-motion: no-preference) { .loading::after { animation: nova-spin 800ms linear infinite; } @keyframes nova-spin { to { transform: rotate(360deg); } } }
+/* Functional screens use open headings and a small number of task surfaces. */
+:where(body.urp-app) :is(.evaluation-container, .feedback-container, .member-container, .shortcut-api-page-container) { padding: 0; background: transparent; border: 0; box-shadow: none; }
+:where(body.urp-app) :is(.evaluation-container, .feedback-container, .member-container, .shortcut-api-page-container, .lab-wrap, .grades-dashboard-main) h2 { font-size: var(--ui-text-title); font-weight: 680; line-height: 1.35; }
+:where(body.urp-app) :is(.feedback-hero, .member-page-head, .shortcut-api-page-head, .lab-heading, .grades-dashboard-header) { margin-bottom: var(--ui-space-6); }
+:where(body.urp-app) .action-bar { gap: 10px; margin-block: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--ui-line); }
+:where(body.urp-app) :is(.evaluation-course, .exam-card, .feedback-new-box, .feedback-item, .lab-card, .shortcut-api-card, .member-plan-card, .invitation-card) {
+    border: 1px solid var(--ui-line);
+    border-radius: var(--ui-radius);
+    background: var(--ui-surface);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 2%);
+}
+:where(body.urp-app) :is(.feedback-new-box, .lab-card, .shortcut-api-card, .member-plan-card, .invitation-card) { padding: var(--ui-space-6); }
+:where(body.urp-app) .feedback-new-head { padding-bottom: 18px; margin-bottom: 18px; border-bottom: 1px solid var(--ui-line); }
+:where(body.urp-app) .feedback-hero-note { background: transparent; color: var(--ui-subtle); }
+:where(body.urp-app) :is(.feedback-choice, .feedback-soft-badge, .shortcut-api-badge, .member-status-badge) { background: var(--ui-surface-soft); color: var(--ui-muted); border-color: var(--ui-line); font-weight: 500; }
+:where(body.urp-app) .feedback-choice:has(input:checked) { border-color: var(--ui-accent); color: var(--ui-ink); }
+:where(body.urp-app) .grades-kpi-strip { background: var(--ui-surface); border: 1px solid var(--ui-line); border-radius: var(--ui-radius); box-shadow: none; }
+:where(body.urp-app) .grades-kpi { padding: 22px 24px; }
+:where(body.urp-app) .grades-kpi strong { font-size: 30px; font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: -.04em; }
+:where(body.urp-app) .grades-table-panel { border-radius: var(--ui-radius); border-color: var(--ui-line); box-shadow: none; }
+:where(body.urp-app) .grades-table :is(th, td) { padding: 14px 16px; border-color: var(--ui-line); }
+:where(body.urp-app) .grades-table th { font-size: 12px; font-weight: 550; background: var(--ui-surface-soft); color: var(--ui-muted); }
+:where(body.urp-app) .grades-query-toolbar { gap: var(--ui-space-2); margin-bottom: var(--ui-space-6); }
+:where(body.urp-app) .grades-query-toolbar [aria-pressed=true] { box-shadow: none; }
+:where(body.urp-app) :is(.grades-query-menu, .service-contact-popover) { box-shadow: var(--ui-shadow-popover); }
+:where(body.urp-app) .member-plan-card { display: flex; flex-direction: column; }
+:where(body.urp-app) .member-plan-card > .btn-full { margin-top: auto; }
+:where(body.urp-app) .member-plan-advanced { border-color: color-mix(in srgb, var(--ui-accent) 50%, var(--ui-line)); background: var(--ui-surface); }
+:where(body.urp-app) .member-plan-price { color: var(--ui-ink); font-weight: 650; font-variant-numeric: tabular-nums; }
+:where(body.urp-app) .member-plan-list { padding-bottom: 20px; }
+:where(body.urp-app) .shortcut-api-help { background: var(--ui-surface-soft); border-radius: var(--ui-radius-sm); padding: 16px; }
+:where(body.urp-app) :is(.shortcut-api-help code, .shortcut-key-value) { overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; }
+:where(body.urp-app) :is(.service-intro-card, .service-status-card) { border: 1px solid var(--ui-line); border-radius: var(--ui-radius); background: var(--ui-surface); box-shadow: none; }
+:where(body.urp-app) .service-intro-card { padding: 32px; }
+:where(body.urp-app) .service-hero-title { font-size: clamp(28px, 3vw, 38px); line-height: 1.35; }
+:where(body.urp-app) :is(.service-offer-card, .service-process-step) { padding: 22px; border: 0; border-top: 1px solid var(--ui-line); border-radius: 0; background: transparent; box-shadow: none; }
+:where(body.urp-app) .service-offer-icon { width: 36px; height: 36px; background: var(--ui-surface-quiet); color: var(--ui-muted); border-radius: 8px; }
+:where(body.urp-app) .service-section-title { margin-block: 32px 16px; }
+/* Neutral membership identity; semantic success/risk colors stay distinct. */
+:where(body.urp-app) :is(.member-badge-basic, .member-badge-advanced) { background: var(--ui-accent-soft); color: var(--ui-accent); border: 1px solid var(--ui-line); border-radius: 6px; font-size: 12px; font-weight: 550; }
+:where(body.urp-app) .member-plan-card::before { content: none; }
+:where(body.urp-app) :is(.member-plan-kicker, .member-plan-advanced .member-plan-kicker) { padding: 3px 8px; border: 1px solid var(--ui-line); background: var(--ui-surface-soft); color: var(--ui-muted); font-size: 12px; font-weight: 550; }
+:where(body.urp-app) .member-plan-list { border: 0; background: transparent; padding: 0 0 16px; }
+:where(body.urp-app) .member-plan-list li::before { color: var(--ui-subtle); }
+:where(body.urp-app) .member-plan-list li::marker { color: var(--ui-subtle); }
+:where(body.urp-app) .service-status-text { font-size: 26px; font-weight: 650; line-height: 1.45; }
+:where(body.urp-app) .service-status-card { padding: 28px; }
+:where(body.urp-app) .service-contact-trigger { border-radius: var(--ui-radius-sm); box-shadow: none; }
+:where(body.urp-app) .feedback-new-box { gap: var(--ui-space-3); }
+:where(body.urp-app) .feedback-new-head { margin-bottom: 8px; }
+:where(body.urp-app) .feedback-new-box .field-label { margin: 0; }
+:where(body.urp-app) .feedback-form-status:empty { min-height: 0; margin: 0; }
+:where(body.urp-app, body.urp-admin) .empty-state-icon { color: var(--ui-subtle); opacity: 1; }
+:where(body.urp-app, body.urp-admin) .empty-state-icon svg { width: 28px; height: 28px; }
+:where(body.urp-app) .evaluation-success-icon svg { width: 32px; height: 32px; }
+:where(body.urp-app) .evaluation-success { padding: 40px 24px; border: 1px solid var(--ui-line); border-radius: var(--ui-radius); background: var(--ui-surface); }
+/* More is a touch-friendly settings surface, not another dashboard. */
+:where(body.urp-app) .more-heading h2 { font-weight: 680; font-size: 28px; }
+:where(body.urp-app) .more-account { padding: 20px; border-radius: var(--ui-radius); }
+:where(body.urp-app) .more-section > h3 { margin-bottom: 10px; font-size: 12px; font-weight: 550; color: var(--ui-subtle); }
+:where(body.urp-app) .more-feature-grid .more-feature { min-height: 116px; padding: 18px; border-color: var(--ui-line); border-radius: var(--ui-radius); }
+:where(body.urp-app) .more-feature .nav-icon { color: var(--ui-muted); width: 22px; height: 22px; }
+:where(body.urp-app) .more-list { border-radius: var(--ui-radius); }
+:where(body.urp-app) .more-row { min-height: 60px; }
+/* Keep all modal controllers and focus restoration; unify their visible shell. */
+:where(body.urp-app, body.urp-admin) .modal-content { border: 1px solid var(--ui-line); border-radius: var(--ui-radius); background: var(--ui-surface); box-shadow: var(--ui-shadow-dialog); }
+:where(body.urp-app, body.urp-admin) .modal-close { border-color: var(--ui-line); background: var(--ui-surface); color: var(--ui-muted); font-size: 13px; font-weight: 500; }
+:where(body.urp-app) :where(#login-modal) .login-card {
+    display: block;
+    width: min(440px, calc(100vw - 32px));
+    max-width: 440px;
+    max-height: calc(100dvh - 32px);
+    padding: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+:where(body.urp-app) :where(#login-modal) .login-intro { min-height: 0; padding: 28px 28px 0; display: block; background: transparent; border: 0; }
+:where(body.urp-app) :where(#login-modal) .login-brand { display: flex; align-items: center; gap: 9px; font-size: 12px; font-weight: 600; color: var(--ui-muted); }
+:where(body.urp-app) :where(#login-modal) .login-intro-copy { margin-top: 28px; }
+:where(body.urp-app) :where(#login-modal) .login-intro h2 { max-width: none; margin: 0 0 6px; padding: 0; font-size: 24px; font-weight: 680; }
+:where(body.urp-app) :where(#login-modal) .login-intro .modal-desc { font-size: 13px; margin: 0; line-height: 1.7; }
+:where(body.urp-app) :where(#login-modal) .login-form-panel { padding: 24px 28px 28px; border: 0; }
+:where(body.urp-app) :where(#login-modal) .login-form-title { display: none; }
+:where(body.urp-app) :where(#login-modal) .login-form { gap: 0; }
+:where(body.urp-app) :where(#login-modal) .login-field-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
+:where(body.urp-app) :where(#login-modal) .form-group { margin: 0; }
+:where(body.urp-app) :where(#login-modal) .form-group label { margin-bottom: 7px; font-size: 13px; }
+:where(body.urp-app) :where(#login-modal) .form-group input { min-height: 46px; font-size: 16px; }
+:where(body.urp-app) :where(#login-modal) .login-bind-option { margin-top: 12px; padding: 0; min-height: 36px; background: transparent; border: 0; gap: 5px; }
+:where(body.urp-app) :where(#login-modal) .login-session-note { font-size: 12px; margin-block: 6px 0; line-height: 1.7; }
+:where(body.urp-app) :where(#login-modal) .login-actions { margin-top: 16px; }
+:where(body.urp-app) :where(#login-modal) .login-close { top: 20px; right: 20px; width: auto; padding-inline: 10px; border-color: transparent; box-shadow: none; font-size: 12px; }
+:where(body.urp-app, body.urp-admin) :is(.ui-toast, .admin-toast) { border: 1px solid var(--ui-line); border-radius: var(--ui-radius-sm); background: var(--ui-surface); color: var(--ui-ink); box-shadow: var(--ui-shadow-popover); font-size: 13px; }
+:where(body.urp-app, body.urp-admin) :is(.ui-toast-error, .admin-toast-error) { border-left: 3px solid var(--ui-danger); }
+:where(body.urp-app, body.urp-admin) :is(.ui-toast-success, .admin-toast-success) { border-left: 3px solid var(--ui-success); }
+.appearance-dialog { border-radius: var(--ui-radius); box-shadow: var(--ui-shadow-dialog); }
+/* Campaign details keep the server's dynamic content and existing contact actions. */
+:where(body.campaign-body) .campaign-page { max-width: 880px; padding-top: 28px; }
+:where(body.campaign-body) .campaign-nav { margin-bottom: 28px; padding-bottom: 18px; font-size: 13px; }
+:where(body.campaign-body) .campaign-nav a { display: inline-flex; gap: var(--ui-space-2); align-items: center; color: var(--ui-muted); font-weight: 500; }
+:where(body.campaign-body) .campaign-card { border-radius: var(--ui-radius); }
+:where(body.campaign-body) .campaign-content { padding: clamp(24px, 5vw, 48px); }
+:where(body.campaign-body) .campaign-content h1 { margin-block: 14px 20px; font-size: clamp(28px, 4vw, 42px); font-weight: 680; line-height: 1.35; }
+:where(body.campaign-body) .campaign-prose { font-size: 15px; line-height: 1.9; }
+:where(body.campaign-body) .campaign-actions { padding-top: 24px; }
+:where(body.campaign-body) .campaign-button { display: inline-flex; align-items: center; justify-content: center; gap: 10px; }
+@media (min-width: 1100px) {
+    :where(body.urp-app) .desktop-brand { display: inline-flex; margin-right: 16px; }
+    :where(body.urp-app) .header { min-height: 64px; gap: var(--ui-space-2); }
+    :where(body.urp-app) :where(#desktop-navigation) .nav-item { min-height: 38px; padding: 9px 12px; border-radius: 6px; font-size: 13px; }
+    :where(body.urp-app) :where(#desktop-navigation) .nav-item.active { box-shadow: none; border-bottom: 0; background: var(--ui-accent-soft); }
+    :where(body.urp-app) :where(#page-home).active { gap: 28px; grid-template-columns: minmax(0, 1.5fr) minmax(340px, 1fr); }
+    :where(body.urp-app) .content-wrapper { padding-top: 36px; }
+}
+@media (max-width: 1099px) and (min-width: 769px) {
+    :where(body.urp-app) .content-wrapper { padding-inline: 24px; }
+}
+@media (max-width: 768px) {
+    :where(body.urp-app) .content-wrapper { padding: 22px 16px 24px; }
+    :where(body.urp-app) :where(#page-home) .home-heading h2 { font-size: 24px; }
+    :where(body.urp-app) :where(#page-home) .home-heading-description { font-size: 13px; }
+    :where(body.urp-app) :where(#page-home) .event-card { padding: 18px; }
+    :where(body.urp-app) :where(#page-home) .event-title { font-size: 19px; }
+    :where(body.urp-app) :where(#page-home) .home-state { padding: 20px 16px; gap: var(--ui-space-3); }
+    :where(body.urp-app) :where(#page-home) .home-shortcuts button { min-height: 84px; padding: 14px 10px; }
+    :where(body.urp-app) :where(#page-home) .home-agenda-list { padding-inline: 16px; }
+    :where(body.urp-app) .mobile-bottom-nav { padding-bottom: max(6px, env(safe-area-inset-bottom)); border-top: 1px solid var(--ui-line); background: var(--ui-surface); box-shadow: none; }
+    :where(body.urp-app) .mobile-nav-item { border-radius: 8px; }
+    :where(body.urp-app) .mobile-nav-item.active { background: var(--ui-accent-soft); color: var(--ui-accent); box-shadow: none; }
+    :where(body.urp-app) :is(.feedback-new-box, .lab-card, .shortcut-api-card, .member-plan-card, .invitation-card) { padding: 20px; }
+    :where(body.urp-app) .service-intro-card { padding: var(--ui-space-6); }
+    :where(body.urp-app) .grades-kpi { padding: 16px 12px; }
+    :where(body.urp-app) .grades-kpi strong { font-size: 26px; }
+    :where(body.urp-app) :is(input:where(:not([type=checkbox]):not([type=radio])), select, textarea) { font-size: 16px; }
+    :where(body.urp-app) :where(#week-select) { min-height: 0; }
+    :where(body.urp-app) .site-footer { padding-bottom: 12px; }
+}
+@media (max-width: 360px) {
+    :where(body.urp-app) :where(#page-home) .home-heading h2 { font-size: 22px; }
+    :where(body.urp-app) :where(#page-home) .home-shortcuts button { gap: 6px; padding-inline: 9px; }
+    :where(body.urp-app) :where(#page-home) .home-shortcut-icon { width: 24px; }
+    :where(body.urp-app) :where(#login-modal) .login-intro { padding-inline: 22px; }
+    :where(body.urp-app) :where(#login-modal) .login-form-panel { padding-inline: 22px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+    :where(body.urp-app, body.urp-admin) .modal.active:not(:where(#course-detail-modal)) > .modal-content { animation: nova-dialog-in 160ms var(--ui-ease); }
+    :where(body.urp-app) .desktop-menu[open] > .desktop-menu-items { animation: nova-menu-in 120ms var(--ui-ease); }
+    @keyframes nova-dialog-in { from { opacity: 0; transform: translateY(8px) scale(.99); } to { opacity: 1; transform: none; } }
+    @keyframes nova-menu-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+}
+}

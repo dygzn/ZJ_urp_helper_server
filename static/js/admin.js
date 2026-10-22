@@ -598,10 +598,10 @@ function renderUserDashboard() {
                 </linearGradient>
             </defs>
             <polygon points="${area}" fill="url(#lg)"/>
-            <polyline points="${line}" fill="none" stroke="#2055a2" stroke-width="2" stroke-linejoin="round"/>
-            ${pts.map(p => `<circle cx="${p.x}" cy="${p.y}" r="3.5" fill="#2055a2"/>`).join('')}
-            ${pts.map((p, i) => i % 2 === 0 ? `<text x="${p.x}" y="${svgH - 6}" text-anchor="middle" fill="#65768a" font-size="12">${p.date}</text>` : '').join('')}
-            ${pts.map(p => `<text x="${p.x}" y="${p.y - 8}" text-anchor="middle" fill="#526276" font-size="12">${p.val}</text>`).join('')}
+            <polyline points="${line}" fill="none" stroke="var(--ui-accent)" stroke-width="2" stroke-linejoin="round"/>
+            ${pts.map(p => `<circle cx="${p.x}" cy="${p.y}" r="3.5" fill="var(--ui-accent)"/>`).join('')}
+            ${pts.map((p, i) => i % 2 === 0 ? `<text x="${p.x}" y="${svgH - 6}" text-anchor="middle" fill="var(--ui-subtle)" font-size="12">${p.date}</text>` : '').join('')}
+            ${pts.map(p => `<text x="${p.x}" y="${p.y - 8}" text-anchor="middle" fill="var(--ui-muted)" font-size="12">${p.val}</text>`).join('')}
         </svg>`;
     }
     html += `</div>`;
@@ -1097,7 +1097,7 @@ async function loadAnnouncements() {
                 listDiv.innerHTML = `
                     <div class="empty-state">
                         <div class="empty-state-icon">
-                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                            <svg class="ui-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="/static/icons/lucide.svg#bell"/></svg>
                         </div>
                         <div class="empty-state-text">暂无公告</div>
                     </div>
@@ -1267,7 +1267,7 @@ async function loadAdminFeedbacks() {
                 listDiv.innerHTML = `
                     <div class="empty-state">
                         <div class="empty-state-icon">
-                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                            <svg class="ui-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="/static/icons/lucide.svg#message-square"/></svg>
                         </div>
                         <div class="empty-state-text">暂无反馈</div>
                     </div>
@@ -1428,30 +1428,70 @@ function escapeHtmlAttr(text) {
 // ==================== 监控功能 ====================
 
 let monitorTimer = null;
+let monitorEnabled = false;
+let monitorPending = null;
+let monitorController = null;
+let monitorFailures = 0;
+
+function scheduleMonitorRefresh() {
+    if (monitorTimer) clearTimeout(monitorTimer);
+    monitorTimer = null;
+    if (monitorEnabled && document.visibilityState !== 'hidden') {
+        monitorTimer = setTimeout(loadMonitorData, Math.min(30000 * 2 ** monitorFailures, 300000));
+    }
+}
 
 function startMonitorRefresh() {
-    stopMonitorRefresh();
-    monitorTimer = setInterval(loadMonitorData, 30000);
+    monitorEnabled = true;
+    scheduleMonitorRefresh();
 }
 
 function stopMonitorRefresh() {
-    if (monitorTimer) {
-        clearInterval(monitorTimer);
-        monitorTimer = null;
-    }
+    monitorEnabled = false;
+    if (monitorTimer) clearTimeout(monitorTimer);
+    monitorTimer = null;
+    monitorController?.abort();
 }
 
-async function loadMonitorData() {
-    try {
-        const onlineRes = await fetch('/api/admin/monitor/online', { headers: { 'X-Admin-Key': adminKey } });
-        const onlineData = await onlineRes.json();
-        if (onlineData.success) {
+document.addEventListener('visibilitychange', () => {
+    if (!monitorEnabled) return;
+    if (document.visibilityState === 'hidden') {
+        if (monitorTimer) clearTimeout(monitorTimer);
+        monitorTimer = null;
+        monitorController?.abort();
+    } else {
+        loadMonitorData();
+    }
+});
+
+function loadMonitorData() {
+    if (document.visibilityState === 'hidden') return Promise.resolve();
+    if (monitorPending) return monitorPending;
+    const controller = new AbortController();
+    monitorController = controller;
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    monitorPending = (async () => {
+        try {
+            const onlineRes = await fetch('/api/admin/monitor/online', {
+                headers: { 'X-Admin-Key': adminKey }, signal: controller.signal
+            });
+            const onlineData = await onlineRes.json();
+            if (!onlineRes.ok || !onlineData.success) throw new Error('监控请求失败');
+            if (controller.signal.aborted) return;
+            monitorFailures = 0;
             document.getElementById('online-count').textContent = onlineData.data.online_count;
             renderOnlineUsers(onlineData.data.users);
+        } catch (error) {
+            monitorFailures = Math.min(monitorFailures + 1, 4);
+            if (error.name !== 'AbortError') console.error('加载监控数据失败:', error);
+        } finally {
+            clearTimeout(timeout);
+            monitorController = null;
+            monitorPending = null;
+            scheduleMonitorRefresh();
         }
-    } catch (error) {
-        console.error('加载监控数据失败:', error);
-    }
+    })();
+    return monitorPending;
 }
 
 function renderOnlineUsers(users) {

@@ -5,7 +5,7 @@
     const storageKey = 'urp_ui_template';
     const colorStorageKey = 'urp_ui_color_mode';
     const templates = [
-        { id: 'workspace', name: '清晰工作台', description: '蓝色操作，清楚利落', canvas: '#f3f6fa' },
+        { id: 'workspace', name: '清晰工作台', description: '中性灰与品牌蓝，专注教务日常', canvas: '#fafafa' },
         { id: 'glass', name: '液态玻璃', description: '通透材质，流动高光', canvas: '#e9e7e2' },
         { id: 'paper', name: '纸间书桌', description: '暖纸白与棕墨，像翻开一本笔记', canvas: '#f2eee4' },
         { id: 'garden', name: '苔庭', description: '灰绿与松色，柔和安静', canvas: '#edf1e8' },
@@ -15,7 +15,7 @@
     const colorModes = ['light', 'dark', 'system'];
     const root = document.documentElement;
     const themeMeta = document.querySelector('meta[name="theme-color"]');
-    const canvasColor = themeMeta?.content || '#f3f6fa';
+    const canvasColor = themeMeta?.content || '#fafafa';
     const systemDark = window.matchMedia('(prefers-color-scheme: dark)');
 
     function syncThemeColor(choice) {

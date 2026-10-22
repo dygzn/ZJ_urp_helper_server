@@ -2,17 +2,17 @@
 @layer themes {
 :where(:root) {
 --ui-color-scheme: light;
-        --ui-canvas: #f3f6fa;
-        --ui-admin-canvas: #eef2f7;
+        --ui-canvas: #fafafa;
+        --ui-admin-canvas: #fafafa;
         --ui-surface: #ffffff;
-        --ui-surface-soft: #f8fafc;
-        --ui-surface-quiet: #e9eef4;
-        --ui-ink: #182638;
-        --ui-muted: #526276;
-        --ui-subtle: #65768a;
-        --ui-line: #dce4ed;
-        --ui-control-line: #a9bbd2;
-        --ui-control-hover-line: #91b2de;
+        --ui-surface-soft: #f7f7f8;
+        --ui-surface-quiet: #f0f0f2;
+        --ui-ink: #18181b;
+        --ui-muted: #52525b;
+        --ui-subtle: #71717a;
+        --ui-line: #e4e4e7;
+        --ui-control-line: #c4c4cb;
+        --ui-control-hover-line: #a1a1aa;
         --ui-accent: #2055a2;
         --ui-accent-hover: #173e7b;
         --ui-accent-soft: #e9f0fb;
@@ -36,8 +36,25 @@
         --ui-course-surface: var(--ui-surface);
         --ui-marker-mix: #ffffff;
         --ui-marker-mix-amount: 0%;
-        --ui-radius: 14px;
-        --ui-radius-sm: 9px;
+        --ui-radius: 12px;
+        --ui-radius-sm: 8px;
+        --ui-space-1: 4px;
+        --ui-space-2: 8px;
+        --ui-space-3: 12px;
+        --ui-space-4: 16px;
+        --ui-space-5: 20px;
+        --ui-space-6: 24px;
+        --ui-space-8: 32px;
+        --ui-text-xs: 12px;
+        --ui-text-sm: 13px;
+        --ui-text-base: 14px;
+        --ui-text-lg: 18px;
+        --ui-text-title: clamp(24px, 2.6vw, 30px);
+        --ui-control-height: 44px;
+        --ui-duration: 160ms;
+        --ui-ease: cubic-bezier(.2, .8, .2, 1);
+        --ui-shadow-popover: 0 4px 6px -2px rgb(0 0 0 / 4%), 0 12px 32px -8px rgb(0 0 0 / 12%);
+        --ui-shadow-dialog: 0 24px 80px -20px rgb(0 0 0 / 24%);
         --ui-font: system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
@@ -141,7 +158,7 @@
 
 @supports not (background: color-mix(in srgb, red, white)) {
 :where(:root) {
---ui-dark-marker-fallback: #f8fafc;
+--ui-dark-marker-fallback: #f7f7f8;
 }
 
 @media (prefers-color-scheme: dark) {

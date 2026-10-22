@@ -156,10 +156,10 @@ def _connect_mysql(db_config, ensure_database=True):
 
 
 @contextmanager
-def get_db(config_override=None):
+def get_db(config_override=None, *, ensure_database=False):
     """获取数据库连接。调用方仍可使用 conn.execute(sql, params) 的旧写法。"""
     db_config = get_database_config(config_override)
-    conn = _connect_mysql(db_config) if db_config['type'] == 'mysql' else _connect_sqlite(db_config)
+    conn = _connect_mysql(db_config, ensure_database=ensure_database) if db_config['type'] == 'mysql' else _connect_sqlite(db_config)
     try:
         yield conn
         conn.commit()
@@ -772,7 +772,7 @@ def _migrate_plural_user_accounts(conn):
 def init_db(config_override=None):
     """初始化当前配置指向的数据库表结构。"""
     db_config = get_database_config(config_override)
-    with get_db(config_override) as conn:
+    with get_db(config_override, ensure_database=True) as conn:
         # 先创建快捷指令密钥表，避免其它历史表初始化失败时遗漏新表。
         _create_api_keys_table(conn, db_config['type'])
         _create_binding_archive_tables(conn, db_config['type'])

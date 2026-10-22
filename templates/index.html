@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#f3f6fa">
+    <meta name="theme-color" content="#fafafa">
     <script src="{{ static_versioned('js/appearance.js') }}"></script>
     <script src="{{ static_versioned('js/liquid-glass.js') }}" defer></script>
     <script src="{{ static_versioned('js/mobile-nav.js') }}" defer></script>
@@ -13,11 +13,13 @@
     <link rel="stylesheet" href="{{ static_versioned('css/lab.css') }}">
     <link rel="stylesheet" href="{{ static_versioned('css/taste-theme.css') }}">
     <link rel="stylesheet" href="{{ static_versioned('css/ui-components.css') }}">
+    <link rel="stylesheet" href="{{ static_versioned('css/nova-workspace.css') }}">
     <link rel="stylesheet" href="{{ static_versioned('css/appearance.css') }}">
     <link rel="stylesheet" href="{{ static_versioned('css/liquid-glass.css') }}">
     <link rel="stylesheet" href="{{ static_versioned('css/natural-themes.css') }}">
 </head>
 <body class="urp-app">
+    <a class="skip-link" href="#workspace-main">跳到主要内容</a>
 
     <div id="sidebar" class="sidebar" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="sidebar-title">
         <div class="sidebar-header">
@@ -25,16 +27,36 @@
             <button class="close-btn" type="button" onclick="closeSidebar()" aria-label="关闭导航菜单">关闭</button>
         </div>
         <nav class="sidebar-nav">
-            <a href="#" class="nav-item active" data-page="home" aria-current="page"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg><span>首页</span></a>
-            <a href="#" class="nav-item" data-page="schedule"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="9" y1="4" x2="9" y2="2"/><line x1="15" y1="4" x2="15" y2="2"/></svg><span>日程表</span></a>
-            <a href="#" class="nav-item" data-page="grades"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span>成绩查询</span></a>
-            <a href="#" class="nav-item" data-page="evaluation"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><span>教学评估</span></a>
-            <a href="#" class="nav-item" data-page="lab"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3h8M10 3v7l-6 9a2 2 0 002 2h12a2 2 0 002-2l-6-9V3M8 16h8"/></svg><span>实验提交</span></a>
-            <a href="#" class="nav-item" data-page="service-status"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M3 12h18"/></svg><span>找我做事</span></a>
-            <a href="#" class="nav-item" data-page="shortcut-api"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 7a5 5 0 00-7.07 0L5.5 9.43a5 5 0 007.07 7.07L15 14.07"/><path d="M9 17a5 5 0 007.07 0l2.43-2.43a5 5 0 00-7.07-7.07L9 9.93"/><path d="M8 12h8"/></svg><span>快捷指令 API</span></a>
-            <a href="#" class="nav-item" data-page="feedback"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg><span>反馈建议</span></a>
+            <a href="#" class="nav-item active" data-page="home" aria-current="page"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true" focusable="false"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" />
+  <path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg><span>首页</span></a>
+            <a href="#" class="nav-item" data-page="schedule"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true" focusable="false"><path d="M8 2v3" />
+  <path d="M16 2v3" />
+  <rect x="3" y="3" width="18" height="18" rx="2" />
+  <path d="M3 9h18" />
+  <path d="M8 13h.01" />
+  <path d="M12 13h.01" />
+  <path d="M16 13h.01" />
+  <path d="M8 17h.01" />
+  <path d="M12 17h.01" />
+  <path d="M16 17h.01" /></svg><span>日程表</span></a>
+            <a href="#" class="nav-item" data-page="grades"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true" focusable="false"><path d="M5 21v-6" />
+  <path d="M12 21V3" />
+  <path d="M19 21V9" /></svg><span>成绩查询</span></a>
+            <a href="#" class="nav-item" data-page="evaluation"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true" focusable="false"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" /></svg><span>教学评估</span></a>
+            <a href="#" class="nav-item" data-page="lab"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true" focusable="false"><path d="M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2" />
+  <path d="M6.453 15h11.094" />
+  <path d="M8.5 2h7" /></svg><span>实验提交</span></a>
+            <a href="#" class="nav-item" data-page="service-status"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true" focusable="false"><path d="M12 12h.01" />
+  <path d="M16 6V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
+  <path d="M22 13a18.15 18.15 0 0 1-20 0" />
+  <rect width="20" height="14" x="2" y="6" rx="2" /></svg><span>找我做事</span></a>
+            <a href="#" class="nav-item" data-page="shortcut-api"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true" focusable="false"><path d="m18 16 4-4-4-4" />
+  <path d="m6 8-4 4 4 4" />
+  <path d="m14.5 4-5 16" /></svg><span>快捷指令 API</span></a>
+            <a href="#" class="nav-item" data-page="feedback"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true" focusable="false"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z" /></svg><span>反馈建议</span></a>
             {% if member_page_enabled | default(true) %}
-            <a href="#" class="nav-item" data-page="member"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg><span>会员购买</span></a>
+            <a href="#" class="nav-item" data-page="member"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true" focusable="false"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z" />
+  <path d="M5 21h14" /></svg><span>会员购买</span></a>
             {% endif %}
         </nav>
         <div class="sidebar-footer">
@@ -46,7 +68,7 @@
 
     <div id="main-content" class="main-content">
         <header class="header">
-            <a class="desktop-only desktop-brand" href="#" onclick="event.preventDefault();openHomeShortcut('home')">URP教务助手</a>
+            <a class="desktop-only desktop-brand" href="#" onclick="event.preventDefault();openHomeShortcut('home')"><span class="brand-mark" aria-hidden="true">U</span><span>URP 教务助手</span></a>
             <div id="desktop-navigation" class="desktop-only"></div>
             <details id="desktop-nav-more" class="desktop-only desktop-menu"><summary>更多</summary><div class="desktop-menu-items"><button id="desktop-miniapp-trigger" class="miniapp-menu-trigger btn-secondary" type="button" onclick="openMiniAppDialog()" aria-haspopup="dialog" aria-controls="miniapp-dialog" disabled>微信小程序</button></div></details>
             <button class="desktop-only desktop-account btn-secondary" type="button" onclick="showRebindDialog()">账号</button>
@@ -74,32 +96,43 @@
                 <button id="header-ad-restore" class="header-ad-restore" type="button" data-ad-action="restore" hidden>广告已隐藏 · 恢复展示</button>
             </div>
             {% endif %}
-            <button id="announcement-trigger" class="announcement-trigger" type="button" onclick="openAnnouncementDialog()" aria-label="系统公告" aria-haspopup="dialog" aria-controls="announcement-dialog" title="系统公告"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a3 3 0 0 1 0 6"/><path d="M10 8v11a1 1 0 0 1 -1 1h-1a1 1 0 0 1 -1 -1v-5"/><path d="M12 8h0l4.524 -3.77a.9 .9 0 0 1 1.476 .692v12.156a.9 .9 0 0 1 -1.476 .692l-4.524 -3.77h-8a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1h8"/></svg><span class="mobile-only announcement-label">系统公告</span><span id="mobile-announcement-count" class="mobile-only mobile-announcement-count" aria-hidden="true"></span><span class="announcement-unread-dot" aria-hidden="true"></span></button>
+            <button id="announcement-trigger" class="announcement-trigger" type="button" onclick="openAnnouncementDialog()" aria-label="系统公告" aria-haspopup="dialog" aria-controls="announcement-dialog" title="系统公告"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M11 6a13 13 0 0 0 8.4-2.8A1 1 0 0 1 21 4v12a1 1 0 0 1-1.6.8A13 13 0 0 0 11 14H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z" />
+  <path d="M6 14a12 12 0 0 0 2.4 7.2 2 2 0 0 0 3.2-2.4A8 8 0 0 1 10 14" />
+  <path d="M8 6v8" /></svg><span class="mobile-only announcement-label">系统公告</span><span id="mobile-announcement-count" class="mobile-only mobile-announcement-count" aria-hidden="true"></span><span class="announcement-unread-dot" aria-hidden="true"></span></button>
             <div id="login-status-indicator" class="login-status-indicator" role="status" aria-live="polite"><span class="status-dot status-checking"></span><span class="status-text">检查中</span></div>
         </header>
 
-        <div class="content-wrapper">
+        <main id="workspace-main" class="content-wrapper" tabindex="-1">
             <div id="page-more" class="page more-page" aria-labelledby="more-page-heading">
                 <div class="more-heading"><h2 id="more-page-heading">更多</h2><p>教务工具、消息与账号设置</p></div>
                 <section class="more-account" aria-label="当前账号与教务连接">
-                    <span class="more-account-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8" r="4"/><path d="M5 21v-2a7 7 0 0114 0v2"/></svg></span>
+                    <span class="more-account-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true" focusable="false"><circle cx="12" cy="8" r="5" />
+  <path d="M20 21a8 8 0 0 0-16 0" /></svg></span>
                     <div class="more-account-copy"><span>当前账号</span><p id="more-account-name"></p></div>
                     <div id="mobile-account-status" class="mobile-account-status"></div>
                 </section>
                 <section class="more-section" aria-labelledby="more-study-heading">
                     <h3 id="more-study-heading">教务功能</h3>
                     <nav class="more-feature-grid" aria-label="更多教务功能">
-                        <a href="#" class="nav-item more-feature" data-page="evaluation"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><span><strong>教学评估</strong><small>查看并完成课程评教</small></span><span class="more-arrow" aria-hidden="true">›</span></a>
-                        <a href="#" class="nav-item more-feature" data-page="lab"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M8 3h8M10 3v7l-6 9a2 2 0 002 2h12a2 2 0 002-2l-6-9V3M8 16h8"/></svg><span><strong>实验提交</strong><small>查询任务与管理报告</small></span><span class="more-arrow" aria-hidden="true">›</span></a>
+                        <a href="#" class="nav-item more-feature" data-page="evaluation"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true" focusable="false"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" /></svg><span><strong>教学评估</strong><small>查看并完成课程评教</small></span><span class="more-arrow" aria-hidden="true">›</span></a>
+                        <a href="#" class="nav-item more-feature" data-page="lab"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true" focusable="false"><path d="M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2" />
+  <path d="M6.453 15h11.094" />
+  <path d="M8.5 2h7" /></svg><span><strong>实验提交</strong><small>查询任务与管理报告</small></span><span class="more-arrow" aria-hidden="true">›</span></a>
                     </nav>
                 </section>
                 <section class="more-section" aria-labelledby="more-services-heading">
                     <h3 id="more-services-heading">工具与服务</h3>
                     <nav class="more-feature-grid" aria-label="工具与服务">
-                        <a href="#" class="nav-item more-feature" data-page="service-status"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2M3 12h18"/></svg><span><strong>找我做事</strong><small>需求咨询与进度查询</small></span><span class="more-arrow" aria-hidden="true">›</span></a>
-                        <a href="#" class="nav-item more-feature" data-page="shortcut-api"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"/></svg><span><strong>快捷指令 API</strong><small>连接你的自动化工具</small></span><span class="more-arrow" aria-hidden="true">›</span></a>
+                        <a href="#" class="nav-item more-feature" data-page="service-status"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true" focusable="false"><path d="M12 12h.01" />
+  <path d="M16 6V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
+  <path d="M22 13a18.15 18.15 0 0 1-20 0" />
+  <rect width="20" height="14" x="2" y="6" rx="2" /></svg><span><strong>找我做事</strong><small>需求咨询与进度查询</small></span><span class="more-arrow" aria-hidden="true">›</span></a>
+                        <a href="#" class="nav-item more-feature" data-page="shortcut-api"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true" focusable="false"><path d="m18 16 4-4-4-4" />
+  <path d="m6 8-4 4 4 4" />
+  <path d="m14.5 4-5 16" /></svg><span><strong>快捷指令 API</strong><small>连接你的自动化工具</small></span><span class="more-arrow" aria-hidden="true">›</span></a>
                         {% if member_page_enabled | default(true) %}
-                        <a href="#" class="nav-item more-feature more-feature-wide" data-page="member"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 7l4 4 5-7 5 7 4-4-2 12H5L3 7z"/></svg><span><strong>会员购买</strong><small>查看会员权益与有效期</small></span><span class="more-arrow" aria-hidden="true">›</span></a>
+                        <a href="#" class="nav-item more-feature more-feature-wide" data-page="member"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true" focusable="false"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z" />
+  <path d="M5 21h14" /></svg><span><strong>会员购买</strong><small>查看会员权益与有效期</small></span><span class="more-arrow" aria-hidden="true">›</span></a>
                         {% endif %}
                     </nav>
                 </section>
@@ -107,46 +140,84 @@
                     <h3 id="more-messages-heading">消息与反馈</h3>
                     <nav class="more-list" aria-label="消息与反馈">
                         <div id="mobile-announcement-slot" class="mobile-announcement-slot"></div>
-                        <a href="#" class="nav-item more-row" data-page="feedback"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg><span>反馈建议</span><span class="more-row-detail">问题与建议</span><span class="more-arrow" aria-hidden="true">›</span></a>
+                        <a href="#" class="nav-item more-row" data-page="feedback"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true" focusable="false"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z" /></svg><span>反馈建议</span><span class="more-row-detail">问题与建议</span><span class="more-arrow" aria-hidden="true">›</span></a>
                     </nav>
                 </section>
                 <section class="more-section" aria-labelledby="more-settings-heading">
                     <h3 id="more-settings-heading">账号与设置</h3>
                     <div class="more-list">
-                        <button id="more-miniapp-trigger" class="more-row" type="button" onclick="openMiniAppDialog()" aria-haspopup="dialog" aria-controls="miniapp-dialog" disabled><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h4M14 21h3M21 14v3M21 21h-1"/></svg><span>微信小程序</span><span class="more-row-detail">查看小程序码</span><span class="more-arrow" aria-hidden="true">›</span></button>
-                        <button id="more-appearance-trigger" class="more-row appearance-trigger" type="button" aria-haspopup="dialog" aria-controls="appearance-dialog"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3a9 9 0 100 18h1a2 2 0 001-3.7 1.5 1.5 0 01.8-2.8H17a4 4 0 004-4A7.5 7.5 0 0012 3z"/><circle cx="7" cy="10" r=".7"/><circle cx="11" cy="7" r=".7"/><circle cx="16" cy="8" r=".7"/></svg><span>外观</span><span class="more-row-detail">主题与明暗模式</span><span class="more-arrow" aria-hidden="true">›</span></button>
-                        <button class="more-row" type="button" onclick="showRebindDialog()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 7h14l-3-3M17 17H3l3 3M21 7l-3 3M3 17l3-3"/></svg><span>换绑账号</span><span class="more-row-detail">管理教务账号</span><span class="more-arrow" aria-hidden="true">›</span></button>
+                        <button id="more-miniapp-trigger" class="more-row" type="button" onclick="openMiniAppDialog()" aria-haspopup="dialog" aria-controls="miniapp-dialog" disabled><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true" focusable="false"><rect width="5" height="5" x="3" y="3" rx="1" />
+  <rect width="5" height="5" x="16" y="3" rx="1" />
+  <rect width="5" height="5" x="3" y="16" rx="1" />
+  <path d="M21 16h-3a2 2 0 0 0-2 2v3" />
+  <path d="M21 21v.01" />
+  <path d="M12 7v3a2 2 0 0 1-2 2H7" />
+  <path d="M3 12h.01" />
+  <path d="M12 3h.01" />
+  <path d="M12 16v.01" />
+  <path d="M16 12h1" />
+  <path d="M21 12v.01" />
+  <path d="M12 21v-1" /></svg><span>微信小程序</span><span class="more-row-detail">查看小程序码</span><span class="more-arrow" aria-hidden="true">›</span></button>
+                        <button id="more-appearance-trigger" class="more-row appearance-trigger" type="button" aria-haspopup="dialog" aria-controls="appearance-dialog"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true" focusable="false"><path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z" />
+  <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" />
+  <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" />
+  <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" />
+  <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" /></svg><span>外观</span><span class="more-row-detail">主题与明暗模式</span><span class="more-arrow" aria-hidden="true">›</span></button>
+                        <button class="more-row" type="button" onclick="showRebindDialog()"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true" focusable="false"><path d="M8 3 4 7l4 4" />
+  <path d="M4 7h16" />
+  <path d="m16 21 4-4-4-4" />
+  <path d="M20 17H4" /></svg><span>换绑账号</span><span class="more-row-detail">管理教务账号</span><span class="more-arrow" aria-hidden="true">›</span></button>
                     </div>
                 </section>
             </div>
             <div id="page-home" class="page active">
                 <svg class="home-icon-definitions" aria-hidden="true" focusable="false"><defs>
-                    <symbol id="home-icon-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="9" y1="4" x2="9" y2="2"/><line x1="15" y1="4" x2="15" y2="2"/></symbol>
-                    <symbol id="home-icon-grades" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></symbol>
-                    <symbol id="home-icon-evaluation" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></symbol>
-                    <symbol id="home-icon-lab" viewBox="0 0 24 24"><path d="M8 3h8M10 3v7l-6 9a2 2 0 002 2h12a2 2 0 002-2l-6-9V3M8 16h8"/></symbol>
-                    <symbol id="home-icon-exam" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M9 15l2 2 4-5"/></symbol>
-                    <symbol id="home-icon-warning" viewBox="0 0 24 24"><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/><path d="M12 9v4M12 17h.01"/></symbol>
+                    <symbol id="home-icon-calendar" viewBox="0 0 24 24"><path d="M8 2v3" />
+  <path d="M16 2v3" />
+  <rect x="3" y="3" width="18" height="18" rx="2" />
+  <path d="M3 9h18" />
+  <path d="M8 13h.01" />
+  <path d="M12 13h.01" />
+  <path d="M16 13h.01" />
+  <path d="M8 17h.01" />
+  <path d="M12 17h.01" />
+  <path d="M16 17h.01" /></symbol>
+                    <symbol id="home-icon-grades" viewBox="0 0 24 24"><path d="M5 21v-6" />
+  <path d="M12 21V3" />
+  <path d="M19 21V9" /></symbol>
+                    <symbol id="home-icon-evaluation" viewBox="0 0 24 24"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" /></symbol>
+                    <symbol id="home-icon-lab" viewBox="0 0 24 24"><path d="M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2" />
+  <path d="M6.453 15h11.094" />
+  <path d="M8.5 2h7" /></symbol>
+                    <symbol id="home-icon-exam" viewBox="0 0 24 24"><path d="M10.5 22H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.706.706l3.588 3.588A2.4 2.4 0 0 1 20 8v6" />
+  <path d="M14 2v5a1 1 0 0 0 1 1h5" />
+  <path d="m14 20 2 2 4-4" /></symbol>
+                    <symbol id="home-icon-warning" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
+  <path d="M12 9v4" />
+  <path d="M12 17h.01" /></symbol>
                 </defs></svg>
-                <div class="home-heading"><div><span class="home-heading-kicker">教务助手</span><h2 id="home-page-heading">你好，欢迎使用</h2><p class="home-heading-description">上课时间、考试安排和常用查询，都在这里。</p></div><time id="home-today-date"></time></div>
+                <div class="home-heading"><div><span class="home-heading-kicker">教务助手</span><h2 id="home-page-heading">你好，今天也从容有序</h2><p class="home-heading-description">查看今天的安排，开始新一天的学习。</p></div><time id="home-today-date"></time></div>
                 <aside id="miniapp-notice" class="miniapp-notice" aria-labelledby="miniapp-notice-title" hidden>
                     <div class="miniapp-notice-copy"><strong id="miniapp-notice-title">微信里也能打开教务助手</strong><p>小程序入口也能在「更多」中找到。</p></div>
                     <button id="miniapp-notice-open" class="btn-secondary" type="button" onclick="openMiniAppDialog()" aria-haspopup="dialog" aria-controls="miniapp-dialog">查看小程序码</button>
                     <button id="miniapp-notice-dismiss" class="miniapp-notice-dismiss" type="button" onclick="dismissMiniAppNotice()" aria-label="关闭小程序提示，不再提醒">关闭</button>
                 </aside>
                 <section class="urgent-card" aria-labelledby="home-next-title">
-                    <div class="urgent-header"><h2 id="home-next-title">接下来</h2><button class="refresh-btn" type="button" onclick="refreshUrgentEvent()" aria-label="刷新课程和考试安排"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg><span>刷新</span></button></div>
+                    <div class="urgent-header"><h2 id="home-next-title">接下来</h2><button class="refresh-btn" type="button" onclick="refreshUrgentEvent()" aria-label="刷新课程和考试安排"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+  <path d="M21 3v5h-5" />
+  <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+  <path d="M8 16H3v5" /></svg><span>刷新</span></button></div>
                     <div id="urgent-content" class="urgent-content"><div class="loading">正在读取课程和考试安排…</div></div>
                 </section>
                 <section class="home-welcome" aria-labelledby="home-welcome-title">
                     <div class="home-welcome-copy"><h2 id="home-welcome-title">常用功能</h2></div>
                     <div class="home-shortcuts" aria-label="常用教务功能">
-                        <button type="button" onclick="openHomeShortcut('schedule')"><span class="home-shortcut-icon"><svg class="home-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#home-icon-calendar"/></svg></span><span class="home-shortcut-copy"><strong>看课表</strong><span>本周课程与教室</span></span></button>
-                        <button type="button" onclick="openHomeShortcut('exams')"><span class="home-shortcut-icon"><svg class="home-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#home-icon-exam"/></svg></span><span class="home-shortcut-copy"><strong>查考试</strong><span>时间、考场与座位</span></span></button>
-                        <button type="button" onclick="openHomeShortcut('grades')"><span class="home-shortcut-icon"><svg class="home-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#home-icon-grades"/></svg></span><span class="home-shortcut-copy"><strong>查成绩</strong><span>成绩、学分与绩点</span></span></button>
-                        <button type="button" onclick="openHomeShortcut('evaluation')"><span class="home-shortcut-icon"><svg class="home-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#home-icon-evaluation"/></svg></span><span class="home-shortcut-copy"><strong>去评教</strong><span>查看并完成教学评估</span></span></button>
+                        <button type="button" onclick="openHomeShortcut('schedule')"><span class="home-shortcut-icon"><svg class="home-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#home-icon-calendar"/></svg></span><span class="home-shortcut-copy"><strong>看课表</strong><span>本周课程与教室</span></span></button>
+                        <button type="button" onclick="openHomeShortcut('exams')"><span class="home-shortcut-icon"><svg class="home-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#home-icon-exam"/></svg></span><span class="home-shortcut-copy"><strong>查考试</strong><span>时间、考场与座位</span></span></button>
+                        <button type="button" onclick="openHomeShortcut('grades')"><span class="home-shortcut-icon"><svg class="home-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#home-icon-grades"/></svg></span><span class="home-shortcut-copy"><strong>查成绩</strong><span>成绩、学分与绩点</span></span></button>
+                        <button type="button" onclick="openHomeShortcut('evaluation')"><span class="home-shortcut-icon"><svg class="home-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#home-icon-evaluation"/></svg></span><span class="home-shortcut-copy"><strong>去评教</strong><span>查看并完成教学评估</span></span></button>
                     </div>
-                    <div class="home-secondary-shortcuts"><button type="button" onclick="openHomeShortcut('lab')"><span class="home-shortcut-icon"><svg class="home-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#home-icon-lab"/></svg></span><span class="home-shortcut-copy"><strong>实验助手</strong><span>实验任务查询与报告管理</span></span><span class="home-shortcut-arrow" aria-hidden="true">→</span></button></div>
+                    <div class="home-secondary-shortcuts"><button type="button" onclick="openHomeShortcut('lab')"><span class="home-shortcut-icon"><svg class="home-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#home-icon-lab"/></svg></span><span class="home-shortcut-copy"><strong>实验助手</strong><span>实验任务查询与报告管理</span></span><span class="home-shortcut-arrow" aria-hidden="true">→</span></button></div>
                 </section>
                 <section class="home-agenda" aria-labelledby="home-agenda-title">
                     <div class="home-agenda-heading"><h2 id="home-agenda-title">今日安排</h2><button class="home-agenda-link" type="button" onclick="openHomeShortcut('schedule')">完整课表 <span aria-hidden="true">→</span></button></div>
@@ -292,22 +363,29 @@
                     <h2 class="service-section-title">明确肯定可以做的</h2>
                     <div class="service-offer-grid">
                         <article class="service-offer-card">
-                            <span class="service-offer-icon" aria-hidden="true">Py</span>
+                            <span class="service-offer-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m18 16 4-4-4-4" />
+  <path d="m6 8-4 4 4 4" />
+  <path d="m14.5 4-5 16" /></svg></span>
                             <h3>Python/C++/java等课程</h3>
                             <p>支持定制项目名称、代码，直接给到可以提交的pdf文件</p>
                         </article>
                         <article class="service-offer-card">
-                            <span class="service-offer-icon" aria-hidden="true">Lx</span>
+                            <span class="service-offer-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 19h8" />
+  <path d="m4 17 6-6-6-6" /></svg></span>
                             <h3>Linux 实验</h3>
                             <p>定制系统名字等等，全包交付</p>
                         </article>
                         <article class="service-offer-card">
-                            <span class="service-offer-icon" aria-hidden="true">X</span>
+                            <span class="service-offer-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+  <line x1="3" x2="21" y1="9" y2="9" />
+  <line x1="3" x2="21" y1="15" y2="15" />
+  <line x1="9" x2="9" y1="9" y2="21" />
+  <line x1="15" x2="15" y1="9" y2="21" /></svg></span>
                             <h3>Excel/word 相关软件操作</h3>
                             <p>计算机基础/数据分析等课程的任务可以上机完成</p>
                         </article>
                             <article class="service-offer-card">
-                            <span class="service-offer-icon" aria-hidden="true">☁</span>
+                            <span class="service-offer-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" /></svg></span>
                             <h3>各类网课代刷</h3>
                             <p>智慧树/学习通等网课代刷</p>
                         </article>
@@ -349,6 +427,7 @@
                             </div>
                             <span class="feedback-soft-badge">可公开讨论</span>
                         </div>
+                        <label class="field-label" for="new-feedback-content">反馈内容</label>
                         <textarea id="new-feedback-content" rows="5" placeholder="例如：课表刷新失败、成绩显示异常，或你希望新增的功能..."></textarea>
                         <div class="feedback-visibility-row" role="radiogroup" aria-label="反馈可见范围">
                             <label class="feedback-choice"><input type="radio" name="feedback-visibility" value="public" checked><span><strong>公开</strong><small>其他同学可查看并参与回复</small></span></label>
@@ -484,24 +563,38 @@
                 </div>
             </div>
             {% endif %}
-        </div>
+        </main>
         <footer class="site-footer">
             <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">苏ICP备2025179640号</a>
         </footer>
     </div>
 
     <nav id="mobile-bottom-nav" class="mobile-bottom-nav" aria-label="主导航">
-        <a href="#" class="nav-item mobile-nav-item active" aria-current="page" data-page="home"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg><span>首页</span></a>
-        <a href="#" class="nav-item mobile-nav-item" data-page="schedule"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="9" y1="4" x2="9" y2="2"/><line x1="15" y1="4" x2="15" y2="2"/></svg><span>日程表</span></a>
-        <a href="#" class="nav-item mobile-nav-item" data-page="grades" aria-label="成绩查询"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span>成绩</span></a>
-        <a id="mobile-nav-more" href="#" class="nav-item mobile-nav-item mobile-nav-more" data-page="more" aria-label="更多功能与账号"><span class="mobile-more-icon" aria-hidden="true">···</span><span class="mobile-more-unread-dot" aria-hidden="true"></span><span>更多</span></a>
+        <a href="#" class="nav-item mobile-nav-item active" aria-current="page" data-page="home"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true" focusable="false"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" />
+  <path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg><span>首页</span></a>
+        <a href="#" class="nav-item mobile-nav-item" data-page="schedule"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true" focusable="false"><path d="M8 2v3" />
+  <path d="M16 2v3" />
+  <rect x="3" y="3" width="18" height="18" rx="2" />
+  <path d="M3 9h18" />
+  <path d="M8 13h.01" />
+  <path d="M12 13h.01" />
+  <path d="M16 13h.01" />
+  <path d="M8 17h.01" />
+  <path d="M12 17h.01" />
+  <path d="M16 17h.01" /></svg><span>日程表</span></a>
+        <a href="#" class="nav-item mobile-nav-item" data-page="grades" aria-label="成绩查询"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true" focusable="false"><path d="M5 21v-6" />
+  <path d="M12 21V3" />
+  <path d="M19 21V9" /></svg><span>成绩</span></a>
+        <a id="mobile-nav-more" href="#" class="nav-item mobile-nav-item mobile-nav-more" data-page="more" aria-label="更多功能与账号"><svg class="nav-icon mobile-more-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="1" />
+  <circle cx="19" cy="12" r="1" />
+  <circle cx="5" cy="12" r="1" /></svg><span class="mobile-more-unread-dot" aria-hidden="true"></span><span>更多</span></a>
     </nav>
 
     <div id="login-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="login-modal-title" data-dismissible="false">
         <div class="modal-content login-card">
             <button class="modal-close login-close" type="button" onclick="skipBind()" aria-label="暂不登录，以访客身份浏览">访客浏览</button>
             <div class="login-intro">
-                <span class="login-brand">URP 教务助手</span>
+                <span class="login-brand"><span class="brand-mark" aria-hidden="true">U</span>URP 教务助手</span>
                 <div class="login-intro-copy">
                     <h2 id="login-modal-title">登录教务账号</h2>
                     <p class="modal-desc">查询课表、成绩和考试安排</p>
