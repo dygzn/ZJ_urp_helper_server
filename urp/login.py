@@ -343,7 +343,7 @@ def _looks_like_vpn_error_page(resp):
 def _looks_like_urp_login_page(resp):
     text = _response_text(resp)
     return bool(
-        re.search(r'name\s*=\s*["\']loginForm["\']', text, re.I)
+        re.search(r'(?:name|id)\s*=\s*["\']loginForm["\']', text, re.I)
         and re.search(r'loginAction\.do', text, re.I)
     )
 
@@ -751,23 +751,44 @@ class URP_login:
 
         try:
             response = self.x.get(self._url('menu/top.jsp'), timeout=_request_timeout(5), verify=False)
+            # VPN 的短期健康缓存可能刚好过期，真实响应已失效时必须强制恢复。
+            if self._requires_vpn_auth() and is_vpn_failure_response(response):
+                fresh = recover_vpn_session(self.x, self._url(), force=True)
+                self.x.cookies.update(fresh)
+                response = self.x.get(self._url('menu/top.jsp'), timeout=_request_timeout(5), verify=False)
+
+            result = self._classify_login_probe(response)
+            if result is None:
+                # top.jsp 在会话过期时可能抛出 JSP 错误或只返回提示页。
+                # 通过首页确认登录表单，不能把这种状态永久归为网络不可用。
+                response = self.x.get(self._url(), timeout=_request_timeout(5), verify=False)
+                result = self._classify_login_probe(response)
         except Exception:
             self.login_check_uncertain = True
             return False
 
-        status_code = getattr(response, 'status_code', 200)
-        if isinstance(status_code, int) and status_code >= 400:
+        if result is None:
             self.login_check_uncertain = True
             return False
-        if is_vpn_failure_response(response):
-            self.login_check_uncertain = True
-            return False
-        if _looks_like_urp_login_page(response):
-            return False
-        if self.account not in response.text:
-            # 只有已识别的教务页面能证明当前是另一账号；代理页等属未知。
-            self.login_check_uncertain = not _looks_like_urp_home_page(response)
+        if not result:
             return False
         if source == 'legacy':
             self._save_cookies()
         return True
+
+    def _classify_login_probe(self, response):
+        """True 已登录，False 明确失效，None 需要进一步确认。"""
+        if is_vpn_failure_response(response):
+            return None
+        status_code = getattr(response, 'status_code', 200)
+        if status_code == 401:
+            return False
+        if isinstance(status_code, int) and status_code >= 400:
+            return None
+        if _looks_like_urp_login_page(response):
+            return False
+        if self.account in response.text:
+            return True
+        if _looks_like_urp_home_page(response):
+            return False
+        return None
