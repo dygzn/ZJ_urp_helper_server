@@ -151,7 +151,7 @@ def refresh_events(account):
 
 
 @wechat_bp.get('/api/wechat/exams')
-@require_wechat_account(login=True)
+@require_wechat_account()
 def exams(account):
     return jsonify(success=True, exams=urp.get_exams(account['username']))
 

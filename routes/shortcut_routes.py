@@ -12,7 +12,7 @@ from services.shortcut_service import (
     query_shortcut_data,
     resolve_api_key,
 )
-from services.urp_service import check_login_status, start_auto_update
+from services.urp_service import check_login_status
 from services.user_service import get_user_by_username
 
 
@@ -93,19 +93,17 @@ def shortcut_query():
     user = get_user_by_username(username)
     if not user:
         return _shortcut_error(action, 'login_required', '未找到该学号的绑定信息')
-    is_logged_in, details = check_login_status(username, user['password'], {})
-    if not is_logged_in and isinstance(details, dict) and details.get('retryable'):
-        return _shortcut_error(action, 'urp_unavailable', details['message'])
-    if not is_logged_in:
-        return _shortcut_error(
-            action,
-            'login_required',
-            '教务登录已失效，请先在网站重新绑定',
-        )
-
+    if action != 'urgent_event':
+        is_logged_in, details = check_login_status(username, user['password'], {})
+        if not is_logged_in and isinstance(details, dict) and details.get('retryable'):
+            return _shortcut_error(action, 'urp_unavailable', details['message'])
+        if not is_logged_in:
+            return _shortcut_error(
+                action,
+                'login_required',
+                '教务登录已失效，请先在网站重新绑定',
+            )
     try:
-        if action == 'urgent_event':
-            start_auto_update(username, user['password'])
         data = query_shortcut_data(username, action, params)
     except ValueError as exc:
         error_code = str(exc)

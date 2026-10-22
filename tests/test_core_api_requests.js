@@ -418,3 +418,24 @@ test('successful login checks reuse short cache and account change invalidates i
     await context.checkLoginStatus();
     assert.equal(calls, 2);
 });
+
+
+test('live login checks work without a visible connection status widget', async () => {
+    const { context } = page();
+    context.document.querySelector = () => null;
+    context.fetch = async () => response({success:true,logged_in:true});
+    const result = await context.checkLoginStatus();
+    assert.equal(result.logged_in,true);
+});
+
+test('grade queries show loading while authentication runs internally', async () => {
+    const {context,nodes}=page();
+    const login=deferred();
+    context.checkLoginStatus=()=>login.promise;
+    context.fetch=async()=>response({success:true,grades:[]});
+    context.document.getElementById('grades-content');
+    const pending=context.gradesShowCurrentSemester();
+    assert.match(nodes.get('grades-content').innerHTML,/加载中/);
+    login.resolve();
+    await pending;
+});

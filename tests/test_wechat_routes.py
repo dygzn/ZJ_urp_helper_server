@@ -146,7 +146,7 @@ class WechatRouteTests(unittest.TestCase):
 
     def test_expired_urp_login_returns_readable_409(self):
         with mock.patch('services.wechat_access.urp_service.check_login_status', return_value=(False, {})):
-            response = self.client.get('/api/wechat/exams', headers=self.account())
+            response = self.client.post('/api/wechat/update_exams', headers=self.account())
         self.assertEqual(response.status_code, 409)
         self.assertEqual(response.get_json()['code'], 'URP_LOGIN_REQUIRED')
         self.assertIn('解绑', response.get_json()['message'])

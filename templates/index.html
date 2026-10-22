@@ -99,17 +99,15 @@
             <button id="announcement-trigger" class="announcement-trigger" type="button" onclick="openAnnouncementDialog()" aria-label="系统公告" aria-haspopup="dialog" aria-controls="announcement-dialog" title="系统公告"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M11 6a13 13 0 0 0 8.4-2.8A1 1 0 0 1 21 4v12a1 1 0 0 1-1.6.8A13 13 0 0 0 11 14H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z" />
   <path d="M6 14a12 12 0 0 0 2.4 7.2 2 2 0 0 0 3.2-2.4A8 8 0 0 1 10 14" />
   <path d="M8 6v8" /></svg><span class="mobile-only announcement-label">系统公告</span><span id="mobile-announcement-count" class="mobile-only mobile-announcement-count" aria-hidden="true"></span><span class="announcement-unread-dot" aria-hidden="true"></span></button>
-            <div id="login-status-indicator" class="login-status-indicator" role="status" aria-live="polite"><span class="status-dot status-checking"></span><span class="status-text">检查中</span></div>
         </header>
 
         <main id="workspace-main" class="content-wrapper" tabindex="-1">
             <div id="page-more" class="page more-page" aria-labelledby="more-page-heading">
                 <div class="more-heading"><h2 id="more-page-heading">更多</h2><p>教务工具、消息与账号设置</p></div>
-                <section class="more-account" aria-label="当前账号与教务连接">
+                <section class="more-account" aria-label="当前账号">
                     <span class="more-account-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true" focusable="false"><circle cx="12" cy="8" r="5" />
   <path d="M20 21a8 8 0 0 0-16 0" /></svg></span>
                     <div class="more-account-copy"><span>当前账号</span><p id="more-account-name"></p></div>
-                    <div id="mobile-account-status" class="mobile-account-status"></div>
                 </section>
                 <section class="more-section" aria-labelledby="more-study-heading">
                     <h3 id="more-study-heading">教务功能</h3>
@@ -281,7 +279,7 @@
                         </div>
                         <div class="schedule-data-actions" role="group" aria-label="日程表操作">
                             <details id="schedule-more" class="desktop-only desktop-menu"><summary>更多</summary><div class="desktop-menu-items"></div></details>
-                            <button id="update-schedule-btn" data-schedule-action="update" class="btn-primary" type="button" onclick="updateScheduleData(event)">更新课程表</button>
+                            <button id="update-schedule-btn" data-schedule-action="update" class="btn-primary" type="button" onclick="updateScheduleData(event)">更新课表</button>
                             <button id="schedule-add-course" data-schedule-action="add" class="btn-secondary" type="button" onclick="addScheduleCourse()">新增课程</button>
                             <button id="schedule-exams-btn" data-schedule-action="exams" class="btn-secondary" type="button" onclick="openScheduleExams()">考试安排</button>
                             <button class="btn-secondary" data-schedule-action="export" type="button" onclick="openCalendarExport('all')">导出课表/考试</button>

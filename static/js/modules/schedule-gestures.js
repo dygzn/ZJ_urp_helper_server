@@ -674,14 +674,12 @@ export function createMobileScheduleLayout() {
     const pull = document.getElementById('schedule-actions-pull');
     const gesture = document.getElementById('schedule-mobile-gesture');
     const actions = document.getElementById('schedule-mobile-actions');
-    const update = document.getElementById('update-schedule-btn');
     if (!container || !toolbar || !week || !controls || !gesture || !actions) return () => {};
     return mobile => {
         if (mobile) {
             container.prepend(week);
             if (help) gesture.append(help);
             if (pull) gesture.append(pull);
-            if (update) actions.prepend(update);
         } else {
             toolbar.prepend(week);
             if (help) controls.append(help);

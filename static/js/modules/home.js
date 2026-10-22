@@ -1,7 +1,7 @@
 import { chinaDateTime } from './schedule-editor-model.js';
 import { pageResources } from './lifecycle.js';
 import { state } from './store.js';
-import { checkLoginStatus, getDeviceId } from './auth.js';
+import { getDeviceId } from './auth.js';
 import { updateScheduleTimeline } from './schedule.js';
 const resources = pageResources('home');
 
@@ -55,8 +55,6 @@ export function renderHomeAgenda(eventData) {
 export async function loadUrgentEvent() {
     const operation = resources.capture();
     const generation = state.academicCacheGeneration;
-    // 后台检查登录状态（不阻塞日程加载）
-    checkLoginStatus();
 
     const contentDiv = document.getElementById('urgent-content');
     const agenda = document.getElementById('home-agenda-content');

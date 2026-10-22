@@ -46,12 +46,12 @@ def offline_app(case):
 
 
 class BackgroundUrlTests(unittest.TestCase):
-    def test_urgent_event_passes_request_url_to_background_update(self):
+    def test_urgent_event_does_not_start_background_update(self):
         app = Flask(__name__)
         with app.test_request_context('/api/urgent_event'), patch.object(
             data_routes, 'get_current_urp_url', return_value=URL1,
         ), patch.object(
-            data_routes, 'start_auto_update', return_value=True,
+            data_routes, 'start_auto_update', return_value=True, create=True,
         ) as start_update, patch.object(
             data_routes, 'get_urgent_event',
             return_value={'current': None, 'next': None},
@@ -61,7 +61,7 @@ class BackgroundUrlTests(unittest.TestCase):
             )
 
         self.assertTrue(response.get_json()['success'])
-        start_update.assert_called_once_with('student', 'password', url=URL1)
+        start_update.assert_not_called()
 
     def test_auto_update_uses_explicit_normalized_url_for_all_live_work(self):
         connection = Mock()

@@ -208,30 +208,17 @@ export async function performLoginStatusCheck() {
     const operation = resources.capture();
     const request = apiClient.beginRequest('login-status');
     const generation = state.academicCacheGeneration;
-    const statusDot = document.querySelector('.status-dot');
-    const statusText = document.querySelector('.status-text');
-    statusDot.className = 'status-dot status-checking';
-    statusText.textContent = '检查中';
     try {
         const response = await operation.wait(apiClient.request('/api/check_login_status', { signal: request.signal, timeout: 60000 }));
         const data = await operation.wait(response.json());
         if (!request.isCurrent() || generation !== state.academicCacheGeneration) return;
         state.loginStatusResult = data.success && data.logged_in
             ? { generation, at: Date.now(), data } : null;
-        if (data.success && data.logged_in) {
-            statusDot.className = 'status-dot status-online';
-            statusText.textContent = '已登录';
-        } else {
-            statusDot.className = 'status-dot status-offline';
-            statusText.textContent = '未连接';
-        }
         return data;
     } catch (error) {
         if (error?.name === 'AbortError') return;
         if (!request.isCurrent() || generation !== state.academicCacheGeneration || error.name === 'AbortError') return;
         console.error('检查登录状态失败:', error);
-        statusDot.className = 'status-dot status-offline';
-        statusText.textContent = '连接失败';
     }
 }
 
@@ -502,10 +489,6 @@ document.addEventListener('visibilitychange', () => {
 });
 document.addEventListener('api:auth-expired', event => {
     state.loginStatusResult = null;
-    const statusDot = document.querySelector('.status-dot');
-    const statusText = document.querySelector('.status-text');
-    if (statusDot) statusDot.className = 'status-dot status-offline';
-    if (statusText) statusText.textContent = '未连接';
     if (state.temporaryReloginPromptShown) return;
     state.temporaryReloginPromptShown = true;
     document.getElementById('login-error').textContent = event.detail.message;

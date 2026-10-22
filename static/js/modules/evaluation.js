@@ -12,6 +12,7 @@ export function unmountEvaluation() { resources.dispose(); }
 export async function doFullEvaluation() {
     const operation = resources.capture();
     const scope = resources.capture();
+    document.getElementById('evaluation-result').innerHTML = '<div class="loading">加载中...</div>';
     await operation.wait(checkLoginStatus());
     if (!scope.isActive()) return;
     const resultDiv = document.getElementById('evaluation-result');
@@ -69,6 +70,7 @@ export async function doFullEvaluation() {
 export async function checkUnevaluatedCourses() {
     const operation = resources.capture();
     const scope = resources.capture();
+    document.getElementById('evaluation-result').innerHTML = '<div class="loading">加载中...</div>';
     await operation.wait(checkLoginStatus());
     if (!scope.isActive()) return;
     const resultDiv = document.getElementById('evaluation-result');
@@ -146,6 +148,7 @@ export async function doEvaluation() {
 export async function oneClickEvaluation() {
     const operation = resources.capture();
     const scope = resources.capture();
+    document.getElementById('evaluation-result').innerHTML = '<div class="loading">加载中...</div>';
     await operation.wait(checkLoginStatus());
     if (!scope.isActive()) return;
     const confirmed = await operation.wait(requestUiConfirmation({

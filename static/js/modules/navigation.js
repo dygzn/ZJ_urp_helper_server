@@ -18,21 +18,17 @@ export function getSidebarTrigger() {
 
 export function initMobileWorkspaceLayout() {
     const query = window.matchMedia?.('(max-width: 768px)');
-    const status = document.getElementById('login-status-indicator');
-    const account = document.getElementById('mobile-account-status');
     const announcement = document.getElementById('announcement-trigger');
     const announcementSlot = document.getElementById('mobile-announcement-slot');
     const moreUsername = document.getElementById('more-account-name');
-    const header = status?.parentElement;
-    if (!query || !status || !account || !header) return;
+    const header = announcement?.parentElement;
+    if (!query || !header) return;
     const sync = () => {
         closeSidebar({ restoreFocus: false });
         if (query.matches) {
-            account.append(status);
             if (announcement && announcementSlot) announcementSlot.append(announcement);
         } else {
             if (announcement) header.append(announcement);
-            header.append(status);
         }
     };
     query.addEventListener?.('change', sync);
@@ -82,8 +78,7 @@ export function createDesktopWorkspaceLayout(scope = resources) {
         if (desktop) {
             host.append(nav);
             links.slice(5).forEach(link => navMore.querySelector('.desktop-menu-items').append(link));
-            buttons.slice(1).forEach(button => more.querySelector('.desktop-menu-items').append(button));
-            actions.insertBefore(buttons[0], more);
+            buttons.forEach(button => more.querySelector('.desktop-menu-items').append(button));
         } else {
             links.forEach(link => nav.append(link));
             sidebar.insertBefore(nav, sidebar.querySelector('.sidebar-footer'));

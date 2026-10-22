@@ -164,6 +164,7 @@ export async function gradesLoadDashboard() {
     const request = resources.api.beginRequest('grades');
     const generation = state.academicCacheGeneration;
     const isCurrent = () => request.isCurrent() && generation === state.academicCacheGeneration;
+    document.getElementById('grades-content').innerHTML = '<div class="loading">加载中...</div>';
     await operation.wait(checkLoginStatus());
     if (!isCurrent()) return;
     gradesShowResult('一键查本学期成绩');
@@ -327,6 +328,7 @@ export async function gradesShowCurrentSemester() {
     const request = resources.api.beginRequest('grades');
     const generation = state.academicCacheGeneration;
     const isCurrent = () => request.isCurrent() && generation === state.academicCacheGeneration;
+    document.getElementById('grades-content').innerHTML = '<div class="loading">加载中...</div>';
     await operation.wait(checkLoginStatus());
     if (!isCurrent()) return;
     gradesShowResult('本学期成绩');
@@ -354,6 +356,7 @@ export async function gradesShowSemesterPicker() {
     const request = resources.api.beginRequest('grades');
     const generation = state.academicCacheGeneration;
     const isCurrent = () => request.isCurrent() && generation === state.academicCacheGeneration;
+    document.getElementById('grades-content').innerHTML = '<div class="loading">加载中...</div>';
     await operation.wait(checkLoginStatus());
     if (!isCurrent()) return;
     const modal = document.getElementById('semester-picker-modal');
@@ -417,6 +420,7 @@ export async function gradesLoadFailed() {
     const request = resources.api.beginRequest('grades');
     const generation = state.academicCacheGeneration;
     const isCurrent = () => request.isCurrent() && generation === state.academicCacheGeneration;
+    document.getElementById('grades-content').innerHTML = '<div class="loading">加载中...</div>';
     await operation.wait(checkLoginStatus());
     if (!isCurrent()) return;
     gradesShowResult('不及格成绩');
@@ -489,6 +493,7 @@ export async function gradesLoadGpa() {
     const request = resources.api.beginRequest('grades');
     const generation = state.academicCacheGeneration;
     const isCurrent = () => request.isCurrent() && generation === state.academicCacheGeneration;
+    document.getElementById('grades-content').innerHTML = '<div class="loading">加载中...</div>';
     await operation.wait(checkLoginStatus());
     if (!isCurrent()) return;
     gradesShowResult('学分绩点');
@@ -534,6 +539,7 @@ export async function gradesShowExamPicker() {
     const request = resources.api.beginRequest('grades');
     const generation = state.academicCacheGeneration;
     const isCurrent = () => request.isCurrent() && generation === state.academicCacheGeneration;
+    document.getElementById('grades-content').innerHTML = '<div class="loading">加载中...</div>';
     await operation.wait(checkLoginStatus());
     if (!isCurrent()) return;
     const modal = document.getElementById('exam-picker-modal');

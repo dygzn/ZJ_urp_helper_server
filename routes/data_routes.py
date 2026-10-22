@@ -9,14 +9,13 @@ from database import get_db
 from services.config_service import get_config
 from services.urp_service import (
     get_urgent_event, get_schedule, get_exams, is_calendar_cache_stale,
-    get_unevaluated_courses, do_evaluation, start_auto_update,
+    get_unevaluated_courses, do_evaluation,
     get_semesters, get_grades_by_semester,
     get_failed_grades, get_gpa, get_current_semester_grades,
     get_latest_semester_grade_summary,
     get_exam_sessions, get_exam_scores, get_latest_makeup_grade_summary,
 )
 from services.config_service import get_current_urp_url
-from services.temporary_session_service import current_temporary_session
 
 data_bp = Blueprint('data', __name__)
 
@@ -25,9 +24,6 @@ data_bp = Blueprint('data', __name__)
 @require_binding
 def api_urgent_event(user):
     try:
-        if not current_temporary_session(user['username']):
-            start_auto_update(user['username'], user['password'], url=get_current_urp_url())
-
         event = get_urgent_event(user['username'])
         return jsonify({'success': True, 'event': event})
     except Exception as e:

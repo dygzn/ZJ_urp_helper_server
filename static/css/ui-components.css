@@ -3925,19 +3925,6 @@ background: var(--ui-surface-soft);
     cursor: wait;
 }
 
-:where(body.urp-app) :where(#schedule-mobile-actions) [id="update-schedule-btn"] {
-font-size: 0;
-}
-
-:where(body.urp-app) :where(#schedule-mobile-actions) [id="update-schedule-btn"]::before {
-content: '更新';
-    font-size: 14px;
-}
-
-:where(body.urp-app) :where(#schedule-mobile-actions) [id="update-schedule-btn"]:disabled::before {
-content: '更新中';
-}
-
 :where(body.urp-app) [id="schedule-mobile-more"] {
 font-size: 27px;
     font-weight: 750;
