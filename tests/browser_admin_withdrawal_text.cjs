@@ -39,7 +39,7 @@ const row = { id: 7, username: `offline-student`, real_name: `离线姓名 ${mar
                         return route.fulfill({ json: { success: true } });
                     }
                     const fixtures = {
-                        '/api/admin/monitor/online': { success: true, users: [], count: 0 },
+                        '/api/admin/activity/today': { success: true, data: { date: '2026-10-25', active_users: 0 } },
                         '/api/admin/users': { success: false, message: '当前为提现页面离线预览' },
                         '/api/admin/commission_stats': { success: true, data: { users: [], summary: {} } },
                     };

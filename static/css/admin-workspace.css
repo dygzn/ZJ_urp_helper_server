@@ -235,11 +235,11 @@ background: #a52d35;
 background: var(--ui-danger-hover);
 }
 
-:where(body.urp-admin) :is(.status-ok, .status-approved, .member-status-valid) {
+:where(body.urp-admin) :is(.status-approved, .member-status-valid) {
 color: #176b45;
 }
 
-:where(body.urp-admin) :is(.status-error, .status-rejected) {
+:where(body.urp-admin) :is(.status-rejected) {
 color: #a52d35;
 }
 
@@ -261,7 +261,7 @@ padding: 0;
 :where(body.urp-admin) :where(#users-list) > .loading,
 :where(body.urp-admin) :where(#users-list) > .empty-state,
 :where(body.urp-admin) :where(#ad-stats) > .loading,
-:where(body.urp-admin) :is(:where(#online-users-list), :where(#announcements-list), :where(#feedback-list), :where(#withdrawals-list), :where(#commission-stats)) > .loading {
+:where(body.urp-admin) :is(:where(#announcements-list), :where(#feedback-list), :where(#withdrawals-list), :where(#commission-stats)) > .loading {
 min-height: 148px;
     display: grid;
     place-items: center;
@@ -649,23 +649,23 @@ margin: 12px 0 18px;
 max-width: none;
 }
 
-:where(body.urp-admin) :is(.monitor-table-wrap, .member-table-wrap, .users-list, .online-users-list) {
+:where(body.urp-admin) :is(.member-table-wrap, .users-list) {
 border-color: var(--admin-line);
     border-radius: 13px;
     box-shadow: none;
 }
 
-:where(body.urp-admin) :is(.member-table-wrap, .monitor-table-wrap) {
+:where(body.urp-admin) :is(.member-table-wrap) {
 max-width: 100%;
     overflow-x: auto;
     background: var(--ui-surface);
 }
 
-:where(body.urp-admin) :is(.users-table, .member-table, .monitor-table) {
+:where(body.urp-admin) :is(.users-table, .member-table) {
 width: 100%;
 }
 
-:where(body.urp-admin) :is(.users-table, .member-table, .monitor-table) th {
+:where(body.urp-admin) :is(.users-table, .member-table) th {
 padding: 13px 15px;
     border-color: var(--admin-line);
     background: var(--admin-soft);
@@ -675,24 +675,26 @@ padding: 13px 15px;
     text-align: left;
 }
 
-:where(body.urp-admin) :is(.users-table, .member-table, .monitor-table) td {
+:where(body.urp-admin) :is(.users-table, .member-table) td {
 padding: 14px 15px;
     border-color: #e7edf3;
     color: var(--ui-ink);
 }
 
-:where(body.urp-admin) :is(.users-table, .member-table, .monitor-table) tbody tr:hover {
+:where(body.urp-admin) :is(.users-table, .member-table) tbody tr:hover {
 background: var(--ui-surface-soft);
 }
 
-:where(body.urp-admin) .monitor-summary {
+:where(body.urp-admin) .activity-summary {
 margin: 0 0 16px;
     border: 1px solid var(--admin-line);
     border-radius: 10px;
+    background: var(--ui-surface);
+    color: var(--ui-muted);
     box-shadow: none;
 }
 
-:where(body.urp-admin) .monitor-summary strong {
+:where(body.urp-admin) .activity-summary strong {
 color: var(--ui-accent);
 }
 
@@ -988,23 +990,23 @@ white-space: nowrap;
 visibility: hidden;
 }
 
-:where(body.urp-admin) :is(.member-table-wrap, .monitor-table-wrap) {
+:where(body.urp-admin) :is(.member-table-wrap) {
 overflow: visible;
     border: 0;
     background: transparent;
 }
 
-:where(body.urp-admin) :is(.member-table, .monitor-table) {
+:where(body.urp-admin) :is(.member-table) {
 display: block;
     width: 100%;
 }
 
-:where(body.urp-admin) :is(.member-table, .monitor-table) td {
+:where(body.urp-admin) :is(.member-table) td {
 padding: 12px 0 12px 100px;
     overflow-wrap: anywhere;
 }
 
-:where(body.urp-admin) :is(.member-table, .monitor-table) td::before {
+:where(body.urp-admin) :is(.member-table) td::before {
 top: 12px;
     width: 88px;
 }
@@ -1131,9 +1133,9 @@ padding: 22px 18px;
 :where(body.urp-admin) .login-desc { font-size: 13px; margin-bottom: 26px; }
 :where(body.urp-admin) .login-box input { font-size: 16px; }
 :where(body.urp-admin) .section-header .icon-btn { color: var(--ui-muted); }
-:where(body.urp-admin) :is(.ud-stat-card, .member-stats, .config-section, .monitor-summary) { border-radius: var(--ui-radius); box-shadow: none; }
-:where(body.urp-admin) :is(.users-table, .member-table, .monitor-table) th { font-size: 12px; font-weight: 550; background: var(--ui-surface-soft); }
-:where(body.urp-admin) :is(.users-table, .member-table, .monitor-table) td { font-size: 13px; font-variant-numeric: tabular-nums; }
+:where(body.urp-admin) :is(.ud-stat-card, .member-stats, .config-section, .activity-summary) { border-radius: var(--ui-radius); box-shadow: none; }
+:where(body.urp-admin) :is(.users-table, .member-table) th { font-size: 12px; font-weight: 550; background: var(--ui-surface-soft); }
+:where(body.urp-admin) :is(.users-table, .member-table) td { font-size: 13px; font-variant-numeric: tabular-nums; }
 @media (max-width: 768px) {
     :where(body.urp-admin) .tabs { gap: 5px; box-shadow: none; }
     :where(body.urp-admin) .tabs .tab-btn { justify-content: center; padding: 10px; gap: 6px; font-size: 13px; }

@@ -12,8 +12,7 @@ from flask import Flask, jsonify
 
 import database
 from routes.auth_routes import auth_bp
-from services.logging_service import init_logging
-from services.online_service import OnlineUserTracker
+from services.activity_service import DailyActivityTracker, init_activity_tracking
 from services.temporary_session_service import (
     current_temporary_session, delete_temporary_session, get_temporary_session,
     save_temporary_session,
@@ -48,8 +47,8 @@ class RequestIdentityPerformanceTests(unittest.TestCase):
         self.addCleanup(tracing.stop)
         self.app = Flask(__name__)
         self.app.register_blueprint(auth_bp)
-        self.tracker = OnlineUserTracker()
-        init_logging(self.app, tracker=self.tracker)
+        self.tracker = DailyActivityTracker()
+        init_activity_tracking(self.app, tracker=self.tracker)
 
         @self.app.get('/api/protected-test')
         def protected():
@@ -64,10 +63,10 @@ class RequestIdentityPerformanceTests(unittest.TestCase):
     def temporary_login(self, device='device', username='temporary-student'):
         return save_temporary_session(device, username, {'JSESSIONID': 'test'}, url='http://urp.example/')
 
-    def test_route_and_online_tracking_resolve_identity_once(self):
+    def test_route_and_activity_tracking_resolve_identity_once(self):
         result = self.app.test_client().get('/api/protected-test', headers={'X-Device-ID': 'device'})
         self.assertEqual(result.get_json(), {'username': 'student', 'same': True})
-        self.assertEqual(self.tracker.snapshot()['users'][0]['username'], 'student')
+        self.assertEqual(self.tracker.snapshot()['active_users'], 1)
         self.assertEqual(len(self.identity_selects()), 2)
 
     def test_unknown_device_is_cached_only_within_its_request(self):
@@ -94,10 +93,11 @@ class RequestIdentityPerformanceTests(unittest.TestCase):
             bind_user('device', 'student', 'new-secret')
             self.assertEqual(__import__('services.credential_service', fromlist=['CredentialCipher']).CredentialCipher().decrypt(get_user_by_device('second-device')['password']), 'new-secret')
 
-    def test_route_unbind_does_not_leave_old_account_in_online_tracker(self):
+    def test_route_unbind_does_not_trigger_an_extra_identity_lookup(self):
         response = self.app.test_client().post('/api/request_rebind', headers={'X-Device-ID': 'device'})
         self.assertTrue(response.get_json()['success'])
-        self.assertEqual(self.tracker.snapshot()['users'][0]['username'], '未绑定')
+        self.assertEqual(self.tracker.snapshot()['active_users'], 0)
+        self.assertEqual(len(self.identity_selects()), 2)
 
     def test_temporary_changes_invalidate_identity_and_restore_matching_context(self):
         with self.app.test_request_context('/'):

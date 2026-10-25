@@ -49,7 +49,7 @@ class HtmlMergeContractTests(unittest.TestCase):
             '/api/login', '/api/request_rebind', '/api/schedule/other_majors',
             '/api/schedule/other_major', '/api/grades/by_semester',
             '/api/member/pay_notify', '/api/member/api-key', '/api/shortcut/query',
-            '/api/admin/monitor/online', '/api/admin/announcements',
+            '/api/admin/activity/today', '/api/admin/announcements',
             '/api/admin/feedback', '/api/admin/members', '/api/admin/config',
             '/api/wechat/account', '/api/wechat/bind', '/api/wechat/binding',
         }

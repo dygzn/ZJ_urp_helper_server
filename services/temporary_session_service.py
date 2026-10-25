@@ -34,10 +34,8 @@ def _remove_session_directory(session_id):
 
 def _forget_runtime_state(device_id, username):
     try:
-        from services.online_service import online_tracker
         from services.lab_service import forget_temporary_lab_session
 
-        online_tracker.forget(device_id)
         forget_temporary_lab_session(username, device_id)
     except Exception:
         _logger.exception('清理临时登录的进程内状态失败')

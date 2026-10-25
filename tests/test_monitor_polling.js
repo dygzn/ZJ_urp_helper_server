@@ -2,36 +2,53 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
+
 function setup() {
   const source = fs.readFileSync('static/js/admin.js', 'utf8');
-  const timers = new Map(), events = {}; let next = 0, calls = 0, release;
-  const document = {visibilityState:'visible', addEventListener:(n,f)=>events[n]=f,
-    getElementById:()=>({textContent:'',innerHTML:''})};
-  const ctx = vm.createContext({document, AbortController, console, adminKey:'test',
-    setTimeout:(f,ms)=>{timers.set(++next,{f,ms});return next}, clearTimeout:id=>timers.delete(id),
-    setInterval:(f,ms)=>{timers.set(++next,{f,ms});return next},clearInterval:id=>timers.delete(id),
-    fetch:()=>{calls++;return new Promise(r=>release=()=>r({ok:true,json:async()=>({success:true,data:{online_count:0,users:[]}})}))},escapeHtml:s=>s});
-  vm.runInContext(source.slice(source.indexOf('let monitorTimer ='),source.indexOf('// ==================== 会员管理')),ctx);
-  return {ctx,document,timers,events,get calls(){return calls},release:()=>release()};
+  const timers = new Map(), elements = new Map();
+  let next = 0, calls = 0, release;
+  const ctx = vm.createContext({
+    document: { getElementById(id) {
+      if (!elements.has(id)) elements.set(id, { textContent: '' });
+      return elements.get(id);
+    } },
+    AbortController, adminKey: 'test',
+    setTimeout(f, ms) { timers.set(++next, {f, ms}); return next; },
+    clearTimeout: id => timers.delete(id),
+    fetch(url, options) {
+      assert.equal(url, '/api/admin/activity/today');
+      assert.equal(options.headers['X-Admin-Key'], 'test');
+      calls++;
+      return new Promise(resolve => { release = payload => resolve({ok: true, json: async () => payload}); });
+    },
+  });
+  vm.runInContext(source.slice(source.indexOf('let activityPending ='), source.indexOf('// ==================== 会员管理')), ctx);
+  return { ctx, timers, elements, get calls() { return calls; }, release: payload => release(payload) };
 }
-test('monitor coalesces requests, pauses while hidden, and resumes',async()=>{
-  const s=setup(); const first=s.ctx.loadMonitorData(); const second=s.ctx.loadMonitorData();
-  assert.equal(s.calls,1); s.release();await Promise.all([first,second]);
-  s.ctx.startMonitorRefresh(); s.document.visibilityState='hidden';s.events.visibilitychange();
-  assert.equal(s.timers.size,0);
-  s.document.visibilityState='visible';s.events.visibilitychange();assert.equal(s.calls,2);
-  s.release();await new Promise(r=>setImmediate(r));s.ctx.stopMonitorRefresh();assert.equal(s.timers.size,0);
+
+test('activity refresh merges duplicate clicks and leaves no polling timer', async () => {
+  const s = setup();
+  const first = s.ctx.loadTodayActivity(), second = s.ctx.loadTodayActivity();
+  assert.equal(s.calls, 1);
+  assert.equal(s.elements.get('today-activity-status').textContent, '加载中...');
+  s.release({success: true, data: {date: '2026-10-25', active_users: 23}});
+  await Promise.all([first, second]);
+  assert.equal(s.elements.get('today-active-count').textContent, 23);
+  assert.match(s.elements.get('today-activity-status').textContent, /2026-10-25/);
+  assert.equal(s.timers.size, 0);
+  const refreshed = s.ctx.loadTodayActivity();
+  s.release({success: true, data: {date: '2026-10-26', active_users: 0}});
+  await refreshed;
+  assert.equal(s.calls, 2);
+  assert.equal(s.elements.get('today-active-count').textContent, 0);
+  assert.equal(s.timers.size, 0);
 });
 
-test('monitor failures back off and stopping cancels the scheduled retry', async () => {
+test('activity failure shows retry guidance and does not schedule retries', async () => {
   const s = setup();
-  s.ctx.console = {error(){}};
   s.ctx.fetch = async () => { throw new Error('offline'); };
-  s.ctx.startMonitorRefresh();
-  await s.ctx.loadMonitorData();
-  assert.deepEqual([...s.timers.values()].map(timer=>timer.ms), [60000]);
-  await s.ctx.loadMonitorData();
-  assert.deepEqual([...s.timers.values()].map(timer=>timer.ms), [120000]);
-  s.ctx.stopMonitorRefresh();
-  assert.equal(s.timers.size,0);
+  await s.ctx.loadTodayActivity();
+  assert.equal(s.elements.get('today-active-count').textContent, '-');
+  assert.match(s.elements.get('today-activity-status').textContent, /加载失败.*刷新/);
+  assert.equal(s.timers.size, 0);
 });

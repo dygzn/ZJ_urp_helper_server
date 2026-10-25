@@ -34,7 +34,9 @@ Thumbs.db
 /DESIGN.md
 /docs/
 /scripts/
-/tests/
+/tests/*
+!/tests/test_user_growth.js
+!/tests/test_user_growth.py
 
 # Legacy local-only files
 CLAUD.md

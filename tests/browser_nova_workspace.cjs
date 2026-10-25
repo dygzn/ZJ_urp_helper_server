@@ -33,7 +33,7 @@ const fixtures = {
  '/api/lab/status': {success:true,student_id:'nova-offline',password_bound:false},
  '/api/exams': {success:true,exams:[{course:'计算机网络',exam_name:'期末考试',week:'4',day:'3',time:'08:20-10:00',location:'教学楼 A201'}]},
  '/api/announcements': {success:true,announcements:[{id:1,title:'使用说明',content:'课程、成绩和考试信息请以教务系统为准。\n'.repeat(30),create_time:'2026-10-20T12:00:00',is_read:true}]},
- '/api/admin/monitor/online': {success:true,users:[],count:0},
+ '/api/admin/activity/today': {success:true,data:{date:'2026-10-25',active_users:0}},
  '/api/admin/users': {success:true,total:38,classes:[{class_id:'26150801',count:20},{class_id:'其他',count:18}],daily:[{date:'2026-10-21',count:3}]},
  '/api/admin/members': {success:true,data:[],members:[]},
  '/api/admin/withdrawals': {success:true,data:[]},

@@ -62,13 +62,14 @@ def _fingerprint(data, target):
 
 
 def historical_users(conn):
+    existing = _table_names(conn)
     sources = ['SELECT username, bind_time FROM users',
                'SELECT username, registered_at AS bind_time FROM user_account']
-    if 'user_account_archive' in _table_names(conn):
+    if 'user_account_archive' in existing:
         sources.append('SELECT username, bind_time FROM user_account_archive')
-    if 'user_accounts' in _table_names(conn):
+    if 'user_accounts' in existing:
         sources.append('SELECT username, registered_at AS bind_time FROM user_accounts')
-    return conn.execute('SELECT username, MIN(bind_time) AS first_bind_time FROM (' +
+    return conn.execute("SELECT username, MIN(NULLIF(TRIM(bind_time), '')) AS first_bind_time FROM (" +
                         ' UNION ALL '.join(sources) + ') AS history GROUP BY username').fetchall()
 
 

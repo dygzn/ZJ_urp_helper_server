@@ -17,6 +17,7 @@ from routes.data_routes import data_bp
 from services.temporary_session_service import cleanup_expired_sessions
 from services.user_service import get_user_by_device
 from services.urp_service import check_login_status
+from services.activity_service import DailyActivityTracker
 from urp.login import URP_login
 
 
@@ -75,6 +76,24 @@ class TemporaryLoginTests(unittest.TestCase):
                 'password': 'secret',
                 'bind_account': save,
             }).get_json()
+
+    def test_both_login_modes_count_activity_without_a_followup_request(self):
+        for save in (True, False):
+            with self.subTest(save=save):
+                tracker = DailyActivityTracker()
+                with patch('routes.auth_routes.daily_activity', tracker):
+                    self.assertTrue(self._login(save=save)['success'])
+                self.assertEqual(tracker.snapshot()['active_users'], 1)
+
+    def test_failed_login_does_not_count_activity(self):
+        tracker = DailyActivityTracker()
+        with patch('routes.auth_routes.daily_activity', tracker), \
+                patch('routes.auth_routes.urp_login', return_value=(False, '登录失败', {})):
+            result = self.client.post('/api/login', headers=self.headers, json={
+                'username': 'student', 'password': 'secret', 'bind_account': False,
+            }).get_json()
+        self.assertFalse(result['success'])
+        self.assertEqual(tracker.snapshot()['active_users'], 0)
 
     def test_unchecked_login_can_access_protected_route_and_uses_separate_cache(self):
         result = self._login()

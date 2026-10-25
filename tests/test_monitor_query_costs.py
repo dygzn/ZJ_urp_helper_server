@@ -1,5 +1,4 @@
 """Offline regression checks for monitoring and list-query costs."""
-import builtins
 import sqlite3
 import unittest
 from contextlib import contextmanager
@@ -8,7 +7,7 @@ from unittest.mock import patch
 
 from flask import Flask
 from routes import misc_routes
-from services import online_service, wechat_auth_service
+from services import wechat_auth_service
 
 
 class MonitorQueryCosts(unittest.TestCase):
@@ -100,20 +99,6 @@ class MonitorQueryCosts(unittest.TestCase):
         with patch.object(service, '_now', return_value=now + timedelta(seconds=302)):
             self.assertIsNone(service.resolve_session_token(token))
         self.assertIsNone(service.resolve_session_token(token))
-
-    def test_snapshot_sorts_and_formats_outside_lock_and_returns_detached_data(self):
-        tracker = online_service.OnlineUserTracker()
-        tracker.touch('one', now=10)
-        tracker.touch('two', now=20)
-        real_sorted = builtins.sorted
-        def checked_sorted(*args, **kwargs):
-            self.assertFalse(tracker._lock.locked(), 'sorting must not block request tracking')
-            return real_sorted(*args, **kwargs)
-        with patch.object(online_service, 'sorted', checked_sorted, create=True):
-            result = tracker.snapshot(now=30)
-        result['users'][0]['username'] = 'changed'
-        self.assertEqual(tracker.snapshot(now=30)['users'][0]['username'], '未绑定')
-        self.assertEqual([r['device_id'] for r in result['users']], ['two', 'one'])
 
 
 if __name__ == '__main__':

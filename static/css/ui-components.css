@@ -1817,14 +1817,14 @@ content: none;
 color: var(--ui-muted);
 }
 
-:where(body.urp-admin) :is(.config-section, .users-list, .member-table-wrap, .monitor-table-wrap, .request-card, .announcement-card, .commission-summary-card, .ud-card, .ud-section, .member-form-card, .ad-preview-box) {
+:where(body.urp-admin) :is(.config-section, .users-list, .member-table-wrap, .request-card, .announcement-card, .commission-summary-card, .ud-card, .ud-section, .member-form-card, .ad-preview-box) {
 border: 1px solid var(--ui-line);
     border-radius: var(--ui-radius);
     background: var(--ui-surface);
     box-shadow: none;
 }
 
-:where(body.urp-admin) :is(.users-table, .member-table, .monitor-table) th {
+:where(body.urp-admin) :is(.users-table, .member-table) th {
 background: var(--ui-surface-soft);
     color: var(--ui-muted);
 }
@@ -4915,8 +4915,8 @@ width: 67vw;
 :where(html[data-ui-template="glass"]) :where(body.urp-app) :where(#page-shortcut-api) :is(.shortcut-api-page-container, .member-status-panel, .shortcut-api-card),
 :where(html[data-ui-template="glass"]) :where(body.urp-app) :where(#page-home) :is(.event-card, .home-agenda-list, .home-state, .home-shortcuts button, .home-secondary-shortcuts button),
 :where(html[data-ui-template="glass"]) :where(body.urp-app) :is(.grades-kpi-strip, .grades-table-panel, .grades-query-toolbar .grades-query-menu),
-:where(html[data-ui-template="glass"]) :where(body.urp-admin) :is(.admin-header, .tabs, .config-section, .ud-section, .ud-cards, .monitor-table-wrap, .member-table-wrap, .request-card, .announcement-card, .wechat-binding-card, .commission-summary-card, .member-form-card, .ad-editor-fields, .ad-editor aside, .login-box),
-:where(html[data-ui-template="glass"]) :where(body.urp-admin) :is(:where(#users-list), :where(#ad-stats), :where(#online-users-list), :where(#announcements-list), :where(#feedback-list), :where(#withdrawals-list), :where(#commission-stats)) > :is(.loading, .empty-state),
+:where(html[data-ui-template="glass"]) :where(body.urp-admin) :is(.admin-header, .tabs, .config-section, .ud-section, .ud-cards, .member-table-wrap, .request-card, .announcement-card, .wechat-binding-card, .commission-summary-card, .member-form-card, .ad-editor-fields, .ad-editor aside, .login-box),
+:where(html[data-ui-template="glass"]) :where(body.urp-admin) :is(:where(#users-list), :where(#ad-stats), :where(#announcements-list), :where(#feedback-list), :where(#withdrawals-list), :where(#commission-stats)) > :is(.loading, .empty-state),
 :where(html[data-ui-template="glass"]) :where(body.campaign-body) :is(.campaign-nav, .campaign-card),
 :where(html[data-ui-template="glass"]) body .appearance-dialog {
 background: var(--glass-light), var(--glass-fill);
@@ -5117,7 +5117,7 @@ color: var(--ui-subtle);
 }
 
 :where(html[data-ui-template="glass"]) :where(body.urp-app) :is(.grades-table, .gpa-table, .exam-scores-table) th,
-:where(html[data-ui-template="glass"]) :where(body.urp-admin) :is(.users-table, .monitor-table, .member-table) th {
+:where(html[data-ui-template="glass"]) :where(body.urp-admin) :is(.users-table, .member-table) th {
 background: var(--glass-inset-fill);
     color: var(--ui-muted);
 }

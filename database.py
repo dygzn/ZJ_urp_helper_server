@@ -288,17 +288,6 @@ def _create_schema_sqlite(conn):
         )
     ''')
     conn.execute('''
-        CREATE TABLE IF NOT EXISTS request_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            device_id TEXT,
-            username TEXT,
-            endpoint TEXT NOT NULL,
-            method TEXT NOT NULL,
-            status_code INTEGER,
-            request_time TEXT NOT NULL
-        )
-    ''')
-    conn.execute('''
         CREATE TABLE IF NOT EXISTS ad_click_stats (
             ad_key TEXT NOT NULL,
             click_date TEXT NOT NULL,
@@ -489,17 +478,6 @@ def _create_schema_mysql(conn):
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ''')
     conn.execute('''
-        CREATE TABLE IF NOT EXISTS request_logs (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            device_id VARCHAR(128),
-            username VARCHAR(64),
-            endpoint VARCHAR(255) NOT NULL,
-            method VARCHAR(16) NOT NULL,
-            status_code INT,
-            request_time VARCHAR(32) NOT NULL
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    ''')
-    conn.execute('''
         CREATE TABLE IF NOT EXISTS ad_click_stats (
             ad_key VARCHAR(64) NOT NULL,
             click_date VARCHAR(10) NOT NULL,
@@ -624,9 +602,6 @@ def _create_indexes(conn):
         'CREATE INDEX idx_feedback_username_time ON feedbacks(username, create_time)',
         'CREATE INDEX idx_feedback_visibility ON feedbacks(visibility)',
         'CREATE INDEX idx_feedback_reply_fid ON feedback_replies(feedback_id)',
-        'CREATE INDEX idx_log_time ON request_logs(request_time)',
-        'CREATE INDEX idx_log_device ON request_logs(device_id)',
-        'CREATE INDEX idx_log_endpoint ON request_logs(endpoint)',
         'CREATE INDEX idx_ad_click_stats_date ON ad_click_stats(click_date)',
         'CREATE INDEX idx_inviter ON invitations(inviter_username)',
         'CREATE INDEX idx_invitee ON invitations(invitee_username)',
@@ -931,7 +906,6 @@ MIGRATION_TABLES = {
     'user_read_announcements': ['device_id', 'announcement_id', 'read_time', 'never_show'],
     'feedbacks': ['id', 'device_id', 'username', 'content', 'visibility', 'create_time'],
     'feedback_replies': ['id', 'feedback_id', 'device_id', 'username', 'content', 'create_time'],
-    'request_logs': ['id', 'device_id', 'username', 'endpoint', 'method', 'status_code', 'request_time'],
     'ad_click_stats': ['ad_key', 'click_date', 'impression_count', 'click_count', 'copy_count', 'dismiss_count', 'updated_at'],
     'ad_copy_users': ['ad_key', 'username'],
     'memberships': ['username', 'member_type', 'expire_time', 'create_time'],

@@ -6,7 +6,7 @@ from urllib.parse import urlencode
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 from werkzeug.exceptions import HTTPException
 from database import ensure_api_keys_table, init_db
-from services.logging_service import init_logging
+from services.activity_service import init_activity_tracking
 from services.config_service import configure_app_security, get_config, get_current_urp_url
 from services.ad_service import EVENT_COLUMNS, record_ad_event
 from services.ad_config_service import get_ad_config
@@ -61,8 +61,8 @@ def snapshot_request_urp_url():
 def ensure_temporary_session_cleanup():
     start_temporary_session_cleanup()
 
-# 注册日志钩子
-init_logging(app)
+# 注册只使用内存的今日活跃计数
+init_activity_tracking(app)
 
 # 注册所有 Blueprint
 app.register_blueprint(auth_bp)

@@ -50,7 +50,7 @@
                     <button id="tab-users-button" class="tab-btn active" type="button" data-tab="users" onclick="switchTab('users')" role="tab" aria-controls="tab-users" aria-selected="true" tabindex="0"><svg class="admin-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 21a8 8 0 0 0-16 0" />
   <circle cx="10" cy="8" r="5" />
   <path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3" /></svg><span>用户增长</span></button>
-                    <button id="tab-monitor-button" class="tab-btn" type="button" data-tab="monitor" onclick="switchTab('monitor')" role="tab" aria-controls="tab-monitor" aria-selected="false" tabindex="-1"><svg class="admin-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2" /></svg><span>在线监控</span></button>
+                    <button id="tab-activity-button" class="tab-btn" type="button" data-tab="activity" onclick="switchTab('activity')" role="tab" aria-controls="tab-activity" aria-selected="false" tabindex="-1"><svg class="admin-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2" /></svg><span>今日活跃</span></button>
                     <button id="tab-members-button" class="tab-btn" type="button" data-tab="members" onclick="switchTab('members')" role="tab" aria-controls="tab-members" aria-selected="false" tabindex="-1"><svg class="admin-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z" />
   <path d="M5 21h14" /></svg><span>会员管理</span></button>
                     <button id="tab-announcements-button" class="tab-btn" type="button" data-tab="announcements" onclick="switchTab('announcements')" role="tab" aria-controls="tab-announcements" aria-selected="false" tabindex="-1"><svg class="admin-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M11 6a13 13 0 0 0 8.4-2.8A1 1 0 0 1 21 4v12a1 1 0 0 1-1.6.8A13 13 0 0 0 11 14H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z" />
@@ -78,14 +78,16 @@
                 <section id="tab-users" class="tab-content active" role="tabpanel" aria-labelledby="tab-users-button">
                     <div class="section-header"><h2>用户增长</h2><button class="icon-btn" type="button" onclick="loadUsers()">刷新</button></div>
                     <p class="config-desc">包含当前绑定与归档历史，按学号去重统计；重新绑定不会重复计入新增用户。</p>
+                    <p id="users-stats-status" class="config-desc" role="status"></p>
                     <div id="users-list" class="users-list"><div class="loading">加载中...</div></div>
                 </section>
 
-                <section id="tab-monitor" class="tab-content" role="tabpanel" aria-labelledby="tab-monitor-button">
-                    <div class="section-header"><h2>在线监控</h2><button class="icon-btn" type="button" onclick="loadMonitorData()">刷新</button></div>
-                    <p class="config-desc">查看当前在线用户和最近访问，进入本栏目后会自动更新。</p>
-                    <div class="monitor-summary"><span>在线人数：</span><strong id="online-count">-</strong></div>
-                    <div id="online-users-list" class="online-users-list monitor-table-wrap"><div class="loading">加载中...</div></div>
+                <section id="tab-activity" class="tab-content" role="tabpanel" aria-labelledby="tab-activity-button">
+                    <div class="section-header"><h2>今日活跃</h2><button class="icon-btn" type="button" onclick="loadTodayActivity()">刷新</button></div>
+                    <p class="config-desc">按北京时间统计今日访问的登录账号，同一账号只计一次。</p>
+                    <div class="activity-summary" aria-live="polite"><span>今日活跃人数：</span><strong id="today-active-count">-</strong></div>
+                    <p id="today-activity-status" class="config-desc" role="status">加载中...</p>
+                    <p class="config-desc">仅统计当前服务启动后的访问；每日零点清零，服务重启后重新累计。</p>
                 </section>
 
                 <section id="tab-members" class="tab-content" role="tabpanel" aria-labelledby="tab-members-button">

@@ -137,9 +137,9 @@ async function handleAdminLogin(event) {
 
     errorDiv.textContent = '';
 
-    // 使用只读监控接口验证管理员密钥
+    // 使用只读活跃统计接口验证管理员密钥
     try {
-        const response = await fetch('/api/admin/monitor/online', {
+        const response = await fetch('/api/admin/activity/today', {
             headers: {
                 'X-Admin-Key': key
             }
@@ -167,6 +167,7 @@ function showAdminPanel() {
 }
 
 function adminLogout() {
+    stopUserGrowthRefresh();
     adminKey = null;
     sessionStorage.removeItem('admin_key');
     document.getElementById('admin-login').style.display = 'flex';
@@ -175,6 +176,7 @@ function adminLogout() {
 
 // ==================== 标签页切换 ====================
 function switchTab(tabName) {
+    if (tabName !== 'users') stopUserGrowthRefresh();
     const tabBtns = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
     if (adminUi && typeof adminUi.syncTabAriaState === 'function') {
@@ -205,9 +207,8 @@ function switchTab(tabName) {
         loadAdminServiceStatus();
     } else if (tabName === 'feedback') {
         loadAdminFeedbacks();
-    } else if (tabName === 'monitor') {
-        loadMonitorData();
-        startMonitorRefresh();
+    } else if (tabName === 'activity') {
+        loadTodayActivity();
     } else if (tabName === 'config') {
         loadConfig();
     } else if (tabName === 'members') {
@@ -216,11 +217,6 @@ function switchTab(tabName) {
     } else if (tabName === 'withdrawals') {
         loadAdminWithdrawals();
         loadCommissionStats();
-    }
-
-    // 离开监控 Tab 时停止自动刷新
-    if (tabName !== 'monitor') {
-        stopMonitorRefresh();
     }
 }
 
@@ -411,29 +407,90 @@ async function executeBindingArchive() {
 
 let userChartMode = 'new';
 
-async function loadUsers() {
+let usersPending = null;
+let userGrowthTimer = null;
+let userStatsClockOffset = null;
+
+function isUserGrowthVisible() {
+    return adminKey && document.visibilityState !== 'hidden'
+        && document.getElementById('tab-users').classList.contains('active');
+}
+
+function stopUserGrowthRefresh() {
+    if (userGrowthTimer !== null) clearTimeout(userGrowthTimer);
+    userGrowthTimer = null;
+}
+
+function scheduleUserGrowthRefresh() {
+    stopUserGrowthRefresh();
+    if (userStatsClockOffset === null || !isUserGrowthVisible()) return;
+    // 用服务端快照校准浏览器时钟，只在北京时间下一个零点读取一次。
+    const beijingTime = Date.now() + userStatsClockOffset + 8 * 3600000;
+    const untilMidnight = 86400000 - beijingTime % 86400000;
+    userGrowthTimer = setTimeout(() => {
+        userGrowthTimer = null;
+        if (isUserGrowthVisible()) return loadUsers();
+    }, untilMidnight);
+}
+
+document.addEventListener('visibilitychange', () => {
+    if (!isUserGrowthVisible()) return stopUserGrowthRefresh();
+    if (userStatsClockOffset === null || !userStatsData) return;
+    const beijingTime = Date.now() + userStatsClockOffset + 8 * 3600000;
+    const today = new Date(beijingTime).toISOString().slice(0, 10);
+    if (today !== userStatsData.date) {
+        loadUsers();
+    } else {
+        scheduleUserGrowthRefresh();
+    }
+});
+
+function loadUsers() {
+    if (usersPending) return usersPending;
+    stopUserGrowthRefresh();
     const container = document.getElementById('users-list');
+    const status = document.getElementById('users-stats-status');
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
     container.innerHTML = '<div class="loading">加载中</div>';
-    try {
-        const response = await fetch('/api/admin/users', { headers: { 'X-Admin-Key': adminKey } });
-        const raw = await response.text();
-        let data;
+    status.textContent = '正在刷新用户统计...';
+    usersPending = (async () => {
         try {
-            data = JSON.parse(raw);
-        } catch (_) {
-            const snippet = raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 300);
-            container.innerHTML = `<p style="text-align:center;color:var(--error);">接口返回的不是 JSON，HTTP ${response.status}：${snippet || raw.slice(0, 300)}</p>`;
-            return;
-        }
-        if (data.success) {
+            const response = await fetch('/api/admin/users', {
+                headers: { 'X-Admin-Key': adminKey }, cache: 'no-store', signal: controller.signal
+            });
+            const raw = await response.text();
+            let data;
+            try {
+                data = JSON.parse(raw);
+            } catch (_) {
+                const snippet = raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 300);
+                throw new Error(`接口返回的不是 JSON，HTTP ${response.status}：${snippet || raw.slice(0, 300)}`);
+            }
+            if (!response.ok || !data.success) throw new Error(data.message || '加载失败');
             userStatsData = data;
             renderUserDashboard();
-        } else {
-            container.innerHTML = `<p style="text-align:center;color:var(--error);">${data.message || '加载失败'}</p>`;
+            if (!data.generated_at) {
+                status.textContent = '已刷新用户统计。';
+                return;
+            }
+            userStatsClockOffset = Date.parse(data.generated_at) - Date.now();
+            const time = new Intl.DateTimeFormat('zh-CN', {
+                timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23'
+            }).format(new Date(data.generated_at));
+            status.textContent = `统计截至：${time}（北京时间）`;
+            scheduleUserGrowthRefresh();
+        } catch (error) {
+            const message = error.name === 'AbortError' ? '请求超时，请刷新重试' : error.message || '加载失败';
+            container.innerHTML = `<p style="text-align:center;color:var(--error);">${escapeHtml(message)}</p>`;
+            status.textContent = '刷新失败，请点击刷新重试。';
+        } finally {
+            clearTimeout(timeout);
+            usersPending = null;
         }
-    } catch (e) {
-        container.innerHTML = `<p style="text-align:center;color:var(--error);">${e.message || '加载失败'}</p>`;
-    }
+    })();
+    return usersPending;
 }
 
 async function loadAdStats() {
@@ -505,13 +562,17 @@ function renderUserDashboard() {
         return;
     }
 
-    // 统计数字
-    const today = new Date().toISOString().split('T')[0];
-    const todayNew  = (daily.find(d => d.date === today) || {}).count || 0;
-    const cutWeek   = new Date(Date.now() - 7  * 86400000).toISOString().split('T')[0];
-    const cutMonth  = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
-    const weekNew   = daily.filter(d => d.date > cutWeek ).reduce((s, d) => s + d.count, 0);
-    const monthNew  = daily.filter(d => d.date > cutMonth).reduce((s, d) => s + d.count, 0);
+    // 以本次服务端快照的北京时间日期为准，不使用浏览器时钟划分统计日。
+    const today = userStatsData.date || new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit'
+    }).format(new Date());
+    const anchor = Date.parse(`${today}T00:00:00Z`);
+    const dayBefore = days => new Date(anchor - days * 86400000).toISOString().slice(0, 10);
+    const todayNew = (daily.find(d => d.date === today) || {}).count || 0;
+    const cutWeek = dayBefore(6);
+    const cutMonth = dayBefore(29);
+    const weekNew = daily.filter(d => d.date >= cutWeek && d.date <= today).reduce((s, d) => s + d.count, 0);
+    const monthNew = daily.filter(d => d.date >= cutMonth && d.date <= today).reduce((s, d) => s + d.count, 0);
 
     // ── 概况卡片 ──
     let html = `<div class="ud-cards">
@@ -536,16 +597,14 @@ function renderUserDashboard() {
     // ── 增长趋势 ──
     const N = 14;
     const chartData = [];
+    const firstDay = dayBefore(N - 1);
+    const counts = new Map(daily.map(d => [d.date, d.count]));
+    let cumulative = daily.filter(d => d.date < firstDay).reduce((sum, d) => sum + d.count, 0);
     for (let i = N - 1; i >= 0; i--) {
-        const ds = new Date(Date.now() - i * 86400000).toISOString().split('T')[0];
-        const hit = daily.find(x => x.date === ds);
-        chartData.push({ date: ds, count: hit ? hit.count : 0, total: hit ? hit.total : 0 });
-    }
-    // 补齐累计（无数据天用前一天的累计）
-    for (let i = 0; i < chartData.length; i++) {
-        if (!chartData[i].total) {
-            chartData[i].total = i > 0 ? chartData[i-1].total : (total - monthNew);
-        }
+        const date = dayBefore(i);
+        const count = counts.get(date) || 0;
+        cumulative += count;
+        chartData.push({ date, count, total: cumulative });
     }
 
     const isNew   = userChartMode === 'new';
@@ -1425,92 +1484,35 @@ function escapeHtmlAttr(text) {
     return text.replace(/'/g, "\\'").replace(/"/g, '\\"');
 }
 
-// ==================== 监控功能 ====================
+// ==================== 今日活跃 ====================
 
-let monitorTimer = null;
-let monitorEnabled = false;
-let monitorPending = null;
-let monitorController = null;
-let monitorFailures = 0;
+let activityPending = null;
 
-function scheduleMonitorRefresh() {
-    if (monitorTimer) clearTimeout(monitorTimer);
-    monitorTimer = null;
-    if (monitorEnabled && document.visibilityState !== 'hidden') {
-        monitorTimer = setTimeout(loadMonitorData, Math.min(30000 * 2 ** monitorFailures, 300000));
-    }
-}
-
-function startMonitorRefresh() {
-    monitorEnabled = true;
-    scheduleMonitorRefresh();
-}
-
-function stopMonitorRefresh() {
-    monitorEnabled = false;
-    if (monitorTimer) clearTimeout(monitorTimer);
-    monitorTimer = null;
-    monitorController?.abort();
-}
-
-document.addEventListener('visibilitychange', () => {
-    if (!monitorEnabled) return;
-    if (document.visibilityState === 'hidden') {
-        if (monitorTimer) clearTimeout(monitorTimer);
-        monitorTimer = null;
-        monitorController?.abort();
-    } else {
-        loadMonitorData();
-    }
-});
-
-function loadMonitorData() {
-    if (document.visibilityState === 'hidden') return Promise.resolve();
-    if (monitorPending) return monitorPending;
+function loadTodayActivity() {
+    if (activityPending) return activityPending;
+    const count = document.getElementById('today-active-count');
+    const status = document.getElementById('today-activity-status');
     const controller = new AbortController();
-    monitorController = controller;
     const timeout = setTimeout(() => controller.abort(), 10000);
-    monitorPending = (async () => {
+    count.textContent = '-';
+    status.textContent = '加载中...';
+    activityPending = (async () => {
         try {
-            const onlineRes = await fetch('/api/admin/monitor/online', {
+            const response = await fetch('/api/admin/activity/today', {
                 headers: { 'X-Admin-Key': adminKey }, signal: controller.signal
             });
-            const onlineData = await onlineRes.json();
-            if (!onlineRes.ok || !onlineData.success) throw new Error('监控请求失败');
-            if (controller.signal.aborted) return;
-            monitorFailures = 0;
-            document.getElementById('online-count').textContent = onlineData.data.online_count;
-            renderOnlineUsers(onlineData.data.users);
+            const result = await response.json();
+            if (!response.ok || !result.success) throw new Error(result.message || '读取失败');
+            count.textContent = result.data.active_users;
+            status.textContent = `统计日期：${result.data.date}（北京时间）`;
         } catch (error) {
-            monitorFailures = Math.min(monitorFailures + 1, 4);
-            if (error.name !== 'AbortError') console.error('加载监控数据失败:', error);
+            status.textContent = '今日活跃统计加载失败，请点击刷新重试。';
         } finally {
             clearTimeout(timeout);
-            monitorController = null;
-            monitorPending = null;
-            scheduleMonitorRefresh();
+            activityPending = null;
         }
     })();
-    return monitorPending;
-}
-
-function renderOnlineUsers(users) {
-    const container = document.getElementById('online-users-list');
-    if (!users.length) {
-        container.innerHTML = '<div class="empty-state">当前无在线用户</div>';
-        return;
-    }
-
-    let html = '<table class="monitor-table"><thead><tr><th>用户名</th><th>最后活跃</th><th>最后操作</th></tr></thead><tbody>';
-    users.forEach(u => {
-        html += `<tr>
-            <td data-label="用户名">${escapeHtml(u.username)}</td>
-            <td data-label="最后活跃">${u.last_active.split(' ')[1] || u.last_active}</td>
-            <td data-label="最后操作">${escapeHtml(u.last_endpoint)}</td>
-        </tr>`;
-    });
-    html += '</tbody></table>';
-    container.innerHTML = html;
+    return activityPending;
 }
 
 // ==================== 会员管理 ====================

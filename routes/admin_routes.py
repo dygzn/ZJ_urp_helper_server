@@ -12,7 +12,7 @@ from services.ad_config_service import get_ad_config, validate_ad_config
 
 from services.member_service import ensure_invitation_earnings, _money, _money_string
 from services.ad_service import get_ad_click_stats
-from services.online_service import get_online_snapshot
+from services.activity_service import BEIJING_TIME, get_today_activity
 from services.binding_archive_service import preview_archive, execute_archive, historical_users
 from constants import MEMBER_DURATION_DAYS
 
@@ -145,6 +145,19 @@ def admin_invitation_debug():
         return jsonify({'success': False, 'message': f'获取邀请调试信息失败: {str(e)}'})
 
 
+def _registration_day(value):
+    if not value:
+        return ''
+    try:
+        registered_at = datetime.fromisoformat(str(value))
+    except (TypeError, ValueError):
+        return ''
+    # 历史无时区时间沿用北京时间；带时区的时间先转换再归入自然日。
+    if registered_at.tzinfo is not None:
+        registered_at = registered_at.astimezone(BEIJING_TIME)
+    return registered_at.date().isoformat()
+
+
 @admin_bp.route('/api/admin/users', methods=['GET'])
 @require_admin
 def admin_users():
@@ -159,7 +172,7 @@ def admin_users():
         for row in rows:
             username = row['username']
             first_bind_time = row['first_bind_time'] or ''
-            day = str(first_bind_time)[:10] if first_bind_time else ''
+            day = _registration_day(first_bind_time)
             if day:
                 daily_counts[day] += 1
 
@@ -177,7 +190,12 @@ def admin_users():
 
         class_list = [{'class_id': k, 'count': v} for k, v in sorted(classes.items())]
 
-        return jsonify({'success': True, 'total': total, 'classes': class_list, 'daily': daily})
+        generated_at = datetime.now(BEIJING_TIME)
+        response = jsonify({'success': True, 'total': total, 'classes': class_list, 'daily': daily,
+                            'date': generated_at.date().isoformat(),
+                            'generated_at': generated_at.isoformat(timespec='seconds')})
+        response.headers['Cache-Control'] = 'no-store'
+        return response
     except Exception as e:
         return jsonify({'success': False, 'message': f'用户统计加载失败: {str(e)}'})
 
@@ -462,10 +480,10 @@ def admin_members_revoke():
     return jsonify({'success': False, 'message': f'未找到 {username} 的会员记录'})
 
 
-@admin_bp.route('/api/admin/monitor/online', methods=['GET'])
+@admin_bp.route('/api/admin/activity/today', methods=['GET'])
 @require_admin
-def monitor_online():
-    return jsonify({'success': True, 'data': get_online_snapshot()})
+def today_activity():
+    return jsonify({'success': True, 'data': get_today_activity()})
 
 
 @admin_bp.route('/api/admin/withdrawals', methods=['GET'])
