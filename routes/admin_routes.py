@@ -480,10 +480,24 @@ def admin_members_revoke():
     return jsonify({'success': False, 'message': f'未找到 {username} 的会员记录'})
 
 
+@admin_bp.route('/api/admin/auth', methods=['GET'])
+@require_admin
+def admin_auth():
+    response = jsonify(success=True)
+    response.headers['Cache-Control'] = 'no-store'
+    return response
+
+
 @admin_bp.route('/api/admin/activity/today', methods=['GET'])
 @require_admin
 def today_activity():
-    return jsonify({'success': True, 'data': get_today_activity()})
+    try:
+        response = jsonify({'success': True, 'data': get_today_activity()})
+    except OSError:
+        response = jsonify(success=False, message='今日活跃统计暂不可用，请稍后刷新或检查服务权限')
+        response.status_code = 503
+    response.headers['Cache-Control'] = 'no-store'
+    return response
 
 
 @admin_bp.route('/api/admin/withdrawals', methods=['GET'])

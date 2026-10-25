@@ -137,9 +137,10 @@ async function handleAdminLogin(event) {
 
     errorDiv.textContent = '';
 
-    // 使用只读活跃统计接口验证管理员密钥
+    // 只校验管理员密钥，统计状态不可用时仍允许登录后台。
     try {
-        const response = await fetch('/api/admin/activity/today', {
+        const response = await fetch('/api/admin/auth', {
+            cache: 'no-store',
             headers: {
                 'X-Admin-Key': key
             }
@@ -1499,7 +1500,7 @@ function loadTodayActivity() {
     activityPending = (async () => {
         try {
             const response = await fetch('/api/admin/activity/today', {
-                headers: { 'X-Admin-Key': adminKey }, signal: controller.signal
+                headers: { 'X-Admin-Key': adminKey }, cache: 'no-store', signal: controller.signal
             });
             const result = await response.json();
             if (!response.ok || !result.success) throw new Error(result.message || '读取失败');

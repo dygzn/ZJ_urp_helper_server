@@ -6,7 +6,7 @@ from flask import Blueprint, request, jsonify, current_app
 from database import get_db
 from services.user_service import get_device_id, get_user_by_device, bind_user, unbind_user
 from services.urp_service import urp_login, check_login_status
-from services.activity_service import daily_activity
+from services.activity_service import record_daily_activity
 from services.config_service import get_current_urp_url
 from services.credential_service import CredentialCipher, CredentialError
 from services.temporary_session_service import (
@@ -75,7 +75,7 @@ def login():
         if bind_account:
             bind_user(device_id, username, password, invitation_token)
             delete_temporary_session(device_id)
-            daily_activity.record(username)
+            record_daily_activity(username)
             return jsonify({
                 'success': True,
                 'bound': True,
@@ -84,7 +84,7 @@ def login():
             })
 
         expires_at = save_temporary_session(device_id, username, cookies, url=get_current_urp_url())
-        daily_activity.record(username)
+        record_daily_activity(username)
         return jsonify({
             'success': True,
             'bound': False,

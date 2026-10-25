@@ -18,6 +18,7 @@ function setup() {
     fetch(url, options) {
       assert.equal(url, '/api/admin/activity/today');
       assert.equal(options.headers['X-Admin-Key'], 'test');
+      assert.equal(options.cache, 'no-store');
       calls++;
       return new Promise(resolve => { release = payload => resolve({ok: true, json: async () => payload}); });
     },
