@@ -32,13 +32,14 @@ test('activity refresh merges duplicate clicks and leaves no polling timer', asy
   const first = s.ctx.loadTodayActivity(), second = s.ctx.loadTodayActivity();
   assert.equal(s.calls, 1);
   assert.equal(s.elements.get('today-activity-status').textContent, '加载中...');
-  s.release({success: true, data: {date: '2026-10-25', active_users: 23}});
+  s.release({success: true, data: {date: '2026-10-25', active_users: 23, sources: {web: 10, miniprogram: 7, app: 6, unknown: 0}}});
   await Promise.all([first, second]);
   assert.equal(s.elements.get('today-active-count').textContent, 23);
+  assert.equal(s.elements.get('today-active-miniprogram').textContent, 7);
   assert.match(s.elements.get('today-activity-status').textContent, /2026-10-25/);
   assert.equal(s.timers.size, 0);
   const refreshed = s.ctx.loadTodayActivity();
-  s.release({success: true, data: {date: '2026-10-26', active_users: 0}});
+  s.release({success: true, data: {date: '2026-10-26', active_users: 0, sources: {web: 0, miniprogram: 0, app: 0, unknown: 0}}});
   await refreshed;
   assert.equal(s.calls, 2);
   assert.equal(s.elements.get('today-active-count').textContent, 0);

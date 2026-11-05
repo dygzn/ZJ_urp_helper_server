@@ -16,12 +16,28 @@ from services.user_service import get_device_id
 
 
 BEIJING_TIME = timezone(timedelta(hours=8))
+SOURCES = ('web', 'miniprogram', 'app', 'unknown')
+
+
+def request_source():
+    if request.path.startswith('/api/wechat/'):
+        return 'miniprogram'
+    explicit = request.headers.get('X-Client-Type', '').lower()
+    if explicit in SOURCES:
+        return explicit
+    agent = request.headers.get('User-Agent', '').lower()
+    if 'dalvik/' in agent or 'cfnetwork/' in agent or 'okhttp/' in agent:
+        return 'app'
+    if 'mozilla/' in agent:
+        return 'web'
+    return 'unknown'
 
 
 class DailyActivityTracker:
     def __init__(self):
         self._date = None
         self._accounts = set()
+        self._sources = {source: set() for source in SOURCES}
         self._lock = threading.Lock()
 
     def _rollover(self, now):
@@ -29,31 +45,36 @@ class DailyActivityTracker:
         today = datetime.fromtimestamp(now, BEIJING_TIME).date().isoformat()
         if today != self._date:
             self._accounts.clear()
+            for accounts in self._sources.values():
+                accounts.clear()
             self._date = today
 
-    def record(self, username, now=None):
+    def record(self, username, now=None, source='unknown'):
         if not username:
             return
         with self._lock:
             self._rollover(time.time() if now is None else now)
             self._accounts.add(username)
+            self._sources[source if source in SOURCES else 'unknown'].add(username)
 
     def snapshot(self, now=None):
         with self._lock:
             self._rollover(time.time() if now is None else now)
-            return {'date': self._date, 'active_users': len(self._accounts)}
+            return {'date': self._date, 'active_users': len(self._accounts),
+                    'sources': {key: len(value) for key, value in self._sources.items()}}
 
 
 class SharedDailyActivityTracker:
     """只保存当天账号摘要；Linux 使用 /dev/shm，开发环境使用临时目录。
 
-    每个账号每天只追加一次。进程内命中直接返回，其他进程仅增量同步摘要；
-    刷新只读日期和记录数。每次重新打开锁描述符，兼容 Gunicorn preload/fork。
+    每个账号和来源每天只追加一次。进程内命中直接返回，其他进程增量同步摘要；
+    每次重新打开锁描述符，兼容 Gunicorn preload/fork。
     """
 
     _header = struct.Struct('!8sI')
-    _magic = b'URPACT01'
-    _digest_size = 32
+    _magic = b'URPACT02'
+    _old_magic = b'URPACT01'
+    _digest_size = 33
 
     def __init__(self, path):
         self.path = os.fspath(path)
@@ -93,8 +114,14 @@ class SharedDailyActivityTracker:
             self._write(descriptor, self._header.pack(self._magic, today), 0)
         else:
             magic, stored_day = self._header.unpack(raw)
-            if magic != self._magic or not 1 <= stored_day <= date.max.toordinal():
+            if magic not in (self._magic, self._old_magic) or not 1 <= stored_day <= date.max.toordinal():
                 raise OSError('活跃统计共享状态格式无效')
+            if magic == self._old_magic:
+                old = os.pread(descriptor, max(0, os.fstat(descriptor).st_size - self._header.size), self._header.size)
+                records = b''.join(bytes([3]) + old[i:i + 32] for i in range(0, len(old) - 31, 32))
+                os.ftruncate(descriptor, self._header.size)
+                self._write(descriptor, records, self._header.size)
+                self._write(descriptor, self._header.pack(self._magic, stored_day), 0)
             if stored_day < today:
                 # 只复用这一份状态，不生成逐日历史文件或请求明细。
                 os.ftruncate(descriptor, self._header.size)
@@ -112,11 +139,11 @@ class SharedDailyActivityTracker:
         self._offset = self._header.size
         self._date = stored_day
 
-    def record(self, username, now=None):
+    def record(self, username, now=None, source='unknown'):
         if not username:
             return
         today = self._day(now)
-        digest = hashlib.sha256(username.encode('utf-8')).digest()
+        digest = bytes([SOURCES.index(source if source in SOURCES else 'unknown')]) + hashlib.sha256(username.encode('utf-8')).digest()
         if self._date == today and digest in self._seen:
             return
         with self._locked() as descriptor:
@@ -142,10 +169,18 @@ class SharedDailyActivityTracker:
     def snapshot(self, now=None):
         with self._locked() as descriptor:
             stored_day, size = self._prepare(descriptor, self._day(now))
-            if self._date != stored_day:
+            if self._date != stored_day or self._offset > size:
                 self._reset_cache(stored_day)
+            if self._offset < size:
+                tail = os.pread(descriptor, size - self._offset, self._offset)
+                if len(tail) != size - self._offset:
+                    raise OSError('无法完整读取活跃统计共享状态')
+                self._seen.update(tail[i:i + self._digest_size] for i in range(0, len(tail), self._digest_size))
+                self._offset = size
             return {'date': date.fromordinal(stored_day).isoformat(),
-                    'active_users': (size - self._header.size) // self._digest_size}
+                    'active_users': len({entry[1:] for entry in self._seen}),
+                    'sources': {source: sum(entry[0] == index for entry in self._seen)
+                                for index, source in enumerate(SOURCES)}}
 
 
 def _shared_activity_path():
@@ -161,10 +196,10 @@ _logger = logging.getLogger(__name__)
 _last_error_at = None
 
 
-def _record_safely(tracker, username):
+def _record_safely(tracker, username, source):
     global _last_error_at
     try:
-        tracker.record(username)
+        tracker.record(username, source=source)
     except OSError:
         # 统计不可用不能让用户登录/教务查询失败，也不循环刷写错误日志。
         now = time.monotonic()
@@ -174,7 +209,7 @@ def _record_safely(tracker, username):
 
 
 def record_daily_activity(username):
-    _record_safely(daily_activity, username)
+    _record_safely(daily_activity, username, request_source())
 
 
 def get_today_activity():
@@ -189,10 +224,13 @@ def init_activity_tracking(app, tracker=None):
         # 只消费业务代码已解析的身份，禁止为统计补查数据库或临时会话。
         if not request.path.startswith('/api/') or request.path.startswith('/api/admin/'):
             return response
+        wechat_username = request.environ.get('urp.wechat_username')
+        if wechat_username:
+            _record_safely(tracker, wechat_username, 'miniprogram')
         device_id = get_device_id()
         cached = request.environ.get('urp.identity_cache', {}).get(device_id)
         if cached:
             user, temporary = cached
             if user and (not temporary or temporary['expires_at'] > time.time()):
-                _record_safely(tracker, user['username'])
+                _record_safely(tracker, user['username'], request_source())
         return response

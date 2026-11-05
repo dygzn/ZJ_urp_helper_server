@@ -158,12 +158,53 @@ def _registration_day(value):
     return registered_at.date().isoformat()
 
 
+def _membership_rates(rows, memberships, now):
+    active = set()
+    for member in memberships:
+        try:
+            expiry = datetime.fromisoformat(str(member['expire_time']))
+            if expiry.tzinfo is None:
+                expiry = expiry.replace(tzinfo=BEIJING_TIME)
+            if expiry >= now:
+                active.add(member['username'])
+        except (ValueError, TypeError):
+            continue
+
+    groups = {name: defaultdict(lambda: {'users': 0, 'members': 0})
+              for name in ('grades', 'majors', 'grade_majors')}
+    total = {'users': 0, 'members': 0}
+    for row in rows:
+        username = row['username'] or ''
+        valid = len(username) >= 7 and username[:7].isascii() and username[:7].isdigit()
+        grade = '20' + username[:2] if valid else None
+        major = username[4:7] if valid else None
+        member = int(username in active)
+        total['users'] += 1
+        total['members'] += member
+        for name, key in (('grades', grade), ('majors', major), ('grade_majors', (grade, major))):
+            groups[name][key]['users'] += 1
+            groups[name][key]['members'] += member
+
+    def ordered(mapping):
+        return sorted(mapping.items(), key=lambda item: str(item[0] or '\uffff'))
+
+    return {
+        'total': total,
+        'grades': [dict(grade=key, **value) for key, value in ordered(groups['grades'])],
+        'majors': [dict(major=key, **value) for key, value in ordered(groups['majors'])],
+        'grade_majors': [dict(grade=key[0], major=key[1], **value)
+                         for key, value in ordered(groups['grade_majors'])],
+    }
+
+
 @admin_bp.route('/api/admin/users', methods=['GET'])
 @require_admin
 def admin_users():
     try:
+        generated_at = datetime.now(BEIJING_TIME)
         with get_db() as conn:
             rows = historical_users(conn)
+            memberships = conn.execute('SELECT username, expire_time FROM memberships').fetchall()
 
         total = len(rows)
         daily_counts = defaultdict(int)
@@ -190,8 +231,8 @@ def admin_users():
 
         class_list = [{'class_id': k, 'count': v} for k, v in sorted(classes.items())]
 
-        generated_at = datetime.now(BEIJING_TIME)
         response = jsonify({'success': True, 'total': total, 'classes': class_list, 'daily': daily,
+                            'membership_rates': _membership_rates(rows, memberships, generated_at),
                             'date': generated_at.date().isoformat(),
                             'generated_at': generated_at.isoformat(timespec='seconds')})
         response.headers['Cache-Control'] = 'no-store'

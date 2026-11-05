@@ -106,6 +106,7 @@ def bind_wechat_account(wechat_session):
         bind_account(wechat_session['openid'], username, password)
     except BindingConflict as exc:
         return jsonify(success=False, message=str(exc)), 409
+    request.environ['urp.wechat_username'] = username
     return jsonify(success=True, bound=True, username=username, message='学号绑定成功')
 
 

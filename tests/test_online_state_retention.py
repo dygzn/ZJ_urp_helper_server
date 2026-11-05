@@ -28,7 +28,7 @@ class DailyActivityTests(unittest.TestCase):
         for username in ('student-a', 'student-a', 'student-b', '', None):
             tracker.record(username, now=now)
         self.assertEqual(tracker.snapshot(now=now), {
-            'date': '2026-10-25', 'active_users': 2,
+            'date': '2026-10-25', 'active_users': 2, 'sources': {'web': 0, 'miniprogram': 0, 'app': 0, 'unknown': 2},
         })
 
     def test_beijing_midnight_clears_previous_day_on_reads_and_writes(self):
@@ -40,7 +40,7 @@ class DailyActivityTests(unittest.TestCase):
                 tracker.record('yesterday', now=before)
                 if read_first:
                     self.assertEqual(tracker.snapshot(now=after), {
-                        'date': '2026-10-26', 'active_users': 0,
+                        'date': '2026-10-26', 'active_users': 0, 'sources': {'web': 0, 'miniprogram': 0, 'app': 0, 'unknown': 0},
                     })
                 tracker.record('today', now=after)
                 self.assertEqual(tracker.snapshot(now=after)['active_users'], 1)
@@ -118,7 +118,7 @@ print(json.dumps(tracker.snapshot(now=float(sys.argv[3]))))
         two.record('two', now=before)
         size = self.path.stat().st_size
         one.record('one', now=after)
-        self.assertEqual(two.snapshot(now=after), {'date': '2026-10-26', 'active_users': 1})
+        self.assertEqual(two.snapshot(now=after), {'date': '2026-10-26', 'active_users': 1, 'sources': {'web': 0, 'miniprogram': 0, 'app': 0, 'unknown': 1}})
         two.record('two', now=after)
         one.record('late-yesterday', now=before)
         self.assertEqual(one.snapshot(now=after)['active_users'], 2)
@@ -210,7 +210,7 @@ class ActivityRequestTests(unittest.TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertIn('no-store', response.headers.get('Cache-Control', ''))
                 self.assertEqual(response.get_json()['data']['active_users'], 1)
-                self.assertEqual(set(response.get_json()['data']), {'date', 'active_users'})
+                self.assertEqual(set(response.get_json()['data']), {'date', 'active_users', 'sources'})
             self.assertEqual(self.client.get('/api/admin/monitor/online').status_code, 404)
 
     @unittest.skipUnless(os.name == 'posix', '共享状态使用 Unix 文件锁')
@@ -242,6 +242,58 @@ class ActivityRequestTests(unittest.TestCase):
             response = self.client.get('/api/admin/auth', headers={'X-Admin-Key': 'test-admin'})
         self.assertEqual(response.get_json(), {'success': True})
         self.assertIn('no-store', response.headers['Cache-Control'])
+import tempfile
+import unittest
+from pathlib import Path
+from flask import Flask, jsonify, request
+from services.activity_service import DailyActivityTracker, SharedDailyActivityTracker, init_activity_tracking
+
+
+class ActivitySourcesTests(unittest.TestCase):
+    def test_cross_platform_deduplication_and_shared_workers(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for trackers in ([DailyActivityTracker()], [SharedDailyActivityTracker(Path(directory) / 'state'), SharedDailyActivityTracker(Path(directory) / 'state')]):
+                trackers[0].record('one', source='web')
+                trackers[-1].record('one', source='app')
+                trackers[-1].record('two', source='miniprogram')
+                trackers[0].record('two', source='miniprogram')
+                result = trackers[0].snapshot()
+                self.assertEqual(result['active_users'], 2)
+                self.assertEqual(result['sources'], {'web': 1, 'app': 1, 'miniprogram': 1, 'unknown': 0})
+
+    def test_request_sources_and_wechat_identity(self):
+        app = Flask(__name__)
+        tracker = DailyActivityTracker()
+        init_activity_tracking(app, tracker)
+        @app.get('/api/example')
+        def example():
+            request.environ['urp.identity_cache'] = {'device': ({'username': 'one'}, None)}
+            return jsonify(success=True)
+        @app.get('/api/wechat/example')
+        def mini():
+            request.environ['urp.wechat_username'] = 'one'
+            return jsonify(success=True)
+        client = app.test_client()
+        client.get('/api/example', headers={'X-Device-ID': 'device', 'User-Agent': 'Mozilla/5.0'})
+        client.get('/api/example', headers={'X-Device-ID': 'device', 'User-Agent': 'Dalvik/2.1.0'})
+        client.get('/api/wechat/example')
+        self.assertEqual(tracker.snapshot()['sources'], {'web': 1, 'app': 1, 'miniprogram': 1, 'unknown': 0})
+
+class ActivityMigrationTests(unittest.TestCase):
+    @unittest.skipUnless(os.name == 'posix', '共享状态使用 Unix 文件锁')
+    def test_existing_daily_accounts_survive_upgrade_and_deduplicate(self):
+        import hashlib
+        import struct
+        from datetime import date
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'state'
+            path.write_bytes(struct.pack('!8sI', b'URPACT01', date(2026, 10, 25).toordinal()) + hashlib.sha256(b'one').digest())
+            tracker = activity_service.SharedDailyActivityTracker(path)
+            now = timestamp('2026-10-25T04:00:00')
+            tracker.record('one', now=now, source='web')
+            self.assertEqual(tracker.snapshot(now=now)['active_users'], 1)
+            self.assertEqual(tracker.snapshot(now=now)['sources']['unknown'], 1)
+            self.assertEqual(tracker.snapshot(now=now)['sources']['web'], 1)
 
 
 if __name__ == '__main__':

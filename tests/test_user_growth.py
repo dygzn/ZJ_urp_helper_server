@@ -21,6 +21,7 @@ class UserGrowthTests(unittest.TestCase):
             CREATE TABLE user_account (username TEXT, registered_at TEXT);
             CREATE TABLE user_accounts (username TEXT, registered_at TEXT);
             CREATE TABLE user_account_archive (username TEXT, bind_time TEXT);
+            CREATE TABLE memberships (username TEXT PRIMARY KEY, member_type TEXT, expire_time TEXT);
             INSERT INTO user_account VALUES ('old', '2026-10-10T09:00:00');
             INSERT INTO users VALUES ('new-device', 'old', '2026-10-25T01:00:00');
             INSERT INTO user_account_archive VALUES ('old', '2026-10-01T09:00:00');
@@ -67,10 +68,42 @@ class UserGrowthTests(unittest.TestCase):
         first = self.refresh()
         self.assertIn('no-store', first.headers.get('Cache-Control', ''))
         selects = [sql for sql in self.statements if sql.lstrip().upper().startswith('SELECT')]
-        self.assertEqual(len(selects), 2, selects)
+        self.assertEqual(len(selects), 3, selects)
         self.assertFalse(any(sql.lstrip().upper().startswith(('INSERT', 'UPDATE', 'DELETE')) for sql in self.statements))
         self.conn.execute("INSERT INTO user_account VALUES ('new', '2026-10-25T02:00:00')")
         self.assertEqual(self.refresh().get_json()['total'], 4)
+
+    def test_membership_rates_deduplicate_history_and_exclude_expired_and_unregistered(self):
+        self.conn.executescript('''
+            INSERT INTO user_account VALUES ('2315011001', '2026-10-01');
+            INSERT INTO user_account VALUES ('2315011002', '2026-10-01');
+            INSERT INTO user_account VALUES ('2415011001', '2026-10-01');
+            INSERT INTO user_account_archive VALUES ('2315011001', '2026-09-01');
+            INSERT INTO memberships VALUES ('2315011001', 'basic', '2026-10-26T00:00:00');
+            INSERT INTO memberships VALUES ('2315011002', 'advanced', '2026-10-24T00:00:00');
+            INSERT INTO memberships VALUES ('2415011001', 'advanced', '2026-10-25T00:00:00+00:00');
+            INSERT INTO memberships VALUES ('old', 'basic', 'invalid');
+            INSERT INTO memberships VALUES ('not-registered', 'basic', '2027-01-01');
+        ''')
+        class Clock(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return datetime(2026, 10, 24, 17, 30, tzinfo=timezone.utc).astimezone(tz)
+        with patch('routes.admin_routes.datetime', Clock):
+            rates = self.refresh().get_json()['membership_rates']
+        self.assertEqual(rates['total'], {'users': 6, 'members': 2})
+        self.assertIn({'grade': '2023', 'users': 2, 'members': 1}, rates['grades'])
+        self.assertIn({'major': '011', 'users': 3, 'members': 2}, rates['majors'])
+        self.assertIn({'grade': '2024', 'major': '011', 'users': 1, 'members': 1}, rates['grade_majors'])
+        self.assertIn({'grade': None, 'users': 3, 'members': 0}, rates['grades'])
+
+    def test_empty_history_has_no_division_or_unmatched_members(self):
+        for table in ('users', 'user_account', 'user_accounts', 'user_account_archive'):
+            self.conn.execute('DELETE FROM ' + table)
+        self.conn.execute("INSERT INTO memberships VALUES ('other', 'basic', '2099-01-01')")
+        rates = self.refresh().get_json()['membership_rates']
+        self.assertEqual(rates['total'], {'users': 0, 'members': 0})
+        self.assertEqual(rates['grades'], [])
 
 
 if __name__ == '__main__':

@@ -1,5 +1,6 @@
 """微信直接关联学号；不依赖或修改网页设备关系。"""
 from datetime import datetime
+from flask import has_request_context, request
 
 from database import get_db, migrate_account_password
 from services.credential_service import CredentialCipher
@@ -17,6 +18,8 @@ def get_account(openid):
         if row:
             account = dict(row)
             account['password'] = migrate_account_password(conn, row['username'], row['password'])
+            if has_request_context():
+                request.environ['urp.wechat_username'] = account['username']
             return account
     return None
 

@@ -64,6 +64,21 @@ test('growth uses the server Beijing date and includes exactly 7/30 calendar day
   assert.equal(dates.at(-1), '10/25');
 });
 
+test('membership rates show denominators and year, major and year-major breakdowns', () => {
+  const s = page({...stats(), membership_rates: {
+    total: {users: 16, members: 3},
+    grades: [{grade: '2023', users: 4, members: 1}, {grade: null, users: 1, members: 0}],
+    majors: [{major: '011', users: 4, members: 1}],
+    grade_majors: [{grade: '2023', major: '011', users: 4, members: 1}],
+  }});
+  s.context.renderUserDashboard();
+  assert.match(s.html(), /总会员率/);
+  assert.match(s.html(), /18\.8%/);
+  assert.match(s.html(), /2023 级.*011/s);
+  assert.match(s.html(), /1\s*\/\s*4/);
+  assert.match(s.html(), /未识别/);
+});
+
 test('cumulative growth carries all registrations before the chart even across empty days', () => {
   const s = page(stats(), '2026-10-25T04:00:00Z');
   s.context.switchChartMode('total');

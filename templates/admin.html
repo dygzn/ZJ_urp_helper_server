@@ -84,8 +84,15 @@
 
                 <section id="tab-activity" class="tab-content" role="tabpanel" aria-labelledby="tab-activity-button">
                     <div class="section-header"><h2>今日活跃</h2><button class="icon-btn" type="button" onclick="loadTodayActivity()">刷新</button></div>
-                    <p class="config-desc">按北京时间统计今日访问的登录账号，同一账号只计一次。</p>
-                    <div class="activity-summary" aria-live="polite"><span>今日活跃人数：</span><strong id="today-active-count">-</strong></div>
+                    <p class="config-desc">按北京时间统计已识别的登录账号；各端分别去重，总人数按账号跨端去重。</p>
+                    <div class="activity-summary activity-breakdown" aria-live="polite">
+                        <div><span>今日总使用人数</span><strong id="today-active-count">-</strong></div>
+                        <div><span>网站</span><strong id="today-active-web">-</strong></div>
+                        <div><span>小程序</span><strong id="today-active-miniprogram">-</strong></div>
+                        <div><span>App</span><strong id="today-active-app">-</strong></div>
+                        <div><span>未识别来源</span><strong id="today-active-unknown">-</strong></div>
+                    </div>
+                    <p class="config-desc">仅统计已登录并产生服务端请求的账号；离线使用和访客不计入。来源依据客户端标识判断，升级前的当日记录归入未识别来源。</p>
                     <p id="today-activity-status" class="config-desc" role="status">加载中...</p>
                     <p class="config-desc">每日零点清零；服务重启保留当日统计，服务器重启后重新累计。</p>
                 </section>

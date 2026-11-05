@@ -559,7 +559,7 @@ function renderUserDashboard() {
     const container = document.getElementById('users-list');
 
     if (total === 0) {
-        container.innerHTML = '<div class="empty-state"><div class="empty-state-text">暂无用户</div></div>';
+        container.innerHTML = '<div class="empty-state"><div class="empty-state-text">暂无用户，无法计算会员率</div></div>';
         return;
     }
 
@@ -594,6 +594,26 @@ function renderUserDashboard() {
             <div class="ud-card-label">近 30 日</div>
         </div>
     </div>`;
+
+    if (userStatsData.membership_rates) {
+        const rates = userStatsData.membership_rates;
+        const percent = item => item.users ? `${(item.members / item.users * 100).toFixed(1)}%` : '—';
+        const group = (title, items, label) => `<div class="member-rate-group"><h4>${title}</h4>${items.map(item => `
+            <div class="member-rate-row"><span>${escapeHtml(label(item))}</span><span>${item.members} / ${item.users} 人</span><strong>${percent(item)}</strong></div>
+        `).join('') || '<p class="config-desc">暂无数据</p>'}</div>`;
+        const grade = item => item.grade ? `${item.grade} 级` : '未识别';
+        const major = item => item.major ? `专业 ${item.major}` : '未识别';
+        html += `<div class="ud-section member-rate-section">
+            <div class="ud-section-header"><span class="ud-section-title">会员率</span></div>
+            <p class="config-desc">有效会员数 ÷ 历史去重用户数；包含当前绑定和归档用户。年级与专业依据学号推断，显示专业代码。</p>
+            <div class="member-rate-total"><span>总会员率</span><strong>${percent(rates.total)}</strong><span>${rates.total.members} / ${rates.total.users} 人</span></div>
+            <div class="member-rate-groups">
+                ${group('按年级', rates.grades, grade)}
+                ${group('按专业', rates.majors, major)}
+                ${group('按年级和专业', rates.grade_majors, item => item.grade ? `${grade(item)} · ${major(item)}` : '未识别')}
+            </div>
+        </div>`;
+    }
 
     // ── 增长趋势 ──
     const N = 14;
@@ -1492,10 +1512,12 @@ let activityPending = null;
 function loadTodayActivity() {
     if (activityPending) return activityPending;
     const count = document.getElementById('today-active-count');
+    const sources = ['web', 'miniprogram', 'app', 'unknown'];
     const status = document.getElementById('today-activity-status');
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
     count.textContent = '-';
+    sources.forEach(source => { document.getElementById(`today-active-${source}`).textContent = '-'; });
     status.textContent = '加载中...';
     activityPending = (async () => {
         try {
@@ -1505,6 +1527,7 @@ function loadTodayActivity() {
             const result = await response.json();
             if (!response.ok || !result.success) throw new Error(result.message || '读取失败');
             count.textContent = result.data.active_users;
+            sources.forEach(source => { document.getElementById(`today-active-${source}`).textContent = result.data.sources[source]; });
             status.textContent = `统计日期：${result.data.date}（北京时间）`;
         } catch (error) {
             status.textContent = '今日活跃统计加载失败，请点击刷新重试。';
