@@ -340,6 +340,68 @@ color: var(--ui-ink);
     font-weight: 730;
 }
 
+:where(body.urp-admin) .member-growth-values {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 8px 24px;
+    margin-bottom: 10px;
+    color: var(--ui-muted);
+}
+:where(body.urp-admin) .member-growth-values > strong {
+    color: var(--ui-accent);
+    font-size: 28px;
+    font-variant-numeric: tabular-nums;
+}
+:where(body.urp-admin) .member-growth-values b { color: var(--ui-ink); }
+:where(body.urp-admin) .grade-stats-content {
+    display: grid;
+    grid-template-columns: minmax(160px, 220px) minmax(0, 1fr);
+    gap: 24px 32px;
+    align-items: center;
+    margin-top: 20px;
+}
+:where(body.urp-admin) .grade-pie {
+    display: grid;
+    place-items: center;
+    width: min(100%, 200px);
+    aspect-ratio: 1;
+    margin: auto;
+    border-radius: 50%;
+}
+:where(body.urp-admin) .grade-pie > div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 63%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: var(--ui-surface);
+    color: var(--ui-muted);
+    font-size: 13px;
+}
+:where(body.urp-admin) .grade-pie strong { color: var(--ui-ink); font-size: 28px; }
+:where(body.urp-admin) .grade-stat-row {
+    display: grid;
+    grid-template-columns: minmax(90px, 1fr) auto auto auto;
+    align-items: center;
+    gap: 8px 16px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--admin-line);
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+}
+:where(body.urp-admin) .grade-stat-row:last-child { border-bottom: 0; }
+:where(body.urp-admin) .grade-stat-row > span:not(:first-child) { color: var(--ui-muted); }
+:where(body.urp-admin) .grade-stat-name { display: flex; align-items: center; gap: 8px; overflow-wrap: anywhere; }
+:where(body.urp-admin) .grade-stat-swatch { flex: none; width: 10px; height: 10px; border-radius: 50%; }
+@media (max-width: 680px) {
+    :where(body.urp-admin) .grade-stats-content { grid-template-columns: minmax(0, 1fr); }
+    :where(body.urp-admin) .grade-stat-row { grid-template-columns: minmax(0, 1fr) auto; }
+    :where(body.urp-admin) .grade-stat-row > :nth-child(3) { grid-column: 1; padding-left: 18px; }
+}
+
 :where(body.urp-admin) .ud-toggle {
 padding: 3px;
     border: 1px solid var(--admin-line);

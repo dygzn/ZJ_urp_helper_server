@@ -555,7 +555,7 @@ function renderAdStats(stats) {
 }
 
 function renderUserDashboard() {
-    const { total, classes, daily } = userStatsData;
+    const { total, daily } = userStatsData;
     const container = document.getElementById('users-list');
 
     if (total === 0) {
@@ -595,24 +595,14 @@ function renderUserDashboard() {
         </div>
     </div>`;
 
-    if (userStatsData.membership_rates) {
-        const rates = userStatsData.membership_rates;
-        const percent = item => item.users ? `${(item.members / item.users * 100).toFixed(1)}%` : '—';
-        const group = (title, items, label) => `<div class="member-rate-group"><h4>${title}</h4>${items.map(item => `
-            <div class="member-rate-row"><span>${escapeHtml(label(item))}</span><span>${item.members} / ${item.users} 人</span><strong>${percent(item)}</strong></div>
-        `).join('') || '<p class="config-desc">暂无数据</p>'}</div>`;
-        const grade = item => item.grade ? `${item.grade} 级` : '未识别';
-        const major = item => item.major ? `专业 ${item.major}` : '未识别';
-        html += `<div class="ud-section member-rate-section">
-            <div class="ud-section-header"><span class="ud-section-title">会员率</span></div>
-            <p class="config-desc">有效会员数 ÷ 历史去重用户数；包含当前绑定和归档用户。年级与专业依据学号推断，显示专业代码。</p>
-            <div class="member-rate-total"><span>总会员率</span><strong>${percent(rates.total)}</strong><span>${rates.total.members} / ${rates.total.users} 人</span></div>
-            <div class="member-rate-groups">
-                ${group('按年级', rates.grades, grade)}
-                ${group('按专业', rates.majors, major)}
-                ${group('按年级和专业', rates.grade_majors, item => item.grade ? `${grade(item)} · ${major(item)}` : '未识别')}
-            </div>
-        </div>`;
+    if (userStatsData.membership_growth) {
+        const growth = userStatsData.membership_growth;
+        const rate = growth.rate === null ? '—' : `${growth.rate > 0 ? '+' : ''}${growth.rate.toFixed(1)}%`;
+        html += `<section class="ud-section member-growth" aria-labelledby="member-growth-title">
+            <div class="ud-section-header"><span class="ud-section-title" id="member-growth-title">会员增长率</span></div>
+            <div class="member-growth-values"><strong>${rate}</strong><span>近 7 日 <b>${growth.current} 人</b></span><span>前 7 日 <b>${growth.previous} 人</b></span></div>
+            <p class="config-desc">${growth.rate === null ? '前 7 日为 0，无法计算增长率。' : '按近 7 日相对前 7 日的会员登记人数计算。'}仅统计现存会员记录，普通续费不重复计入；删除或重新授予会影响历史。</p>
+        </section>`;
     }
 
     // ── 增长趋势 ──
@@ -686,55 +676,36 @@ function renderUserDashboard() {
     }
     html += `</div>`;
 
-    // ── 用户构成 ──
-    const pieColors = ['#2055a2','#3b69ac','#527bb5','#688dbe','#7da0c7','#92b1d0','#a7c2d9','#bdd2e3'];
-
-    // 年级汇总
-    const yearMap = {};
-    classes.forEach(cls => {
-        const key = cls.class_id === '其他' ? '其他' : cls.class_id.substring(0, 2);
-        yearMap[key] = (yearMap[key] || 0) + cls.count;
-    });
-    const yearRows = Object.entries(yearMap).sort((a, b) => a[0].localeCompare(b[0]))
-        .map(([k, v]) => ({ label: k === '其他' ? '其他' : '20'+k+' 级', count: v }));
-    const maxYear = Math.max(...yearRows.map(r => r.count));
-
-    // 专业明细：去掉专业代码的前两位 "15"
-    const majorRows = classes.map((cls, i) => {
-        if (cls.class_id === '其他') return { label: '其他', sublabel: null, count: cls.count, color: pieColors[i % pieColors.length] };
-        const year = cls.class_id.substring(0, 2);
-        const major = cls.class_id.substring(4, 7);   // 去掉 "15"，取后3位
-        return { label: '20'+year+' 级', sublabel: major, count: cls.count, color: pieColors[i % pieColors.length] };
-    });
-    const maxMajor = Math.max(...majorRows.map(r => r.count));
-
-    html += `<div class="ud-section">
-        <div class="ud-section-header"><span class="ud-section-title">用户构成</span></div>
-        <div class="ud-dist-block">
-            <div class="ud-dist-group-label">按年级</div>`;
-    yearRows.forEach((r, i) => {
-        const pct = (r.count / total * 100).toFixed(1);
-        const w   = (r.count / maxYear * 100).toFixed(1);
-        html += `<div class="ud-dist-row">
-            <div class="ud-dist-name">${r.label}</div>
-            <div class="ud-dist-track"><div class="ud-dist-bar" style="width:${w}%;background:${pieColors[i % pieColors.length]}"></div></div>
-            <div class="ud-dist-stat">${r.count} <span class="ud-dist-pct">${pct}%</span></div>
-        </div>`;
-    });
-
-    html += `<div class="ud-dist-group-label" style="margin-top:14px;">按专业</div>`;
-    majorRows.forEach(r => {
-        const pct = (r.count / total * 100).toFixed(1);
-        const w   = (r.count / maxMajor * 100).toFixed(1);
-        const name = r.sublabel ? `${r.label} · <strong>${r.sublabel}</strong>` : r.label;
-        html += `<div class="ud-dist-row">
-            <div class="ud-dist-name ud-dist-name-major">${name}</div>
-            <div class="ud-dist-track"><div class="ud-dist-bar" style="width:${w}%;background:${r.color}"></div></div>
-            <div class="ud-dist-stat">${r.count} <span class="ud-dist-pct">${pct}%</span></div>
-        </div>`;
-    });
-
-    html += `</div></div>`;
+    // 饼图只负责人数构成，右侧文字同时提供准确人数和会员率。
+    const grades = userStatsData.membership_rates?.grades;
+    if (Array.isArray(grades) && grades.length) {
+        const colors = ['#2055a2', '#4b77b5', '#7698c5', '#9db5d3', '#c1cfe1', '#536982', '#8a9ba9', '#a4adbb'];
+        const gradeTotal = grades.reduce((sum, grade) => sum + grade.users, 0);
+        let offset = 0;
+        const segments = grades.map((grade, index) => {
+            const start = offset;
+            offset += gradeTotal ? grade.users / gradeTotal * 100 : 0;
+            return `${colors[index % colors.length]} ${start}% ${offset}%`;
+        });
+        const rows = grades.map((grade, index) => {
+            const label = grade.grade ? `${grade.grade} 级` : '未识别';
+            const rate = grade.users ? `${(grade.members / grade.users * 100).toFixed(1)}%` : '—';
+            return `<div class="grade-stat-row">
+                <span class="grade-stat-name"><span class="grade-stat-swatch" style="background:${colors[index % colors.length]}" aria-hidden="true"></span>${escapeHtml(label)}</span>
+                <span>${grade.users} 人</span><span>会员 ${grade.members} / ${grade.users} 人</span><strong>${rate}</strong>
+            </div>`;
+        }).join('');
+        html += `<section class="ud-section grade-stats" aria-labelledby="grade-stats-title">
+            <div class="ud-section-header"><span class="ud-section-title" id="grade-stats-title">年级人数分布与会员率</span></div>
+            <p class="config-desc">饼图显示各年级人数占比；会员率为有效会员数 ÷ 该年级用户数。年级依据学号推断。</p>
+            <div class="grade-stats-content">
+                <div class="grade-pie" role="img" aria-label="年级人数分布，具体人数见下方列表" style="background:conic-gradient(${segments.join(',')})"><div><strong>${gradeTotal}</strong><span>总用户</span></div></div>
+                <div class="grade-stats-list">${rows}</div>
+            </div>
+        </section>`;
+    } else {
+        html += '<div class="ud-section grade-stats"><p class="config-desc">年级统计暂不可用，请刷新重试。</p></div>';
+    }
 
     container.innerHTML = html;
 }

@@ -21,7 +21,7 @@ class UserGrowthTests(unittest.TestCase):
             CREATE TABLE user_account (username TEXT, registered_at TEXT);
             CREATE TABLE user_accounts (username TEXT, registered_at TEXT);
             CREATE TABLE user_account_archive (username TEXT, bind_time TEXT);
-            CREATE TABLE memberships (username TEXT PRIMARY KEY, member_type TEXT, expire_time TEXT);
+            CREATE TABLE memberships (username TEXT PRIMARY KEY, member_type TEXT, expire_time TEXT, create_time TEXT);
             INSERT INTO user_account VALUES ('old', '2026-10-10T09:00:00');
             INSERT INTO users VALUES ('new-device', 'old', '2026-10-25T01:00:00');
             INSERT INTO user_account_archive VALUES ('old', '2026-10-01T09:00:00');
@@ -79,11 +79,11 @@ class UserGrowthTests(unittest.TestCase):
             INSERT INTO user_account VALUES ('2315011002', '2026-10-01');
             INSERT INTO user_account VALUES ('2415011001', '2026-10-01');
             INSERT INTO user_account_archive VALUES ('2315011001', '2026-09-01');
-            INSERT INTO memberships VALUES ('2315011001', 'basic', '2026-10-26T00:00:00');
-            INSERT INTO memberships VALUES ('2315011002', 'advanced', '2026-10-24T00:00:00');
-            INSERT INTO memberships VALUES ('2415011001', 'advanced', '2026-10-25T00:00:00+00:00');
-            INSERT INTO memberships VALUES ('old', 'basic', 'invalid');
-            INSERT INTO memberships VALUES ('not-registered', 'basic', '2027-01-01');
+            INSERT INTO memberships VALUES ('2315011001', 'basic', '2026-10-26T00:00:00', '2026-10-19T00:00:00');
+            INSERT INTO memberships VALUES ('2315011002', 'advanced', '2026-10-24T00:00:00', '2026-10-18T00:00:00');
+            INSERT INTO memberships VALUES ('2415011001', 'advanced', '2026-10-25T00:00:00+00:00', '2026-10-25T00:00:00');
+            INSERT INTO memberships VALUES ('old', 'basic', 'invalid', '2026-10-12T00:00:00');
+            INSERT INTO memberships VALUES ('not-registered', 'basic', '2027-01-01', '2026-10-25T00:00:00');
         ''')
         class Clock(datetime):
             @classmethod
@@ -96,14 +96,31 @@ class UserGrowthTests(unittest.TestCase):
         self.assertIn({'major': '011', 'users': 3, 'members': 2}, rates['majors'])
         self.assertIn({'grade': '2024', 'major': '011', 'users': 1, 'members': 1}, rates['grade_majors'])
         self.assertIn({'grade': None, 'users': 3, 'members': 0}, rates['grades'])
+        with patch('routes.admin_routes.datetime', Clock):
+            growth = self.refresh().get_json()['membership_growth']
+        self.assertEqual(growth, {'current': 2, 'previous': 2, 'rate': 0.0})
 
     def test_empty_history_has_no_division_or_unmatched_members(self):
         for table in ('users', 'user_account', 'user_accounts', 'user_account_archive'):
             self.conn.execute('DELETE FROM ' + table)
-        self.conn.execute("INSERT INTO memberships VALUES ('other', 'basic', '2099-01-01')")
-        rates = self.refresh().get_json()['membership_rates']
+        self.conn.execute("INSERT INTO memberships VALUES ('other', 'basic', '2099-01-01', '2026-10-25')")
+        payload = self.refresh().get_json()
+        rates = payload['membership_rates']
         self.assertEqual(rates['total'], {'users': 0, 'members': 0})
         self.assertEqual(rates['grades'], [])
+        self.assertEqual(payload['membership_growth'], {'current': 0, 'previous': 0, 'rate': None})
+
+    def test_membership_growth_uses_beijing_days_and_handles_zero_baseline(self):
+        from routes.admin_routes import _membership_growth
+        now = datetime.fromisoformat('2026-10-25T12:00:00+08:00')
+        rows = [{'username': name} for name in ('a', 'b', 'c')]
+        members = [
+            {'username': 'a', 'create_time': '2026-10-18T16:00:00+00:00'},
+            {'username': 'b', 'create_time': '2026-10-25T09:00:00+08:00'},
+            {'username': 'c', 'create_time': '2026-10-11T16:00:00+00:00'},
+        ]
+        self.assertEqual(_membership_growth(rows, members, now), {'current': 2, 'previous': 1, 'rate': 100.0})
+        self.assertEqual(_membership_growth(rows, members[:2], now)['rate'], None)
 
 
 if __name__ == '__main__':

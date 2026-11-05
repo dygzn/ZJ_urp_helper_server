@@ -64,7 +64,7 @@ test('growth uses the server Beijing date and includes exactly 7/30 calendar day
   assert.equal(dates.at(-1), '10/25');
 });
 
-test('membership rates show denominators and year, major and year-major breakdowns', () => {
+test('grade pie chart shows user counts and membership rates without major details', () => {
   const s = page({...stats(), membership_rates: {
     total: {users: 16, members: 3},
     grades: [{grade: '2023', users: 4, members: 1}, {grade: null, users: 1, members: 0}],
@@ -72,11 +72,26 @@ test('membership rates show denominators and year, major and year-major breakdow
     grade_majors: [{grade: '2023', major: '011', users: 4, members: 1}],
   }});
   s.context.renderUserDashboard();
-  assert.match(s.html(), /总会员率/);
-  assert.match(s.html(), /18\.8%/);
-  assert.match(s.html(), /2023 级.*011/s);
+  assert.match(s.html(), /年级人数分布/);
+  assert.match(s.html(), /conic-gradient/);
+  assert.match(s.html(), /2023 级/);
   assert.match(s.html(), /1\s*\/\s*4/);
+  assert.match(s.html(), /25\.0%/);
   assert.match(s.html(), /未识别/);
+  assert.doesNotMatch(s.html(), /按专业|专业 011|总会员率/);
+  assert.match(s.html(), /增长趋势/);
+});
+
+test('membership growth compares the last seven days with the preceding seven days', () => {
+  const s = page({...stats(), membership_growth: {current: 6, previous: 4, rate: 50}});
+  s.context.renderUserDashboard();
+  assert.match(s.html(), /会员增长率/);
+  assert.match(s.html(), /\+50\.0%/);
+  assert.match(s.html(), /近 7 日.*6 人/s);
+  assert.match(s.html(), /前 7 日.*4 人/s);
+  const noBaseline = page({...stats(), membership_growth: {current: 3, previous: 0, rate: null}});
+  noBaseline.context.renderUserDashboard();
+  assert.match(noBaseline.html(), /前 7 日为 0，无法计算/);
 });
 
 test('cumulative growth carries all registrations before the chart even across empty days', () => {

@@ -197,6 +197,25 @@ def _membership_rates(rows, memberships, now):
     }
 
 
+def _membership_growth(rows, memberships, now):
+    users = {row['username'] for row in rows}
+    today = now.date()
+    current = previous = 0
+    for member in memberships:
+        if member['username'] not in users:
+            continue
+        day = _registration_day(member['create_time'])
+        if not day:
+            continue
+        age = (today - datetime.fromisoformat(day).date()).days
+        if 0 <= age < 7:
+            current += 1
+        elif 7 <= age < 14:
+            previous += 1
+    return {'current': current, 'previous': previous,
+            'rate': (current - previous) * 100 / previous if previous else None}
+
+
 @admin_bp.route('/api/admin/users', methods=['GET'])
 @require_admin
 def admin_users():
@@ -204,7 +223,7 @@ def admin_users():
         generated_at = datetime.now(BEIJING_TIME)
         with get_db() as conn:
             rows = historical_users(conn)
-            memberships = conn.execute('SELECT username, expire_time FROM memberships').fetchall()
+            memberships = conn.execute('SELECT username, expire_time, create_time FROM memberships').fetchall()
 
         total = len(rows)
         daily_counts = defaultdict(int)
@@ -233,6 +252,7 @@ def admin_users():
 
         response = jsonify({'success': True, 'total': total, 'classes': class_list, 'daily': daily,
                             'membership_rates': _membership_rates(rows, memberships, generated_at),
+                            'membership_growth': _membership_growth(rows, memberships, generated_at),
                             'date': generated_at.date().isoformat(),
                             'generated_at': generated_at.isoformat(timespec='seconds')})
         response.headers['Cache-Control'] = 'no-store'
