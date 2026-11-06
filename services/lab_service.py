@@ -262,7 +262,16 @@ def parse_list(state):
         selected = semesters[0]['value']
     items = []
     state['items'] = {}
-    for row in soup.select('tr'):
+    table = soup.select_one('table#gvUser')
+    if not table:
+        action = next((a for a in soup.select('a[onclick], a[href]')
+                       if re.search(r'\$lb(?:yx|bg)', f"{a.get('href', '')} {a.get('onclick', '')}")), None)
+        table = action.find_parent('table') if action else None
+    headers = [cell.get_text(' ', strip=True) for cell in table.select('tr th')] if table else []
+    for row in table.select('tr') if table else []:
+        columns = row.find_all('td', recursive=False)
+        if not columns or len(columns) == 1 and columns[0].has_attr('colspan'):
+            continue
         actions = {}
         for a in row.select('a[onclick], a[href]'):
             source = f"{a.get('href', '')} {a.get('onclick', '')}"
@@ -272,15 +281,13 @@ def parse_list(state):
                     actions['pre'] = match.group(1)
                 elif match.group(1).endswith('$lbbg'):
                     actions['report'] = match.group(1)
-        if not actions:
-            continue
-        cells = [c.get_text(' ', strip=True) for c in row.select('td')]
+        cells = [c.get_text(' ', strip=True) for c in columns]
         if not cells:
             continue
         key = str(len(items))
         state['items'][key] = actions
         items.append({'id': key, 'cells': cells, 'pre': 'pre' in actions, 'report': 'report' in actions})
-    return {'semesters': semesters, 'semester': selected, 'mode': mode, 'items': items}
+    return {'semesters': semesters, 'semester': selected, 'mode': mode, 'headers': headers, 'items': items}
 
 
 def change_semester(key, semester):

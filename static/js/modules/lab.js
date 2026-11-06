@@ -37,7 +37,7 @@ function conversionFor(filename) {
 function render(data) {
     el('lab-convert').hidden = true;
     const byCourse = data.mode === '按课程';
-    el('lab-mode').textContent = byCourse ? '按课程展示原站可提交的实验任务' : '按原站实验项目展示';
+    el('lab-mode').textContent = byCourse ? '按课程展示实验任务' : '按实验项目展示';
     const term = el('lab-semester');
     term.replaceChildren();
     data.semesters.forEach(item => {
@@ -54,7 +54,11 @@ function render(data) {
         const card = document.createElement('article');
         card.className = 'lab-item';
         const title = document.createElement('strong');
-        title.textContent = item.cells.filter(Boolean).join(' · ');
+        const headers = data.headers || [];
+        const titleIndex = headers.findIndex(header => /课程|项目|实验名称/.test(header));
+        const fallbackIndex = item.cells.findIndex(value => value && !/^\d+$/.test(value));
+        const nameIndex = titleIndex >= 0 && item.cells[titleIndex] ? titleIndex : fallbackIndex;
+        title.textContent = item.cells[nameIndex] || '实验任务';
         card.append(title);
         const controls = document.createElement('div');
         controls.className = 'lab-actions';
@@ -73,6 +77,20 @@ function render(data) {
             controls.append(button);
         });
         card.append(controls);
+        const details = document.createElement('div');
+        details.className = 'lab-item-details';
+        item.cells.forEach((value, index) => {
+            if (!value || index === nameIndex || /^(预习报告\s*)?(实验报告)?$/.test(value)) return;
+            const detail = document.createElement('span');
+            detail.textContent = headers[index] ? `${headers[index]}：${value}` : value;
+            details.append(detail);
+        });
+        if (!item.pre && !item.report) {
+            const note = document.createElement('span');
+            note.textContent = '实验站未提供提交入口';
+            details.append(note);
+        }
+        card.append(details);
         list.append(card);
     });
     el('lab-results').hidden = false;
