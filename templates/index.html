@@ -441,16 +441,21 @@
             <div id="page-lab" class="page">
                 <div class="page-access-gate" data-page-access-gate hidden></div>
                 <div class="lab-wrap">
-                    <div class="lab-heading"><div><h2>实验提交</h2><p class="page-section-desc">查询实验任务，提交预习或实验报告。</p></div><span class="shortcut-api-badge">初级会员以上</span></div>
-                    <div id="lab-message" class="lab-message" role="status" aria-live="polite"></div>
-                    <section class="lab-card">
-                        <div class="lab-section-heading"><div><h3>连接实验站</h3><p>使用当前绑定的学号登录，验证码自动识别。</p></div><span id="lab-bound">未绑定实验站密码</span></div>
-                        <div class="lab-account">当前学号 <strong id="lab-student">待获取</strong></div>
-                        <div class="lab-password-field"><label for="lab-password">实验站密码</label><input id="lab-password" type="password" autocomplete="off" placeholder="输入密码；已绑定时可留空"></div>
-                        <label class="lab-check"><input id="lab-save" type="checkbox"> 登录成功后将密码绑定到学号</label>
-                        <div class="lab-actions"><button id="lab-query" class="btn-primary" type="button">查询实验</button><button id="lab-unbind" class="btn-secondary" type="button">解除密码绑定</button></div>
+                    <div class="lab-heading"><h2>实验提交</h2><span class="lab-format-hint">PDF · 最大 20MB</span></div>
+                    <section class="lab-card lab-connection" aria-label="实验站账号与查询">
+                        <div class="lab-connection-meta"><div class="lab-account">学号 <strong id="lab-student">待获取</strong></div><span id="lab-bound">未绑定实验站密码</span></div>
+                        <div class="lab-query-row">
+                            <div class="lab-password-field"><label for="lab-password">实验站密码</label><input id="lab-password" type="password" autocomplete="off" placeholder="已绑定密码可留空"></div>
+                            <button id="lab-query" class="btn-primary" type="button">查询实验</button>
+                        </div>
+                        <div class="lab-credential-options"><label class="lab-check"><input id="lab-save" type="checkbox"> 绑定密码，下次免填</label><button id="lab-unbind" class="btn-secondary" type="button">解除密码绑定</button></div>
+                        <div id="lab-message" class="lab-message" role="status" aria-live="polite"></div>
                     </section>
-                    <section id="lab-results" class="lab-card lab-results" hidden><div class="lab-results-heading"><div><h3>实验任务</h3><p id="lab-mode" class="lab-auto-captcha"></p></div><div class="lab-term"><label for="lab-semester">学期</label><select id="lab-semester"></select></div></div><p class="lab-list-note">提交状态以实验站显示为准；已提交的报告可能仍可再次提交。</p><div id="lab-list"></div></section>
+                    <section id="lab-results" class="lab-card lab-results" hidden>
+                        <div class="lab-results-heading"><div class="lab-results-title"><h3>实验任务</h3><span id="lab-mode" class="lab-auto-captcha"></span></div><div class="lab-term"><label for="lab-semester">学期</label><select id="lab-semester"></select></div></div>
+                        <p class="lab-list-note">提交状态以实验站为准，已提交的报告可能仍可再次提交。</p>
+                        <div id="lab-list"></div>
+                    </section>
                     <input id="lab-file" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" hidden>
                     <aside id="lab-convert" class="lab-card" hidden>
                         <p id="lab-convert-text" class="lab-auto-captcha"></p>

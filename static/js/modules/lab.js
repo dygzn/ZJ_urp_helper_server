@@ -109,7 +109,7 @@ export async function loadLabPage() {
         el('lab-unbind').disabled = !state.password_bound;
         el('lab-password').value = '';
         el('lab-save').checked = false;
-        message('请输入实验站密码，然后手动点击“查询实验”。验证码将在后台自动识别；已绑定密码可留空。');
+        message('');
     } catch (error) {
             if (error.name === 'AbortError') return;
         message(error.message, true);
