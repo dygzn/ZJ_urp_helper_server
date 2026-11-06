@@ -52,5 +52,5 @@
 }
 }
 @layer utilities {
-.lab-card[hidden], .lab-message:empty { display: none; }
+.lab-card[hidden], .lab-card [hidden], .lab-message:empty { display: none; }
 }

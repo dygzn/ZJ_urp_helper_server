@@ -32,6 +32,22 @@ class LabError(Exception):
     pass
 
 
+class LabSessionExpired(LabError):
+    pass
+
+
+def session_snapshot(key):
+    """读取本设备尚未过期的实验列表，不触发登录或延长会话。"""
+    with _states_lock:
+        state = _states.get(key)
+        if not state or time.monotonic() - state['at'] > SESSION_TTL or not state.get('list_url'):
+            return None
+        try:
+            return parse_list(state)
+        except LabError:
+            return None
+
+
 def _cipher():
     try:
         from cryptography.fernet import Fernet
@@ -142,7 +158,7 @@ def _get(key):
         state = _states.get(key)
         if not state or time.monotonic() - state['at'] > SESSION_TTL:
             _states.pop(key, None)
-            raise LabError('实验站会话已过期，请刷新验证码并重新查询')
+            raise LabSessionExpired('实验站会话已过期，请重新登录查询')
         state['at'] = time.monotonic()
         return state
 
@@ -252,6 +268,8 @@ def login_and_list(key, username, password):
 
 def parse_list(state):
     soup = BeautifulSoup(state['page'].text, 'html.parser')
+    if soup.select_one('input[name=PassWord]'):
+        raise LabSessionExpired('实验站登录已过期，请重新登录查询')
     select = soup.select_one('select[name=ddlxq]')
     if not select:
         raise LabError('实验站页面缺少学期选择器')
@@ -324,7 +342,8 @@ def upload(key, item_id, kind, filename, data):
     result_soup = BeautifulSoup(result.text, 'html.parser')
     # WebForms 错误页与登录页不能被当作上传成功。
     if '/gzc_index/' in urlparse(result.url).path.lower() or result_soup.select_one('input[name=PassWord]'):
-        raise LabError('实验站登录已过期，未确认上传成功')
+        forget_temporary_lab_session(*key)
+        raise LabSessionExpired('实验站登录已过期，未确认上传成功，请重新登录查询')
     error = result_soup.select_one('.validation-summary-errors, .field-validation-error')
     if error:
         raise LabError(f"实验站拒绝上传：{error.get_text(' ', strip=True)[:150]}")

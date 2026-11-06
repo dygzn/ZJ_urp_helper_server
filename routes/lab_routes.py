@@ -18,6 +18,8 @@ def _key(user):
 def _result(action):
     try:
         return action()
+    except lab.LabSessionExpired as exc:
+        return jsonify({'success': False, 'code': 'LAB_SESSION_EXPIRED', 'message': str(exc)}), 400
     except lab.LabError as exc:
         return jsonify({'success': False, 'message': str(exc)}), 400
 
@@ -25,8 +27,13 @@ def _result(action):
 @lab_bp.route('/api/lab/status')
 @require_member('basic')
 def status(user):
-    return _result(lambda: jsonify({'success': True, 'student_id': _key(user)[0],
-                                    'password_bound': lab.credential_status(user['username'])}))
+    def run():
+        key = _key(user)
+        data = lab.session_snapshot(key)
+        return jsonify({'success': True, 'student_id': key[0],
+                        'password_bound': lab.credential_status(user['username']),
+                        'logged_in': data is not None, 'data': data})
+    return _result(run)
 
 
 @lab_bp.route('/api/lab/query', methods=['POST'])

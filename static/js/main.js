@@ -17,7 +17,7 @@ import * as feedback from './modules/feedback.js?v=20261021-nova';
 import * as member from './modules/member.js?v=20261017-membership-warning';
 import * as evaluation from './modules/evaluation.js?v=20261021-nova';
 import * as service from './modules/service.js';
-import * as lab from './modules/lab.js?v=20261106-lab-compact';
+import * as lab from './modules/lab.js?v=20261106-lab-session';
 import * as ad from './modules/ad.js';
 
 const domains = { auth, router, schedule: { ...scheduleGestures, ...schedule, ...scheduleEditor }, grades, home, exams, calendar, ui, navigation,

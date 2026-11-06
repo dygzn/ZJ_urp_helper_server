@@ -18,7 +18,16 @@ async function api(url, options = {}) {
     const response = await operation.wait(resources.fetch(url, { ...options, headers: { ...headers(), ...(options.headers || {}) } }));
     const type = response.headers.get('content-type') || '';
     const data = type.includes('application/json') ? await operation.wait(response.json()) : null;
-    if (!response.ok || !data || !data.success) throw new Error(data?.message || '实验站请求失败');
+    if (!response.ok || !data || !data.success) {
+        if (data?.code === 'LAB_SESSION_EXPIRED') {
+            el('lab-connection').hidden = false;
+            el('lab-results').hidden = true;
+            el('lab-convert').hidden = true;
+            pending = null;
+            el('lab-password').focus?.();
+        }
+        throw new Error(data?.message || '实验站请求失败');
+    }
     return data;
 }
 
@@ -94,10 +103,12 @@ function render(data) {
         list.append(card);
     });
     el('lab-results').hidden = false;
+    el('lab-connection').hidden = true;
 }
 
 export async function loadLabPage() {
     const operation = resources.capture();
+    el('lab-connection').hidden = true;
     el('lab-results').hidden = true;
     el('lab-convert').hidden = true;
     pending = null;
@@ -107,16 +118,21 @@ export async function loadLabPage() {
         el('lab-student').textContent = state.student_id;
         el('lab-bound').textContent = state.password_bound ? '已绑定实验站密码' : '未绑定实验站密码';
         el('lab-unbind').disabled = !state.password_bound;
+        el('lab-disconnect').hidden = !state.password_bound;
         el('lab-password').value = '';
         el('lab-save').checked = false;
+        if (state.logged_in && state.data) render(state.data);
+        else el('lab-connection').hidden = false;
         message('');
     } catch (error) {
             if (error.name === 'AbortError') return;
+        el('lab-connection').hidden = false;
         message(error.message, true);
     }
 }
 
 export function initializeLab() {
+    resources.listen(el('lab-disconnect'), 'click', () => el('lab-unbind').click());
     resources.listen(el('lab-convert-reselect'), 'click', () => el('lab-file').click());
     resources.listen(el('lab-query'), 'click', async () => {
     const operation = resources.capture();
@@ -135,8 +151,10 @@ export function initializeLab() {
             if (el('lab-save').checked) {
                 el('lab-bound').textContent = '已绑定实验站密码';
                 el('lab-unbind').disabled = false;
+                el('lab-disconnect').hidden = false;
             }
             message(resultSummary(result.data));
+            el('lab-semester').focus?.();
         } catch (error) {
             if (error.name === 'AbortError') return;
             message(error.message, true);
@@ -158,6 +176,11 @@ export function initializeLab() {
             await operation.wait(api('/api/lab/credential', { method: 'DELETE' }));
             el('lab-bound').textContent = '未绑定实验站密码';
             el('lab-unbind').disabled = true;
+            el('lab-disconnect').hidden = true;
+            el('lab-connection').hidden = false;
+            el('lab-convert').hidden = true;
+            pending = null;
+            el('lab-password').focus?.();
             el('lab-results').hidden = true;
             message('已解除密码绑定，请输入密码重新查询');
         } catch (error) {
