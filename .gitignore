@@ -37,6 +37,7 @@ Thumbs.db
 /tests/*
 !/tests/test_user_growth.js
 !/tests/test_user_growth.py
+!/tests/test_urgent_event_exams.py
 
 # Legacy local-only files
 CLAUD.md

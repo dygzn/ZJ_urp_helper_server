@@ -428,31 +428,43 @@ def get_urgent_event(username):
         with open(exams_file, 'r', encoding='utf-8') as f:
             exams = json.load(f)
 
-        for week_str in sorted(exams.keys(), key=int):
-            week = int(week_str)
-            if week < current_week:
+        # 待定考试也会缓存为空周次；只对可确定日期的记录计算提醒，保留原缓存。
+        for week_str, week_exams in (exams.items() if isinstance(exams, dict) else ()):
+            try:
+                week = int(week_str)
+            except (TypeError, ValueError):
+                continue
+            if week < max(1, current_week) or not isinstance(week_exams, list):
                 continue
 
-            for exam in exams[week_str]:
-                day = int(exam['考试星期'])
-                time_range = exam['考试时间']
-                start_str = time_range.split('-')[0]
-                hour, minute = map(int, start_str.split(':'))
-
-                days_offset = (week - 1) * 7 + (day - 1)
-                exam_date = semester_start + timedelta(days=days_offset)
-                exam_time = exam_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
+            for exam in week_exams:
+                if not isinstance(exam, dict):
+                    continue
+                time_range = exam.get('考试时间')
+                if not isinstance(time_range, str):
+                    continue
+                try:
+                    day = int(exam.get('考试星期'))
+                    if not 1 <= day <= 7:
+                        continue
+                    start_str = time_range.split('-')[0]
+                    hour, minute = map(int, start_str.split(':'))
+                    days_offset = (week - 1) * 7 + (day - 1)
+                    exam_date = semester_start + timedelta(days=days_offset)
+                    exam_time = exam_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
+                except (TypeError, ValueError, OverflowError):
+                    continue
 
                 if exam_time > now:
                     if next_exam_time is None or exam_time < next_exam_time:
                         next_exam_time = exam_time
                         next_exam = {
                             'type': 'exam',
-                            'title': exam['课程'],
-                            'location': exam['位置'],
+                            'title': exam.get('课程') or '考试',
+                            'location': exam.get('位置') or '',
                             'time': exam_date.strftime('%Y-%m-%d') + ' ' + time_range,
                             'countdown': int((exam_time - now).total_seconds() / 60),
-                            'seat': exam['座位号']
+                            'seat': exam.get('座位号') or ''
                         }
 
     next_event = None
