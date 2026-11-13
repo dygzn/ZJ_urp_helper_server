@@ -138,27 +138,6 @@ background: var(--ui-exam-surface);
     padding-inline-end: 4px;
 }
 
-.schedule-exam-label {
-    font-size: 10px;
-    line-height: 1.1;
-    font-weight: 650;
-    flex-shrink: 0;
-    color: var(--ui-exam-ink);
-}
-
-.schedule-exam-time {
-display: flex;
-    flex-wrap: wrap;
-    font-size: 11px;
-    font-weight: 650;
-    line-height: 1.3;
-    flex-shrink: 0;
-}
-
-.schedule-exam-time > span {
-white-space: nowrap;
-}
-
 .schedule-exam-card .course-card-name,
 .schedule-exam-card .course-card-location {
 display: -webkit-box;
@@ -180,15 +159,6 @@ opacity: 1;
 .schedule-day-column > .schedule-exam-card {
     padding-block: 4px;
     padding-inline-end: 2px;
-}
-
-.schedule-exam-time {
-flex-direction: column;
-    font-size: 10px;
-}
-
-.schedule-exam-time > span:nth-child(2) {
-display: none;
 }
 
 }
@@ -3339,7 +3309,7 @@ font-size: 12px;
 }
 
 :where(body.urp-app) :where(#page-schedule) .schedule-exam-card .course-card-name {
--webkit-line-clamp: 1;
+-webkit-line-clamp: 3;
 }
 
 :where(body.urp-app) :where(#page-schedule) .course-card-location {
@@ -3347,9 +3317,6 @@ font-size: 11px;
     -webkit-line-clamp: 1;
 }
 
-:where(body.urp-app) :where(#page-schedule) .schedule-exam-time {
-font-size: 10px;
-}
 
 :where(body.urp-app) :where(#page-schedule) .course-card-period {
 display: none;

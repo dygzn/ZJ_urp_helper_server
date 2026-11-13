@@ -541,17 +541,18 @@ export function renderScheduleWeek(schedule, panel, courseColorMap = buildSchedu
             const position = scheduleCourseGridPlacement(course.section, course.duration)
                 + ` --schedule-event-lanes: ${course.lanes}; --schedule-event-lane: ${course.lane};`;
             const isExam = course.kind === 'exam';
+            const cardName = isExam && !course.name.endsWith('考试') ? course.name + '考试' : course.name;
+            const seatLabel = isExam && course.seat.trim() ? `座位号 ${course.seat.trim()}` : '';
             const color = courseColorMap.get(getScheduleCourseColorKey(course)) || '#2563eb';
             course.conflict = !isExam && hasCourseTimeConflict(course, daysCourses[day], slotDate(week, day, currentSemesterStartValue()), times);
             const courseId = registerCourse(course, day);
             html += `<button type="button" class="course-card${isExam ? ' schedule-exam-card' : ''}${course.duration === 1 ? ' is-single-period' : ''}"
                 style="${position} --course-color: ${isExam ? 'var(--ui-exam-ink)' : color};"
-                title="${escapeHtml(`${course.name}${isExam ? ` · 考试 · ${course.time}` : ''}${course.location ? ` · ${course.location}` : ''}`)}"
+                title="${escapeHtml([cardName, course.location, seatLabel].filter(Boolean).join(' · '))}"
                 data-course-id="${escapeHtml(courseId)}" data-event-id="${escapeHtml(course.raw?.event_id || '')}" data-day="${day}" tabindex="${panel.getAttribute?.('aria-hidden') === 'true' ? -1 : 0}" onclick="showCourseDetail(this)">
-                ${isExam ? '<span class="schedule-exam-label">考试</span>' : ''}
-                <span class="course-card-name">${escapeHtml(course.name)}</span>
-                ${isExam ? `<span class="schedule-exam-time" aria-label="${escapeHtml(course.time)}"><span>${escapeHtml(course.time.split('-')[0])}</span><span aria-hidden="true">-</span><span>${escapeHtml(course.time.split('-')[1])}</span></span>` : ''}
+                <span class="course-card-name">${escapeHtml(cardName)}</span>
                 ${course.location ? `<span class="course-card-location">${escapeHtml(course.location)}</span>` : ''}
+                ${seatLabel ? `<span class="course-card-location">${escapeHtml(seatLabel)}</span>` : ''}
             </button>`;
         });
         html += '</div>';
