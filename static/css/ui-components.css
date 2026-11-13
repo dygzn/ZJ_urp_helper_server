@@ -134,15 +134,16 @@ background: var(--ui-exam-surface);
     border: 1px solid currentColor;
     box-shadow: none;
     justify-content: flex-start;
-    padding: 6px 4px;
+    padding-block: 6px;
+    padding-inline-end: 4px;
 }
 
 .schedule-exam-label {
-margin-top: auto;
-    font-size: 9px;
-    font-weight: 400;
+    font-size: 10px;
+    line-height: 1.1;
+    font-weight: 650;
     flex-shrink: 0;
-    color: var(--ui-muted);
+    color: var(--ui-exam-ink);
 }
 
 .schedule-exam-time {
@@ -177,7 +178,8 @@ opacity: 1;
 
 @media (max-width: 520px) {
 .schedule-day-column > .schedule-exam-card {
-padding: 4px 2px;
+    padding-block: 4px;
+    padding-inline-end: 2px;
 }
 
 .schedule-exam-time {
@@ -189,58 +191,10 @@ flex-direction: column;
 display: none;
 }
 
-.schedule-exam-label {
-display: none;
-}
 }
 
 .schedule-unplaced-exams {
 margin-top: 12px;
-}
-
-.schedule-unplaced-note {
-margin: 0 0 8px;
-    font-size: 12px;
-    color: var(--ui-muted);
-}
-
-.schedule-unplaced-exam {
-display: flex;
-    flex-wrap: wrap;
-    gap: 6px 14px;
-    width: 100%;
-    min-height: 44px;
-    margin-top: 6px;
-    padding: 10px 12px;
-    border: 1px solid var(--ui-line);
-    border-radius: var(--ui-radius-sm);
-    background: var(--ui-exam-surface);
-    color: var(--ui-exam-ink);
-    font: inherit;
-    font-size: 13px;
-    text-align: left;
-    overflow-wrap: anywhere;
-    cursor: pointer;
-}
-
-.schedule-unplaced-exam small {
-flex-basis: 100%;
-    font-size: 12px;
-    color: var(--ui-muted);
-}
-
-.schedule-unplaced-exam strong {
-flex-basis: 100%;
-    font-size: 14px;
-}
-
-.schedule-exam-summary-time {
-flex-basis: 100%;
-    font-weight: 650;
-}
-
-.schedule-exam-summary-location {
-flex-basis: 100%;
 }
 
 :where(html.urp-root) {
@@ -3375,9 +3329,6 @@ font-size: 12px;
 display: none;
 }
 
-:where(body.urp-app) :where(#page-schedule) .schedule-exam-label {
-display: none;
-}
 }
 
 @container schedule-event (max-width: 110px) {

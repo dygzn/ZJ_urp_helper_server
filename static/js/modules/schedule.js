@@ -526,26 +526,18 @@ export function renderScheduleWeek(schedule, panel, courseColorMap = buildSchedu
     const weekExams = state.otherMajorScheduleData ? [] : state.cachedScheduleExams
         .filter(exam => Number(exam.week) === week)
         .map(exam => buildScheduleExamCardData(exam, times));
-    const unplacedExams = [];
     weekExams.forEach(exam => {
-        if (!exam.section || !daysCourses[exam.dayNumber]) {
-            unplacedExams.push(exam);
-            return;
-        }
+        if (!exam.section || !daysCourses[exam.dayNumber]) return;
         if (exam.section + exam.duration - 1 >= 9) hasEvening = true;
         daysCourses[exam.dayNumber].push(exam);
     });
     const hasWeekend = daysCourses[6].length > 0 || daysCourses[7].length > 0
-        || weekExams.some(exam => exam.dayNumber >= 6 && exam.dayNumber <= 7)
         || unplacedCourses.some(course => ['星期六','星期日'].includes(course.day));
 
     let html = '';
     for (let day = 1; day <= 7; day++) {
         html += `<div class="schedule-day-column${day >= 6 ? ' schedule-day-weekend' : ''}" data-schedule-column-day="${day}">`;
         buildScheduleDayCardLayout(daysCourses[day]).forEach(course => {
-            if (course.kind === 'exam' && course.lanes > 1) {
-                unplacedExams.push({ ...course, note: '同一时段还有其他安排，请核对实际时间' });
-            }
             const position = scheduleCourseGridPlacement(course.section, course.duration)
                 + ` --schedule-event-lanes: ${course.lanes}; --schedule-event-lane: ${course.lane};`;
             const isExam = course.kind === 'exam';
@@ -556,10 +548,10 @@ export function renderScheduleWeek(schedule, panel, courseColorMap = buildSchedu
                 style="${position} --course-color: ${isExam ? 'var(--ui-exam-ink)' : color};"
                 title="${escapeHtml(`${course.name}${isExam ? ` · 考试 · ${course.time}` : ''}${course.location ? ` · ${course.location}` : ''}`)}"
                 data-course-id="${escapeHtml(courseId)}" data-event-id="${escapeHtml(course.raw?.event_id || '')}" data-day="${day}" tabindex="${panel.getAttribute?.('aria-hidden') === 'true' ? -1 : 0}" onclick="showCourseDetail(this)">
+                ${isExam ? '<span class="schedule-exam-label">考试</span>' : ''}
                 <span class="course-card-name">${escapeHtml(course.name)}</span>
                 ${isExam ? `<span class="schedule-exam-time" aria-label="${escapeHtml(course.time)}"><span>${escapeHtml(course.time.split('-')[0])}</span><span aria-hidden="true">-</span><span>${escapeHtml(course.time.split('-')[1])}</span></span>` : ''}
                 ${course.location ? `<span class="course-card-location">${escapeHtml(course.location)}</span>` : ''}
-                ${isExam ? '<span class="schedule-exam-label">考试</span>' : ''}
             </button>`;
         });
         html += '</div>';
@@ -567,16 +559,8 @@ export function renderScheduleWeek(schedule, panel, courseColorMap = buildSchedu
     scheduleDays.innerHTML = html;
     const unplaced = panel.querySelector('.schedule-unplaced-exams');
     if (unplaced) {
-        unplaced.hidden = weekExams.length === 0 && unplacedCourses.length === 0;
-        unplaced.innerHTML = weekExams.length ? '<p class="schedule-unplaced-note">本周考试</p>'
-            + weekExams.map(exam => {
-                const extra = unplacedExams.find(item => item.name === exam.name && item.dayNumber === exam.dayNumber
-                    && item.time === exam.time && item.location === exam.location);
-                const note = extra ? extra.note || '时间待定或不在上课时段内' : '';
-                const date = getCalendarDate(currentSemesterStartValue(), week, exam.dayNumber);
-                return `<button type="button" class="schedule-unplaced-exam" data-course-id="${escapeHtml(registerCourse(exam, exam.dayNumber))}" data-day="${exam.dayNumber}" tabindex="${panel.getAttribute?.('aria-hidden') === 'true' ? -1 : 0}" onclick="showCourseDetail(this)"><strong>${escapeHtml(exam.name)}</strong><span class="schedule-exam-summary-time">${date ? `${escapeHtml(date)} ` : ''}${escapeHtml(exam.day)} ${escapeHtml(exam.time)}</span><span class="schedule-exam-summary-location">${escapeHtml(exam.location || '考试位置待定')}</span>${note ? `<small>${escapeHtml(note)}</small>` : ''}</button>`;
-            }).join('') : '';
-        unplaced.innerHTML += unplacedCourses.map(course => `<button type="button" class="schedule-unplaced-course" data-day="${course.dayNumber}" data-course-id="${escapeHtml(registerCourse(course, course.dayNumber))}" onclick="showCourseDetail(this)" tabindex="${panel.getAttribute?.('aria-hidden') === 'true' ? -1 : 0}"><strong>${escapeHtml(course.name)}</strong><span>${escapeHtml(courseClockLabel(course.raw))}</span>${course.location ? `<span>${escapeHtml(course.location)}</span>` : ''}</button>`).join('');
+        unplaced.hidden = unplacedCourses.length === 0;
+        unplaced.innerHTML = unplacedCourses.map(course => `<button type="button" class="schedule-unplaced-course" data-day="${course.dayNumber}" data-course-id="${escapeHtml(registerCourse(course, course.dayNumber))}" onclick="showCourseDetail(this)" tabindex="${panel.getAttribute?.('aria-hidden') === 'true' ? -1 : 0}"><strong>${escapeHtml(course.name)}</strong><span>${escapeHtml(courseClockLabel(course.raw))}</span>${course.location ? `<span>${escapeHtml(course.location)}</span>` : ''}</button>`).join('');
     }
     scheduleGrid.classList.toggle('has-evening', hasEvening);
     setScheduleWeekendVisibility(hasWeekend, scheduleGrid, scheduleHeader);
