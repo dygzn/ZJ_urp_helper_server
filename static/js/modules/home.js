@@ -234,6 +234,22 @@ export function displayUrgentEvent(eventData) {
         html = renderHomeState('empty');
     }
 
+    // 两周内每场考试独立显示，不被更早的课程挡住；next 中的考试只显示一次。
+    const upcomingExams = Array.isArray(eventData.upcoming_exams) ? eventData.upcoming_exams : [];
+    const additionalExams = upcomingExams.filter(exam => !(next?.type === 'exam'
+        && exam.time === next.time && exam.title === next.title && exam.location === next.location));
+    if (additionalExams.length) {
+        if (!current && !next) html = '';
+        html += additionalExams.map(exam => `
+            <div class="event-card event-card-upcoming event-card-exam">
+                <div class="event-type"><span class="home-event-icon">${homeIcon('exam')}</span><span>两周内考试</span></div>
+                <div class="event-title">${escapeHtml(exam.title)}</div>
+                <div class="event-location">${escapeHtml(exam.location || '')}</div>
+                <div class="event-time-label">${escapeHtml(exam.time)}</div>
+                ${exam.seat ? `<div class="event-seat">座位号： ${escapeHtml(exam.seat)}</div>` : ''}
+            </div>
+        `).join('');
+    }
     contentDiv.innerHTML = html;
 
     // 正在进行中的课程倒计时（每分钟更新）

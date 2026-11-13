@@ -45,6 +45,22 @@ class UrgentEventExamTests(unittest.TestCase):
         self.assertTrue(result['success'], result.get('message'))
         return result['event']
 
+    def test_two_week_exams_are_separate_from_earlier_courses_and_sorted(self):
+        event = self.query({'2': [{**self.exam, '课程': '第二周考试'}],
+                            '1': [self.exam], '3': [self.exam]}, {'1': [{
+            '课程名': '程序设计', '星期': '1', '节次': '1', '节数': '2', '位置': '实验楼',
+        }]})
+        self.assertEqual(event['next']['type'], 'class')
+        self.assertEqual([e['title'] for e in event['upcoming_exams']], ['高等数学', '第二周考试'])
+
+    def test_fourteen_day_boundary_is_inclusive(self):
+        event = self.query({'3': [
+            {**self.exam, '考试时间': '07:00-09:00', '课程': '正好14天'},
+            {**self.exam, '考试时间': '07:01-09:00', '课程': '超过14天'},
+        ], '1': [{**self.exam, '考试时间': '06:00-06:30'}]})
+        self.assertEqual([e['title'] for e in event['upcoming_exams']], ['正好14天'])
+        self.assertIsNone(self.query({'3': [{**self.exam, '考试时间': '07:01-09:00'}]})['next'])
+
     def test_undetermined_week_does_not_hide_valid_exams_or_remove_cached_records(self):
         for week in ('', ' ', '待定', '0', '-1'):
             with self.subTest(week=week):

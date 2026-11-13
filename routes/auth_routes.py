@@ -5,7 +5,7 @@ import re
 from flask import Blueprint, request, jsonify, current_app
 from database import get_db
 from services.user_service import get_device_id, get_user_by_device, bind_user, unbind_user
-from services.urp_service import urp_login, check_login_status
+from services.urp_service import urp_login, check_login_status, update_daily_exams
 from services.activity_service import record_daily_activity
 from services.config_service import get_current_urp_url
 from services.credential_service import CredentialCipher, CredentialError
@@ -22,6 +22,7 @@ def check_bind():
     user = get_user_by_device(device_id)
 
     if user:
+        update_daily_exams(user)
         resp = {
             'success': True,
             'bound': True,
@@ -76,6 +77,9 @@ def login():
             bind_user(device_id, username, password, invitation_token)
             delete_temporary_session(device_id)
             record_daily_activity(username)
+            update_daily_exams({
+                'username': username, 'password': password,
+            })
             return jsonify({
                 'success': True,
                 'bound': True,
@@ -85,6 +89,10 @@ def login():
 
         expires_at = save_temporary_session(device_id, username, cookies, url=get_current_urp_url())
         record_daily_activity(username)
+        # 解析新会话后，查询缓存写入临时隔离目录。
+        temporary_user = get_user_by_device(device_id)
+        if temporary_user:
+            update_daily_exams(temporary_user)
         return jsonify({
             'success': True,
             'bound': False,

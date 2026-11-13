@@ -421,6 +421,7 @@ def get_urgent_event(username):
     next_class = upcoming_info['next']
     next_class_time = upcoming_info['next_time']
 
+    upcoming_exams = []
     next_exam = None
     next_exam_time = None
 
@@ -455,18 +456,21 @@ def get_urgent_event(username):
                 except (TypeError, ValueError, OverflowError):
                     continue
 
-                if exam_time > now:
+                if now < exam_time <= now + timedelta(days=14):
+                    exam_event = {
+                        'type': 'exam',
+                        'title': exam.get('课程') or '考试',
+                        'location': exam.get('位置') or '',
+                        'time': exam_date.strftime('%Y-%m-%d') + ' ' + time_range,
+                        'countdown': int((exam_time - now).total_seconds() / 60),
+                        'seat': exam.get('座位号') or '',
+                    }
+                    upcoming_exams.append(exam_event)
                     if next_exam_time is None or exam_time < next_exam_time:
                         next_exam_time = exam_time
-                        next_exam = {
-                            'type': 'exam',
-                            'title': exam.get('课程') or '考试',
-                            'location': exam.get('位置') or '',
-                            'time': exam_date.strftime('%Y-%m-%d') + ' ' + time_range,
-                            'countdown': int((exam_time - now).total_seconds() / 60),
-                            'seat': exam.get('座位号') or ''
-                        }
+                        next_exam = exam_event
 
+    upcoming_exams.sort(key=lambda exam: exam['countdown'])
     next_event = None
     if next_class and next_exam:
         next_event = next_class if next_class_time < next_exam_time else next_exam
@@ -479,6 +483,7 @@ def get_urgent_event(username):
         'current': current_class,
         'next': next_event,
         'upcoming': upcoming_info['courses'],
+        'upcoming_exams': upcoming_exams,
         'upcoming_label': upcoming_info['label'],
         'upcoming_date': upcoming_info['date'],
         'is_freshman': _is_freshman(username),
@@ -486,6 +491,63 @@ def get_urgent_event(username):
         'schedule_cache_stale': schedule_cache_stale,
         'exams_cache_stale': exams_cache_stale,
     }
+
+
+def update_daily_exams(user):
+    """登录入口同步更新当日考试；账号/临时会话隔离，失败保留缓存。"""
+    username = user['username']
+    marker = user_data_file(username, 'daily_exams.json')
+    try:
+        os.makedirs(os.path.dirname(marker), exist_ok=True)
+        # 进程内锁合并线程，文件锁合并同机 Gunicorn worker；不持有数据库连接。
+        with _hold_login_lock(('daily-exams', marker)) as acquired:
+            if not acquired:
+                return
+            descriptor = os.open(marker, os.O_RDWR | os.O_CREAT, 0o600)
+            with os.fdopen(descriptor, 'r+', encoding='utf-8') as handle:
+                if os.name == 'nt':
+                    import msvcrt
+                    if not os.fstat(handle.fileno()).st_size:
+                        handle.write(' ')
+                        handle.flush()
+                    handle.seek(0)
+                    msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK, 1)
+                else:
+                    import fcntl
+                    fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+                now = datetime.now(CHINA)
+                today = now.date().isoformat()
+                try:
+                    handle.seek(0)
+                    previous = json.load(handle)
+                    if not isinstance(previous, dict):
+                        previous = {}
+                except (ValueError, OSError):
+                    previous = {}
+                config = get_config()
+                semester = [config.get('semester_start'), config.get('semester_cache_reset_at_ns')]
+                if previous.get('date') == today and previous.get('semester') == semester:
+                    return
+                if now.timestamp() < previous.get('retry_at', 0):
+                    return
+
+                def save(value):
+                    handle.seek(0)
+                    json.dump(value, handle)
+                    handle.truncate()
+                    handle.flush()
+
+                # 失败仅短暂退避，之后允许重试，不把失败记为今日成功。
+                save({'retry_at': now.timestamp() + 60})
+                url = normalize_urp_url(get_current_urp_url())
+                logged_in, _ = check_login_status(username, user.get('password'), {}, url=url)
+                if not logged_in:
+                    return
+                from urp import URP_query
+                URP_query(url, username).exam_cx()
+                save({'date': today, 'semester': semester})
+    except Exception:
+        logging.getLogger(__name__).warning('每日考试安排更新失败，保留已有缓存')
 
 
 def is_auto_update_running(username):

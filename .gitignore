@@ -44,3 +44,6 @@ CLAUD.md
 claude.md
 /test/
 备忘录.txt
+
+!tests/test_daily_exam_update.py
+!tests/browser_home_exam_reminders.cjs

@@ -1,4 +1,4 @@
-// Refresh the versioned entry for on-demand academic access and menu-only schedule updates.
+// Refresh the versioned entry for two-week exam reminders and daily login exam updates.
 import * as scheduleEditor from './modules/schedule-editor.js';
 import { state, store } from './modules/store.js';
 import * as auth from './modules/auth.js';

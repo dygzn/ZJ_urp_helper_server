@@ -115,3 +115,18 @@ test('loading cached home agenda never checks academic login', async () => {
     await context.loadUrgentEvent();
     assert.equal(checks, 0);
 });
+
+
+test('all two-week exams remain visible alongside an earlier class without duplicate exams', () => {
+    const { context, content } = homeContext();
+    const exam = { type: 'exam', title: '高等数学期末', time: '2026-10-07 08:30-10:30', location: '教A201', seat: '12' };
+    context.displayUrgentEvent({ next: { type: 'class', title: '程序设计', time: '2026-09-30 08:00-10:00' },
+        upcoming_exams: [exam, { ...exam, title: '大学英语期末' }] });
+    assert.match(content.innerHTML, /程序设计/);
+    assert.match(content.innerHTML, /高等数学期末/);
+    assert.match(content.innerHTML, /大学英语期末/);
+    assert.match(content.innerHTML, /08:30-10:30/);
+    assert.match(content.innerHTML, /12/);
+    context.displayUrgentEvent({ next: exam, upcoming_exams: [exam] });
+    assert.equal(content.innerHTML.split('高等数学期末').length - 1, 1);
+});
