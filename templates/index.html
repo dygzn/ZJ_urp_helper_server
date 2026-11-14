@@ -257,7 +257,7 @@
                         <div class="schedule-week-caption"><span>按周查看</span><span id="schedule-desktop-range" class="desktop-only">学期日期待确认</span><span id="schedule-mobile-range" class="schedule-mobile-only">学期日期待确认</span></div>
                         <div class="schedule-week-controls">
                             <button class="btn-secondary" type="button" onclick="changeWeek(-1, true)">上一周</button>
-                            <label class="week-select-wrap" for="week-select"><span>周次</span><select id="week-select" aria-label="选择周次" onchange="changeWeek(parseInt(this.value,10)-currentWeek)"></select></label>
+                            <label class="week-select-wrap" for="week-select"><span>周次</span><select id="week-select" aria-label="选择周次" onchange="jumpToWeek(parseInt(this.value,10))"></select></label>
                             <button class="btn-secondary" type="button" onclick="changeWeek(1, true)">下一周</button>
                             <button id="schedule-this-week" class="desktop-only btn-secondary" type="button" onclick="returnToCurrentScheduleWeek()">回到本周</button>
                             <p class="schedule-gesture-help">上滑显示更多按钮，下滑收起</p>

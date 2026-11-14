@@ -47,3 +47,4 @@ claude.md
 
 !tests/test_daily_exam_update.py
 !tests/browser_home_exam_reminders.cjs
+!tests/browser_schedule_week_picker.cjs
