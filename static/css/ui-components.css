@@ -121,7 +121,7 @@
 }
 
 .schedule-day-column > .course-card {
-border: 0;
+border: 1px solid var(--ui-control-line);
     font-family: inherit;
     text-align: left;
     width: calc((100% + 2px) / var(--schedule-event-lanes, 1) - 2px);
@@ -2561,6 +2561,7 @@ height: 100%;
 --schedule-visible-rows: 8;
     flex: 1;
     min-height: 0;
+    background-color: var(--ui-surface-quiet);
 }
 
 :where(body.urp-app) :where(#page-schedule) .schedule-grid.has-evening {
@@ -4721,7 +4722,7 @@ visibility: hidden;
 :where(body.urp-app) :where(#page-schedule) .course-card {
 background: var(--ui-surface);
     color: var(--ui-ink);
-    border: 1px solid var(--ui-line);
+    border: 1px solid var(--ui-control-line);
     box-shadow: none;
     padding-left: 8px;
     transition-property: transform, box-shadow, border-color;
@@ -5093,7 +5094,7 @@ background: var(--glass-light), var(--glass-fill);
     backdrop-filter: var(--glass-blur);
 }
 
-:where(html[data-ui-template="glass"]) :where(body.urp-app) :where(#page-schedule) :is(.schedule-grid, .schedule-header, .schedule-header-day, .schedule-header-time, .timeline-item, .schedule-day-column) {
+:where(html[data-ui-template="glass"]) :where(body.urp-app) :where(#page-schedule) :is(.schedule-header, .schedule-header-day, .schedule-header-time, .timeline-item, .schedule-day-column) {
 background-color: transparent;
     border-color: rgb(118 126 119 / 19%);
 }
@@ -5104,7 +5105,7 @@ background-color: rgb(224 227 220 / 24%);
 
 :where(html[data-ui-template="glass"]) :where(body.urp-app) :where(#page-schedule) .course-card {
 background: var(--glass-course-fill);
-    border: 1px solid var(--glass-edge);
+    border: 1px solid var(--ui-control-line);
     border-radius: var(--glass-course-radius);
     box-shadow: inset 1px 1px var(--glass-glint), inset -1px -1px rgb(132 139 133 / 16%), 0 3px 8px rgb(79 84 78 / 10%);
     color: var(--ui-ink);
