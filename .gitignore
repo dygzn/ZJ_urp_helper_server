@@ -31,31 +31,20 @@ Thumbs.db
 /.worktrees/
 /artifacts/*-preview/
 /AGENTS.md
-/DESIGN.md
 /docs/
 /scripts/
-/tests/*
-!/tests/test_user_growth.js
-!/tests/test_user_growth.py
-!/tests/test_login_rate_limit.py
-!/tests/test_login_rate_limit_ui.js
-!/tests/test_urgent_event_exams.py
-!/tests/test_home_events.js
-!/tests/test_lab_service.py
-!/tests/test_lab_recovery.py
-!/tests/test_lab_submission_status.py
-!/tests/test_lab_ui.js
-!/tests/browser_lab_submission.cjs
-!/tests/test_wechat_lab.py
-!/tests/test_wechat_schedule_exams.py
-!/tests/browser_wechat_lab_upload.cjs
+/tests/
+
+# Keep reports and development notes local; track current website design guides
+/*.md
+!/DESIGN.md
+README.md
+!/static/css/README.md
+!/static/icons/README.md
+*[Rr][Ee][Vv][Ii][Ee][Ww]*.md
 
 # Legacy local-only files
 CLAUD.md
 claude.md
 /test/
 备忘录.txt
-
-!tests/test_daily_exam_update.py
-!tests/browser_home_exam_reminders.cjs
-!tests/browser_schedule_week_picker.cjs
