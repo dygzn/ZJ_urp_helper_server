@@ -4884,11 +4884,6 @@ border-color: rgb(110 118 115 / 18%);
 padding-top: 30px;
 }
 
-:where(html[data-ui-template="glass"]) :where(body.urp-app) :where(#page-home) .home-heading h2 {
-font-size: clamp(28px, 3.2vw, 38px);
-    letter-spacing: -.045em;
-}
-
 :where(html[data-ui-template="glass"]) :where(body.urp-app) :where(#page-home) .event-card {
 padding: 24px;
 }

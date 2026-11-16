@@ -11,6 +11,7 @@ from services.config_service import configure_app_security, get_config, get_curr
 from services.ad_service import EVENT_COLUMNS, record_ad_event
 from services.ad_config_service import get_ad_config
 from services.temporary_session_service import start_temporary_session_cleanup
+from services.login_rate_limit_service import init_login_rate_limiting
 from routes.auth_routes import auth_bp
 from routes.data_routes import data_bp
 from routes.admin_routes import admin_bp
@@ -22,6 +23,7 @@ from routes.lab_routes import lab_bp
 
 app = Flask(__name__)
 configure_app_security(app)
+init_login_rate_limiting(app)
 INDEX_QUERY_ALLOWLIST = ('page', 'invite')
 
 

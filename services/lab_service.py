@@ -1,10 +1,14 @@
 """固定实验站的 WebForms 适配层；不接受客户端传入目标 URL。"""
 import io
+import hashlib
+import json
 import logging
 import os
 import re
 import threading
 import time
+import weakref
+from functools import wraps
 from urllib.parse import urljoin, urlparse
 
 import requests
@@ -19,7 +23,22 @@ MAX_PDF = 20 * 1024 * 1024
 SESSION_TTL = 30 * 60
 _states = {}
 _states_lock = threading.RLock()
+_operation_locks = weakref.WeakValueDictionary()
 _logger = logging.getLogger(__name__)
+
+
+def _serialized(action):
+    """同一设备的 WebForms 查看与上传串行，避免报告页面上下文相互覆盖。"""
+    @wraps(action)
+    def run(key, *args, **kwargs):
+        with _states_lock:
+            lock = _operation_locks.get(key)
+            if lock is None:
+                lock = threading.RLock()
+                _operation_locks[key] = lock
+        with lock:
+            return action(key, *args, **kwargs)
+    return run
 
 
 def forget_temporary_lab_session(username, device_id):
@@ -215,6 +234,7 @@ def _login_failure_kind(html):
     return 'unknown'
 
 
+@_serialized
 def login_and_list(key, username, password):
     try:
         import ddddocr
@@ -268,8 +288,7 @@ def login_and_list(key, username, password):
 
 def parse_list(state):
     soup = BeautifulSoup(state['page'].text, 'html.parser')
-    if soup.select_one('input[name=PassWord]'):
-        raise LabSessionExpired('实验站登录已过期，请重新登录查询')
+    _check_session(state['page'])
     select = soup.select_one('select[name=ddlxq]')
     if not select:
         raise LabError('实验站页面缺少学期选择器')
@@ -304,12 +323,50 @@ def parse_list(state):
             continue
         key = str(len(items))
         state['items'][key] = actions
-        items.append({'id': key, 'cells': cells, 'pre': 'pre' in actions, 'report': 'report' in actions})
-    return {'semesters': semesters, 'semester': selected, 'mode': mode, 'headers': headers, 'items': items}
+        # 行号和报告字段可能在重登后变化，不能用它们定位上传对象。
+        identity = [value for index, value in enumerate(cells)
+                    if not re.search(r'编号|序号|报告|状态|成绩|分数|考核', headers[index] if index < len(headers) else '')
+                    and not columns[index].select('a[onclick], a[href]')]
+        task_key = hashlib.sha256(json.dumps([mode, identity], ensure_ascii=False).encode()).hexdigest()
+        items.append({'id': key, 'task_key': task_key, 'cells': cells,
+                      'pre': 'pre' in actions, 'report': 'report' in actions,
+                      'reports': state.get('report_statuses', {}).get((selected, task_key), {})})
+    result = {'semesters': semesters, 'semester': selected, 'mode': mode, 'headers': headers, 'items': items}
+    state['listing'] = result
+    return result
 
 
-def change_semester(key, semester):
-    state = _get(key)
+def _check_session(page):
+    soup = BeautifulSoup(page.text, 'html.parser')
+    scripts = ' '.join(script.get_text() for script in soup.select('script'))
+    if ('/gzc_index/' in urlparse(getattr(page, 'url', '')).path.lower()
+            or soup.select_one('input[name=PassWord]')
+            or re.search(r'长时间没有操作本系统|请重新登[录陆]', scripts)):
+        raise LabSessionExpired('实验站登录已过期，请重新登录查询')
+
+
+def _with_relogin(key, action):
+    """只重试未发送文件的操作；未绑定密码时保留原有登录入口。"""
+    try:
+        return action()
+    except LabSessionExpired:
+        forget_temporary_lab_session(*key)
+        if not credential_status(key[0]):
+            raise
+    try:
+        password = read_credential(key[0])
+        login_and_list(key, key[0], password)
+    except LabError as exc:
+        forget_temporary_lab_session(*key)
+        raise LabSessionExpired(f'自动重新登录失败：{exc}。请重新输入实验站密码查询，无需解绑') from exc
+    try:
+        return action()
+    except LabSessionExpired:
+        forget_temporary_lab_session(*key)
+        raise
+
+
+def _select_semester(state, semester):
     allowed = {v['value'] for v in parse_list(state)['semesters']}
     if semester not in allowed:
         raise LabError('无效的学期')
@@ -317,17 +374,111 @@ def change_semester(key, semester):
     return parse_list(state)
 
 
-def upload(key, item_id, kind, filename, data):
+@_serialized
+def change_semester(key, semester):
+    return _with_relogin(key, lambda: _select_semester(_get(key), semester))
+
+
+def parse_report_status(page):
+    _check_session(page)
+    soup = BeautifulSoup(page.text, 'html.parser')
+    file_input = soup.select_one('input[type=file][name=UpFile]')
+    row = file_input.find_parent('tr') if file_input else None
+    if not row:
+        row = next((row for row in soup.select('tr')
+                    if row.find('td') and row.find('td').get_text(strip=True) in ('实验报告', '预习报告')), None)
+    file_link = next((a for a in row.select('a[href]')
+                      if re.search(r'\.pdf(?:[?#]|$)', a['href'], re.I)
+                      or a.get_text(strip=True).lower().endswith('.pdf')), None) if row else None
+    file_name = file_link.get_text(' ', strip=True) if file_link else ''
+    site_status = ''
+    for text in soup.stripped_strings:
+        match = re.fullmatch(r'状态\s*[:：]\s*(.{1,80})', text)
+        if match:
+            site_status = match.group(1).strip()
+            break
+    if not file_input and not row and not site_status:
+        raise LabError('实验站报告页面发生变化，无法核实提交状态')
+    status = 'unknown'
+    if re.search(r'未提交|未上传', site_status):
+        status = 'not_submitted'
+    elif re.search(r'退回|驳回|重交', site_status):
+        status = 'returned'
+    elif file_name or re.search(r'待评阅|待批阅|已提交|已上传|已评阅|已批阅', site_status):
+        status = 'submitted'
+    label = site_status or ('已上传文件' if file_name else '未见已上传文件')
+    return {'status': status, 'label': label, 'site_status': site_status, 'file_name': file_name}
+
+
+@_serialized
+def submission_statuses(key, semester, task_key=None):
+    """仅打开报告查看表单；无文件上传，不下载已上传的报告。"""
+    def run():
+        state = _get(key)
+        current = parse_list(state)
+        if current['semester'] != semester:
+            current = _select_semester(state, semester)
+        tasks = [item for item in current['items'] if not task_key or item['task_key'] == task_key]
+        if task_key and len(tasks) != 1:
+            raise LabError('实验任务已变化或无法唯一匹配，请重新查询后选择报告')
+        for item in tasks:
+            reports = {}
+            for kind in ('pre', 'report'):
+                target = state['items'][item['id']].get(kind)
+                if not target:
+                    reports[kind] = {'status': 'unknown', 'label': '实验站未提供查看入口',
+                                     'file_name': '', 'site_status': ''}
+                    continue
+                try:
+                    reports[kind] = parse_report_status(_postback(state, target))
+                except LabSessionExpired:
+                    raise
+                except LabError:
+                    reports[kind] = {'status': 'unknown', 'label': '状态读取失败，请刷新重试',
+                                     'file_name': '', 'site_status': ''}
+            state.setdefault('report_statuses', {})[(semester, item['task_key'])] = reports
+        return parse_list(state)
+    return _with_relogin(key, run)
+
+
+@_serialized
+def upload(key, item_id, kind, filename, data, semester=None, task_key=None):
     if kind not in ('pre', 'report'):
         raise LabError('无效的报告类型')
     if not filename or not filename.lower().endswith('.pdf') or len(data) > MAX_PDF or len(data) < 8 or not data.startswith(b'%PDF-'):
         raise LabError('仅支持 20MB 以内的 PDF 文件')
-    state = _get(key)
-    actions = state['items'].get(str(item_id), {})
-    target = actions.get(kind)
-    if not target:
-        raise LabError('该实验没有对应的报告提交入口')
-    page = _postback(state, target)
+    with _states_lock:
+        old = _states.get(key)
+        previous = old.get('listing') if old else None
+    if previous and not task_key:
+        item = next((item for item in previous['items'] if item['id'] == str(item_id)), None)
+        if item:
+            task_key = item['task_key']
+            semester = previous['semester']
+
+    def prepare():
+        state = _get(key)
+        if task_key and semester:
+            current = parse_list(state)
+            if current['semester'] != semester:
+                current = _select_semester(state, semester)
+            matches = [item for item in current['items'] if item['task_key'] == task_key]
+            if len(matches) != 1:
+                raise LabError('实验任务已变化或无法唯一匹配，请重新查询后选择报告')
+            current_id = matches[0]['id']
+        else:
+            # 兼容旧客户端的当前会话；不能用旧行号在新会话中重放。
+            if state is not old:
+                raise LabError('实验会话已恢复，请重新查询后选择报告')
+            current_id = str(item_id)
+        target = state['items'].get(current_id, {}).get(kind)
+        if not target:
+            raise LabError('该实验没有对应的报告提交入口')
+        page = _postback(state, target)
+        _check_session(page)
+        return state, page
+
+    state, page = _with_relogin(key, prepare)
     soup = BeautifulSoup(page.text, 'html.parser')
     file_input = soup.select_one('input[type=file][name=UpFile]')
     submit = soup.select_one('input[name=btnSubmit]')
@@ -338,14 +489,32 @@ def upload(key, item_id, kind, filename, data):
     files = {'UpFile': (os.path.basename(filename), io.BytesIO(data), 'application/pdf')}
     if soup.select_one('input[type=file][name=UpFile2]'):
         files['UpFile2'] = ('', b'')
-    result = _request(state['session'], 'POST', page.url, data=fields, files=files)
+    try:
+        result = _request(state['session'], 'POST', page.url, data=fields, files=files)
+    except LabError as exc:
+        raise LabError('未能确认文件上传结果，请先刷新任务或到实验站核对，勿重复提交') from exc
     result_soup = BeautifulSoup(result.text, 'html.parser')
     # WebForms 错误页与登录页不能被当作上传成功。
-    if '/gzc_index/' in urlparse(result.url).path.lower() or result_soup.select_one('input[name=PassWord]'):
+    try:
+        _check_session(result)
+    except LabSessionExpired:
         forget_temporary_lab_session(*key)
         raise LabSessionExpired('实验站登录已过期，未确认上传成功，请重新登录查询')
     error = result_soup.select_one('.validation-summary-errors, .field-validation-error')
     if error:
         raise LabError(f"实验站拒绝上传：{error.get_text(' ', strip=True)[:150]}")
     # 未观察到目标站成功响应时，明确保留“待核实”，避免虚报成功。
-    return {'confirmed': False, 'message': '文件已发送至实验站，请在实验站核对提交状态'}
+    answer = {'confirmed': False, 'message': '文件已发送至实验站，请在实验站核对提交状态'}
+    if state.get('list_url'):
+        try:
+            state['page'] = _request(state['session'], 'GET', state['list_url'])
+            current = parse_list(state)
+            if semester and current['semester'] != semester:
+                current = _select_semester(state, semester)
+            if task_key and semester:
+                current = submission_statuses(key, semester, task_key)
+            answer['listing'] = current
+        except LabError:
+            # 文件已经发送，刷新失败不能诱导客户端重传。
+            answer['message'] = '文件已发送，但提交状态刷新失败，请刷新任务或到实验站核对，勿重复提交'
+    return answer

@@ -20,7 +20,7 @@ const exams = [1, 2, 3].map((n) => ({ type: 'exam', title: `第${n}场：计算�
             if (p.startsWith('/static/')) return route.fulfill({ path: root + p });
             if (p === '/api/urgent_event') return route.fulfill({ json: { success: true, event: {
                 next: { type: 'class', title: '今日课程', time: '2026-11-13 08:20-10:00', location: '实验楼' },
-                upcoming_exams: exams, upcoming: [],
+                    upcoming_exams: exams, upcoming: [], current_week: 11,
             } } });
             return route.fulfill({ json: { success: true, bound: true, username: 'offline', data: {}, announcements: [] } });
         });
@@ -36,6 +36,11 @@ const exams = [1, 2, 3].map((n) => ({ type: 'exam', title: `第${n}场：计算�
                     document.documentElement.dataset.uiTemplate = theme;
                 }, theme);
                 assert.equal(await page.locator('.event-card-exam').count(), 3);
+                assert.match(await page.locator('#home-today-date').innerText(), /第 11 周/);
+                assert.equal(await page.getByText('你好，今天也从容有序', { exact: true }).count(), 0);
+                assert.equal(await page.locator('.home-heading-description').count(), 0);
+                assert.ok((await page.locator('.home-heading').boundingBox()).height < 60);
+                assert.ok(await page.locator('#home-page-heading').evaluate(el => parseFloat(getComputedStyle(el).fontSize) <= 14));
                 for (const exam of exams) assert.ok((await page.locator('#urgent-content').innerText()).includes(exam.title));
                 assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${width}/${theme} overflow`);
                 await page.screenshot({ path: `${output}/${width}-${theme}.png`, fullPage: true });

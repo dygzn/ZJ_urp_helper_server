@@ -7,9 +7,10 @@ const path = require('node:path');
 
 function homeContext(response) {
     const content = { innerHTML: '' };
-    const agenda = { innerHTML: '' }, heading = { textContent: '' };
+    const agenda = { innerHTML: '' }, heading = { textContent: '' }, today = { textContent: '', dateTime: '' };
     const document = { addEventListener() {}, getElementById: id => ({
         'urgent-content': content, 'home-agenda-content': agenda, 'home-agenda-title': heading,
+        'home-today-date': today,
     }[id] || null) };
     const context = vm.createContext({ document, window: {}, console, TextEncoder,
         localStorage: { getItem() { return null; } },
@@ -21,8 +22,26 @@ function homeContext(response) {
     }
     vm.runInContext(`checkLoginStatus = () => {}; getDeviceId = () => 'device';
         updateScheduleTimeline = () => {}; getCalendarChinaToday = () => '2026-09-30';`, context);
-    return { context, content, agenda, heading };
+    return { context, content, agenda, heading, today };
 }
+
+test('home date shows the actual teaching week from the reminder response', async () => {
+    const { context, today } = homeContext({ success: true, event: { current_week: 4, current: null, next: null } });
+    vm.runInContext('currentWeek = 23', context);
+    await context.loadUrgentEvent();
+    assert.equal(today.dateTime, '2026-09-30');
+    assert.match(today.textContent, /9月30日.*星期三.*第 4 周/);
+    assert.doesNotMatch(today.textContent, /23/);
+});
+
+test('home does not invent a week when the semester has not started or is invalid', async () => {
+    for (const [current_week, suffix] of [[0, '未开学'], [null, '周次未设置']]) {
+        const { context, today } = homeContext({ success: true, event: { current_week, current: null, next: null } });
+        await context.loadUrgentEvent();
+        assert.ok(today.textContent.endsWith(suffix));
+        assert.doesNotMatch(today.textContent, /第 1 周/);
+    }
+});
 
 test('failed home queries report failure instead of claiming there are no classes', async () => {
     const { context, content } = homeContext({ success: false, message: '查询失败，请重试' });

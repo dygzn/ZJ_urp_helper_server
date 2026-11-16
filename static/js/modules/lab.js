@@ -4,6 +4,8 @@ import { pageResources } from './lifecycle.js';
 const resources = pageResources('lab');
 
 let pending = null;
+let busy = false;
+let taskButtons = [];
 const el = id => document.getElementById(id);
 const headers = () => ({ 'X-Device-ID': getDeviceId() });
 
@@ -11,6 +13,13 @@ function message(value, error = false) {
     const box = el('lab-message');
     box.textContent = value;
     box.classList.toggle('lab-error', error);
+}
+
+function setBusy(value) {
+    busy = value;
+    ['lab-query', 'lab-semester', 'lab-refresh', 'lab-disconnect'].forEach(id => { el(id).disabled = value; });
+    el('lab-unbind').disabled = value || el('lab-disconnect').hidden;
+    taskButtons.forEach(({ button, available }) => { button.disabled = value || !available; });
 }
 
 async function api(url, options = {}) {
@@ -58,6 +67,7 @@ function render(data) {
     term.value = data.semester || data.semesters[0]?.value || '';
     const list = el('lab-list');
     list.replaceChildren();
+    taskButtons = [];
     if (!data.items.length) list.textContent = byCourse ? '这个学期暂无课程实验任务' : '这个学期暂无实验项目';
     data.items.forEach(item => {
         const card = document.createElement('article');
@@ -75,11 +85,13 @@ function render(data) {
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'btn-primary';
-            button.textContent = label;
-            button.disabled = !item[kind];
+            button.textContent = item.reports?.[kind]?.status === 'submitted' ? label.replace('提交', '重新提交') : label;
+            button.disabled = busy || !item[kind];
+            taskButtons.push({ button, available: item[kind] });
             if (!item[kind]) button.title = '实验站未提供此报告入口';
             resources.listen(button, 'click', () => {
-                pending = { itemId: item.id, kind };
+                if (busy) return;
+                pending = { itemId: item.id, taskKey: item.task_key, semester: data.semester, kind };
                 el('lab-convert').hidden = true;
                 el('lab-file').click();
             });
@@ -99,11 +111,32 @@ function render(data) {
             note.textContent = '实验站未提供提交入口';
             details.append(note);
         }
+        if (item.task_key || item.reports) {
+            const statuses = document.createElement('div');
+            statuses.className = 'lab-report-statuses';
+            [['pre', '预习报告'], ['report', '实验报告']].forEach(([kind, label]) => {
+                const report = item.reports?.[kind];
+                const status = document.createElement('span');
+                status.className = `lab-report-state${report?.status === 'submitted' ? ' lab-submitted' : ''}`;
+                status.textContent = `${label}：${report?.label || '尚未查询'}${report?.file_name ? ` · 文件：${report.file_name}` : ''}`;
+                statuses.append(status);
+            });
+            details.append(statuses);
+        }
         card.append(details);
         list.append(card);
     });
     el('lab-results').hidden = false;
     el('lab-connection').hidden = true;
+}
+
+async function displayTasks(data) {
+    render(data);
+    if (data.items.some(item => item.task_key)) {
+        message('正在读取报告提交状态…');
+        const result = await api(`/api/lab/submission-status?semester=${encodeURIComponent(data.semester)}`);
+        render(result.data);
+    }
 }
 
 export async function loadLabPage() {
@@ -112,6 +145,7 @@ export async function loadLabPage() {
     el('lab-results').hidden = true;
     el('lab-convert').hidden = true;
     pending = null;
+    setBusy(true);
     message('正在检查会员和实验站密码状态…');
     try {
         const state = await operation.wait(api('/api/lab/status'));
@@ -121,23 +155,29 @@ export async function loadLabPage() {
         el('lab-disconnect').hidden = !state.password_bound;
         el('lab-password').value = '';
         el('lab-save').checked = false;
-        if (state.logged_in && state.data) render(state.data);
-        else el('lab-connection').hidden = false;
+        if (state.logged_in && state.data) await operation.wait(displayTasks(state.data));
+        else if (state.password_bound) {
+            message('正在使用已绑定密码重新登录实验站…');
+            const result = await operation.wait(api('/api/lab/query', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}),
+            }));
+            await operation.wait(displayTasks(result.data));
+        } else el('lab-connection').hidden = false;
         message('');
     } catch (error) {
             if (error.name === 'AbortError') return;
         el('lab-connection').hidden = false;
         message(error.message, true);
-    }
+    } finally { if (operation.isActive()) setBusy(false); }
 }
 
 export function initializeLab() {
     resources.listen(el('lab-disconnect'), 'click', () => el('lab-unbind').click());
     resources.listen(el('lab-convert-reselect'), 'click', () => el('lab-file').click());
     resources.listen(el('lab-query'), 'click', async () => {
+        if (busy) return;
     const operation = resources.capture();
-        const button = el('lab-query');
-        button.disabled = true;
+        setBusy(true);
         message('正在登录实验站并查询实验…');
         try {
             const result = await operation.wait(api('/api/lab/query', {
@@ -146,7 +186,7 @@ export function initializeLab() {
                 body: JSON.stringify({ password: el('lab-password').value,
                     bind_password: el('lab-save').checked }),
             }));
-            render(result.data);
+            await operation.wait(displayTasks(result.data));
             el('lab-password').value = '';
             if (el('lab-save').checked) {
                 el('lab-bound').textContent = '已绑定实验站密码';
@@ -158,19 +198,26 @@ export function initializeLab() {
         } catch (error) {
             if (error.name === 'AbortError') return;
             message(error.message, true);
-        } finally { button.disabled = false; }
+        } finally { if (operation.isActive()) setBusy(false); }
     });
-    resources.listen(el('lab-semester'), 'change', async event => {
+    const refreshTasks = async semester => {
+        if (busy) return;
     const operation = resources.capture();
+        setBusy(true);
+        pending = null;
         message('正在读取学期实验…');
         try {
-            const result = await operation.wait(api(`/api/lab/experiments?semester=${encodeURIComponent(event.target.value)}`));
-            render(result.data);
+            const result = await operation.wait(api(`/api/lab/experiments?semester=${encodeURIComponent(semester)}`));
+            await operation.wait(displayTasks(result.data));
             message(resultSummary(result.data));
         } catch (error) {
-            if (error.name === 'AbortError') return; message(error.message, true); }
-    });
+            if (error.name === 'AbortError') return; message(error.message, true);
+        } finally { if (operation.isActive()) setBusy(false); }
+    };
+    resources.listen(el('lab-semester'), 'change', event => refreshTasks(event.target.value));
+    resources.listen(el('lab-refresh'), 'click', () => refreshTasks(el('lab-semester').value));
     resources.listen(el('lab-unbind'), 'click', async () => {
+        if (busy) return;
     const operation = resources.capture();
         try {
             await operation.wait(api('/api/lab/credential', { method: 'DELETE' }));
@@ -206,14 +253,20 @@ export function initializeLab() {
         const form = new FormData();
         form.append('item_id', pending.itemId);
         form.append('kind', pending.kind);
+        form.append('semester', pending.semester);
+        if (pending.taskKey) form.append('task_key', pending.taskKey);
         form.append('file', file);
         pending = null;
+        if (busy) return;
+        setBusy(true);
         message('正在上传，请不要重复点击…');
         try {
             const result = await operation.wait(api('/api/lab/upload', { method: 'POST', body: form }));
+            if (result.data?.listing) render(result.data.listing);
             message(result.message);
         } catch (error) {
-            if (error.name === 'AbortError') return; message(error.message, true); }
+            if (error.name === 'AbortError') return; message(error.message, true);
+        } finally { if (operation.isActive()) setBusy(false); }
     });
 }
 
@@ -224,4 +277,6 @@ export function mountLab() {
 export function unmountLab() {
     resources.dispose();
     pending = null;
+    taskButtons = [];
+    busy = false;
 }

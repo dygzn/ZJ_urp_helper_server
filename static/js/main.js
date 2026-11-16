@@ -6,7 +6,7 @@ import * as router from './modules/router.js';
 import * as schedule from './modules/schedule.js';
 import * as scheduleGestures from './modules/schedule-gestures.js';
 import * as grades from './modules/grades.js';
-import * as home from './modules/home.js';
+import * as home from './modules/home.js?v=20261116-home-teaching-week';
 import * as exams from './modules/exams.js';
 import * as calendar from './modules/calendar.js';
 import * as ui from './modules/ui.js';
@@ -17,7 +17,7 @@ import * as feedback from './modules/feedback.js?v=20261021-nova';
 import * as member from './modules/member.js?v=20261017-membership-warning';
 import * as evaluation from './modules/evaluation.js?v=20261021-nova';
 import * as service from './modules/service.js';
-import * as lab from './modules/lab.js?v=20261106-lab-session';
+import * as lab from './modules/lab.js?v=20261116-lab-recovery-status';
 import * as ad from './modules/ad.js';
 
 const domains = { auth, router, schedule: { ...scheduleGestures, ...schedule, ...scheduleEditor }, grades, home, exams, calendar, ui, navigation,

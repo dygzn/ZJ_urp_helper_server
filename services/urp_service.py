@@ -486,6 +486,7 @@ def get_urgent_event(username):
         'upcoming_exams': upcoming_exams,
         'upcoming_label': upcoming_info['label'],
         'upcoming_date': upcoming_info['date'],
+        'current_week': current_week if semester_start else None,
         'is_freshman': _is_freshman(username),
         'semester_start_invalid': semester_start is None,
         'schedule_cache_stale': schedule_cache_stale,

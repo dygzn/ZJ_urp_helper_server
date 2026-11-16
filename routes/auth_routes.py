@@ -9,6 +9,7 @@ from services.urp_service import urp_login, check_login_status, update_daily_exa
 from services.activity_service import record_daily_activity
 from services.config_service import get_current_urp_url
 from services.credential_service import CredentialCipher, CredentialError
+from services.login_rate_limit_service import begin_login_attempt, login_limit_response
 from services.temporary_session_service import (
     delete_temporary_session, save_temporary_session,
 )
@@ -70,7 +71,11 @@ def login():
                 'message': '当前无法保存账号，请取消勾选后临时登录，或联系管理员。',
             })
 
+    attempt = begin_login_attempt(username)
+    if attempt.retry_after:
+        return login_limit_response(attempt)
     success, message, cookies = urp_login(username, password, persist_cookies=bind_account)
+    attempt.finish(success, message)
 
     if success:
         if bind_account:

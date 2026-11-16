@@ -33,6 +33,9 @@
 .lab-item:last-child { padding-bottom: 0; }
 .lab-item strong { font-size: 16px; align-self: center; overflow-wrap: anywhere; }
 .lab-item-details { grid-column: 1; display: flex; flex-wrap: wrap; gap: 4px 16px; color: var(--ui-muted); font-size: 13px; overflow-wrap: anywhere; }
+.lab-report-statuses { display: grid; gap: 4px; width: 100%; }
+.lab-report-state { line-height: 1.6; }
+.lab-report-state.lab-submitted { color: var(--ui-ink); font-weight: 600; }
 .lab-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .lab-item .lab-actions { grid-column: 2; grid-row: 1 / 3; align-self: center; }
 .lab-item button:disabled { opacity: .55; cursor: not-allowed; }

@@ -16,6 +16,20 @@ export function homeIcon(name) {
     return `<svg class="home-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#home-icon-${name}"/></svg>`;
 }
 
+function renderHomeDate(eventData = {}) {
+    const today = document.getElementById('home-today-date');
+    if (!today) return;
+    const date = getCalendarChinaToday();
+    today.dateTime = date;
+    const label = new Date(`${date}T00:00:00Z`).toLocaleDateString('zh-CN', {
+        timeZone: 'UTC', month: 'long', day: 'numeric', weekday: 'long',
+    });
+    const week = eventData.current_week;
+    const weekLabel = Number.isInteger(week) && week > 0 ? `第 ${week} 周`
+        : week === 0 ? '未开学' : week === null ? '周次未设置' : '';
+    today.textContent = weekLabel ? `${label} · ${weekLabel}` : label;
+}
+
 export function renderHomeState(kind, message) {
     const states = {
         empty: { title: '暂无后续安排', message: '暂未查询到后续课程或考试。课表有变动时，可前往日程表更新。', icon: 'calendar', action: "openHomeShortcut('schedule')", button: '查看课表' },
@@ -58,14 +72,7 @@ export async function loadUrgentEvent() {
 
     const contentDiv = document.getElementById('urgent-content');
     const agenda = document.getElementById('home-agenda-content');
-    const today = document.getElementById('home-today-date');
-    if (today) {
-        const date = getCalendarChinaToday();
-        today.dateTime = date;
-        today.textContent = new Date(`${date}T00:00:00Z`).toLocaleDateString('zh-CN', {
-            timeZone: 'UTC', month: 'long', day: 'numeric', weekday: 'long',
-        });
-    }
+    renderHomeDate();
     if (state.countdownTimer) resources.clearInterval(state.countdownTimer);
     if (state.nextCountdownTimer) resources.clearInterval(state.nextCountdownTimer);
     state.countdownTimer = state.nextCountdownTimer = null;
@@ -131,6 +138,7 @@ export function formatMinutes(minutes) {
 
 export function displayUrgentEvent(eventData) {
     const contentDiv = document.getElementById('urgent-content');
+    renderHomeDate(eventData);
     renderHomeAgenda(eventData);
 
     if (state.countdownTimer) {

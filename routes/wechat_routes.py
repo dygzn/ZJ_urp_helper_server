@@ -13,6 +13,7 @@ from services import urp_service as urp
 from services.ad_config_service import get_ad_config
 from services.ad_service import EVENT_COLUMNS, record_ad_event
 from services.config_service import get_current_urp_url
+from services.login_rate_limit_service import begin_login_attempt, login_limit_response
 
 wechat_bp = Blueprint('wechat', __name__)
 
@@ -99,7 +100,11 @@ def bind_wechat_account(wechat_session):
     existing = get_account(wechat_session['openid'])
     if existing and existing['username'] != username:
         return jsonify(success=False, message='请先解绑当前学号'), 409
+    attempt = begin_login_attempt(username)
+    if attempt.retry_after:
+        return login_limit_response(attempt)
     success, message, _ = urp_login(username, password)
+    attempt.finish(success, message)
     if not success:
         return jsonify(success=False, message=message or '教务验证失败'), 400
     try:

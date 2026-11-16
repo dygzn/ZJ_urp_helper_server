@@ -58,6 +58,13 @@ def experiments(user):
         _key(user), request.args.get('semester', ''))}))
 
 
+@lab_bp.route('/api/lab/submission-status')
+@require_member('basic')
+def submission_status(user):
+    return _result(lambda: jsonify({'success': True, 'data': lab.submission_statuses(
+        _key(user), request.args.get('semester', ''), request.args.get('task_key') or None)}))
+
+
 @lab_bp.route('/api/lab/upload', methods=['POST'])
 @require_member('basic')
 def upload(user):
@@ -70,7 +77,8 @@ def upload(user):
             raise lab.LabError('请选择 PDF 文件')
         data = file.stream.read(lab.MAX_PDF + 1)
         result = lab.upload(_key(user), request.form.get('item_id'),
-                            request.form.get('kind'), file.filename, data)
+                            request.form.get('kind'), file.filename, data,
+                            semester=request.form.get('semester'), task_key=request.form.get('task_key'))
         return jsonify({'success': True, 'data': result, 'message': result['message']})
     return _result(run)
 

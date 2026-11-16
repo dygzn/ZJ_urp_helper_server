@@ -85,8 +85,9 @@ class CaptchaUnavailableError(RuntimeError):
     """验证码接口没有返回可识别的图片。"""
 
 
+LOGIN_CREDENTIALS_ERROR = '学号或密码不正确，请核对后重试。'
 _LOGIN_FAILURE_MESSAGES = {
-    'credentials': '学号或密码不正确，请核对后重试。',
+    'credentials': LOGIN_CREDENTIALS_ERROR,
     'captcha': '登录验证码校验未通过，请重试。',
     'locked': '教务账号暂时被限制登录，请到学校教务系统确认账号状态。',
     'maintenance': '学校教务系统正在维护，请稍后重试。',

@@ -26,12 +26,14 @@ class UrgentEventExamTests(unittest.TestCase):
         config = {'semester_start': '2026-09-07', 'database': {
             'type': 'sqlite', 'sqlite_path': str(Path(directory.name) / 'test.db'),
         }}
+        self.config = config
         for target in ('services.urp_service.get_config', 'database.get_config'):
             patcher = patch(target, return_value=config)
             patcher.start()
             self.addCleanup(patcher.stop)
         clock = patch('services.urp_service.datetime', wraps=datetime)
-        clock.start().now.return_value = datetime(2026, 9, 7, 7, 0, tzinfo=CHINA)
+        self.clock = clock.start()
+        self.clock.now.return_value = datetime(2026, 9, 7, 7, 0, tzinfo=CHINA)
         self.addCleanup(clock.stop)
         self.exam = {'课程': '高等数学', '考试周次': '1', '考试星期': '1',
                      '考试时间': '08:30-10:30', '位置': '一教201', '座位号': '12'}
@@ -44,6 +46,20 @@ class UrgentEventExamTests(unittest.TestCase):
             result = api_urgent_event.__wrapped__({'username': 'student'}).get_json()
         self.assertTrue(result['success'], result.get('message'))
         return result['event']
+
+    def test_current_week_is_returned_even_without_cached_events(self):
+        for now, expected in [(datetime(2026, 9, 7, tzinfo=CHINA), 1),
+                              (datetime(2026, 9, 13, 23, 59, tzinfo=CHINA), 1),
+                              (datetime(2026, 9, 14, tzinfo=CHINA), 2)]:
+            with self.subTest(now=now):
+                self.clock.now.return_value = now
+                self.assertEqual(self.query({})['current_week'], expected)
+
+    def test_before_semester_and_invalid_start_do_not_claim_the_first_week(self):
+        self.clock.now.return_value = datetime(2026, 9, 6, 23, 59, tzinfo=CHINA)
+        self.assertEqual(self.query({})['current_week'], 0)
+        self.config['semester_start'] = 'invalid-date'
+        self.assertIsNone(self.query({})['current_week'])
 
     def test_two_week_exams_are_separate_from_earlier_courses_and_sorted(self):
         event = self.query({'2': [{**self.exam, '课程': '第二周考试'}],
