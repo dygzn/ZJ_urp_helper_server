@@ -35,10 +35,11 @@ Thumbs.db
 /scripts/
 /tests/
 
-# Keep reports and development notes local; track current website design guides
+# Keep reports and development notes local; track deployment and design guides
 /*.md
 !/DESIGN.md
 README.md
+!/README.md
 !/static/css/README.md
 !/static/icons/README.md
 *[Rr][Ee][Vv][Ii][Ee][Ww]*.md
