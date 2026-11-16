@@ -46,6 +46,9 @@ Thumbs.db
 !/tests/test_lab_submission_status.py
 !/tests/test_lab_ui.js
 !/tests/browser_lab_submission.cjs
+!/tests/test_wechat_lab.py
+!/tests/test_wechat_schedule_exams.py
+!/tests/browser_wechat_lab_upload.cjs
 
 # Legacy local-only files
 CLAUD.md

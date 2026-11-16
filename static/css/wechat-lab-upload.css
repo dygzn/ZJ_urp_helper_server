@@ -1,0 +1,21 @@
+@layer components.workspace {
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ui-canvas, #fafafa); color: var(--ui-ink, #18181b); font: 16px/1.6 system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
+  main { max-width: 640px; margin: 0 auto; padding: 24px 20px calc(32px + env(safe-area-inset-bottom)); }
+  h1 { margin: 24px 0 8px; font-size: 26px; line-height: 1.3; }
+  .hint { color: var(--ui-muted, #52525b); font-size: 14px; }
+  section { margin: 24px 0 16px; padding: 20px; border: 1px solid var(--ui-line, #e4e4e7); border-radius: 12px; background: var(--ui-surface, #fff); }
+  #context { margin: 0 0 24px; overflow-wrap: anywhere; font-weight: 600; }
+  label { display: block; margin-bottom: 8px; }
+  input { width: 100%; min-height: 44px; border: 1px solid var(--ui-line, #e4e4e7); border-radius: 8px; padding: 8px; background: var(--ui-surface, #fff); color: inherit; font: inherit; }
+  input::file-selector-button { min-height: 36px; margin-right: 8px; border: 0; border-radius: 4px; padding: 4px 12px; font: inherit; }
+  button { min-height: 44px; border: 1px solid var(--ui-line, #e4e4e7); border-radius: 8px; padding: 8px 16px; background: var(--ui-surface, #fff); color: inherit; font: inherit; cursor: pointer; }
+  .primary { width: 100%; margin-top: 8px; border-color: transparent; background: var(--ui-primary-fill, #2055a2); color: var(--ui-on-accent, #fff); }
+  button:disabled, input:disabled { opacity: .55; cursor: default; }
+  :is(button, input):focus-visible { outline: 3px solid var(--ui-accent, #2055a2); outline-offset: 3px; }
+  #message, #file-info { overflow-wrap: anywhere; }
+  #message { margin: 16px 0 0; }
+  #message[data-error="true"] { color: var(--ui-danger, #a52d35); }
+  progress { width: 100%; margin-top: 20px; accent-color: var(--ui-accent, #2055a2); }
+  @media (max-width: 360px) { main { padding-left: 12px; padding-right: 12px; } section { padding: 16px; } }
+}

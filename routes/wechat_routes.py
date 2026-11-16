@@ -128,13 +128,24 @@ def urgent_event(account):
     return jsonify(success=True, event=urp.get_urgent_event(account['username']))
 
 
+def wechat_schedule_data(username, week=None):
+    """同一次响应返回课程、考试和各自的学期缓存标记。"""
+    config = urp.get_config()
+    data = urp.get_schedule(username, week, config)
+    data['cache_stale'] = urp.is_calendar_cache_stale(username, 'schedule', config)
+    data['exams'] = [exam for exam in urp.get_exams(username)
+                     if week is None or str(exam.get('week')) == str(week)]
+    data['exams_cache_stale'] = urp.is_calendar_cache_stale(username, 'exams', config)
+    return data
+
+
 @wechat_bp.get('/api/wechat/schedule')
 @require_wechat_account()
 def schedule(account):
     week = request.args.get('week', type=int)
     if 'week' in request.args and (week is None or not 1 <= week <= 60):
         return jsonify(success=False, message='周次必须在 1 至 60 之间'), 400
-    return jsonify(success=True, data=urp.get_schedule(account['username'], week))
+    return jsonify(success=True, data=wechat_schedule_data(account['username'], week))
 
 
 @wechat_bp.post('/api/wechat/update_schedule')
@@ -143,7 +154,7 @@ def update_schedule(account):
     from urp import URP_query
     query = URP_query(get_current_urp_url(), account['username'])
     query.schedule_cx()
-    return jsonify(success=True, data=urp.get_schedule(account['username']), message='课表已更新')
+    return jsonify(success=True, data=wechat_schedule_data(account['username']), message='课表已更新')
 
 
 @wechat_bp.post('/api/wechat/refresh_events')
