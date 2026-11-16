@@ -8,8 +8,6 @@ const initialState = {
     currentWeek: readCurrentWeek(),
     currentUsername: null,
     currentMemberStatus: null,
-    shortcutApiPlainKey: '',
-    shortcutApiHasKey: false,
     loginStatusPromise: null,
     loginStatusResult: null,
     cachedSchedule: null,

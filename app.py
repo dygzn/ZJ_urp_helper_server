@@ -5,7 +5,7 @@ import os
 from urllib.parse import urlencode
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 from werkzeug.exceptions import HTTPException
-from database import ensure_api_keys_table, init_db
+from database import init_db
 from services.activity_service import init_activity_tracking
 from services.config_service import configure_app_security, get_config, get_current_urp_url
 from services.ad_service import EVENT_COLUMNS, record_ad_event
@@ -16,7 +16,6 @@ from routes.auth_routes import auth_bp
 from routes.data_routes import data_bp
 from routes.admin_routes import admin_bp
 from routes.member_routes import member_bp
-from routes.shortcut_routes import shortcut_bp
 from routes.misc_routes import misc_bp
 from routes.wechat_routes import wechat_bp
 from routes.lab_routes import lab_bp
@@ -39,16 +38,11 @@ def static_versioned(filename):
 
 
 def initialize_database():
-    """初始化完整数据库，并为快捷指令 API 保留独立兜底。"""
+    """初始化当前配置的业务数据库。"""
     try:
         init_db()
     except Exception as e:
         print(f"数据库初始化失败，请进入管理员后台检查数据库配置: {e}")
-    finally:
-        try:
-            ensure_api_keys_table()
-        except Exception as e:
-            print(f"快捷指令 API 密钥表初始化失败: {e}")
 
 
 # 初始化数据库
@@ -71,7 +65,6 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(data_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(member_bp)
-app.register_blueprint(shortcut_bp)
 app.register_blueprint(misc_bp)
 app.register_blueprint(wechat_bp)
 app.register_blueprint(lab_bp)

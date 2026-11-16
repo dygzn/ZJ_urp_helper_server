@@ -162,20 +162,20 @@
 .loading::after { content: ""; width: 14px; height: 14px; flex: 0 0 auto; border: 2px solid var(--ui-line); border-top-color: var(--ui-accent); border-radius: 50%; margin-left: 0; animation: none; }
 @media (prefers-reduced-motion: no-preference) { .loading::after { animation: nova-spin 800ms linear infinite; } @keyframes nova-spin { to { transform: rotate(360deg); } } }
 /* Functional screens use open headings and a small number of task surfaces. */
-:where(body.urp-app) :is(.evaluation-container, .feedback-container, .member-container, .shortcut-api-page-container) { padding: 0; background: transparent; border: 0; box-shadow: none; }
-:where(body.urp-app) :is(.evaluation-container, .feedback-container, .member-container, .shortcut-api-page-container, .lab-wrap, .grades-dashboard-main) h2 { font-size: var(--ui-text-title); font-weight: 680; line-height: 1.35; }
-:where(body.urp-app) :is(.feedback-hero, .member-page-head, .shortcut-api-page-head, .lab-heading, .grades-dashboard-header) { margin-bottom: var(--ui-space-6); }
+:where(body.urp-app) :is(.evaluation-container, .feedback-container, .member-container) { padding: 0; background: transparent; border: 0; box-shadow: none; }
+:where(body.urp-app) :is(.evaluation-container, .feedback-container, .member-container, .lab-wrap, .grades-dashboard-main) h2 { font-size: var(--ui-text-title); font-weight: 680; line-height: 1.35; }
+:where(body.urp-app) :is(.feedback-hero, .member-page-head, .lab-heading, .grades-dashboard-header) { margin-bottom: var(--ui-space-6); }
 :where(body.urp-app) .action-bar { gap: 10px; margin-block: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--ui-line); }
-:where(body.urp-app) :is(.evaluation-course, .exam-card, .feedback-new-box, .feedback-item, .lab-card, .shortcut-api-card, .member-plan-card, .invitation-card) {
+:where(body.urp-app) :is(.evaluation-course, .exam-card, .feedback-new-box, .feedback-item, .lab-card, .member-plan-card, .invitation-card) {
     border: 1px solid var(--ui-line);
     border-radius: var(--ui-radius);
     background: var(--ui-surface);
     box-shadow: 0 1px 2px rgb(0 0 0 / 2%);
 }
-:where(body.urp-app) :is(.feedback-new-box, .lab-card, .shortcut-api-card, .member-plan-card, .invitation-card) { padding: var(--ui-space-6); }
+:where(body.urp-app) :is(.feedback-new-box, .lab-card, .member-plan-card, .invitation-card) { padding: var(--ui-space-6); }
 :where(body.urp-app) .feedback-new-head { padding-bottom: 18px; margin-bottom: 18px; border-bottom: 1px solid var(--ui-line); }
 :where(body.urp-app) .feedback-hero-note { background: transparent; color: var(--ui-subtle); }
-:where(body.urp-app) :is(.feedback-choice, .feedback-soft-badge, .shortcut-api-badge, .member-status-badge) { background: var(--ui-surface-soft); color: var(--ui-muted); border-color: var(--ui-line); font-weight: 500; }
+:where(body.urp-app) :is(.feedback-choice, .feedback-soft-badge, .member-status-badge) { background: var(--ui-surface-soft); color: var(--ui-muted); border-color: var(--ui-line); font-weight: 500; }
 :where(body.urp-app) .feedback-choice:has(input:checked) { border-color: var(--ui-accent); color: var(--ui-ink); }
 :where(body.urp-app) .grades-kpi-strip { background: var(--ui-surface); border: 1px solid var(--ui-line); border-radius: var(--ui-radius); box-shadow: none; }
 :where(body.urp-app) .grades-kpi { padding: 22px 24px; }
@@ -191,8 +191,6 @@
 :where(body.urp-app) .member-plan-advanced { border-color: color-mix(in srgb, var(--ui-accent) 50%, var(--ui-line)); background: var(--ui-surface); }
 :where(body.urp-app) .member-plan-price { color: var(--ui-ink); font-weight: 650; font-variant-numeric: tabular-nums; }
 :where(body.urp-app) .member-plan-list { padding-bottom: 20px; }
-:where(body.urp-app) .shortcut-api-help { background: var(--ui-surface-soft); border-radius: var(--ui-radius-sm); padding: 16px; }
-:where(body.urp-app) :is(.shortcut-api-help code, .shortcut-key-value) { overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; }
 :where(body.urp-app) :is(.service-intro-card, .service-status-card) { border: 1px solid var(--ui-line); border-radius: var(--ui-radius); background: var(--ui-surface); box-shadow: none; }
 :where(body.urp-app) .service-intro-card { padding: 32px; }
 :where(body.urp-app) .service-hero-title { font-size: clamp(28px, 3vw, 38px); line-height: 1.35; }
@@ -288,7 +286,7 @@
     :where(body.urp-app) .mobile-bottom-nav { padding-bottom: max(6px, env(safe-area-inset-bottom)); border-top: 1px solid var(--ui-line); background: var(--ui-surface); box-shadow: none; }
     :where(body.urp-app) .mobile-nav-item { border-radius: 8px; }
     :where(body.urp-app) .mobile-nav-item.active { background: var(--ui-accent-soft); color: var(--ui-accent); box-shadow: none; }
-    :where(body.urp-app) :is(.feedback-new-box, .lab-card, .shortcut-api-card, .member-plan-card, .invitation-card) { padding: 20px; }
+    :where(body.urp-app) :is(.feedback-new-box, .lab-card, .member-plan-card, .invitation-card) { padding: 20px; }
     :where(body.urp-app) .service-intro-card { padding: var(--ui-space-6); }
     :where(body.urp-app) .grades-kpi { padding: 16px 12px; }
     :where(body.urp-app) .grades-kpi strong { font-size: 26px; }

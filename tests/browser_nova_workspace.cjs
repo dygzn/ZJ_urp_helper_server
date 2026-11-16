@@ -26,7 +26,6 @@ const fixtures = {
  '/api/feedback': {success:true,my_feedbacks:[],public_feedbacks:[]},
  '/api/member/status': {success:true,data:{is_member:true,member_type:'basic',expire_time:'2027-01-30'}},
  '/api/member/orders': {success:true,data:[]},
- '/api/member/api-key': {success:true,data:{has_key:false}},
  '/api/invitation/my_inviter': {success:true,data:{inviter:null}},
  '/api/invitation/earnings': {success:true,data:{earned:0,withdrawn:0,available:0,effective_invite_count:0}},
  '/api/invitation/withdrawals': {success:true,data:[]},
@@ -75,7 +74,7 @@ const fixtures = {
    await page.setViewportSize({width,height});
    for(const scheme of ['light','dark']) {
     await page.evaluate(scheme=>{localStorage.setItem('urp_ui_color_mode',scheme);document.documentElement.dataset.colorScheme=scheme;},scheme);
-    for(const name of ['home','schedule','grades','evaluation','lab','service-status','feedback','shortcut-api','member','more']) {
+    for(const name of ['home','schedule','grades','evaluation','lab','service-status','feedback','member','more']) {
      await page.evaluate(name=>{document.body.dataset.focusInput='pointer';openHomeShortcut(name);},name);
      await fit(`${width}/${scheme}/${name}`);
      assert.equal(await page.locator(`#page-${name}`).isVisible(),true);assertions++;
@@ -147,7 +146,7 @@ const fixtures = {
    await page.setViewportSize({width,height:1000});
    for(const scheme of ['light','dark']) {
     await page.evaluate(s=>document.documentElement.dataset.colorScheme=s,scheme);
-    for(const tab of ['users','monitor','members','announcements','ad-stats','feedback','withdrawals','config','wechat','service-status']) {
+    for(const tab of ['users','activity','members','announcements','ad-stats','feedback','withdrawals','config','wechat','service-status']) {
      await page.locator(`#tab-${tab}-button`).click();await fit(`admin/${width}/${scheme}/${tab}`);
      assert.equal(await page.locator(`#tab-${tab}-button`).getAttribute('aria-selected'),'true');assertions++;
      assert.doesNotMatch(await page.locator(`#tab-${tab}`).innerText(), /Cannot read properties|TypeError|ReferenceError/);

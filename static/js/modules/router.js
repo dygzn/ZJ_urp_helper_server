@@ -31,7 +31,7 @@ export function getAvailablePageNames() {
 
     return [
         'home', 'schedule', 'exams', 'grades', 'more', 'evaluation',
-        'service-status', 'feedback', 'shortcut-api', 'member',
+        'service-status', 'feedback', 'member',
     ].filter(pageName => document.getElementById(`page-${pageName}`));
 }
 
@@ -82,7 +82,6 @@ export function switchPage(pageName, params = {}) {
         'evaluation': '教学评估',
         'service-status': '找我做事',
         'feedback': '反馈建议',
-        'shortcut-api': '快捷指令 API',
         'lab': '实验提交',
         'member': '会员购买',
     };
@@ -187,7 +186,7 @@ export function setPageAccessLock(pageName, locked) {
 }
 
 export function loadPageData(pageName, params = {}) {
-    const gatedPages = ['schedule', 'exams', 'grades', 'evaluation', 'shortcut-api', 'lab'];
+    const gatedPages = ['schedule', 'exams', 'grades', 'evaluation', 'lab'];
     if (gatedPages.includes(pageName)) {
         setPageAccessLock(pageName, state.isGuestMode);
         if (state.isGuestMode) return;

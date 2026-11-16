@@ -14,7 +14,7 @@
 | `auth.js` | 登录、设备换绑、免责声明、账号缓存失效和临时使用期限 |
 | `home.js` | 首页安排、课程清单、倒计时 |
 | `exams.js`、`calendar.js` | 考试弹窗和日历导出；关闭弹窗或离开来源页时取消请求 |
-| `member.js` | 会员、快捷指令密钥、邀请及提现；两个页面分别注册生命周期 |
+| `member.js` | 会员、邀请及提现；会员页面注册独立生命周期 |
 | `evaluation.js`、`feedback.js`、`service.js`、`lab.js` | 各自业务页；实验上传也使用页面资源作用域 |
 | `ui.js`、`navigation.js`、`announcements.js`、`ad.js` | 应用级弹窗、导航、公告和广告 |
 

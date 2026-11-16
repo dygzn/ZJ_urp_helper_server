@@ -28,7 +28,7 @@ class HtmlMergeContractTests(unittest.TestCase):
         }
         for override in (
             patch.dict(os.environ, values),
-            patch('database.init_db'), patch('database.ensure_api_keys_table'),
+            patch('database.init_db'),
             patch('services.temporary_session_service.start_temporary_session_cleanup'),
             patch('services.config_service.get_config', return_value=self.config),
             patch('services.ad_config_service.get_config', return_value=self.config),
@@ -48,7 +48,7 @@ class HtmlMergeContractTests(unittest.TestCase):
         expected = {
             '/api/login', '/api/request_rebind', '/api/schedule/other_majors',
             '/api/schedule/other_major', '/api/grades/by_semester',
-            '/api/member/pay_notify', '/api/member/api-key', '/api/shortcut/query',
+            '/api/member/pay_notify',
             '/api/admin/activity/today', '/api/admin/announcements',
             '/api/admin/feedback', '/api/admin/members', '/api/admin/config',
             '/api/wechat/account', '/api/wechat/bind', '/api/wechat/binding',

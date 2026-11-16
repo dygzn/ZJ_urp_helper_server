@@ -187,28 +187,6 @@ def _exec_ignore(conn, sql):
             raise
 
 
-def _create_api_keys_table(conn, db_type):
-    if db_type == 'mysql':
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS api_keys (
-                username VARCHAR(64) PRIMARY KEY,
-                key_hash VARCHAR(64) NOT NULL,
-                key_prefix VARCHAR(24) NOT NULL,
-                create_time VARCHAR(32) NOT NULL
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-        ''')
-        return
-
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS api_keys (
-            username TEXT PRIMARY KEY,
-            key_hash TEXT NOT NULL,
-            key_prefix TEXT NOT NULL,
-            create_time TEXT NOT NULL
-        )
-    ''')
-
-
 def _create_schema_sqlite(conn):
     conn.execute('''
         CREATE TABLE IF NOT EXISTS users (
@@ -608,7 +586,6 @@ def _create_indexes(conn):
         'CREATE UNIQUE INDEX idx_invitation_links_token ON invitation_links(token)',
         'CREATE INDEX idx_orders_username_status ON orders(username, status)',
         'CREATE INDEX idx_orders_status_pay_time ON orders(status, pay_time)',
-        'CREATE UNIQUE INDEX idx_api_keys_hash ON api_keys(key_hash)',
         'CREATE INDEX idx_earnings_username ON invitation_earnings(username)',
         'CREATE UNIQUE INDEX idx_earnings_user_order ON invitation_earnings(username, order_no)',
         'CREATE INDEX idx_earnings_order_no ON invitation_earnings(order_no)',
@@ -658,14 +635,6 @@ def _run_migrations(conn, db_type):
 
 def _drop_removed_tables(conn):
     conn.execute('DROP TABLE IF EXISTS surveys')
-
-
-def ensure_api_keys_table(config_override=None):
-    """单独、幂等地初始化快捷指令 API 密钥表及其唯一索引。"""
-    db_config = get_database_config(config_override)
-    with get_db(config_override) as conn:
-        _create_api_keys_table(conn, db_config['type'])
-        _exec_ignore(conn, 'CREATE UNIQUE INDEX idx_api_keys_hash ON api_keys(key_hash)')
 
 
 def _create_binding_archive_tables(conn, db_type):
@@ -748,8 +717,6 @@ def init_db(config_override=None):
     """初始化当前配置指向的数据库表结构。"""
     db_config = get_database_config(config_override)
     with get_db(config_override, ensure_database=True) as conn:
-        # 先创建快捷指令密钥表，避免其它历史表初始化失败时遗漏新表。
-        _create_api_keys_table(conn, db_config['type'])
         _create_binding_archive_tables(conn, db_config['type'])
         _migrate_temporary_sessions(conn, db_config['type'])
         if db_config['type'] == 'mysql':
@@ -910,7 +877,6 @@ MIGRATION_TABLES = {
     'ad_copy_users': ['ad_key', 'username'],
     'memberships': ['username', 'member_type', 'expire_time', 'create_time'],
     'invitation_links': ['username', 'token', 'create_time'],
-    'api_keys': ['username', 'key_hash', 'key_prefix', 'create_time'],
     'invitations': ['id', 'inviter_username', 'invitee_username', 'create_time'],
     'invitation_earnings': ['id', 'username', 'order_no', 'invitee_username', 'amount', 'rate', 'create_time'],
     'invitation_reward_claims': ['id', 'username', 'invitee_username', 'order_no', 'amount', 'rate', 'create_time'],

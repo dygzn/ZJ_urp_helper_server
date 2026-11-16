@@ -290,23 +290,6 @@ test('one-click evaluation submits only after the warning is confirmed', async (
     ]);
 });
 
-test('successful shortcut key generation refreshes status and keeps the issued secret visible', async () => {
-    const { context, nodes } = page();
-    context.window.location = { origin: 'https://example.test' };
-    vm.runInContext('currentMemberStatus = { is_member: true }; shortcutApiHasKey = false;', context);
-    const methods = [];
-    context.fetch = async (url, options) => {
-        methods.push(options.method || 'GET');
-        return response({ success: true, data: options.method === 'POST'
-            ? { key: 'issued-test-secret' }
-            : { has_key: true, key_prefix: 'issued-test' } });
-    };
-    await context.generateShortcutApiKey();
-    assert.deepEqual(methods, ['POST', 'GET']);
-    assert.equal(nodes.get('shortcut-api-key').hidden, false);
-    assert.match(nodes.get('shortcut-api-key').innerHTML, /issued-test-secret/);
-    assert.doesNotMatch(nodes.get('shortcut-api-status').innerHTML, /not defined|shortcut-api-error/);
-});
 
 test('completing the displayed evaluation list preserves it without submitting when cancelled', async () => {
     const { context, nodes } = page();
@@ -364,24 +347,6 @@ test('leaving evaluation while confirmation is pending prevents the submission',
     assert.equal(calls, 0);
 });
 
-test('cancelling shortcut key regeneration preserves the old key without a POST', async () => {
-    const { context, nodes } = page();
-    vm.runInContext("currentMemberStatus = { is_member: true }; shortcutApiHasKey = true; shortcutApiPlainKey = 'old-key';", context);
-    const status = context.document.getElementById('shortcut-api-status');
-    status.innerHTML = '旧密钥状态';
-    let confirmations = 0, calls = 0;
-    context.requestUiConfirmation = async options => {
-        confirmations++;
-        assert.match(options.message, /旧密钥.*失效/);
-        return false;
-    };
-    context.fetch = async () => { calls++; return response({ success: true }); };
-    await context.generateShortcutApiKey();
-    assert.equal(confirmations, 1);
-    assert.equal(calls, 0);
-    assert.equal(nodes.get('shortcut-api-status').innerHTML, '旧密钥状态');
-    assert.equal(context.shortcutApiPlainKey, 'old-key');
-});
 
 for (const [action, id, label] of [['oneClickEvaluation', 'one-click-eval-btn', '一键评教'],
     ['doFullEvaluation', 'do-eval-btn', '完成教学评估']]) {

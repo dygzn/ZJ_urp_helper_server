@@ -50,9 +50,6 @@
   <path d="M16 6V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
   <path d="M22 13a18.15 18.15 0 0 1-20 0" />
   <rect width="20" height="14" x="2" y="6" rx="2" /></svg><span>找我做事</span></a>
-            <a href="#" class="nav-item" data-page="shortcut-api"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true" focusable="false"><path d="m18 16 4-4-4-4" />
-  <path d="m6 8-4 4 4 4" />
-  <path d="m14.5 4-5 16" /></svg><span>快捷指令 API</span></a>
             <a href="#" class="nav-item" data-page="feedback"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true" focusable="false"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z" /></svg><span>反馈建议</span></a>
             {% if member_page_enabled | default(true) %}
             <a href="#" class="nav-item" data-page="member"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true" focusable="false"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z" />
@@ -125,9 +122,6 @@
   <path d="M16 6V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
   <path d="M22 13a18.15 18.15 0 0 1-20 0" />
   <rect width="20" height="14" x="2" y="6" rx="2" /></svg><span><strong>找我做事</strong><small>需求咨询与进度查询</small></span><span class="more-arrow" aria-hidden="true">›</span></a>
-                        <a href="#" class="nav-item more-feature" data-page="shortcut-api"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true" focusable="false"><path d="m18 16 4-4-4-4" />
-  <path d="m6 8-4 4 4 4" />
-  <path d="m14.5 4-5 16" /></svg><span><strong>快捷指令 API</strong><small>连接你的自动化工具</small></span><span class="more-arrow" aria-hidden="true">›</span></a>
                         {% if member_page_enabled | default(true) %}
                         <a href="#" class="nav-item more-feature more-feature-wide" data-page="member"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true" focusable="false"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z" />
   <path d="M5 21h14" /></svg><span><strong>会员购买</strong><small>查看会员权益与有效期</small></span><span class="more-arrow" aria-hidden="true">›</span></a>
@@ -462,46 +456,6 @@
                         <p id="lab-convert-text" class="lab-auto-captcha"></p>
                         <div class="lab-actions"><a id="lab-convert-link" class="btn-secondary" href="#" target="_blank" rel="noopener noreferrer">前往转换为 PDF</a><button id="lab-convert-reselect" class="btn-secondary" type="button">重新选择 PDF</button></div>
                     </aside>
-                </div>
-            </div>
-
-            <div id="page-shortcut-api" class="page">
-                <div class="page-access-gate" data-page-access-gate hidden></div>
-                <div class="shortcut-api-page-container">
-                    <div class="shortcut-api-page-head">
-                        <div>
-                            <span class="member-plan-kicker">快捷指令</span>
-                            <h2>快捷指令 API</h2>
-                            <p class="page-section-desc">为 Apple 快捷指令提供历年课表、本学期成绩和接下来最紧急事项查询，返回结构化 JSON，方便直接提取和展示。</p>
-                        </div>
-                        <span class="shortcut-api-badge">初级会员以上</span>
-                    </div>
-
-                    <div id="shortcut-api-member-status" class="member-status-card member-status-panel">
-                        <div class="loading">加载中...</div>
-                    </div>
-
-                    <section id="shortcut-api-card" class="shortcut-api-card" aria-labelledby="shortcut-api-title">
-                        <div class="shortcut-api-card-head">
-                            <div>
-                                <span class="member-plan-kicker">学号密钥</span>
-                                <h3 id="shortcut-api-title">教务查询 API</h3>
-                                <p>生成后可在 Apple 快捷指令中调用，密钥只绑定学号，与设备 ID 无关。</p>
-                            </div>
-                            <span class="shortcut-api-badge">安全存储</span>
-                        </div>
-                        <div id="shortcut-api-status" class="shortcut-api-status">
-                            <div class="loading">加载中...</div>
-                            <button class="btn-primary" type="button" onclick="generateShortcutApiKey()" hidden>生成快捷指令密钥</button>
-                        </div>
-                        <div id="shortcut-api-key" class="shortcut-api-key" hidden>
-                            <button id="shortcut-api-copy" class="btn-primary" type="button" onclick="copyShortcutApiKey()" hidden>复制密钥</button>
-                        </div>
-                        <div class="shortcut-api-help">
-                            <div><span>接口地址</span><code id="shortcut-api-endpoint"></code></div>
-                            <p>支持 <code>historical_schedule</code>、<code>grades</code> 和 <code>urgent_event</code> 三种 action。请求体示例：<code>{"key":"你的密钥","action":"grades","params":{}}</code>。密钥只显示一次，请立即复制保存；重新生成会使旧密钥失效。</p>
-                        </div>
-                    </section>
                 </div>
             </div>
 

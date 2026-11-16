@@ -38,7 +38,6 @@ def offline_app(case):
     with ExitStack() as stack:
         stack.enter_context(patch.dict(os.environ, environment))
         stack.enter_context(patch('database.init_db'))
-        stack.enter_context(patch('database.ensure_api_keys_table'))
         stack.enter_context(patch('constants.MERCHANT_NUM', environment['MERCHANT_NUM']))
         stack.enter_context(patch('constants.PAY_SECRET_KEY', environment['PAY_SECRET_KEY']))
         loaded = runpy.run_path(str(root / 'app.py'), run_name='offline_url_app')

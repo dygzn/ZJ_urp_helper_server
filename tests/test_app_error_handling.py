@@ -24,7 +24,6 @@ def offline_app(case):
     with ExitStack() as stack:
         stack.enter_context(patch.dict(os.environ, environment))
         stack.enter_context(patch('database.init_db'))
-        stack.enter_context(patch('database.ensure_api_keys_table'))
         stack.enter_context(patch('constants.MERCHANT_NUM', environment['MERCHANT_NUM']))
         stack.enter_context(patch('constants.PAY_SECRET_KEY', environment['PAY_SECRET_KEY']))
         loaded = runpy.run_path(str(root / 'app.py'), run_name='offline_url_app')
@@ -86,6 +85,32 @@ class AppErrorHandlingTests(unittest.TestCase):
             response = self.get_without_exception('/')
 
         self.assertEqual(response.status_code, 200)
+
+    def test_removed_automation_endpoints_return_not_found(self):
+        for method, url in [('GET', '/api/member/api-key'), ('POST', '/api/member/api-key'),
+                            ('POST', '/api/shortcut/query')]:
+            with self.subTest(method=method, url=url):
+                response = self.client.open(url, method=method, json={})
+                self.assertEqual(response.status_code, 404)
+                self.assertFalse(response.get_json()['success'])
+
+    def test_remaining_feature_routes_still_enforce_authentication(self):
+        with patch('auth.get_user_by_device', return_value=None):
+            for url in ['/api/schedule', '/api/exams', '/api/grades/current',
+                        '/api/member/status', '/api/lab/status', '/api/feedback']:
+                with self.subTest(url=url):
+                    response = self.client.get(url)
+                    self.assertNotEqual(response.status_code, 404)
+                    self.assertFalse(response.get_json()['success'])
+
+    def test_home_removes_automation_navigation_and_keeps_common_feature_actions(self):
+        from bs4 import BeautifulSoup
+        with patch('services.config_service.get_config', return_value={}), patch('services.ad_config_service.get_config', return_value={}):
+            response = self.client.get('/')
+        soup = BeautifulSoup(response.data, 'html.parser')
+        self.assertFalse(soup.select('[data-page="shortcut-api"], #page-shortcut-api'))
+        actions = [button['onclick'] for button in soup.select('.home-shortcuts button, .home-secondary-shortcuts button')]
+        self.assertEqual(actions, [f"openHomeShortcut('{name}')" for name in ['schedule', 'exams', 'grades', 'lab', 'evaluation']])
 
     def test_request_url_is_snapshotted_before_view_dispatch(self):
         current = {'url': 'http://url1.test/'}

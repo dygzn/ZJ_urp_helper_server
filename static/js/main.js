@@ -14,7 +14,7 @@ import * as navigation from './modules/navigation.js';
 import * as announcements from './modules/announcements.js';
 import * as miniapp from './modules/miniapp.js';
 import * as feedback from './modules/feedback.js?v=20261021-nova';
-import * as member from './modules/member.js?v=20261017-membership-warning';
+import * as member from './modules/member.js?v=20261116-remove-shortcut';
 import * as evaluation from './modules/evaluation.js?v=20261021-nova';
 import * as service from './modules/service.js';
 import * as lab from './modules/lab.js?v=20261116-lab-recovery-status';
@@ -44,7 +44,6 @@ router.registerPage('grades', { mount: grades.mountGrades, unmount: grades.unmou
 router.registerPage('evaluation', { mount: evaluation.mountEvaluation, unmount: evaluation.unmountEvaluation });
 router.registerPage('service-status', { mount: service.mountService, unmount: service.unmountService });
 router.registerPage('feedback', { mount: feedback.mountFeedback, unmount: feedback.unmountFeedback });
-router.registerPage('shortcut-api', { mount: member.mountShortcutApi, unmount: member.unmountShortcutApi });
 router.registerPage('member', { mount: member.mountMember, unmount: member.unmountMember });
 router.registerPage('lab', { mount: lab.mountLab, unmount: lab.unmountLab });
 

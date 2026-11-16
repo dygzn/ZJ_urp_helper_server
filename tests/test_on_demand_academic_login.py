@@ -7,7 +7,7 @@ from unittest.mock import patch
 from flask import Flask
 from cryptography.fernet import Fernet
 from database import init_db
-from routes import data_routes, shortcut_routes, wechat_routes
+from routes import data_routes, wechat_routes
 from services import urp_service, wechat_access
 import auth
 
@@ -28,15 +28,13 @@ class OnDemandAcademicLoginTests(unittest.TestCase):
         self.enterContext(patch.object(wechat_access,'get_account',return_value=user))
         self.check = self.enterContext(patch.object(auth,'check_login_status',return_value=(False,{'message':'expired'})))
         self.wechat_check = self.enterContext(patch.object(urp_service,'check_login_status',return_value=(False,{})))
-        self.shortcut_check = self.enterContext(patch.object(shortcut_routes,'check_login_status',return_value=(False,{})))
         self.auto = self.enterContext(patch.object(data_routes,'start_auto_update',create=True,side_effect=AssertionError('local read must not auto update')))
-        self.shortcut_auto = self.enterContext(patch.object(shortcut_routes,'start_auto_update',create=True,side_effect=AssertionError('local read must not auto update')))
         self.enterContext(patch('requests.sessions.Session.request',side_effect=AssertionError('no upstream requests')))
         self.enterContext(patch.object(urp_service,'user_data_file',side_effect=lambda username,name: str(Path(directory)/name)))
         Path(directory,'schedule.json').write_text('{}')
         Path(directory,'exams.json').write_text('{}')
         app=Flask(__name__)
-        for blueprint in (data_routes.data_bp,wechat_routes.wechat_bp,shortcut_routes.shortcut_bp): app.register_blueprint(blueprint)
+        for blueprint in (data_routes.data_bp,wechat_routes.wechat_bp): app.register_blueprint(blueprint)
         self.client=app.test_client()
         self.headers={'X-Device-ID':'device'}
 
@@ -55,12 +53,6 @@ class OnDemandAcademicLoginTests(unittest.TestCase):
                 self.assertTrue(response.get_json()['success'])
         self.wechat_check.assert_not_called()
 
-    def test_shortcut_local_agenda_skips_school_login_and_auto_update(self):
-        with patch.object(shortcut_routes,'resolve_api_key',return_value='student'), patch.object(shortcut_routes,'_check_member_access',return_value=(True,None)), patch.object(shortcut_routes,'get_user_by_username',return_value={'username':'student','password':'test'}):
-            result=self.client.post('/api/shortcut/query',json={'key':'test','action':'urgent_event'}).get_json()
-        self.assertTrue(result['success'])
-        self.shortcut_check.assert_not_called()
-        self.shortcut_auto.assert_not_called()
 
     def test_live_updates_still_require_school_login(self):
         for path in ('/api/update_schedule','/api/update_exams'):
@@ -83,9 +75,3 @@ class OnDemandAcademicLoginTests(unittest.TestCase):
         response=self.client.get('/api/grades/current',headers=self.headers)
         self.assertFalse(response.get_json()['success'])
         self.check.assert_called_once()
-
-    def test_shortcut_live_grades_keep_membership_and_school_checks(self):
-        with patch.object(shortcut_routes,'resolve_api_key',return_value='student'), patch.object(shortcut_routes,'_check_member_access',return_value=(True,None)), patch.object(shortcut_routes,'get_user_by_username',return_value={'username':'student','password':'test'}):
-            result=self.client.post('/api/shortcut/query',json={'key':'test','action':'grades'}).get_json()
-        self.assertFalse(result['success'])
-        self.shortcut_check.assert_called_once()

@@ -30,11 +30,6 @@
             description: '登录后即可进入评教页面，并保留当前页面操作。',
             button: '立即登录',
         },
-        'shortcut-api': {
-            title: '快捷 API 需要登录教务账号',
-            description: '登录后即可使用快捷 API，并保留当前页面操作。',
-            button: '立即登录',
-        },
     };
 
     function normalizePageName(value, availablePages, fallback = 'home') {
