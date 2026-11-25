@@ -291,7 +291,7 @@
     :where(body.urp-app) .service-intro-card { padding: var(--ui-space-6); }
     :where(body.urp-app) .grades-kpi { padding: 16px 12px; }
     :where(body.urp-app) .grades-kpi strong { font-size: 26px; }
-    :where(body.urp-app) :is(input:where(:not([type=checkbox]):not([type=radio])), select, textarea) { font-size: 16px; }
+    :where(body.urp-app) :is(input:where(:not([type=checkbox]):not([type=radio])), select, textarea):where(:not(.week-select-wrap > select)) { font-size: 16px; }
     :where(body.urp-app) :where(#week-select) { min-height: 0; }
     :where(body.urp-app) .site-footer { padding-bottom: 12px; }
 }

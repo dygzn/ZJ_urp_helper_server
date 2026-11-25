@@ -558,22 +558,34 @@ export function changeWeek(delta, animate = false) {
     }
 }
 
+export function syncWeekSelectLabels() {
+    const select = document.getElementById('week-select');
+    if (!select) return;
+    const isMobile = Boolean(typeof window !== 'undefined' && window.matchMedia?.('(max-width: 768px)')?.matches);
+    if (select.options.length === 0) {
+        for (let w = 1; w <= 25; w++) {
+            const opt = document.createElement('option');
+            opt.value = w;
+            opt.textContent = isMobile ? `${w}周` : `第 ${w} 周`;
+            select.appendChild(opt);
+        }
+    } else {
+        Array.from(select.options).forEach(opt => {
+            const w = Number(opt.value);
+            if (Number.isInteger(w) && w > 0) {
+                opt.textContent = isMobile ? `${w}周` : `第 ${w} 周`;
+            }
+        });
+    }
+}
+
 export function updateScheduleDates(week) {
     // 同步下拉框
     const select = document.getElementById('week-select');
     if (select) {
-        if (select.options.length === 0) {
-            for (let w = 1; w <= 25; w++) {
-                const opt = document.createElement('option');
-                opt.value = w;
-                opt.textContent = `第 ${w} 周`;
-                select.appendChild(opt);
-            }
-        }
+        syncWeekSelectLabels();
         select.value = week;
     }
-    const cornerNum = document.getElementById('week-corner-num');
-    if (cornerNum) cornerNum.textContent = String(week);
 
     const activeStart = currentSemesterStartValue();
     const today = getCalendarChinaToday();
@@ -635,6 +647,8 @@ export function mountSchedule(container, { scheduleWeek = null } = {}) {
     initScheduleActions();
     mountScheduleMenu();
     mountScheduleEditor();
+    const mobileQuery = typeof window !== 'undefined' ? window.matchMedia?.('(max-width: 768px)') : null;
+    if (mobileQuery) resources.listen(mobileQuery, 'change', syncWeekSelectLabels);
     return refreshScheduleDisplay(scheduleWeek);
 }
 

@@ -5,10 +5,12 @@ const resources = pageResources('schedule');
 export function mountScheduleMenu() {
     const page = document.getElementById('page-schedule');
     const trigger = document.getElementById('schedule-mobile-more');
+    const mobileNavTrigger = document.getElementById('mobile-nav-schedule');
     if (!page || !trigger) return;
     const root = document.documentElement;
     const narrow = window.matchMedia('(max-width: 1099px)');
     const mobile = window.matchMedia('(max-width: 768px)');
+    const activeTrigger = () => (mobile.matches && mobileNavTrigger ? mobileNavTrigger : trigger);
     const sources = Array.from(document.querySelectorAll('[data-schedule-action]'));
     const originalControls = trigger.getAttribute('aria-controls');
     const originalPopup = trigger.getAttribute('aria-haspopup');
@@ -35,7 +37,7 @@ export function mountScheduleMenu() {
     function restoreFocus() {
         if (!page.classList.contains('active') || document.querySelector('dialog[open], .modal.active')) return;
         const desktopTrigger = document.getElementById('schedule-more')?.querySelector('summary');
-        const target = [trigger, desktopTrigger].find(element => element?.getClientRects().length);
+        const target = [activeTrigger(), trigger, desktopTrigger].find(element => element?.getClientRects().length);
         target?.focus({ preventScroll: true });
     }
 
@@ -44,6 +46,7 @@ export function mountScheduleMenu() {
         restoreOnClose = shouldRestore;
         menu.close();
         trigger.setAttribute('aria-expanded', 'false');
+        mobileNavTrigger?.setAttribute('aria-expanded', 'false');
         document.body.classList.remove('schedule-action-menu-open');
     }
 
@@ -76,7 +79,7 @@ export function mountScheduleMenu() {
             resources.listen(action, 'click', () => {
                 if (source.disabled) return;
                 close({ restoreFocus: false });
-                trigger.focus({ preventScroll: true });
+                activeTrigger().focus({ preventScroll: true });
                 source.click();
             });
             list.append(action);
@@ -111,6 +114,7 @@ export function mountScheduleMenu() {
         menu.showModal();
         positionMenu();
         trigger.setAttribute('aria-expanded', 'true');
+        mobileNavTrigger?.setAttribute('aria-expanded', 'true');
         document.body.classList.add('schedule-action-menu-open');
         (list.querySelector('button:not(:disabled)') || menu.querySelector('.schedule-action-menu-close')).focus();
     }
@@ -146,6 +150,17 @@ export function mountScheduleMenu() {
         if (enabled) trigger.setAttribute('aria-haspopup', 'dialog');
         else if (originalPopup) trigger.setAttribute('aria-haspopup', originalPopup);
         else trigger.removeAttribute('aria-haspopup');
+        if (mobileNavTrigger) {
+            if (enabled && mobile.matches) {
+                mobileNavTrigger.setAttribute('aria-controls', menu.id);
+                mobileNavTrigger.setAttribute('aria-haspopup', 'dialog');
+                mobileNavTrigger.setAttribute('aria-expanded', String(menu.open));
+            } else {
+                mobileNavTrigger.removeAttribute('aria-controls');
+                mobileNavTrigger.removeAttribute('aria-haspopup');
+                mobileNavTrigger.removeAttribute('aria-expanded');
+            }
+        }
     }
 
     resources.listen(menu.querySelector('.schedule-action-menu-close'), 'click', () => close());
@@ -158,6 +173,7 @@ export function mountScheduleMenu() {
     resources.listen(menu, 'close', () => {
         if (menu.open) return;
         trigger.setAttribute('aria-expanded', 'false');
+        mobileNavTrigger?.setAttribute('aria-expanded', 'false');
         document.body.classList.remove('schedule-action-menu-open');
         if (restoreOnClose) restoreFocus();
     });
@@ -192,6 +208,11 @@ export function mountScheduleMenu() {
         trigger.setAttribute('aria-controls', originalControls);
         if (originalPopup) trigger.setAttribute('aria-haspopup', originalPopup);
         else trigger.removeAttribute('aria-haspopup');
+        if (mobileNavTrigger) {
+            mobileNavTrigger.removeAttribute('aria-controls');
+            mobileNavTrigger.removeAttribute('aria-haspopup');
+            mobileNavTrigger.removeAttribute('aria-expanded');
+        }
         delete window.ScheduleActionsMenu;
     });
     syncMode();

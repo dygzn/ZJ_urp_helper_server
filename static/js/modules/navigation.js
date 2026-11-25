@@ -141,6 +141,11 @@ export function initializeNavigation() {
         item.addEventListener('click', function(event) {
             event.preventDefault();
             const pageName = this.getAttribute('data-page');
+            if (isMobileWorkspace() && pageName === 'schedule' && state.currentPage === 'schedule'
+                && typeof window !== 'undefined' && window.ScheduleActionsMenu?.isEnabled?.()) {
+                window.ScheduleActionsMenu.toggle();
+                return;
+            }
             switchPage(pageName);
             closeSidebar({ restoreFocus: false });
             focusCurrentPage(pageName);
