@@ -34,8 +34,20 @@ export function initMobileWorkspaceLayout() {
     query.addEventListener?.('change', sync);
     sync();
     const syncAccount = () => {
-        if (moreUsername) moreUsername.textContent = state.currentUsername
-            ? `${state.currentUsername}${state.temporarySessionExpiresAt ? ' · 临时' : ''}` : '访客';
+        const loggedIn = Boolean(state.currentUsername && !state.isGuestMode);
+        const displayName = loggedIn
+            ? `${state.currentUsername}${state.temporarySessionExpiresAt ? ' · 临时' : ''}`
+            : '访客';
+        if (moreUsername) moreUsername.textContent = displayName;
+        const desktopAccount = document.querySelector?.('.desktop-account');
+        if (desktopAccount) {
+            desktopAccount.textContent = loggedIn ? displayName : '登录账号';
+            desktopAccount.setAttribute('title', loggedIn ? `当前账号：${displayName}（点击换绑）` : '点击登录教务账号');
+        }
+        const rebindBtn = document.querySelector?.('.sidebar-footer .rebind-btn');
+        if (rebindBtn) {
+            rebindBtn.textContent = loggedIn ? '换绑账号' : '登录账号';
+        }
     };
     syncAccount();
     resources.addCleanup(store.subscribe((value, key) => {

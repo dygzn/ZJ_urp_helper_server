@@ -19,6 +19,7 @@
     <link rel="stylesheet" href="{{ static_versioned('css/natural-themes.css') }}">
 </head>
 <body class="urp-admin">
+    <a class="skip-link" href="#workspace-main">跳到主要内容</a>
     <div class="admin-container">
         <div id="admin-login" class="admin-login">
             <div class="login-box">
@@ -44,7 +45,7 @@
                 </div>
             </header>
 
-            <div id="workspace-main" class="admin-content" tabindex="-1">
+            <main id="workspace-main" class="admin-content" tabindex="-1">
                 <nav class="tabs" role="tablist" aria-label="管理栏目">
                     <span class="admin-nav-group" aria-hidden="true">常用</span>
                     <button id="tab-users-button" class="tab-btn active" type="button" data-tab="users" onclick="switchTab('users')" role="tab" aria-controls="tab-users" aria-selected="true" tabindex="0"><svg class="admin-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 21a8 8 0 0 0-16 0" />
@@ -112,8 +113,8 @@
                         </form>
                         <div id="grant-member-msg" class="hint-message" role="status" aria-live="polite"></div>
                     </div>
-                    <div class="config-section"><label class="admin-check-row"><span><strong>成绩查询需要会员</strong><small>开启后普通用户无法直接查询成绩</small></span><input type="checkbox" id="grades-member-required" onchange="handleUpdateGradesMemberRequired()"></label><span id="grades-member-status" class="hint-message"></span></div>
-                    <div class="config-section"><label class="admin-check-row"><span><strong>显示前端充值页面</strong><small>关闭后前端不显示会员购买导航和充值页面</small></span><input type="checkbox" id="member-page-enabled" onchange="handleUpdateMemberPageEnabled()"></label><span id="member-page-status" class="hint-message"></span></div>
+                    <div class="config-section"><label class="admin-check-row"><span><strong>成绩查询需要会员</strong><small>开启后普通用户无法直接查询成绩</small></span><input type="checkbox" id="grades-member-required" onchange="handleUpdateGradesMemberRequired()"></label><span id="grades-member-status" class="hint-message" role="status" aria-live="polite"></span></div>
+                    <div class="config-section"><label class="admin-check-row"><span><strong>显示前端充值页面</strong><small>关闭后前端不显示会员购买导航和充值页面</small></span><input type="checkbox" id="member-page-enabled" onchange="handleUpdateMemberPageEnabled()"></label><span id="member-page-status" class="hint-message" role="status" aria-live="polite"></span></div>
                     <div id="members-list" class="members-list"><div class="empty-state">输入学号后查询或调整会员状态</div></div>
                 </section>
 
@@ -169,7 +170,7 @@
                                 <button class="btn-primary btn-full" type="submit">测试并保存数据库配置</button>
                             </form>
                             <button class="btn-secondary btn-full" type="button" onclick="handleMigrateSqliteData()">从本机 SQLite 导入数据</button>
-                            <div id="database-config-status" class="hint-message"></div>
+                            <div id="database-config-status" class="hint-message" role="status" aria-live="polite"></div>
                         </div>
                         <div class="config-section">
                             <h3>服务器迁移：归档旧绑定</h3>
@@ -240,10 +241,10 @@
                             </label>
                             <button class="btn-primary btn-full" type="submit">保存状态</button>
                         </form>
-                        <div id="admin-service-status-message" class="hint-message"></div>
+                        <div id="admin-service-status-message" class="hint-message" role="status" aria-live="polite"></div>
                     </div>
                 </section>
-            </div>
+            </main>
         </div>
     </div>
 

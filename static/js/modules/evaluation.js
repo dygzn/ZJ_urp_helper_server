@@ -5,21 +5,25 @@ import { requestUiConfirmation, showUiToast } from './ui.js';
 const resources = pageResources('evaluation');
 
 export function mountEvaluation() {
-    document.getElementById('evaluation-result').innerHTML = '';
+    const resultDiv = document.getElementById('evaluation-result');
+    resultDiv.className = 'evaluation-result';
+    resultDiv.innerHTML = '';
 }
 export function unmountEvaluation() { resources.dispose(); }
 
 export async function doFullEvaluation() {
     const operation = resources.capture();
     const scope = resources.capture();
-    document.getElementById('evaluation-result').innerHTML = '<div class="loading">加载中...</div>';
+    const resultDiv = document.getElementById('evaluation-result');
+    resultDiv.className = 'evaluation-result';
+    resultDiv.innerHTML = '<div class="loading">加载中...</div>';
     await operation.wait(checkLoginStatus());
     if (!scope.isActive()) return;
-    const resultDiv = document.getElementById('evaluation-result');
     const btn = document.getElementById('do-eval-btn');
     const restoreButton = () => { btn.disabled = false; btn.textContent = '完成教学评估'; };
     const releaseButton = operation.addCleanup(restoreButton);
     btn.disabled = true; btn.textContent = '评估中...';
+    resultDiv.className = 'evaluation-result';
     resultDiv.innerHTML = '<div class="loading">正在查询未评估课程...</div>';
 
     try {
@@ -70,10 +74,12 @@ export async function doFullEvaluation() {
 export async function checkUnevaluatedCourses() {
     const operation = resources.capture();
     const scope = resources.capture();
-    document.getElementById('evaluation-result').innerHTML = '<div class="loading">加载中...</div>';
+    const resultDiv = document.getElementById('evaluation-result');
+    resultDiv.className = 'evaluation-result';
+    resultDiv.innerHTML = '<div class="loading">加载中...</div>';
     await operation.wait(checkLoginStatus());
     if (!scope.isActive()) return;
-    const resultDiv = document.getElementById('evaluation-result');
+    resultDiv.className = 'evaluation-result';
     resultDiv.innerHTML = '<div class="loading">正在查询未评估课程...</div>';
     try {
         const response = await operation.wait(resources.fetch('/api/unevaluated_courses', { headers: { 'X-Device-ID': getDeviceId() } }));
@@ -100,6 +106,7 @@ export async function checkUnevaluatedCourses() {
 
 export function displayUnevaluatedCourses(courses) {
     const resultDiv = document.getElementById('evaluation-result');
+    resultDiv.className = 'evaluation-result';
     let html = '<div class="unevaluated-courses"><h3 class="evaluation-courses-title">未评估课程列表</h3>';
     courses.forEach(course => {
         html += `<div class="evaluation-course"><div class="evaluation-course-name evaluation-course-heading">${escapeHtml(course['未评课程'])}</div><div class="evaluation-course-teacher">教师: ${escapeHtml(course['教师'])}</div></div>`;
@@ -126,6 +133,7 @@ export async function doEvaluation() {
         danger: true,
     }));
     if (!confirmed || !scope.isActive()) return;
+    resultDiv.className = 'evaluation-result';
     resultDiv.innerHTML = '<div class="loading">正在提交评教...</div>';
     try {
         const response = await operation.wait(resources.fetch('/api/evaluation', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Device-ID': getDeviceId() }, body: JSON.stringify({ courses }) }));
@@ -148,9 +156,6 @@ export async function doEvaluation() {
 export async function oneClickEvaluation() {
     const operation = resources.capture();
     const scope = resources.capture();
-    document.getElementById('evaluation-result').innerHTML = '<div class="loading">加载中...</div>';
-    await operation.wait(checkLoginStatus());
-    if (!scope.isActive()) return;
     const confirmed = await operation.wait(requestUiConfirmation({
         title: '确认一键评教',
         message: '即将对本学期所有待评教师提交默认好评，该操作不可撤销，是否继续？',
@@ -163,8 +168,12 @@ export async function oneClickEvaluation() {
     const restoreButton = () => { btn.disabled = false; btn.textContent = '一键评教'; };
     const releaseButton = operation.addCleanup(restoreButton);
     btn.disabled = true; btn.textContent = '评教中...';
-    resultDiv.innerHTML = '<div class="loading">正在查询未评估课程...</div>';
+    resultDiv.className = 'evaluation-result';
+    resultDiv.innerHTML = '<div class="loading">加载中...</div>';
     try {
+        await operation.wait(checkLoginStatus());
+        if (!scope.isActive()) return;
+        resultDiv.innerHTML = '<div class="loading">正在查询未评估课程...</div>';
         const response = await operation.wait(resources.fetch('/api/unevaluated_courses', { headers: { 'X-Device-ID': getDeviceId() } }));
         const data = await operation.wait(response.json());
         if (!data.success) {

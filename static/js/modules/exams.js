@@ -39,6 +39,9 @@ export async function updateExamsData(event) {
             state.cachedExams = null;
             // 重新加载考试安排
             loadExams();
+            if (state.currentPage === 'schedule' && typeof window !== 'undefined' && typeof window.loadSchedule === 'function') {
+                window.loadSchedule();
+            }
         } else {
             showUiToast(data.message || '更新失败', 'error');
         }
@@ -104,7 +107,7 @@ export async function loadExams(autoFetched = false) {
                     loadExams(true);
                     return;
                 } else {
-                    contentDiv.innerHTML = `<p style="text-align:center;color:var(--error);">${updateData.message || '获取考试安排失败'}</p>`;
+                    contentDiv.innerHTML = `<p style="text-align:center;color:var(--error);">${escapeHtml(updateData.message || '获取考试安排失败')}</p>`;
                 }
             } catch (e) {
         if (e?.name === 'AbortError') return;
@@ -161,6 +164,9 @@ export function displayExams(exams) {
                     countdownHtml = `<div class="exam-countdown" style="color:var(--warning);">${diffDays}天后考试</div>`;
                 } else if (diffDays > 7) {
                     countdownHtml = `<div class="exam-countdown" style="color:var(--accent);">${diffDays}天后考试</div>`;
+                } else if (diffDays < 0) {
+                    urgencyClass = 'exam-ended';
+                    countdownHtml = '<div class="exam-countdown" style="color:var(--ui-subtle, var(--text-tertiary));">已结束</div>';
                 }
             }
 

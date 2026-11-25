@@ -353,16 +353,15 @@ export async function gradesShowCurrentSemester() {
 export async function gradesShowSemesterPicker() {
     gradesCloseQueryMenu();
     const operation = resources.capture();
-    const request = resources.api.beginRequest('grades');
+    const request = resources.api.beginRequest('grades-picker');
     const generation = state.academicCacheGeneration;
     const isCurrent = () => request.isCurrent() && generation === state.academicCacheGeneration;
-    document.getElementById('grades-content').innerHTML = '<div class="loading">加载中...</div>';
-    await operation.wait(checkLoginStatus());
-    if (!isCurrent()) return;
     const modal = document.getElementById('semester-picker-modal');
     const list = document.getElementById('semester-picker-list');
     list.innerHTML = '<div class="loading">加载中...</div>';
     openUiModal(modal);
+    await operation.wait(checkLoginStatus());
+    if (!isCurrent()) return;
     try {
         const resp = await operation.wait(resources.api.request('/api/grades/semesters', { signal: request.signal }));
         const data = await operation.wait(resp.json());
@@ -386,7 +385,7 @@ export async function gradesShowSemesterPicker() {
 }
 
 export function closeSemesterPicker() {
-    resources.api.cancelRequest('grades');
+    resources.api.cancelRequest('grades-picker');
     closeUiModal(document.getElementById('semester-picker-modal'));
 }
 
@@ -533,20 +532,37 @@ export async function gradesLoadGpa() {
     }
 }
 
+function renderExamSemesterList() {
+    document.getElementById('exam-picker-title').textContent = '选择学期';
+    const body = document.getElementById('exam-picker-body');
+    const semesters = [...(state._examSessions?.semesters || [])].sort((a, b) => b.value.localeCompare(a.value));
+    if (semesters.length === 0) {
+        body.innerHTML = '<p style="color:var(--text-tertiary);text-align:center;">暂无学期数据</p>';
+        return;
+    }
+    body.innerHTML = semesters.map(s =>
+        `<button class="semester-option-btn" type="button" data-semester-id="${escapeHtml(s.value)}" data-semester-label="${escapeHtml(s.text)}" onclick="examPickSemester(this.dataset.semesterId, this.dataset.semesterLabel)">${escapeHtml(s.text)}</button>`
+    ).join('');
+}
+
+export function examBackToSemesters() {
+    renderExamSemesterList();
+    document.querySelector('#exam-picker-body .semester-option-btn')?.focus?.({ preventScroll: true });
+}
+
 export async function gradesShowExamPicker() {
     gradesCloseQueryMenu();
     const operation = resources.capture();
-    const request = resources.api.beginRequest('grades');
+    const request = resources.api.beginRequest('grades-picker');
     const generation = state.academicCacheGeneration;
     const isCurrent = () => request.isCurrent() && generation === state.academicCacheGeneration;
-    document.getElementById('grades-content').innerHTML = '<div class="loading">加载中...</div>';
-    await operation.wait(checkLoginStatus());
-    if (!isCurrent()) return;
     const modal = document.getElementById('exam-picker-modal');
     document.getElementById('exam-picker-title').textContent = '选择学期';
     const body = document.getElementById('exam-picker-body');
     body.innerHTML = '<div class="loading">加载中...</div>';
     openUiModal(modal);
+    await operation.wait(checkLoginStatus());
+    if (!isCurrent()) return;
 
     if (!state._examSessions) {
         try {
@@ -559,7 +575,7 @@ export async function gradesShowExamPicker() {
             }
             state._examSessions = data;
         } catch (e) {
-        if (e?.name === 'AbortError') return;
+            if (e?.name === 'AbortError') return;
             if (!isCurrent() || e.name === 'AbortError') return;
             body.innerHTML = `<p style="color:var(--error);text-align:center;">${escapeHtml(e.message || '加载失败')}</p>`;
             return;
@@ -567,22 +583,20 @@ export async function gradesShowExamPicker() {
     }
 
     // 保留全部历史学期，按学年与学期排序，而非依赖服务器选项顺序。
-    const semesters = [...(state._examSessions.semesters || [])].sort((a, b) => b.value.localeCompare(a.value));
-    body.innerHTML = semesters.map(s =>
-        `<button class="semester-option-btn" data-semester-id="${escapeHtml(s.value)}" data-semester-label="${escapeHtml(s.text)}" onclick="examPickSemester(this.dataset.semesterId, this.dataset.semesterLabel)">${escapeHtml(s.text)}</button>`
-    ).join('');
+    renderExamSemesterList();
 }
 
 export function examPickSemester(jxzxjh, semesterText) {
     document.getElementById('exam-picker-title').textContent = semesterText;
     const exams = (state._examSessions.exams || []).filter(e => e.jxzxjh === jxzxjh);
     const body = document.getElementById('exam-picker-body');
+    const backBtn = '<button class="in-page-back" type="button" onclick="examBackToSemesters()" style="margin-bottom:12px;">← 返回选择学期</button>';
     if (exams.length === 0) {
-        body.innerHTML = '<p style="color:var(--text-tertiary);text-align:center;">该学期暂无考试记录</p>';
+        body.innerHTML = `${backBtn}<p style="color:var(--text-tertiary);text-align:center;">该学期暂无考试记录</p>`;
         return;
     }
-    body.innerHTML = exams.map(e =>
-        `<button class="semester-option-btn" data-semester-id="${escapeHtml(e.jxzxjh)}" data-exam-id="${escapeHtml(e.ksbh)}" data-exam-name="${escapeHtml(e.name)}" onclick="examPickExam(this.dataset.semesterId, this.dataset.examId, this.dataset.examName)">${escapeHtml(e.name)}</button>`
+    body.innerHTML = backBtn + exams.map(e =>
+        `<button class="semester-option-btn" type="button" data-semester-id="${escapeHtml(e.jxzxjh)}" data-exam-id="${escapeHtml(e.ksbh)}" data-exam-name="${escapeHtml(e.name)}" onclick="examPickExam(this.dataset.semesterId, this.dataset.examId, this.dataset.examName)">${escapeHtml(e.name)}</button>`
     ).join('');
 }
 
@@ -607,12 +621,12 @@ export async function examPickExam(jxzxjh, ksbh, examName) {
             document.getElementById('grades-content').innerHTML = '<p style="text-align:center;color:var(--text-tertiary);">暂无成绩数据</p>';
             return;
         }
-        let html = '<table class="grades-table grades-course-table"><thead><tr><th>课程名称</th><th>学分</th><th>成绩</th></tr></thead><tbody>';
+        let html = '<div class="grades-table-wrap"><table class="grades-table grades-course-table"><thead><tr><th>课程名称</th><th>学分</th><th>成绩</th></tr></thead><tbody>';
         data.grades.forEach(g => {
-            const scoreClass = (parseFloat(g.score) < 60) ? 'score-low' : '';
+            const scoreClass = typeof gradesScoreClass === 'function' ? gradesScoreClass(g.score) : ((parseFloat(g.score) < 60) ? 'score-low' : '');
             html += `<tr><td>${escapeHtml(g.course)}</td><td>${escapeHtml(g.credit)}</td><td class="${scoreClass}">${escapeHtml(g.score === '' || g.score == null ? '暂未发布' : g.score)}</td></tr>`;
         });
-        html += '</tbody></table>';
+        html += '</tbody></table></div>';
         document.getElementById('grades-content').innerHTML = html;
     } catch (e) {
         if (e?.name === 'AbortError') return;
@@ -622,7 +636,7 @@ export async function examPickExam(jxzxjh, ksbh, examName) {
 }
 
 export function closeExamPicker() {
-    resources.api.cancelRequest('grades');
+    resources.api.cancelRequest('grades-picker');
     closeUiModal(document.getElementById('exam-picker-modal'));
 }
 

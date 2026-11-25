@@ -50,139 +50,6 @@ export function updateScheduleTimeline(isFreshman, root = document) {
     });
 }
 
-export async function showOtherMajorModal() {
-    const operation = resources.capture();
-    const modal = document.getElementById('other-major-modal');
-    const body = document.getElementById('other-major-modal-body');
-
-    openUiModal(modal);
-
-    if (Object.keys(state.gradeData).length > 0) {
-        _renderOtherMajorModal();
-        return;
-    }
-
-    body.innerHTML = '<div class="loading">加载中...</div>';
-    try {
-        const resp = await operation.wait(resources.fetch('/api/schedule/other_majors', {
-            headers: { 'X-Device-ID': getDeviceId() }
-        }));
-        const data = await operation.wait(resp.json());
-        if (!data.success || !Object.keys(data.data).length) {
-            body.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:20px 0;">暂无其他班级的课表数据</p>';
-            return;
-        }
-        state.gradeData = data.data;
-        // 默认选第一个年级和专业
-        state.omSelected.grade = Object.keys(state.gradeData)[0];
-        state.omSelected.major = Object.keys(state.gradeData[state.omSelected.grade])[0];
-        state.omSelected.class_num = state.gradeData[state.omSelected.grade][state.omSelected.major][0];
-        _renderOtherMajorModal();
-    } catch (e) {
-        if (e?.name === 'AbortError') return;
-        body.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:20px 0;">加载失败，请重试</p>';
-    }
-}
-
-export function _renderOtherMajorModal() {
-    const grades = Object.keys(state.gradeData);
-    const majors = state.omSelected.grade ? Object.keys(state.gradeData[state.omSelected.grade] || {}) : [];
-    const classes = (state.omSelected.grade && state.omSelected.major)
-        ? (state.gradeData[state.omSelected.grade][state.omSelected.major] || []) : [];
-
-    document.getElementById('other-major-modal-body').innerHTML = `
-        <p class="other-major-section-label">年级</p>
-        <div class="other-major-chips">
-            ${grades.map(g => `
-                <button class="other-major-chip ${g === state.omSelected.grade ? 'selected' : ''}"
-                        onclick="omSelectGrade('${g}')">${g}级</button>
-            `).join('')}
-        </div>
-        <p class="other-major-section-label">专业</p>
-        <div class="other-major-chips">
-            ${majors.map(m => `
-                <button class="other-major-chip ${m === state.omSelected.major ? 'selected' : ''}"
-                        onclick="omSelectMajor('${m}')">${m}</button>
-            `).join('')}
-        </div>
-        <p class="other-major-section-label">班级</p>
-        <div class="other-major-chips">
-            ${classes.map(c => `
-                <button class="other-major-chip ${c === state.omSelected.class_num ? 'selected' : ''}"
-                        onclick="omSelectClass('${c}')">${c}班</button>
-            `).join('')}
-        </div>
-        <div class="other-major-confirm">
-            <button class="btn-primary btn-full" onclick="loadOtherMajorSchedule()">查看该班课表</button>
-        </div>
-    `;
-}
-
-export function omSelectGrade(grade) {
-    state.omSelected.grade = grade;
-    state.omSelected.major = Object.keys(state.gradeData[grade] || {})[0] || null;
-    state.omSelected.class_num = state.omSelected.major ? (state.gradeData[grade][state.omSelected.major][0] || null) : null;
-    _renderOtherMajorModal();
-}
-
-export function omSelectMajor(major) {
-    state.omSelected.major = major;
-    state.omSelected.class_num = (state.gradeData[state.omSelected.grade][major] || [])[0] || null;
-    _renderOtherMajorModal();
-}
-
-export function omSelectClass(cls) {
-    state.omSelected.class_num = cls;
-    _renderOtherMajorModal();
-}
-
-export function closeOtherMajorModal() {
-    closeUiModal(document.getElementById('other-major-modal'));
-}
-
-export async function loadOtherMajorSchedule() {
-    const operation = resources.capture();
-    const { grade, major, class_num } = state.omSelected;
-    if (!grade || !major || !class_num) return;
-
-    closeOtherMajorModal();
-
-    const scheduleMsg = document.getElementById('schedule-message');
-    scheduleMsg.style.display = 'block';
-    scheduleMsg.textContent = '加载中...';
-    scheduleMsg.classList.remove('schedule-message-detail');
-
-    try {
-        const resp = await operation.wait(resources.fetch(`/api/schedule/other_major?grade=${encodeURIComponent(grade)}&major=${encodeURIComponent(major)}&class_num=${encodeURIComponent(class_num)}`, {
-            headers: { 'X-Device-ID': getDeviceId() }
-        }));
-        const data = await operation.wait(resp.json());
-        if (!data.success) {
-            scheduleMsg.textContent = data.message || '加载失败';
-            return;
-        }
-        state.otherMajorScheduleData = data.data.schedule;
-        if (data.data.semester_start && !state.semesterStart) {
-            state.semesterStart = new Date(data.data.semester_start);
-        }
-        const backButton = document.createElement('button');
-        backButton.type = 'button';
-        backButton.className = 'in-page-back schedule-back-btn';
-        backButton.textContent = '← 返回我的课表';
-        backButton.addEventListener('click', backToMySchedule);
-        const scheduleTitle = document.createElement('span');
-        scheduleTitle.className = 'schedule-message-title';
-        scheduleTitle.textContent = `${grade}级 专业${major} ${class_num}班（仅课程名与时间）`;
-        scheduleMsg.replaceChildren(backButton, scheduleTitle);
-        scheduleMsg.classList.add('schedule-message-detail');
-        scheduleMsg.style.display = '';
-        displaySchedule({ [state.currentWeek]: state.otherMajorScheduleData[String(state.currentWeek)] || [] });
-    } catch (e) {
-        if (e?.name === 'AbortError') return;
-        scheduleMsg.textContent = '加载失败，请重试';
-    }
-}
-
 export async function showHistoricalSchedule() {
     const operation = resources.capture();
     const modal = document.getElementById('historical-schedule-modal');
@@ -251,14 +118,6 @@ export function renderHistoricalSchedule(courses) {
     }
 
     body.innerHTML = buildHistoricalScheduleGridHtml(courses);
-}
-
-export function backToMySchedule() {
-    state.otherMajorScheduleData = null;
-    const scheduleMsg = document.getElementById('schedule-message');
-    scheduleMsg.style.display = 'none';
-    scheduleMsg.classList.remove('schedule-message-detail');
-    refreshScheduleDisplay();
 }
 
 export async function updateScheduleData(event) {
@@ -523,7 +382,7 @@ export function renderScheduleWeek(schedule, panel, courseColorMap = buildSchedu
         state.currentScheduleMap.set(key, course);
         return key;
     };
-    const weekExams = state.otherMajorScheduleData ? [] : state.cachedScheduleExams
+    const weekExams = state.cachedScheduleExams
         .filter(exam => Number(exam.week) === week)
         .map(exam => buildScheduleExamCardData(exam, times));
     weekExams.forEach(exam => {
@@ -695,14 +554,7 @@ export function changeWeek(delta, animate = false) {
     }
 
     if (newWeek >= SCHEDULE_MIN_WEEK && newWeek <= SCHEDULE_MAX_WEEK) {
-        if (state.otherMajorScheduleData) {
-            state.currentWeek = newWeek;
-            document.getElementById('week-select').value = newWeek;
-            updateScheduleDates(newWeek);
-            displaySchedule({ [newWeek]: state.otherMajorScheduleData[String(newWeek)] || [] });
-        } else {
-            loadSchedule(newWeek);
-        }
+        loadSchedule(newWeek);
     }
 }
 
@@ -773,13 +625,7 @@ export function updateScheduleDates(week) {
 }
 
 export function jumpToWeek(week) {
-    if (state.otherMajorScheduleData) {
-        state.currentWeek = week;
-        updateScheduleDates(week);
-        displaySchedule({ [week]: state.otherMajorScheduleData[String(week)] || [] });
-    } else {
-        loadSchedule(week);
-    }
+    loadSchedule(week);
 }
 
 export function mountSchedule(container, { scheduleWeek = null } = {}) {

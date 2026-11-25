@@ -280,9 +280,9 @@ position: relative;
     align-items: center;
     min-height: 40px;
     width: 100%;
-    border: 1px solid rgba(0,122,255,0.24);
+    border: 1px solid var(--ui-line, rgba(0,122,255,0.24));
     border-radius: 12px;
-    background: linear-gradient(105deg, rgba(0,122,255,0.12), rgba(24,176,105,0.09) 58%, rgba(255,255,255,0.84));
+    background: color-mix(in srgb, var(--ui-accent-soft, #e9f0fb) 45%, var(--ui-surface, #ffffff));
     box-shadow: 0 5px 16px rgba(18,76,142,0.08);
     overflow: hidden;
     animation: header-ad-attention 520ms var(--ease) both;
@@ -302,7 +302,7 @@ display: flex;
     padding: 6px 58px 6px 10px;
     border: 0;
     background: transparent;
-    color: var(--text-primary);
+    color: var(--ui-ink, var(--text-primary));
     text-align: left;
     text-decoration: none;
     cursor: pointer;
@@ -310,7 +310,7 @@ display: flex;
 }
 
 .header-ad-main:hover {
-background: rgba(255,255,255,0.45);
+background: var(--ui-surface-soft, rgba(255,255,255,0.45));
 }
 
 .header-ad-main:focus-visible,
@@ -364,8 +364,8 @@ display: inline-flex;
     min-height: 27px;
     padding: 0 10px;
     border-radius: 8px;
-    background: var(--accent);
-    color: #fff;
+    background: var(--ui-accent, var(--accent));
+    color: var(--ui-on-accent, #fff);
     font-size: 11px;
     font-weight: 750;
     white-space: nowrap;
@@ -583,8 +583,8 @@ background: var(--divider);
 
 .week-btn {
 padding: 6px 16px;
-    background: var(--accent);
-    color: #fff;
+    background: var(--ui-accent, var(--accent));
+    color: var(--ui-on-accent, #fff);
     border: none;
     border-radius: 8px;
     font-size: 13px;
@@ -599,8 +599,8 @@ opacity: 0.8;
 
 .update-schedule-btn {
 padding: 10px 24px;
-    background: var(--accent);
-    color: #fff;
+    background: var(--ui-accent, var(--accent));
+    color: var(--ui-on-accent, #fff);
     border: none;
     border-radius: 10px;
     font-size: 14px;
@@ -918,8 +918,8 @@ color: rgba(255,255,255,0.75);
 .week-select {
 appearance: none;
     -webkit-appearance: none;
-    background: var(--accent);
-    color: #fff;
+    background: var(--ui-accent, var(--accent));
+    color: var(--ui-on-accent, #fff);
     border: none;
     border-radius: 8px;
     padding: 6px 28px 6px 12px;
@@ -1479,47 +1479,6 @@ width: 100%;
 background: var(--border);
 }
 
-.other-major-section-label {
-font-size: 13px;
-    font-weight: 600;
-    color: var(--text-secondary);
-    margin: 16px 0 8px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.other-major-chips {
-display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-
-.other-major-chip {
-padding: 7px 16px;
-    border-radius: 20px;
-    font-size: 14px;
-    border: 1.5px solid var(--border);
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-    cursor: pointer;
-    transition: background 0.15s, border-color 0.15s, color 0.15s;
-}
-
-.other-major-chip:hover {
-border-color: var(--accent);
-    color: var(--accent);
-}
-
-.other-major-chip.selected {
-background: var(--accent);
-    border-color: var(--accent);
-    color: #fff;
-}
-
-.other-major-confirm {
-margin-top: 20px;
-}
-
 .modal-content.historical-schedule-modal-content {
 display: flex;
     flex-direction: column;
@@ -1720,8 +1679,8 @@ background: rgba(255,59,48,0.08);
 
 .eval-btn {
 padding: 12px 32px;
-    background: var(--accent);
-    color: #fff;
+    background: var(--ui-accent, var(--accent));
+    color: var(--ui-on-accent, #fff);
     border: none;
     border-radius: 12px;
     font-size: 15px;
@@ -3441,8 +3400,8 @@ color: var(--accent);
 padding: 5px 14px;
     border: none;
     border-radius: 6px;
-    background: var(--accent);
-    color: #fff;
+    background: var(--ui-accent, var(--accent));
+    color: var(--ui-on-accent, #fff);
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
@@ -4364,8 +4323,8 @@ display: grid;
     width: 26px;
     height: 26px;
     border-radius: 8px;
-    background: var(--accent);
-    color: #fff;
+    background: var(--ui-accent, var(--accent));
+    color: var(--ui-on-accent, #fff);
     font-size: 12px;
     font-weight: 800;
 }
@@ -5066,8 +5025,8 @@ display: inline-flex;
     padding: 0 18px;
     border-radius: 11px;
     border: 0;
-    background: var(--accent);
-    color: #fff;
+    background: var(--ui-accent, var(--accent));
+    color: var(--ui-on-accent, #fff);
     font-size: 14px;
     font-weight: 650;
     text-decoration: none;
@@ -5222,7 +5181,6 @@ padding-block: 12px;
 .service-contact-trigger,
 .service-contact-option,
 .semester-option-btn,
-.other-major-chip,
 .feedback-reply-btn {
 min-height: var(--touch-target-strong);
 }

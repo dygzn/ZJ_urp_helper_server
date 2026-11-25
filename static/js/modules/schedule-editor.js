@@ -8,7 +8,7 @@ import { courseTemplateOptions, applyCourseTemplate, periodSpanTimes, chinaDateT
 import { mountScheduleEditorTimes } from './schedule-editor-form.js';
 const resources = pageResources('schedule');
 export const scheduleEditor = {epoch:0,cancelGestures:null,draft:null,dialog:null,scopeDialog:null,pending:false,course:null,returnFocus:null,times:null,conflict:null,undo:null,undoTimer:null};
-export function canEditSchedule() { return !scheduleEditor.pending && !state.isGuestMode && !state.otherMajorScheduleData && !!currentSemesterStartValue(); }
+export function canEditSchedule() { return !scheduleEditor.pending && !state.isGuestMode && !!currentSemesterStartValue(); }
 export function resetScheduleEditor() {
     scheduleEditor.epoch++;
     clearScheduleUndo();
@@ -32,7 +32,7 @@ export function renderScheduleDraft() {
     const draft=scheduleEditor.draft;
     document.getElementById('page-schedule')?.classList?.toggle('has-draft-evening',!!draft && draft.section+draft.duration-1>=9 && draft.week===state.currentWeek);
     if (!draft) return;
-    if (draft.week!==state.currentWeek || state.otherMajorScheduleData) {document.querySelector?.('.schedule-course-draft')?.remove?.();return;}
+    if (draft.week!==state.currentWeek) {document.querySelector?.('.schedule-course-draft')?.remove?.();return;}
     const panel=document.querySelector('.schedule-week-panel.is-current');
     const column=panel?.querySelector(`[data-schedule-column-day="${draft.day}"]`);
     if (!column) return;
@@ -151,7 +151,7 @@ export function undoScheduleEdit() {
 export function openScheduleCourseEditor({draft=null,course=null,returnFocus=null}) {
     if (!canEditSchedule())return;
     const dialog=scheduleEditor.dialog;if(!dialog)return;
-    closeUiModal(document.getElementById('course-detail-modal'));
+    closeUiModal(document.getElementById('course-detail-modal'), { restoreFocus: false, animate: false });
     scheduleEditor.course=course;scheduleEditor.returnFocus=returnFocus;scheduleEditor.pending=false;
     const form=dialog.querySelector('form');
     form.reset();form.querySelectorAll('button,input,textarea,select').forEach(el=>el.disabled=false);form.querySelector('[data-editor-error]').textContent='';
@@ -276,7 +276,7 @@ export function renderPersonalScheduleNotices() {
     const page=document.getElementById('page-schedule');
     if (!page?.querySelector || typeof document.createElement!=='function')return;
     let block=page.querySelector('.schedule-personal-notices');
-    if(!state.personalScheduleNotices.length || state.otherMajorScheduleData){block?.remove();return;}
+    if(!state.personalScheduleNotices.length){block?.remove();return;}
     if(!block){block=document.createElement('div');block.className='schedule-personal-notices';page.querySelector('.schedule-container').prepend(block);}
     block.replaceChildren();
     for(const notice of state.personalScheduleNotices){

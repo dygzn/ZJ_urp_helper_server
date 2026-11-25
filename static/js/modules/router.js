@@ -57,7 +57,7 @@ export function switchPage(pageName, params = {}) {
     // Unmount before hiding DOM, so focus and resource cleanup still see the old page.
     unmountCurrentPage();
     const modal = state.uiModalState.activeModal;
-    if (modal && !['login-modal', 'password-disclaimer-modal', 'announcement-modal'].includes(modal.id)) {
+    if (modal && !['login-modal', 'password-disclaimer-modal', 'announcement-dialog'].includes(modal.id)) {
         closeUiModal(modal, { restoreFocus: false, animate: false });
     }
     state.currentPage = pageName;
@@ -85,7 +85,11 @@ export function switchPage(pageName, params = {}) {
         'lab': '实验提交',
         'member': '会员购买',
     };
-    document.getElementById('page-title').textContent = titles[pageName] || '首页';
+    const pageTitle = titles[pageName] || '首页';
+    document.getElementById('page-title').textContent = pageTitle;
+    if (typeof document !== 'undefined' && 'title' in document) {
+        document.title = pageName === 'home' ? 'URP教务助手' : `${pageTitle} - URP教务助手`;
+    }
 
     // 更新导航项激活状态
     const navItems = document.querySelectorAll('.nav-item');
@@ -103,6 +107,12 @@ export function switchPage(pageName, params = {}) {
             }
         }
     });
+
+    const desktopMore = document.getElementById('desktop-nav-more');
+    if (desktopMore) {
+        const isDesktopMorePage = ['service-status', 'feedback', 'member'].includes(selectedNavPage);
+        toggleUiClass(desktopMore, 'has-active-child', isDesktopMorePage);
+    }
 
     const more = document.getElementById('mobile-nav-more');
     if (more) {
@@ -174,7 +184,7 @@ export function setPageAccessLock(pageName, locked) {
                 button: '立即登录',
             };
         gate.innerHTML = `
-            <div class="page-access-gate-icon" aria-hidden="true">锁</div>
+            <div class="page-access-gate-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
             <h2>${escapeHtml(copy.title)}</h2>
             <p>${escapeHtml(copy.description)}</p>
             <button class="btn-primary" type="button" onclick="showLoginModal()">${escapeHtml(copy.button)}</button>`;
@@ -186,7 +196,7 @@ export function setPageAccessLock(pageName, locked) {
 }
 
 export function loadPageData(pageName, params = {}) {
-    const gatedPages = ['schedule', 'exams', 'grades', 'evaluation', 'lab'];
+    const gatedPages = ['schedule', 'exams', 'grades', 'evaluation', 'lab', 'feedback', 'member'];
     if (gatedPages.includes(pageName)) {
         setPageAccessLock(pageName, state.isGuestMode);
         if (state.isGuestMode) return;

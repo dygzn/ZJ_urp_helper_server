@@ -28,5 +28,5 @@
 {% if ad.button_url %}<a class="campaign-button" href="{{ ad.button_url }}" target="_blank" rel="noopener noreferrer">{{ ad.button_text or '了解更多' }} <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7 7h10v10" />
   <path d="M7 17 17 7" /></svg></a>{% endif %}
 </footer>{% endif %}</div></article>
-{% else %}<article class="campaign-card campaign-content"><h1>暂无活动</h1><p>当前没有正在展示的广告。</p><a href="/">返回教务助手</a></article>{% endif %}
+{% else %}<article class="campaign-card campaign-content"><h1>暂无活动</h1><p>当前没有正在展示的广告。</p><a class="campaign-button" href="/">返回教务助手</a></article>{% endif %}
 </main><script src="{{ static_versioned('js/service-status-ui.js') }}"></script><script src="{{ static_versioned('js/ad-detail.js') }}"></script></body></html>

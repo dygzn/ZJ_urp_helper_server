@@ -174,6 +174,12 @@ export async function loadLabPage() {
 export function initializeLab() {
     resources.listen(el('lab-disconnect'), 'click', () => el('lab-unbind').click());
     resources.listen(el('lab-convert-reselect'), 'click', () => el('lab-file').click());
+    resources.listen(el('lab-password'), 'keydown', event => {
+        if (event.key === 'Enter' && !busy) {
+            event.preventDefault?.();
+            el('lab-query').click();
+        }
+    });
     resources.listen(el('lab-query'), 'click', async () => {
         if (busy) return;
     const operation = resources.capture();
@@ -243,12 +249,16 @@ export function initializeLab() {
             el('lab-convert-text').textContent = `所选${conversion[0]}文件不能直接提交。转换需由你自行将文件上传至第三方 iLovePDF；下载 PDF 后返回此页重新选择。`;
             el('lab-convert-link').href = conversion[1];
             el('lab-convert').hidden = false;
+            el('lab-convert').scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
             message('请先将文件转换为 PDF，转换后再提交');
             return;
         }
         el('lab-convert').hidden = true;
-        if (!file.name.toLowerCase().endsWith('.pdf') || file.size > 20 * 1024 * 1024) {
-            message('仅支持 20MB 以内的 PDF 文件', true); return;
+        if (!file.name.toLowerCase().endsWith('.pdf')) {
+            message('仅支持 PDF 格式文件（最大 20MB）', true); return;
+        }
+        if (file.size > 20 * 1024 * 1024) {
+            message('所选 PDF 超过 20MB 限制，请压缩后再提交', true); return;
         }
         const form = new FormData();
         form.append('item_id', pending.itemId);

@@ -403,6 +403,7 @@
             </div>
 
             <div id="page-feedback" class="page">
+                <div class="page-access-gate" data-page-access-gate hidden></div>
                 <div class="feedback-container">
                     <div class="feedback-hero">
                         <div>
@@ -461,6 +462,7 @@
 
             {% if member_page_enabled | default(true) %}
             <div id="page-member" class="page">
+                <div class="page-access-gate" data-page-access-gate hidden></div>
                 <div class="member-container">
                     <div class="member-page-head">
                         <h2>会员购买</h2>
@@ -574,11 +576,11 @@
                     <div class="login-bind-option">
                         <label class="login-bind-label" for="bind-account">
                             <input type="checkbox" id="bind-account" name="bind_account" aria-labelledby="disclaimer-consent-text password-disclaimer-trigger">
-                            <span id="disclaimer-consent-text">我已阅读并同意</span>
+                            <span id="disclaimer-consent-text">保存密码并长期绑定，我已阅读并同意</span>
                         </label>
                         <a id="password-disclaimer-trigger" class="login-disclaimer-trigger" href="#password-disclaimer-modal" onclick="showPasswordDisclaimer(); return false;">免责声明</a>
                     </div>
-                    <p class="login-session-note">未勾选时，本次输入的密码不会保存；登录失效后需重新输入。</p>
+                    <p class="login-session-note">不勾选也可直接登录：仅临时使用 10 分钟、不保存密码，到期或失效后需重新输入。</p>
                     <div id="login-error" class="error-message" role="alert"></div>
                     <div class="login-actions">
                         <button type="submit" class="btn-primary btn-full">登录教务账号</button>
@@ -670,7 +672,6 @@
         </div>
     </div>
 
-    <div id="other-major-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="other-major-modal-title"><div class="modal-content"><button class="modal-close" type="button" onclick="closeOtherMajorModal()" aria-label="关闭">关闭</button><h2 id="other-major-modal-title">其它专业课程</h2><div id="other-major-modal-body" class="other-major-modal-body"></div></div></div>
 
     <div id="historical-schedule-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="historical-schedule-modal-title"><div class="modal-content historical-schedule-modal-content"><button class="modal-close" type="button" onclick="closeHistoricalSchedule()" aria-label="关闭">关闭</button><h2 id="historical-schedule-modal-title">历年课表查询</h2><p class="modal-desc">选择学期后展示该学期全部课程</p><label class="historical-schedule-select-wrap" for="historical-semester-select"><span>学年学期</span><select id="historical-semester-select" onchange="loadHistoricalSchedule(this.value)"></select></label><div id="historical-schedule-body" class="historical-schedule-body"><div class="loading">加载中...</div></div></div></div>
 

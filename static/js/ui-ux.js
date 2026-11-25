@@ -12,22 +12,37 @@
     const guestAccessCopy = {
         schedule: {
             title: '日程查询需要登录教务账号',
-            description: '登录后即可查看课程和考试安排，并保留当前页面操作。',
+            description: '登录后即可查看课程与考试安排。',
             button: '立即登录',
         },
         exams: {
             title: '考试查询需要登录教务账号',
-            description: '登录后即可查看考试安排，并保留当前页面操作。',
+            description: '登录后即可查看考试时间、考场与座位安排。',
             button: '立即登录',
         },
         grades: {
             title: '成绩查询需要登录教务账号',
-            description: '登录后即可查询成绩，并保留当前页面操作。',
+            description: '登录后即可查询本学期成绩、补考记录与学分绩点。',
             button: '立即登录',
         },
         evaluation: {
             title: '评教需要登录教务账号',
-            description: '登录后即可进入评教页面，并保留当前页面操作。',
+            description: '登录后即可查询待评课程并完成教学评估。',
+            button: '立即登录',
+        },
+        lab: {
+            title: '实验提交需要登录教务账号',
+            description: '登录后即可查询实验任务并提交实验报告。',
+            button: '立即登录',
+        },
+        feedback: {
+            title: '反馈建议需要登录教务账号',
+            description: '登录后即可提交反馈、查看公开讨论与管理员回复。',
+            button: '立即登录',
+        },
+        member: {
+            title: '会员购买需要登录教务账号',
+            description: '登录后即可查看当前会员状态、订单及邀请返佣。',
             button: '立即登录',
         },
     };

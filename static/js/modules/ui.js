@@ -119,7 +119,7 @@ export function showUiToast(message, type = 'info') {
 
     const toast = document.createElement('div');
     toast.className = `ui-toast ui-toast-${type}`;
-    toast.setAttribute('role', 'status');
+    toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
     toast.textContent = String(message || '');
     region.appendChild(toast);
 
@@ -129,7 +129,7 @@ export function showUiToast(message, type = 'info') {
     const schedule = (typeof window !== 'undefined' && window.setTimeout)
         ? window.setTimeout.bind(window)
         : setTimeout;
-    schedule(removeToast, 3200);
+    schedule(removeToast, type === 'error' ? 5000 : 3200);
 }
 
 export function resolveUiConfirmation(confirmed) {
@@ -231,10 +231,14 @@ export function handleUiKeydown(event) {
 
     const first = focusable[0];
     const last = focusable[focusable.length - 1];
-    if (event.shiftKey && document.activeElement === first) {
+    const active = document.activeElement;
+    if (focusContainer.contains && !focusContainer.contains(active)) {
+        event.preventDefault();
+        focusUiElement(event.shiftKey ? last : first);
+    } else if (event.shiftKey && active === first) {
         event.preventDefault();
         focusUiElement(last);
-    } else if (!event.shiftKey && document.activeElement === last) {
+    } else if (!event.shiftKey && active === last) {
         event.preventDefault();
         focusUiElement(first);
     }

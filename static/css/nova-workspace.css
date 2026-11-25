@@ -54,7 +54,7 @@
 :where(body.urp-app, body.urp-admin) :is(input, select, textarea):where(:not(.week-select-wrap > select)):focus {
     border-color: var(--ui-accent);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--ui-accent) 15%, transparent);
-    outline: none;
+    outline: 2px solid transparent;
 }
 :where(body.urp-app, body.urp-admin) :is(input, textarea)::placeholder { color: var(--ui-subtle); opacity: 1; }
 :where(body.urp-app, body.urp-admin) :is(input, select, textarea)[aria-invalid=true] {
@@ -108,6 +108,7 @@
     font-weight: 500;
 }
 :where(body.urp-app) :is(.desktop-menu > summary, .appearance-trigger, .desktop-account, .announcement-trigger):hover { color: var(--ui-ink); background: var(--ui-surface-soft); }
+:where(body.urp-app) .desktop-menu.has-active-child > summary { color: var(--ui-accent); background: var(--ui-accent-soft); border-color: color-mix(in srgb, var(--ui-accent) 35%, var(--ui-line)); font-weight: 650; }
 :where(body.urp-app) .desktop-menu-items { padding: 6px; border: 1px solid var(--ui-line); border-radius: var(--ui-radius); box-shadow: var(--ui-shadow-popover); }
 :where(body.urp-app) .desktop-menu-items :is(a, button) { border-radius: 6px; }
 :where(body.urp-app) .login-status-indicator { background: transparent; color: var(--ui-muted); font-size: 12px; }
@@ -277,7 +278,7 @@
     :where(body.urp-app) .content-wrapper { padding-inline: 24px; }
 }
 @media (max-width: 768px) {
-    :where(body.urp-app) .content-wrapper { padding: 22px 16px 24px; }
+    :where(body.urp-app) .content-wrapper { padding: max(22px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 24px max(16px, env(safe-area-inset-left)); }
     :where(body.urp-app) :where(#page-home) .event-card { padding: 18px; }
     :where(body.urp-app) :where(#page-home) .event-title { font-size: 19px; }
     :where(body.urp-app) :where(#page-home) .home-state { padding: 20px 16px; gap: var(--ui-space-3); }

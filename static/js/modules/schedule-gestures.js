@@ -1,7 +1,7 @@
 import { isScheduleEditingGesture } from './schedule-editor-gestures.js';
 import { pageResources } from './lifecycle.js';
 import { state } from './store.js';
-import { changeWeek, displaySchedule, loadSchedule, updateScheduleDates } from './schedule.js';
+import { changeWeek, loadSchedule, updateScheduleDates } from './schedule.js';
 import { closeSidebar, isDesktopWorkspace, syncDesktopWorkspaceLayout } from './navigation.js';
 const resources = pageResources('schedule');
 
@@ -76,7 +76,6 @@ export function getSchedulePanelElements(panel) {
 }
 
 export function getScheduleDataSource(fallbackSchedule = {}) {
-    if (state.otherMajorScheduleData) return state.otherMajorScheduleData;
     if (state.cachedSchedule) return state.cachedSchedule;
     return fallbackSchedule || {};
 }
@@ -174,11 +173,7 @@ export function finishScheduleSwipeTransition() {
     swipe.panels.forEach(panel => panel.classList.remove('is-swipe-target'));
     setScheduleSwipeTransform(0);
 
-    if (state.otherMajorScheduleData) {
-        displaySchedule(getScheduleWeekPayload(state.otherMajorScheduleData, state.currentWeek));
-    } else {
-        loadSchedule(state.currentWeek);
-    }
+    loadSchedule(state.currentWeek);
     flushQueuedScheduleSwipe();
 }
 

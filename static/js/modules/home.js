@@ -116,14 +116,14 @@ export async function loadUrgentEvent() {
             renderHomeAgenda({});
         } else {
             contentDiv.innerHTML = renderHomeState('error', data.message || '查询失败，请重试。');
-            if (agenda) agenda.innerHTML = '<p class="home-query-error">课程安排未能读取，请点击上方刷新重试。</p>';
+            if (agenda) agenda.innerHTML = '<div class="home-agenda-empty"><p class="home-query-error">课程安排未能读取。</p><button class="btn-secondary" type="button" onclick="refreshUrgentEvent()" style="margin-top:10px;">重试</button></div>';
         }
     } catch (error) {
         if (error?.name === 'AbortError') return;
         if (generation !== state.academicCacheGeneration || state.isGuestMode) return;
         console.error('加载紧急事件失败:', error);
         contentDiv.innerHTML = renderHomeState('error', '加载失败，请检查网络后重试。');
-        if (agenda) agenda.innerHTML = '<p class="home-query-error">课程安排未能读取，请点击上方刷新重试。</p>';
+        if (agenda) agenda.innerHTML = '<div class="home-agenda-empty"><p class="home-query-error">课程安排未能读取，请检查网络后重试。</p><button class="btn-secondary" type="button" onclick="refreshUrgentEvent()" style="margin-top:10px;">重试</button></div>';
     }
 }
 
@@ -260,39 +260,51 @@ export function displayUrgentEvent(eventData) {
     }
     contentDiv.innerHTML = html;
 
-    // 正在进行中的课程倒计时（每分钟更新）
+    // 正在进行中的课程倒计时（按真实截止时间校准，避免后台休眠漂移）
     if (current) {
-        let currentRemaining = current.remaining;
-        state.countdownTimer = resources.setInterval(() => {
-            currentRemaining--;
+        const currentEndAt = Date.now() + Number(current.remaining) * 60000;
+        const syncCurrentRemaining = () => {
+            const left = Math.ceil((currentEndAt - Date.now()) / 60000);
             const el = document.getElementById('current-remaining');
-            if (!el || currentRemaining <= 0) {
+            if (!el || left <= 0) {
                 resources.clearInterval(state.countdownTimer);
                 state.countdownTimer = null;
                 loadUrgentEvent();
                 return;
             }
-            el.textContent = `${currentRemaining}分钟`;
-        }, 60000);
+            el.textContent = `${left}分钟`;
+        };
+        state.countdownTimer = resources.setInterval(syncCurrentRemaining, 30000);
+        if (typeof document.addEventListener === 'function') {
+            resources.listen(document, 'visibilitychange', () => {
+                if (document.visibilityState === 'visible') syncCurrentRemaining();
+            });
+        }
     }
 
-    // 下一节课倒计时（每分钟更新）
+    // 下一节课倒计时（按真实开始时间校准）
     if (next && nextIsToday && next.countdown != null) {
-        let nextRemaining = next.countdown;
-        state.nextCountdownTimer = resources.setInterval(() => {
-            nextRemaining--;
+        const nextStartAt = Date.now() + Number(next.countdown) * 60000;
+        const syncNextRemaining = () => {
+            const left = Math.ceil((nextStartAt - Date.now()) / 60000);
             const el = document.getElementById('next-remaining');
-            if (!el || nextRemaining <= 0) {
+            if (!el || left <= 0) {
                 resources.clearInterval(state.nextCountdownTimer);
                 state.nextCountdownTimer = null;
                 loadUrgentEvent();
                 return;
             }
-            el.textContent = formatMinutes(nextRemaining);
-            if (nextRemaining <= 10) {
+            el.textContent = formatMinutes(left);
+            if (left <= 10) {
                 el.classList.add('countdown-urgent');
             }
-        }, 60000);
+        };
+        state.nextCountdownTimer = resources.setInterval(syncNextRemaining, 30000);
+        if (typeof document.addEventListener === 'function') {
+            resources.listen(document, 'visibilitychange', () => {
+                if (document.visibilityState === 'visible') syncNextRemaining();
+            });
+        }
     }
 }
 

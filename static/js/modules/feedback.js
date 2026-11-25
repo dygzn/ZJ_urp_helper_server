@@ -121,11 +121,19 @@ export async function submitFeedbackReply(feedbackId) {
     const textarea = document.getElementById(`reply-input-${feedbackId}`);
     if (!textarea) return;
     const content = textarea.value.trim();
+    const box = document.getElementById(`reply-box-${feedbackId}`);
+    const sendButton = box?.querySelector?.('button') || null;
+    if (sendButton?.disabled) return;
 
     if (!content) {
         showUiToast('请输入回复内容', 'error');
         textarea.focus();
         return;
+    }
+
+    if (sendButton) {
+        sendButton.disabled = true;
+        sendButton.textContent = '发送中...';
     }
 
     try {
@@ -149,12 +157,27 @@ export async function submitFeedbackReply(feedbackId) {
         if (error?.name === 'AbortError') return;
         console.error('回复失败:', error);
         showUiToast('网络错误，请重试', 'error');
+    } finally {
+        if (sendButton && sendButton.isConnected) {
+            sendButton.disabled = false;
+            sendButton.textContent = '发送';
+        }
     }
 }
 
 export function toggleReplyBox(feedbackId) {
     const box = document.getElementById(`reply-box-${feedbackId}`);
-    box.style.display = box.style.display === 'none' ? 'flex' : 'none';
+    if (!box) return;
+    const opening = box.style.display === 'none';
+    box.style.display = opening ? 'flex' : 'none';
+    const trigger = document.getElementById(`reply-toggle-${feedbackId}`);
+    if (trigger) {
+        trigger.setAttribute('aria-expanded', String(opening));
+        trigger.textContent = opening ? '收起回复' : '回复这条反馈';
+    }
+    if (opening) {
+        document.getElementById(`reply-input-${feedbackId}`)?.focus?.();
+    }
 }
 
 export function displayFeedbackList(myFeedbacks, publicFeedbacks) {
@@ -231,11 +254,11 @@ export function buildFeedbackCard(fb) {
 
     if (canReply) html += `
             <div class="feedback-reply-bar">
-                <button class="feedback-reply-btn" onclick="toggleReplyBox(${feedbackId})">回复这条反馈</button>
+                <button id="reply-toggle-${feedbackId}" class="feedback-reply-btn" type="button" aria-expanded="false" aria-controls="reply-box-${feedbackId}" onclick="toggleReplyBox(${feedbackId})">回复这条反馈</button>
             </div>
             <div id="reply-box-${feedbackId}" class="feedback-reply-box" style="display:none;">
                 <textarea id="reply-input-${feedbackId}" class="feedback-reply-textarea" rows="2" placeholder="补充说明或参与讨论..."></textarea>
-                <button class="btn-primary btn-sm" onclick="submitFeedbackReply(${feedbackId})">发送</button>
+                <button class="btn-primary btn-sm" type="button" onclick="submitFeedbackReply(${feedbackId})">发送</button>
             </div>
         </div>
     `;

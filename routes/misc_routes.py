@@ -324,7 +324,6 @@ def admin_get_feedback():
         for row in rows:
             feedback = {
                 'id': row['id'],
-                'device_id': row['device_id'],
                 'username': row['username'],
                 'content': row['content'],
                 'visibility': row['visibility'],

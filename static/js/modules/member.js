@@ -107,22 +107,36 @@ export async function copyInvitationLink() {
     const operation = resources.capture();
     const input = document.getElementById('invitation-link-input');
     const button = document.getElementById('invitation-link-copy');
-    if (!input || !navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
-        if (button) button.textContent = '复制失败，请手动复制';
-        return;
+    if (!input) return;
+
+    let copied = false;
+    try {
+        if (typeof ServiceStatusUI !== 'undefined' && typeof ServiceStatusUI.copyText === 'function') {
+            copied = await operation.wait(ServiceStatusUI.copyText(input.value));
+        } else if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+            await operation.wait(navigator.clipboard.writeText(input.value));
+            copied = true;
+        }
+    } catch (error) {
+        if (error?.name === 'AbortError') return;
+        copied = false;
     }
 
-    try {
-        await operation.wait(navigator.clipboard.writeText(input.value));
+    if (copied) {
         if (button) {
             button.textContent = '已复制';
             resources.setTimeout(() => {
                 if (button.isConnected) button.textContent = '复制链接';
             }, 1500);
         }
-    } catch (error) {
-        if (error?.name === 'AbortError') return;
-        if (button) button.textContent = '复制失败，请手动复制';
+    } else {
+        input.select?.();
+        if (button) {
+            button.textContent = '复制失败，请手动复制';
+            resources.setTimeout(() => {
+                if (button.isConnected) button.textContent = '复制链接';
+            }, 2500);
+        }
     }
 }
 
@@ -166,7 +180,7 @@ export async function loadInvitationEarnings() {
     }
 
     if (!earningsData.success || !earningsData.data) {
-        content.innerHTML = `<div class="error-message">收益加载失败：${earningsData.message || '未知错误'}</div>`;
+        content.innerHTML = `<div class="error-message">收益加载失败：${escapeHtml(earningsData.message || '未知错误')}</div>`;
         return;
     }
 
@@ -246,15 +260,17 @@ export async function loadInvitationEarnings() {
         html += '</div>';
     }
 
+    const hasWithdrawalHistory = Boolean(withdrawalsData.success && Array.isArray(withdrawalsData.data) && withdrawalsData.data.length > 0);
     html += `<div class="earnings-total">
         <span class="earnings-label">可提现</span><span class="earnings-amount">¥${available.toFixed(2)}</span>
-        <button class="btn-withdraw" onclick="showWithdrawDialog()" ${btnDisabled ? 'disabled' : ''}>${btnText}</button>
+        <button class="btn-withdraw" type="button" onclick="showWithdrawDialog()" ${btnDisabled ? 'disabled' : ''}>${btnText}</button>
+        ${(btnDisabled && hasWithdrawalHistory) ? '<button class="btn-secondary" type="button" onclick="showWithdrawDialog()">提现记录</button>' : ''}
     </div>`;
     if (withdrawn > 0) {
         html += `<div class="earnings-withdrawn"><span>已占用：¥${withdrawn.toFixed(2)}</span></div>`;
     }
     if (!withdrawalsData.success) {
-        html += `<div class="invite-hint">提现记录加载失败：${withdrawalsData.message || '未知错误'}</div>`;
+        html += `<div class="invite-hint">提现记录加载失败：${escapeHtml(withdrawalsData.message || '未知错误')}</div>`;
     }
 
     if ((data.earnings && data.earnings.length > 0) || (data.milestone_earnings && data.milestone_earnings.length > 0)) {
@@ -423,9 +439,11 @@ export async function confirmPay() {
     btn.disabled = true;
     btn.textContent = '正在创建支付...';
     errDiv.textContent = '';
+    let redirecting = false;
     try {
         const payUrl = await createMemberPayment(memberType, payType);
         if (payUrl) {
+            redirecting = true;
             closePayDialog();
             window.location.href = payUrl;
         }
@@ -433,7 +451,7 @@ export async function confirmPay() {
         if (e?.name === 'AbortError') return;
         errDiv.textContent = e.message || '网络错误，请重试';
     } finally {
-        if (operation.isActive()) {
+        if (!redirecting && operation.isActive()) {
             btn.disabled = false;
             btn.textContent = '确认支付';
             if (state.uiModalState.activeModal === document.getElementById('pay-modal')) btn.focus();
@@ -445,11 +463,17 @@ export async function showWithdrawDialog() {
     const operation = resources.capture();
     const modal = document.getElementById('withdraw-modal');
     const errDiv = document.getElementById('withdraw-error');
+    const submitBtn = document.querySelector?.('#withdraw-form button[type="submit"]') || null;
     errDiv.textContent = '';
     document.getElementById('withdraw-real-name').value = '';
     document.getElementById('withdraw-alipay').value = '';
-    document.getElementById('withdraw-available').innerHTML = '<div class="loading">加载中</div>';
+    document.getElementById('withdraw-available').innerHTML = '<div class="loading">加载中...</div>';
     document.getElementById('withdraw-history').innerHTML = '';
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = '提交提现申请';
+    }
+    openUiModal(modal);
 
     try {
         const [earningsResp, historyResp] = await operation.wait(Promise.all([
@@ -474,7 +498,7 @@ export async function showWithdrawDialog() {
                 <span>有效邀请</span><span>${effectiveInviteCount} 人</span>
             </div>
             <div class="withdraw-amount-row">
-                <span>当前每人奖励</span><span>¥${currentReward}</span>
+                <span>当前每人奖励</span><span>¥${escapeHtml(currentReward)}</span>
             </div>
             <div class="withdraw-amount-row">
                 <span>累计收益</span><span>¥${earned.toFixed(2)}</span>
@@ -485,23 +509,28 @@ export async function showWithdrawDialog() {
         `;
 
         // 提现记录
+        let hasPending = false;
         if (historyData.success && historyData.data && historyData.data.length > 0) {
             const statusMap = { pending: '审核中', approved: '已转账', rejected: '已拒绝' };
             let histHtml = '<div class="withdraw-history-title">提现记录</div>';
             historyData.data.forEach(r => {
+                if (r.status === 'pending') hasPending = true;
                 histHtml += `<div class="withdraw-history-item">
                     <span>¥${parseFloat(r.amount).toFixed(2)}</span>
-                    <span class="withdraw-status withdraw-status-${r.status}">${statusMap[r.status] || r.status}</span>
-                    <span class="withdraw-history-time">${r.create_time ? r.create_time.slice(0, 10) : ''}</span>
+                    <span class="withdraw-status withdraw-status-${escapeHtml(r.status)}">${escapeHtml(statusMap[r.status] || r.status)}</span>
+                    <span class="withdraw-history-time">${escapeHtml(r.create_time ? r.create_time.slice(0, 10) : '')}</span>
                 </div>`;
             });
             document.getElementById('withdraw-history').innerHTML = histHtml;
         }
-
-        openUiModal(modal);
+        if (submitBtn) {
+            submitBtn.disabled = hasPending || available <= 0;
+            submitBtn.textContent = hasPending ? '已有申请审核中' : (available <= 0 ? '暂无可提现金额' : '提交提现申请');
+        }
     } catch (e) {
         if (e?.name === 'AbortError') return;
-        errDiv.textContent = '加载失败，请重试';
+        document.getElementById('withdraw-available').innerHTML = '';
+        errDiv.textContent = '加载失败，请关闭后重试';
     }
 }
 
@@ -515,11 +544,18 @@ export async function handleWithdraw(event) {
     const realName = document.getElementById('withdraw-real-name').value.trim();
     const alipay = document.getElementById('withdraw-alipay').value.trim();
     const errDiv = document.getElementById('withdraw-error');
+    const submitBtn = document.querySelector?.('#withdraw-form button[type="submit"]') || null;
+    if (submitBtn?.disabled) return;
     errDiv.textContent = '';
 
     if (state._withdrawAvailable <= 0) {
         errDiv.textContent = '暂无可提现金额';
         return;
+    }
+
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = '提交中...';
     }
 
     try {
@@ -539,5 +575,10 @@ export async function handleWithdraw(event) {
     } catch (e) {
         if (e?.name === 'AbortError') return;
         errDiv.textContent = '网络错误，请重试';
+    } finally {
+        if (submitBtn && operation.isActive()) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = '提交提现申请';
+        }
     }
 }

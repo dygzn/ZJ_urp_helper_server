@@ -134,7 +134,13 @@ async function handleAdminLogin(event) {
 
     const key = document.getElementById('admin-key').value;
     const errorDiv = document.getElementById('login-error');
+    const submitBtn = document.querySelector?.('#admin-login-form button[type="submit"]') || null;
+    if (submitBtn?.disabled) return;
 
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = '登录中...';
+    }
     errorDiv.textContent = '';
 
     // 只校验管理员密钥，统计状态不可用时仍允许登录后台。
@@ -159,6 +165,11 @@ async function handleAdminLogin(event) {
     } catch (error) {
         console.error('登录失败:', error);
         errorDiv.textContent = '网络错误，请重试';
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = '登录';
+        }
     }
 }
 
@@ -627,9 +638,9 @@ function renderUserDashboard() {
     html += `<div class="ud-section">
         <div class="ud-section-header">
             <span class="ud-section-title">增长趋势</span>
-            <div class="ud-toggle">
-                <button class="${isNew ? 'active':''}" onclick="switchChartMode('new')">每日新增</button>
-                <button class="${!isNew ? 'active':''}" onclick="switchChartMode('total')">累计总量</button>
+            <div class="ud-toggle" role="group" aria-label="增长趋势视图">
+                <button type="button" data-chart-mode="new" aria-pressed="${isNew}" class="${isNew ? 'active':''}" onclick="switchChartMode('new')">每日新增</button>
+                <button type="button" data-chart-mode="total" aria-pressed="${!isNew}" class="${!isNew ? 'active':''}" onclick="switchChartMode('total')">累计总量</button>
             </div>
         </div>`;
 
@@ -647,8 +658,8 @@ function renderUserDashboard() {
         html += `</div>`;
     } else {
         // SVG 折线图 — 固定 viewBox 宽高，等比缩放
-        const svgW = 560, svgH = 160;
-        const pad  = { t: 24, b: 28, l: 12, r: 12 };
+        const svgW = 560, svgH = 168;
+        const pad  = { t: 32, b: 28, l: 16, r: 16 };
         const plotW = svgW - pad.l - pad.r;
         const plotH = svgH - pad.t - pad.b;
 
@@ -663,15 +674,15 @@ function renderUserDashboard() {
         html += `<svg class="ud-line-svg" viewBox="0 0 ${svgW} ${svgH}">
             <defs>
                 <linearGradient id="lg" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="#2055a2" stop-opacity="0.18"/>
-                    <stop offset="100%" stop-color="#2055a2" stop-opacity="0"/>
+                    <stop offset="0%" stop-color="var(--ui-accent)" stop-opacity="0.18"/>
+                    <stop offset="100%" stop-color="var(--ui-accent)" stop-opacity="0"/>
                 </linearGradient>
             </defs>
             <polygon points="${area}" fill="url(#lg)"/>
             <polyline points="${line}" fill="none" stroke="var(--ui-accent)" stroke-width="2" stroke-linejoin="round"/>
-            ${pts.map(p => `<circle cx="${p.x}" cy="${p.y}" r="3.5" fill="var(--ui-accent)"/>`).join('')}
+            ${pts.map(p => `<circle cx="${p.x}" cy="${p.y}" r="3.5" fill="var(--ui-accent)"><title>${p.date}：${p.val}</title></circle>`).join('')}
             ${pts.map((p, i) => i % 2 === 0 ? `<text x="${p.x}" y="${svgH - 6}" text-anchor="middle" fill="var(--ui-subtle)" font-size="12">${p.date}</text>` : '').join('')}
-            ${pts.map(p => `<text x="${p.x}" y="${p.y - 8}" text-anchor="middle" fill="var(--ui-muted)" font-size="12">${p.val}</text>`).join('')}
+            ${pts.map((p, i) => `<text x="${p.x}" y="${p.y - (i % 2 === 0 ? 8 : 20)}" text-anchor="middle" fill="var(--ui-muted)" font-size="12">${p.val}</text>`).join('')}
         </svg>`;
     }
     html += `</div>`;
@@ -713,6 +724,7 @@ function renderUserDashboard() {
 function switchChartMode(mode) {
     userChartMode = mode;
     renderUserDashboard();
+    document.querySelector?.(`.ud-toggle button[data-chart-mode="${mode}"]`)?.focus?.({ preventScroll: true });
 }
 
 // ==================== 系统配置管理 ====================
@@ -1163,11 +1175,16 @@ async function loadAnnouncements() {
     }
 }
 
+let cachedAdminAnnouncements = new Map();
+
 function displayAnnouncements(announcements) {
     const listDiv = document.getElementById('announcements-list');
+    cachedAdminAnnouncements = new Map();
 
     let html = '';
     announcements.forEach(ann => {
+        const annId = Number(ann.id);
+        cachedAdminAnnouncements.set(annId, ann);
         const createTime = new Date(ann.create_time).toLocaleString('zh-CN');
         const statusClass = ann.is_active ? 'active' : 'inactive';
         const statusText = ann.is_active ? '启用' : '禁用';
@@ -1175,17 +1192,17 @@ function displayAnnouncements(announcements) {
         html += `
             <div class="announcement-card">
                 <div class="announcement-header">
-                    <h3>${ann.title}</h3>
+                    <h3>${escapeHtml(ann.title)}</h3>
                     <span class="announcement-status ${statusClass}">${statusText}</span>
                 </div>
                 <div class="announcement-content">
-                    ${ann.content.replace(/\n/g, '<br>')}
+                    ${escapeHtml(ann.content).replace(/\n/g, '<br>')}
                 </div>
                 <div class="announcement-footer">
-                    <span class="announcement-time">发布时间: ${createTime}</span>
+                    <span class="announcement-time">发布时间: ${escapeHtml(createTime)}</span>
                     <div class="announcement-actions">
-                        <button class="edit-btn" onclick="showEditAnnouncementModal(${ann.id}, ${JSON.stringify(ann).replace(/"/g, '&quot;')})">编辑</button>
-                        <button class="delete-btn" onclick="deleteAnnouncement(${ann.id})">删除</button>
+                        <button class="edit-btn" type="button" onclick="showEditAnnouncementModal(${annId})">编辑</button>
+                        <button class="delete-btn" type="button" onclick="deleteAnnouncement(${annId})">删除</button>
                     </div>
                 </div>
             </div>
@@ -1207,11 +1224,13 @@ function showCreateAnnouncementModal() {
 }
 
 function showEditAnnouncementModal(id, announcement) {
+    const item = announcement || cachedAdminAnnouncements.get(Number(id));
+    if (!item) return;
     currentAnnouncementId = id;
     document.getElementById('announcement-modal-title').textContent = '编辑公告';
-    document.getElementById('announcement-title').value = announcement.title;
-    document.getElementById('announcement-content').value = announcement.content;
-    document.getElementById('announcement-active').checked = announcement.is_active;
+    document.getElementById('announcement-title').value = item.title || '';
+    document.getElementById('announcement-content').value = item.content || '';
+    document.getElementById('announcement-active').checked = Boolean(item.is_active);
 
     const modal = document.getElementById('announcement-modal');
     adminOpenModal(modal);
@@ -1229,6 +1248,8 @@ async function handleAnnouncementSubmit(event) {
     const title = document.getElementById('announcement-title').value.trim();
     const content = document.getElementById('announcement-content').value.trim();
     const isActive = document.getElementById('announcement-active').checked;
+    const submitBtn = document.querySelector?.('#announcement-form button[type="submit"]') || null;
+    if (submitBtn?.disabled) return;
 
     if (!title || !content) {
         showAdminToast('标题和内容不能为空', 'error');
@@ -1238,6 +1259,11 @@ async function handleAnnouncementSubmit(event) {
     const isEdit = currentAnnouncementId !== null;
     const url = isEdit ? `/api/admin/announcements/${currentAnnouncementId}` : '/api/admin/announcements';
     const method = isEdit ? 'PUT' : 'POST';
+
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = '保存中...';
+    }
 
     try {
         const response = await fetch(url, {
@@ -1265,6 +1291,11 @@ async function handleAnnouncementSubmit(event) {
     } catch (error) {
         console.error('保存公告失败:', error);
         showAdminToast('网络错误，请重试', 'error');
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = '保存';
+        }
     }
 }
 
@@ -1335,63 +1366,61 @@ async function loadAdminFeedbacks() {
 
 function displayAdminFeedbacks(feedbacks) {
     const listDiv = document.getElementById('feedback-list');
-
-    let html = '';
-    feedbacks.forEach(fb => {
-        const createTime = new Date(fb.create_time).toLocaleString('zh-CN');
-        const visClass = fb.visibility === 'public' ? 'active' : 'inactive';
-        const visText = fb.visibility === 'public' ? '公开' : '私密';
-
-        html += `
-            <div class="announcement-card">
-                <div class="announcement-header">
-                    <h3>${fb.username}</h3>
-                    <span class="announcement-status ${visClass}">${visText}</span>
-                </div>
-                <div class="announcement-content">
-                    <strong style="color:var(--accent);font-size:12px;">1楼</strong>
-                    <div style="margin-top:4px;">${fb.content.replace(/\n/g, '<br>')}</div>
-                </div>
-        `;
-
-        // 回复楼层
-        if (fb.replies && fb.replies.length > 0) {
-            fb.replies.forEach((reply, index) => {
-                const replyTime = new Date(reply.create_time).toLocaleString('zh-CN');
-                const isAdmin = reply.username === '管理员';
-                const nameColor = isAdmin ? 'var(--success)' : 'var(--text-primary)';
-                html += `
-                    <div style="margin-top:8px;padding:10px;background:var(--bg-secondary);border-radius:8px;${isAdmin ? 'border-left:2px solid var(--success);' : ''}">
-                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-                            <span><strong style="color:var(--accent);font-size:12px;">${index + 2}楼</strong> <span style="font-size:12px;font-weight:600;color:${nameColor};">${reply.username}</span></span>
-                            <span style="font-size:11px;color:var(--text-tertiary);">${replyTime}</span>
-                        </div>
-                        <div style="font-size:13px;color:var(--text-secondary);line-height:1.6;">${reply.content.replace(/\n/g, '<br>')}</div>
-                    </div>
-                `;
-            });
-        }
-
-        html += `
-                <div class="announcement-footer">
-                    <span class="announcement-time">${createTime}</span>
-                    <div class="announcement-actions">
-                        <button class="edit-btn" onclick="showFeedbackReplyModal(${fb.id}, ${JSON.stringify(fb.content).replace(/"/g, '&quot;')})">回复</button>
-                        <button class="delete-btn" onclick="deleteAdminFeedback(${fb.id})">删除</button>
-                    </div>
-                </div>
-            </div>
-        `;
+    const element = (tag, className = '', text = null, css = '') => {
+        const node = document.createElement(tag);
+        node.className = className;
+        if (text !== null) node.textContent = text;
+        if (css) node.style.cssText = css;
+        return node;
+    };
+    const cards = feedbacks.map(fb => {
+        const card = element('div', 'announcement-card');
+        const header = element('div', 'announcement-header');
+        header.append(element('h3', '', fb.username ?? ''), element('span',
+            `announcement-status ${fb.visibility === 'public' ? 'active' : 'inactive'}`,
+            fb.visibility === 'public' ? '公开' : '私密'));
+        const content = element('div', 'announcement-content');
+        content.append(element('strong', '', '1楼', 'color:var(--accent);font-size:12px;'),
+            element('div', '', fb.content ?? '', 'margin-top:4px;white-space:pre-wrap;overflow-wrap:anywhere;'));
+        card.append(header, content);
+        (fb.replies || []).forEach((reply, index) => {
+            const isAdmin = reply.username === '管理员';
+            const row = element('div', '', null,
+                'margin-top:8px;padding:10px;background:var(--bg-secondary);border-radius:8px;'
+                + (isAdmin ? 'border-left:2px solid var(--success);' : ''));
+            const heading = element('div', '', null,
+                'display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:8px;');
+            const author = element('span');
+            author.append(element('strong', '', `${index + 2}楼 `, 'color:var(--accent);font-size:12px;'),
+                element('span', '', reply.username ?? '',
+                    `font-size:12px;font-weight:600;color:${isAdmin ? 'var(--success)' : 'var(--text-primary)'};overflow-wrap:anywhere;`));
+            heading.append(author, element('span', '', new Date(reply.create_time).toLocaleString('zh-CN'),
+                'font-size:11px;color:var(--text-tertiary);'));
+            row.append(heading, element('div', '', reply.content ?? '',
+                'font-size:13px;color:var(--text-secondary);line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;'));
+            card.append(row);
+        });
+        const footer = element('div', 'announcement-footer');
+        const actions = element('div', 'announcement-actions');
+        const replyButton = element('button', 'edit-btn', '回复');
+        const deleteButton = element('button', 'delete-btn', '删除');
+        replyButton.type = deleteButton.type = 'button';
+        replyButton.addEventListener('click', () => showFeedbackReplyModal(fb.id, fb.content ?? ''));
+        deleteButton.addEventListener('click', () => deleteAdminFeedback(fb.id));
+        actions.append(replyButton, deleteButton);
+        footer.append(element('span', 'announcement-time', new Date(fb.create_time).toLocaleString('zh-CN')), actions);
+        card.append(footer);
+        return card;
     });
-
-    listDiv.innerHTML = html;
+    listDiv.replaceChildren(...cards);
 }
 
 function showFeedbackReplyModal(feedbackId, content) {
     currentReplyFeedbackId = feedbackId;
-    document.getElementById('feedback-reply-original').innerHTML =
-        '<p style="color:var(--text-secondary);font-size:13px;padding:10px;background:var(--bg-secondary);border-radius:8px;margin-bottom:12px;line-height:1.6;">' +
-        content.replace(/\n/g, '<br>') + '</p>';
+    const original = document.createElement('p');
+    original.style.cssText = 'color:var(--text-secondary);font-size:13px;padding:10px;background:var(--bg-secondary);border-radius:8px;margin-bottom:12px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;';
+    original.textContent = content;
+    document.getElementById('feedback-reply-original').replaceChildren(original);
     document.getElementById('feedback-reply-content').value = '';
 
     const modal = document.getElementById('feedback-reply-modal');
@@ -1564,7 +1593,7 @@ function renderAdminMemberDetail(data) {
             <div class="withdraw-history-item"><span>\u4f1a\u5458\u7c7b\u578b</span><strong>${typeMap[member.member_type] || escapeHtml(member.member_type)}</strong></div>
             <div class="withdraw-history-item"><span>\u5230\u671f\u65f6\u95f4</span><strong>${member.expire_time ? member.expire_time.slice(0, 19).replace('T', ' ') : '-'}</strong></div>
             <div class="withdraw-history-item"><span>\u5f00\u901a\u65f6\u95f4</span><strong>${member.create_time ? member.create_time.slice(0, 19).replace('T', ' ') : '-'}</strong></div>`;
-        fillGrantForm(member.username, member.member_type);
+        fillGrantForm(member.username, member.member_type, { preserveMessage: true });
     } else {
         memberRows += '<div class="withdraw-history-item"><span>\u4f1a\u5458\u72b6\u6001</span><strong>\u6682\u65e0\u4f1a\u5458\u8bb0\u5f55</strong></div>';
     }
@@ -1591,11 +1620,13 @@ function renderAdminMemberDetail(data) {
         </div>`;
 }
 
-function fillGrantForm(username, memberType) {
+function fillGrantForm(username, memberType, { preserveMessage = false } = {}) {
     document.getElementById('grant-username').value = username;
     document.getElementById('grant-type').value = memberType || 'basic';
     document.getElementById('grant-days').value = 180;
-    document.getElementById('grant-member-msg').textContent = '';
+    if (!preserveMessage) {
+        document.getElementById('grant-member-msg').textContent = '';
+    }
 }
 
 async function handleGrantMember(event) {
@@ -1604,6 +1635,12 @@ async function handleGrantMember(event) {
     const memberType = document.getElementById('grant-type').value;
     const days = parseInt(document.getElementById('grant-days').value);
     const msgDiv = document.getElementById('grant-member-msg');
+    const submitBtn = document.querySelector?.('.member-grant-form button[type="submit"]') || null;
+    if (submitBtn?.disabled) return;
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = '处理中...';
+    }
     msgDiv.className = 'member-form-msg';
     msgDiv.textContent = '\u5904\u7406\u4e2d...';
     try {
@@ -1616,6 +1653,7 @@ async function handleGrantMember(event) {
         if (data.success) {
             msgDiv.className = 'member-form-msg member-form-msg-success';
             msgDiv.textContent = data.message;
+            showAdminToast(data.message || '会员开通成功', 'success');
             loadAdminMembers(username);
         } else {
             msgDiv.className = 'member-form-msg member-form-msg-error';
@@ -1624,6 +1662,11 @@ async function handleGrantMember(event) {
     } catch (e) {
         msgDiv.className = 'member-form-msg member-form-msg-error';
         msgDiv.textContent = '\u7f51\u7edc\u9519\u8bef\uff0c\u8bf7\u91cd\u8bd5';
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = '确认开通';
+        }
     }
 }
 
@@ -1661,6 +1704,9 @@ async function revokeMember(username) {
 }
 
 // ==================== 提现审核 ====================
+let cachedAdminWithdrawals = new Map();
+const pendingWithdrawalReviews = new Set();
+
 async function loadAdminWithdrawals() {
     const listDiv = document.getElementById('withdrawals-list');
     listDiv.innerHTML = '<div class="loading">加载中...</div>';
@@ -1669,11 +1715,13 @@ async function loadAdminWithdrawals() {
         const data = await resp.json();
         if (!data.success) { listDiv.innerHTML = `<p style="color:var(--error);">${escapeHtml(data.message || '加载失败')}</p>`; return; }
         const items = data.data;
-        if (!items.length) { listDiv.innerHTML = '<p style="text-align:center;color:#888;">暂无提现申请</p>'; return; }
+        cachedAdminWithdrawals = new Map();
+        if (!items.length) { listDiv.innerHTML = '<div class="empty-state">暂无提现申请</div>'; return; }
         const statusMap = { pending: '待审核', approved: '已通过', rejected: '已拒绝' };
         const statusClass = { pending: 'status-pending', approved: 'status-approved', rejected: 'status-rejected' };
         let html = '<div class="member-table-wrap"><table class="member-table"><thead><tr><th>申请人</th><th>收款信息</th><th>提现金额</th><th>佣金情况</th><th>状态</th><th>时间</th><th>操作</th></tr></thead><tbody>';
         for (const w of items) {
+            cachedAdminWithdrawals.set(Number(w.id), w);
             const amount = parseFloat(w.amount) || 0;
             const earned = parseFloat(w.earned) || 0;
             const withdrawn = parseFloat(w.withdrawn) || 0;
@@ -1698,8 +1746,8 @@ async function loadAdminWithdrawals() {
                     ${w.review_time ? `<div class="commission-muted">审核 ${escapeHtml(w.review_time.slice(0, 16))}</div>` : ''}
                 </td>
                 <td data-label="操作">${w.status === 'pending' ? `
-                    <button class="btn-sm btn-success" onclick="approveWithdrawal(${w.id})">通过</button>
-                    <button class="btn-sm btn-danger" onclick="rejectWithdrawal(${w.id})">拒绝</button>
+                    <button class="btn-sm btn-success" type="button" onclick="approveWithdrawal(${Number(w.id)})">通过</button>
+                    <button class="btn-sm btn-danger" type="button" onclick="rejectWithdrawal(${Number(w.id)})">拒绝</button>
                 ` : '-'}</td>
             </tr>`;
         }
@@ -1709,8 +1757,18 @@ async function loadAdminWithdrawals() {
         listDiv.innerHTML = `<p style="color:var(--error);">${escapeHtml(e.message || '加载失败')}</p>`;
     }
 }
+function formatWithdrawalSummary(id) {
+    const item = cachedAdminWithdrawals.get(Number(id));
+    if (!item) return '';
+    const amount = (parseFloat(item.amount) || 0).toFixed(2);
+    return `\n学号：${item.username || '-'}\n姓名：${item.real_name || '-'}\n支付宝：${item.alipay_account || '-'}\n金额：¥${amount}`;
+}
 async function approveWithdrawal(id) {
-    if (!confirm('确认审核通过？通过后需管理员手动转账。')) return;
+    if (pendingWithdrawalReviews.has(id)) return;
+    if (!confirm(`确认审核通过该提现申请？通过后需管理员手动转账。${formatWithdrawalSummary(id)}`)) return;
+    pendingWithdrawalReviews.add(id);
+    const triggerBtn = document.querySelector?.(`button[onclick="approveWithdrawal(${Number(id)})"]`) || null;
+    if (triggerBtn) triggerBtn.disabled = true;
     try {
         const resp = await fetch(`/api/admin/withdrawals/${id}/approve`, {
             method: 'POST',
@@ -1726,11 +1784,18 @@ async function approveWithdrawal(id) {
         }
     } catch (e) {
         showAdminToast('网络错误，请重试', 'error');
+    } finally {
+        pendingWithdrawalReviews.delete(id);
+        if (triggerBtn && triggerBtn.isConnected) triggerBtn.disabled = false;
     }
 }
 
 async function rejectWithdrawal(id) {
-    if (!confirm('确认拒绝该提现申请？')) return;
+    if (pendingWithdrawalReviews.has(id)) return;
+    if (!confirm(`确认拒绝该提现申请？${formatWithdrawalSummary(id)}`)) return;
+    pendingWithdrawalReviews.add(id);
+    const triggerBtn = document.querySelector?.(`button[onclick="rejectWithdrawal(${Number(id)})"]`) || null;
+    if (triggerBtn) triggerBtn.disabled = true;
     try {
         const resp = await fetch(`/api/admin/withdrawals/${id}/reject`, {
             method: 'POST',
@@ -1746,6 +1811,9 @@ async function rejectWithdrawal(id) {
         }
     } catch (e) {
         showAdminToast('网络错误，请重试', 'error');
+    } finally {
+        pendingWithdrawalReviews.delete(id);
+        if (triggerBtn && triggerBtn.isConnected) triggerBtn.disabled = false;
     }
 }
 
@@ -1756,17 +1824,17 @@ async function loadCommissionStats() {
     try {
         const resp = await fetch('/api/admin/commission_stats', { headers: { 'X-Admin-Key': adminKey } });
         const data = await resp.json();
-        if (!data.success) { container.innerHTML = `<p style="color:var(--error);text-align:center;">${data.message || '加载失败'}</p>`; return; }
+        if (!data.success) { container.innerHTML = `<p style="color:var(--error);text-align:center;">${escapeHtml(data.message || '加载失败')}</p>`; return; }
         const { users, summary } = data.data;
         const s = summary || {};
         let html = `<div class="commission-summary-grid">
-            <div class="commission-summary-card"><div class="commission-summary-value">¥${s.total_invitee_paid || '0'}</div><div class="commission-summary-label">团队充值</div></div>
-            <div class="commission-summary-card"><div class="commission-summary-value">¥${s.total_earned || '0'}</div><div class="commission-summary-label">累计佣金</div></div>
-            <div class="commission-summary-card"><div class="commission-summary-value">¥${s.total_available || '0'}</div><div class="commission-summary-label">可提现</div></div>
-            <div class="commission-summary-card"><div class="commission-summary-value">¥${s.total_pending || '0'}</div><div class="commission-summary-label">审核中</div></div>
+            <div class="commission-summary-card"><div class="commission-summary-value">¥${escapeHtml(s.total_invitee_paid || '0')}</div><div class="commission-summary-label">团队充值</div></div>
+            <div class="commission-summary-card"><div class="commission-summary-value">¥${escapeHtml(s.total_earned || '0')}</div><div class="commission-summary-label">累计佣金</div></div>
+            <div class="commission-summary-card"><div class="commission-summary-value">¥${escapeHtml(s.total_available || '0')}</div><div class="commission-summary-label">可提现</div></div>
+            <div class="commission-summary-card"><div class="commission-summary-value">¥${escapeHtml(s.total_pending || '0')}</div><div class="commission-summary-label">审核中</div></div>
         </div>`;
         if (!users.length) {
-            container.innerHTML = html + '<p style="text-align:center;color:#888;">暂无返佣记录</p>';
+            container.innerHTML = html + '<div class="empty-state">暂无返佣记录</div>';
             return;
         }
         html += '<div class="member-table-wrap"><table class="member-table"><thead><tr><th>邀请人</th><th>团队</th><th>充值额</th><th>累计佣金</th><th>已占用</th><th>可提现</th><th>最近收益</th></tr></thead><tbody>';
@@ -1774,21 +1842,21 @@ async function loadCommissionStats() {
             const available = parseFloat(u.available) || 0;
             const pending = parseFloat(u.pending_withdraw) || 0;
             html += `<tr class="${available > 0 ? 'commission-row-active' : ''}">
-                <td data-label="邀请人"><span class="commission-user">${u.username}</span></td>
+                <td data-label="邀请人"><span class="commission-user">${escapeHtml(u.username)}</span></td>
                 <td data-label="团队">${u.invitee_count || 0} 人 / ${u.commission_count || 0} 笔${u.milestone_count ? ` / ${u.milestone_count} 个任务奖励` : ''}</td>
-                <td data-label="充值额">¥${u.invitee_paid_amount}</td>
-                <td data-label="累计佣金">¥${u.earned}</td>
+                <td data-label="充值额">¥${escapeHtml(u.invitee_paid_amount)}</td>
+                <td data-label="累计佣金">¥${escapeHtml(u.earned)}</td>
                 <td data-label="已占用">
-                    <div>¥${u.withdrawn}</div>
+                    <div>¥${escapeHtml(u.withdrawn)}</div>
                     ${pending > 0 ? `<div class="commission-muted">含审核中 ¥${pending.toFixed(2)}</div>` : ''}
                 </td>
-                <td data-label="可提现"><strong class="commission-available">¥${u.available}</strong></td>
-                <td data-label="最近收益">${u.last_earning_time ? u.last_earning_time.slice(0, 16) : '-'}</td>
+                <td data-label="可提现"><strong class="commission-available">¥${escapeHtml(u.available)}</strong></td>
+                <td data-label="最近收益">${escapeHtml(u.last_earning_time ? u.last_earning_time.slice(0, 16) : '-')}</td>
             </tr>`;
         }
         html += '</tbody></table></div>';
         container.innerHTML = html;
     } catch (e) {
-        container.innerHTML = `<p style="color:var(--error);text-align:center;">${e.message || '加载失败'}</p>`;
+        container.innerHTML = `<p style="color:var(--error);text-align:center;">${escapeHtml(e.message || '加载失败')}</p>`;
     }
 }

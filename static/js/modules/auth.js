@@ -122,15 +122,25 @@ export async function ensureOwnInvitationTokenInUrl() {
     }
 }
 
+let temporarySessionWarningTimer = null;
+let loginInFlight = false;
+
 export function setTemporarySession(expiresAt) {
     if (state.temporarySessionTimer) clearTimeout(state.temporarySessionTimer);
+    if (temporarySessionWarningTimer) clearTimeout(temporarySessionWarningTimer);
     state.temporarySessionTimer = null;
+    temporarySessionWarningTimer = null;
     state.temporarySessionExpiresAt = expiresAt ? Number(expiresAt) * 1000 : null;
     if (!state.temporarySessionExpiresAt) return;
     const remaining = state.temporarySessionExpiresAt - Date.now();
     if (remaining <= 0) {
         window.location.reload();
         return;
+    }
+    if (remaining > 65000 && typeof setTimeout === 'function') {
+        temporarySessionWarningTimer = setTimeout(() => {
+            showUiToast('临时登录将在 1 分钟后到期，请注意保存内容。', 'info');
+        }, remaining - 60000);
     }
     state.temporarySessionTimer = setTimeout(() => window.location.reload(), remaining + 50);
 }
@@ -159,7 +169,6 @@ export function rememberBoundUsername(username) {
         state.cachedScheduleExams = [];
         state.scheduleExamsStale = false;
         state.semesterStart = null;
-        state.otherMajorScheduleData = null;
         state.calendarExportData = null;
         state.calendarExportAccount = '';
         state.academicCacheUsername = normalized;
@@ -328,6 +337,7 @@ function loginResponseError(response) {
 export async function handleLogin(event) {
     const operation = resources.capture();
     event.preventDefault();
+    if (loginInFlight) return;
 
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
@@ -336,7 +346,14 @@ export async function handleLogin(event) {
     const bindAccount = bindControl ? Boolean(bindControl.checked) : true;
     const invitationToken = bindAccount ? getPendingInvitationToken() : null;
     const errorDiv = document.getElementById('login-error');
+    const submitBtn = document.querySelector?.('#login-form button[type="submit"]') || null;
+    const originalBtnText = submitBtn ? submitBtn.textContent : '';
 
+    loginInFlight = true;
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = '登录中...';
+    }
     errorDiv.textContent = '';
     let response;
     let loginConfirmed = false;
@@ -414,10 +431,20 @@ export async function handleLogin(event) {
                 : !response && error?.name === 'TypeError'
                     ? '网络连接失败，请检查网络后重试。'
                     : '登录过程中发生异常，请刷新页面后重试。';
+    } finally {
+        loginInFlight = false;
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalBtnText || '登录教务账号';
+        }
     }
 }
 
 export async function showRebindDialog() {
+    if (state.isGuestMode || !state.currentUsername) {
+        showLoginModal();
+        return;
+    }
     const operation = resources.capture();
     const confirmed = await operation.wait(requestUiConfirmation({
         title: '重新绑定账号',
@@ -444,7 +471,9 @@ export async function handleRebind(event) {
 
 export async function unbindForRebind() {
     const operation = resources.capture();
-    const errorDiv = document.getElementById('rebind-error');
+    const rebindModal = document.getElementById('rebind-modal');
+    const rebindModalVisible = Boolean(rebindModal?.classList?.contains('active'));
+    const errorDiv = rebindModalVisible ? document.getElementById('rebind-error') : null;
     if (errorDiv) errorDiv.textContent = '';
 
     try {
