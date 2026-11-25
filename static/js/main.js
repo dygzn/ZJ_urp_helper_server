@@ -1,23 +1,23 @@
 // Refresh the versioned entry after removing cross-major schedule modules and state.
-import * as scheduleEditor from './modules/schedule-editor.js?v=20261124-ux';
+import * as scheduleEditor from './modules/schedule-editor.js';
 import { state, store } from './modules/store.js';
-import * as auth from './modules/auth.js?v=20261124-ux';
-import * as router from './modules/router.js?v=20261124-ux';
+import * as auth from './modules/auth.js';
+import * as router from './modules/router.js';
 import * as schedule from './modules/schedule.js';
 import * as scheduleGestures from './modules/schedule-gestures.js';
-import * as grades from './modules/grades.js?v=20261124-ux';
-import * as home from './modules/home.js?v=20261124-ux';
-import * as exams from './modules/exams.js?v=20261124-ux';
+import * as grades from './modules/grades.js';
+import * as home from './modules/home.js';
+import * as exams from './modules/exams.js';
 import * as calendar from './modules/calendar.js';
-import * as ui from './modules/ui.js?v=20261124-ux';
-import * as navigation from './modules/navigation.js?v=20261124-ux';
+import * as ui from './modules/ui.js';
+import * as navigation from './modules/navigation.js';
 import * as announcements from './modules/announcements.js';
 import * as miniapp from './modules/miniapp.js';
-import * as feedback from './modules/feedback.js?v=20261124-ux';
-import * as member from './modules/member.js?v=20261124-ux';
-import * as evaluation from './modules/evaluation.js?v=20261124-ux';
+import * as feedback from './modules/feedback.js';
+import * as member from './modules/member.js';
+import * as evaluation from './modules/evaluation.js';
 import * as service from './modules/service.js';
-import * as lab from './modules/lab.js?v=20261124-ux';
+import * as lab from './modules/lab.js';
 import * as ad from './modules/ad.js';
 
 const domains = { auth, router, schedule: { ...scheduleGestures, ...schedule, ...scheduleEditor }, grades, home, exams, calendar, ui, navigation,
