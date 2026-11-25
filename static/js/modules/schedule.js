@@ -572,6 +572,8 @@ export function updateScheduleDates(week) {
         }
         select.value = week;
     }
+    const cornerNum = document.getElementById('week-corner-num');
+    if (cornerNum) cornerNum.textContent = String(week);
 
     const activeStart = currentSemesterStartValue();
     const today = getCalendarChinaToday();

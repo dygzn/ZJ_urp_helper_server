@@ -278,7 +278,7 @@
     :where(body.urp-app) .content-wrapper { padding-inline: 24px; }
 }
 @media (max-width: 768px) {
-    :where(body.urp-app) .content-wrapper { padding: max(22px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 24px max(16px, env(safe-area-inset-left)); }
+    :where(body.urp-app) .content-wrapper { padding: 22px 16px 24px; }
     :where(body.urp-app) :where(#page-home) .event-card { padding: 18px; }
     :where(body.urp-app) :where(#page-home) .event-title { font-size: 19px; }
     :where(body.urp-app) :where(#page-home) .home-state { padding: 20px 16px; gap: var(--ui-space-3); }

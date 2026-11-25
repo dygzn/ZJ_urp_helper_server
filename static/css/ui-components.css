@@ -1106,11 +1106,27 @@ display: flex;
     padding: 0 2px 8px 10px;
 }
 
+:where(body.urp-app) .schedule-action-menu-title-group {
+min-width: 0;
+}
+
 :where(body.urp-app) .schedule-action-menu-heading h2 {
 margin: 0;
     font-size: 15px;
     font-weight: 700;
     line-height: 1.4;
+}
+
+:where(body.urp-app) .schedule-action-menu-meta {
+margin: 2px 0 0;
+    color: var(--ui-muted);
+    font-size: 12px;
+    line-height: 1.4;
+    font-variant-numeric: tabular-nums;
+}
+
+:where(body.urp-app) .week-corner-badge {
+display: none;
 }
 
 :where(body.urp-app) .schedule-action-menu-close {
@@ -2016,8 +2032,7 @@ position: relative;
     flex: 0 0 44px;
     width: 44px;
     height: 44px;
-    margin-left: 4px;
-    order: 3;
+    margin-left: auto;
     padding: 10px;
     border: 1px solid var(--ui-line);
     border-radius: var(--ui-radius-sm);
@@ -2280,14 +2295,7 @@ padding-inline: 6px;
 }
 
 :where(body.urp-app) :where(#page-schedule) .schedule-gesture-help {
-min-height: 22px;
-    grid-column: 1 / -1;
-    margin: 0;
-    color: var(--ui-subtle);
-    font-size: 12px;
-    font-weight: 400;
-    line-height: 1.5;
-    text-align: center;
+display: none;
 }
 
 :where(body.urp-app) :where(#page-schedule) .schedule-container:has(.schedule-actions.is-open) .schedule-gesture-help {
@@ -3744,7 +3752,8 @@ padding-top: max(8px, env(safe-area-inset-top));
 }
 
 :where(body.urp-app) :where(#page-schedule) .schedule-container {
-padding: 0;
+position: relative;
+    padding: 0;
     border: 0;
     border-radius: 0;
     background: transparent;
@@ -3752,14 +3761,13 @@ padding: 0;
 }
 
 :where(body.urp-app) :where(#page-schedule) .schedule-week-toolbar {
-display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-rows: 44px auto;
-    gap: 0 8px;
-    flex-shrink: 0;
-    margin: 0 0 10px;
-    padding: 0 4px 8px;
+display: block;
+    height: 0;
+    margin: 0;
+    padding: 0;
     border: 0;
+    overflow: visible;
+    pointer-events: none;
 }
 
 :where(body.urp-app) :where(#page-schedule) .schedule-week-controls {
@@ -3770,43 +3778,80 @@ display: contents;
 display: none;
 }
 
-:where(body.urp-app) :where(#page-schedule) .schedule-week-controls .week-select-wrap {
-grid-column: 1;
-    grid-row: 1;
-    width: 132px;
-    padding: 0;
-    border: 0;
-    background: transparent;
+:where(body.urp-app) :where(#page-schedule) .schedule-swipe-viewport {
+position: relative;
 }
 
-:where(body.urp-app) :where(#page-schedule) .week-select-wrap > span {
+:where(body.urp-app) :where(#page-schedule) .week-select-wrap {
+position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 6;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: var(--schedule-time-width);
+    min-width: 0;
+    height: 46px;
+    min-height: 46px;
+    margin: 0;
+    padding: 2px;
+    border: 1px solid color-mix(in srgb, var(--ui-accent) 26%, var(--ui-line));
+    border-radius: var(--ui-radius-sm);
+    background: var(--ui-accent-soft);
+    color: var(--ui-accent);
+    pointer-events: auto;
+}
+
+:where(body.urp-app) :where(#page-schedule) .week-select-wrap > span:first-child {
 display: none;
 }
 
-:where(body.urp-app) :where(#page-schedule) .week-select-wrap select {
-padding-left: 0;
-    color: var(--ui-ink);
-    font-size: 23px;
+:where(body.urp-app) :where(#page-schedule) .week-corner-badge {
+display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    line-height: 1.1;
+    pointer-events: none;
+}
+
+:where(body.urp-app) :where(#page-schedule) .week-corner-badge strong {
+font-size: 16px;
     font-weight: 750;
-    text-align: left;
-    text-align-last: left;
+    font-variant-numeric: tabular-nums;
+    color: var(--ui-accent);
+}
+
+:where(body.urp-app) :where(#page-schedule) .week-corner-badge small {
+margin-top: 2px;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--ui-muted);
+    white-space: nowrap;
+}
+
+:where(body.urp-app) :where(#page-schedule) .week-select-wrap select {
+position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    opacity: 0;
+    cursor: pointer;
 }
 
 :where(body.urp-app) :where(#page-schedule) .week-select-wrap::after {
-right: 14px;
-    top: calc(50% - 4px);
+display: none;
 }
 
 :where(body.urp-app) :where(#page-schedule) .schedule-week-caption {
-display: block;
-    grid-column: 1;
-    grid-row: 2;
-    min-width: 0;
-    color: var(--ui-muted);
-    font-size: 12px;
-    font-weight: 400;
-    line-height: 18px;
-    white-space: nowrap;
+display: none;
 }
 
 :where(body.urp-app) :where(#page-schedule) .schedule-week-caption > span:first-child {
@@ -3814,31 +3859,40 @@ display: none;
 }
 
 :where(body.urp-app) [id="schedule-mobile-range"] {
-display: block;
+display: none;
 }
 
 :where(body.urp-app) [id="schedule-mobile-actions"] {
-display: flex;
-    grid-column: 2;
-    grid-row: 1 / 3;
-    align-items: center;
-    gap: 8px;
+display: block;
+    pointer-events: auto;
+}
+
+:where(body.urp-app) :where(#page-schedule:not(.active)) [id="schedule-mobile-actions"] {
+display: none;
 }
 
 :where(body.urp-app) :where(#schedule-mobile-actions) button {
-min-width: 44px;
-    min-height: 44px;
-    padding: 8px;
+display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    height: 46px;
+    min-width: 46px;
+    min-height: 46px;
+    padding: 0;
     border: 1px solid var(--ui-control-line);
-    border-radius: var(--ui-radius-sm);
-    background: var(--ui-surface);
-    color: var(--ui-accent);
-    box-shadow: none;
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--ui-surface) 92%, transparent);
+    color: var(--ui-ink);
+    box-shadow: var(--ui-shadow-popover);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
 }
 
 :where(body.urp-app) :where(#schedule-mobile-actions) button:hover:not(:disabled) {
 background: var(--ui-accent-soft);
     border-color: var(--ui-accent);
+    color: var(--ui-accent);
 }
 
 :where(body.urp-app) :where(#schedule-mobile-actions) button:disabled {
@@ -3850,24 +3904,27 @@ background: var(--ui-surface-soft);
 }
 
 :where(body.urp-app) [id="schedule-mobile-more"] {
-font-size: 27px;
-    font-weight: 750;
-    line-height: 1;
+position: fixed;
+    right: max(14px, env(safe-area-inset-right));
+    bottom: calc(var(--mobile-nav-height) + 14px);
+    z-index: 45;
+}
+
+:where(body.urp-app) [id="schedule-mobile-more"] .ui-icon {
+width: 20px;
+    height: 20px;
 }
 
 :where(body.urp-app) [id="schedule-mobile-more"][aria-expanded="true"] {
 color: var(--ui-accent);
     background: var(--ui-accent-soft);
+    border-color: var(--ui-accent);
 }
 
-:where(body.urp-app) [id="schedule-mobile-gesture"] {
-display: block;
-    position: relative;
-    margin-top: 6px;
-}
-
-:where(body.urp-app) :where(#schedule-mobile-gesture):has(.is-pulling) .schedule-gesture-help {
-visibility: hidden;
+:where(body.urp-app) [id="schedule-mobile-gesture"],
+:where(body.urp-app) [id="schedule-actions-pull"],
+:where(body.urp-app) [id="schedule-actions-reveal"] {
+display: none;
 }
 
 :where(body.urp-app) :where(#page-schedule) .schedule-header {
@@ -5121,7 +5178,7 @@ background: var(--glass-light), var(--glass-fill);
     box-shadow: var(--glass-control-shadow);
 }
 
-:where(html[data-ui-template="glass"]) :where(body.urp-app) :where(#page-schedule) .week-select-wrap > span {
+:where(html[data-ui-template="glass"]) :where(body.urp-app) :where(#page-schedule) .week-select-wrap > span:first-child {
 display: none;
 }
 
@@ -5319,7 +5376,7 @@ margin: 0;
 }
 
 :where(html[data-ui-template="glass"]) :where(body.urp-app) .header:has(.header-ad-slot:not([hidden])) {
-padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) 0 max(14px, env(safe-area-inset-left));
+padding: 14px 14px 0;
 }
 
 :where(html[data-ui-template="glass"]) :where(body.urp-app) .mobile-bottom-nav {
@@ -5382,13 +5439,35 @@ padding: 5px;
     border-radius: 22px;
 }
 
-:where(html[data-ui-template="glass"]) :where(body.urp-app) :where(#page-schedule) .schedule-week-controls .week-select-wrap {
-width: min(144px, 100%);
+:where(html[data-ui-template="glass"]) :where(body.urp-app) :where(#page-schedule) .week-select-wrap {
+width: var(--schedule-time-width);
+    height: 46px;
+    border-color: var(--glass-edge);
+    border-radius: var(--glass-course-mobile-radius);
+    background: var(--glass-control-fill);
+    box-shadow: var(--glass-control-shadow);
 }
 
 :where(html[data-ui-template="glass"]) :where(body.urp-app) :where(#page-schedule) .week-select-wrap select {
-font-size: 20px;
-    font-weight: 700;
+padding: 0;
+    opacity: 0;
+}
+
+:where(html[data-ui-template="glass"]) :where(body.urp-app) :where(#page-schedule) .week-corner-badge {
+display: flex;
+}
+
+:where(html[data-ui-template="glass"]) :where(body.urp-app) :where(#page-schedule) .week-corner-badge strong {
+color: var(--ui-ink);
+}
+
+:where(html[data-ui-template="glass"]) :where(body.urp-app) [id="schedule-mobile-more"] {
+border-color: var(--glass-edge);
+    border-radius: 999px;
+    background: var(--glass-light), var(--glass-control-fill);
+    box-shadow: var(--glass-control-shadow);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
 }
 
 :where(html[data-ui-template="glass"]) :where(body.urp-app) :where(#page-schedule) .course-card {

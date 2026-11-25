@@ -16,9 +16,10 @@ export function mountScheduleMenu() {
     menu.id = 'schedule-action-menu';
     menu.className = 'schedule-action-menu';
     menu.setAttribute('aria-labelledby', 'schedule-action-menu-title');
-    menu.innerHTML = `<div class="schedule-action-menu-heading"><h2 id="schedule-action-menu-title">日程表操作</h2><button type="button" class="schedule-action-menu-close">关闭</button></div><div class="schedule-action-menu-list" role="group" aria-label="日程表操作"></div>`;
+    menu.innerHTML = `<div class="schedule-action-menu-heading"><div class="schedule-action-menu-title-group"><h2 id="schedule-action-menu-title">日程表操作</h2><p id="schedule-action-menu-meta" class="schedule-action-menu-meta"></p></div><button type="button" class="schedule-action-menu-close">关闭</button></div><div class="schedule-action-menu-list" role="group" aria-label="日程表操作"></div>`;
     document.body.append(menu);
     const list = menu.querySelector('.schedule-action-menu-list');
+    const meta = menu.querySelector('#schedule-action-menu-meta');
     const copies = new Map();
     let enabled = false;
     let restoreOnClose = true;
@@ -28,7 +29,7 @@ export function mountScheduleMenu() {
     }
 
     function isExclusive() {
-        return enabled && root.dataset.uiTemplate === 'glass' && narrow.matches;
+        return enabled && (mobile.matches || (root.dataset.uiTemplate === 'glass' && narrow.matches));
     }
 
     function restoreFocus() {
@@ -46,14 +47,29 @@ export function mountScheduleMenu() {
         document.body.classList.remove('schedule-action-menu-open');
     }
 
+    function syncMenuMeta() {
+        if (!meta) return;
+        const weekValue = document.getElementById('week-select')?.value;
+        const rangeText = (document.getElementById('schedule-mobile-range')?.textContent
+            || document.getElementById('schedule-desktop-range')?.textContent || '').trim();
+        const parts = [];
+        if (weekValue) parts.push(`第 ${weekValue} 周`);
+        if (rangeText && rangeText !== '学期日期待确认') parts.push(rangeText);
+        meta.textContent = parts.join(' · ');
+        meta.hidden = parts.length === 0;
+    }
+
     function renderActions() {
         list.replaceChildren();
         copies.clear();
-        sources.forEach(source => {
+        syncMenuMeta();
+        const thisWeekSource = mobile.matches ? document.getElementById('schedule-this-week') : null;
+        const orderedSources = thisWeekSource ? [thisWeekSource, ...sources] : sources;
+        orderedSources.forEach(source => {
             const action = document.createElement('button');
             action.type = 'button';
             action.className = 'schedule-action-menu-item';
-            action.dataset.scheduleCommand = source.dataset.scheduleAction;
+            action.dataset.scheduleCommand = source.dataset.scheduleAction || 'this-week';
             action.textContent = source.textContent.trim();
             action.disabled = source.disabled;
             copies.set(source, action);

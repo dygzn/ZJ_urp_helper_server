@@ -583,8 +583,8 @@ background: var(--divider);
 
 .week-btn {
 padding: 6px 16px;
-    background: var(--ui-accent, var(--accent));
-    color: var(--ui-on-accent, #fff);
+    background: var(--accent);
+    color: #fff;
     border: none;
     border-radius: 8px;
     font-size: 13px;
@@ -599,8 +599,8 @@ opacity: 0.8;
 
 .update-schedule-btn {
 padding: 10px 24px;
-    background: var(--ui-accent, var(--accent));
-    color: var(--ui-on-accent, #fff);
+    background: var(--accent);
+    color: #fff;
     border: none;
     border-radius: 10px;
     font-size: 14px;
@@ -918,8 +918,8 @@ color: rgba(255,255,255,0.75);
 .week-select {
 appearance: none;
     -webkit-appearance: none;
-    background: var(--ui-accent, var(--accent));
-    color: var(--ui-on-accent, #fff);
+    background: var(--accent);
+    color: #fff;
     border: none;
     border-radius: 8px;
     padding: 6px 28px 6px 12px;
@@ -1679,8 +1679,8 @@ background: rgba(255,59,48,0.08);
 
 .eval-btn {
 padding: 12px 32px;
-    background: var(--ui-accent, var(--accent));
-    color: var(--ui-on-accent, #fff);
+    background: var(--accent);
+    color: #fff;
     border: none;
     border-radius: 12px;
     font-size: 15px;
@@ -3400,8 +3400,8 @@ color: var(--accent);
 padding: 5px 14px;
     border: none;
     border-radius: 6px;
-    background: var(--ui-accent, var(--accent));
-    color: var(--ui-on-accent, #fff);
+    background: var(--accent);
+    color: #fff;
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
@@ -4323,8 +4323,8 @@ display: grid;
     width: 26px;
     height: 26px;
     border-radius: 8px;
-    background: var(--ui-accent, var(--accent));
-    color: var(--ui-on-accent, #fff);
+    background: var(--accent);
+    color: #fff;
     font-size: 12px;
     font-weight: 800;
 }
@@ -5025,8 +5025,8 @@ display: inline-flex;
     padding: 0 18px;
     border-radius: 11px;
     border: 0;
-    background: var(--ui-accent, var(--accent));
-    color: var(--ui-on-accent, #fff);
+    background: var(--accent);
+    color: #fff;
     font-size: 14px;
     font-weight: 650;
     text-decoration: none;

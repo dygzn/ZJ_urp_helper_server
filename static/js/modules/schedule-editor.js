@@ -151,7 +151,7 @@ export function undoScheduleEdit() {
 export function openScheduleCourseEditor({draft=null,course=null,returnFocus=null}) {
     if (!canEditSchedule())return;
     const dialog=scheduleEditor.dialog;if(!dialog)return;
-    closeUiModal(document.getElementById('course-detail-modal'), { restoreFocus: false, animate: false });
+    closeUiModal(document.getElementById('course-detail-modal'));
     scheduleEditor.course=course;scheduleEditor.returnFocus=returnFocus;scheduleEditor.pending=false;
     const form=dialog.querySelector('form');
     form.reset();form.querySelectorAll('button,input,textarea,select').forEach(el=>el.disabled=false);form.querySelector('[data-editor-error]').textContent='';

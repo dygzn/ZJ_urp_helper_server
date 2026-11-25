@@ -665,6 +665,9 @@ export function createMobileScheduleLayout() {
     const toolbar = container?.querySelector('.schedule-toolbar');
     const week = container?.querySelector('.schedule-week-toolbar');
     const controls = week?.querySelector('.schedule-week-controls');
+    const weekSelectWrap = controls?.querySelector('.week-select-wrap');
+    const prevWeekBtn = controls?.querySelector('button');
+    const viewport = document.getElementById('schedule-content');
     const help = controls?.querySelector('.schedule-gesture-help');
     const pull = document.getElementById('schedule-actions-pull');
     const gesture = document.getElementById('schedule-mobile-gesture');
@@ -673,10 +676,15 @@ export function createMobileScheduleLayout() {
     return mobile => {
         if (mobile) {
             container.prepend(week);
+            if (weekSelectWrap && viewport?.prepend) viewport.prepend(weekSelectWrap);
             if (help) gesture.append(help);
             if (pull) gesture.append(pull);
         } else {
             toolbar.prepend(week);
+            if (weekSelectWrap) {
+                if (prevWeekBtn?.after) prevWeekBtn.after(weekSelectWrap);
+                else controls.prepend?.(weekSelectWrap);
+            }
             if (help) controls.append(help);
             if (pull) controls.append(pull);
         }

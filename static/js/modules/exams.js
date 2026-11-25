@@ -39,9 +39,6 @@ export async function updateExamsData(event) {
             state.cachedExams = null;
             // 重新加载考试安排
             loadExams();
-            if (state.currentPage === 'schedule' && typeof window !== 'undefined' && typeof window.loadSchedule === 'function') {
-                window.loadSchedule();
-            }
         } else {
             showUiToast(data.message || '更新失败', 'error');
         }

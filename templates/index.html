@@ -251,7 +251,7 @@
                         <div class="schedule-week-caption"><span>按周查看</span><span id="schedule-desktop-range" class="desktop-only">学期日期待确认</span><span id="schedule-mobile-range" class="schedule-mobile-only">学期日期待确认</span></div>
                         <div class="schedule-week-controls">
                             <button class="btn-secondary" type="button" onclick="changeWeek(-1, true)">上一周</button>
-                            <label class="week-select-wrap" for="week-select"><span>周次</span><select id="week-select" aria-label="选择周次" onchange="jumpToWeek(parseInt(this.value,10))"></select></label>
+                            <label class="week-select-wrap" for="week-select"><span>周次</span><span class="week-corner-badge" aria-hidden="true"><strong id="week-corner-num">1</strong><small>周 ▾</small></span><select id="week-select" aria-label="选择周次" onchange="jumpToWeek(parseInt(this.value,10))"></select></label>
                             <button class="btn-secondary" type="button" onclick="changeWeek(1, true)">下一周</button>
                             <button id="schedule-this-week" class="desktop-only btn-secondary" type="button" onclick="returnToCurrentScheduleWeek()">回到本周</button>
                             <p class="schedule-gesture-help">上滑显示更多按钮，下滑收起</p>
@@ -261,7 +261,7 @@
                     </div>
                         </div>
                         <div id="schedule-mobile-actions" class="schedule-mobile-only">
-                            <button id="schedule-mobile-more" class="btn-secondary" type="button" aria-label="日程表更多操作" aria-controls="schedule-actions" aria-expanded="false" onclick="toggleScheduleActions()"><span aria-hidden="true">···</span></button>
+                            <button id="schedule-mobile-more" class="btn-secondary" type="button" aria-label="日程表更多操作" aria-controls="schedule-actions" aria-expanded="false" onclick="toggleScheduleActions()"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/></svg></button>
                         </div>
                     </div>
                     <div id="schedule-mobile-gesture" class="schedule-mobile-only"></div>
