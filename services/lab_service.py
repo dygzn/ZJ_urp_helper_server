@@ -55,6 +55,7 @@ class LabSessionExpired(LabError):
     pass
 
 
+@_serialized
 def session_snapshot(key):
     """读取本设备尚未过期的实验列表，不触发登录或延长会话。"""
     with _states_lock:
@@ -208,6 +209,9 @@ def _find_list_link(soup):
     match = re.search(r"(?:/student/|\.\./student/)xkkebiaoForKC\.aspx\?[^'\"\s<>]+", str(soup), re.I)
     if match:
         return _safe_url(match.group(0).replace('&amp;', '&'))
+    for a in soup.select('a[href]'):
+        if urlparse(a['href']).path.lower().endswith('/xkkebiao.aspx'):
+            return _safe_url(a['href'])
     return None
 
 
@@ -293,8 +297,13 @@ def parse_list(state):
     if not select:
         raise LabError('实验站页面缺少学期选择器')
     semesters = [{'value': o.get('value', ''), 'label': o.get_text(' ', strip=True)} for o in select.select('option') if o.get('value')]
-    selected = _fields(soup).get('ddlxq')
-    mode = _fields(soup).get('ddlBaoGaoType', '')
+    fields = _fields(soup)
+    selected = fields.get('ddlxq')
+    mode = fields.get('ddlBaoGaoType', '')
+    modes = [{'value': o['value'], 'label': o.get_text(' ', strip=True)}
+             for o in soup.select('select[name=ddlBaoGaoType] option[value]') if o['value']]
+    courses = [{'value': o['value'], 'label': o.get_text(' ', strip=True)}
+               for o in soup.select('select[name=ddlkc] option[value]')]
     if not selected and semesters:
         selected = semesters[0]['value']
     items = []
@@ -309,14 +318,17 @@ def parse_list(state):
         columns = row.find_all('td', recursive=False)
         if not columns or len(columns) == 1 and columns[0].has_attr('colspan'):
             continue
+        if len(columns) == 1 and columns[0].get_text(strip=True).rstrip('!！') == '没有数据记录':
+            continue
         actions = {}
         for a in row.select('a[onclick], a[href]'):
             source = f"{a.get('href', '')} {a.get('onclick', '')}"
             match = re.search(r"__doPostBack\(['\"]([^'\"]+)['\"]", source)
             if match:
-                if match.group(1).endswith('$lbyx'):
+                label = a.get_text(strip=True)
+                if match.group(1).endswith('$lbyx') or label == '预习报告':
                     actions['pre'] = match.group(1)
-                elif match.group(1).endswith('$lbbg'):
+                elif match.group(1).endswith('$lbbg') or label == '实验报告':
                     actions['report'] = match.group(1)
         cells = [c.get_text(' ', strip=True) for c in columns]
         if not cells:
@@ -327,11 +339,15 @@ def parse_list(state):
         identity = [value for index, value in enumerate(cells)
                     if not re.search(r'编号|序号|报告|状态|成绩|分数|考核', headers[index] if index < len(headers) else '')
                     and not columns[index].select('a[onclick], a[href]')]
-        task_key = hashlib.sha256(json.dumps([mode, identity], ensure_ascii=False).encode()).hexdigest()
+        identity_parts = [mode, identity]
+        if fields.get('ddlkc'):
+            identity_parts.append(fields['ddlkc'])
+        task_key = hashlib.sha256(json.dumps(identity_parts, ensure_ascii=False).encode()).hexdigest()
         items.append({'id': key, 'task_key': task_key, 'cells': cells,
                       'pre': 'pre' in actions, 'report': 'report' in actions,
                       'reports': state.get('report_statuses', {}).get((selected, task_key), {})})
-    result = {'semesters': semesters, 'semester': selected, 'mode': mode, 'headers': headers, 'items': items}
+    result = {'semesters': semesters, 'semester': selected, 'mode': mode, 'modes': modes,
+              'course': fields.get('ddlkc', ''), 'courses': courses, 'headers': headers, 'items': items}
     state['listing'] = result
     return result
 
@@ -366,17 +382,40 @@ def _with_relogin(key, action):
         raise
 
 
-def _select_semester(state, semester):
-    allowed = {v['value'] for v in parse_list(state)['semesters']}
-    if semester not in allowed:
-        raise LabError('无效的学期')
-    state['page'] = _postback(state, 'ddlxq', {'ddlxq': semester})
-    return parse_list(state)
+def _select_listing(state, semester, mode=None, course=None, refresh=False):
+    current = parse_list(state)
+    changed = False
+    if mode is not None and current['mode'] != mode:
+        if mode not in {o['value'] for o in current['modes']}:
+            raise LabError('实验站未提供所选报告类型')
+        state['page'] = _postback(state, 'ddlBaoGaoType', {'ddlBaoGaoType': mode})
+        current = parse_list(state)
+        changed = True
+    if semester != current['semester'] or (refresh and not changed and course is None):
+        if semester not in {o['value'] for o in current['semesters']}:
+            raise LabError('无效的学期')
+        state['page'] = _postback(state, 'ddlxq', {'ddlxq': semester})
+        current = parse_list(state)
+        changed = True
+    if course is not None and (course != current['course'] or (refresh and not changed)):
+        if course not in {o['value'] for o in current['courses']}:
+            raise LabError('实验站未提供所选课程，请重新查询')
+        soup = BeautifulSoup(state['page'].text, 'html.parser')
+        button = next((b for b in soup.select('button[onclick]') if '查询' in b.get_text(strip=True)), None)
+        target = re.search(r"__doPostBack\(['\"]([\w$]+)['\"]", button['onclick']) if button else None
+        if not target:
+            raise LabError('实验站页面缺少课程查询入口')
+        state['page'] = _postback(state, target.group(1), {'ddlkc': course})
+        current = parse_list(state)
+    if (semester != current['semester'] or (mode is not None and mode != current['mode'])
+            or (course is not None and course != current['course'])):
+        raise LabError('实验站返回的筛选条件与选择不一致，请重新查询')
+    return current
 
 
 @_serialized
-def change_semester(key, semester):
-    return _with_relogin(key, lambda: _select_semester(_get(key), semester))
+def change_semester(key, semester, mode=None, course=None):
+    return _with_relogin(key, lambda: _select_listing(_get(key), semester, mode, course, refresh=True))
 
 
 def parse_report_status(page):
@@ -411,13 +450,11 @@ def parse_report_status(page):
 
 
 @_serialized
-def submission_statuses(key, semester, task_key=None):
+def submission_statuses(key, semester, task_key=None, mode=None, course=None):
     """仅打开报告查看表单；无文件上传，不下载已上传的报告。"""
     def run():
         state = _get(key)
-        current = parse_list(state)
-        if current['semester'] != semester:
-            current = _select_semester(state, semester)
+        current = _select_listing(state, semester, mode, course)
         tasks = [item for item in current['items'] if not task_key or item['task_key'] == task_key]
         if task_key and len(tasks) != 1:
             raise LabError('实验任务已变化或无法唯一匹配，请重新查询后选择报告')
@@ -442,9 +479,11 @@ def submission_statuses(key, semester, task_key=None):
 
 
 @_serialized
-def upload(key, item_id, kind, filename, data, semester=None, task_key=None):
+def upload(key, item_id, kind, filename, data, semester=None, task_key=None, mode=None, course=None):
     if kind not in ('pre', 'report'):
         raise LabError('无效的报告类型')
+    if (mode is not None or course is not None) and not (task_key and semester):
+        raise LabError('缺少实验任务信息，请重新查询后选择报告')
     if not filename or not filename.lower().endswith('.pdf') or len(data) > MAX_PDF or len(data) < 8 or not data.startswith(b'%PDF-'):
         raise LabError('仅支持 20MB 以内的 PDF 文件')
     with _states_lock:
@@ -459,9 +498,7 @@ def upload(key, item_id, kind, filename, data, semester=None, task_key=None):
     def prepare():
         state = _get(key)
         if task_key and semester:
-            current = parse_list(state)
-            if current['semester'] != semester:
-                current = _select_semester(state, semester)
+            current = _select_listing(state, semester, mode, course)
             matches = [item for item in current['items'] if item['task_key'] == task_key]
             if len(matches) != 1:
                 raise LabError('实验任务已变化或无法唯一匹配，请重新查询后选择报告')
@@ -508,11 +545,12 @@ def upload(key, item_id, kind, filename, data, semester=None, task_key=None):
     if state.get('list_url'):
         try:
             state['page'] = _request(state['session'], 'GET', state['list_url'])
-            current = parse_list(state)
-            if semester and current['semester'] != semester:
-                current = _select_semester(state, semester)
             if task_key and semester:
-                current = submission_statuses(key, semester, task_key)
+                current = submission_statuses(key, semester, task_key, mode, course)
+            elif semester:
+                current = _select_listing(state, semester, mode, course)
+            else:
+                current = parse_list(state)
             answer['listing'] = current
         except LabError:
             # 文件已经发送，刷新失败不能诱导客户端重传。

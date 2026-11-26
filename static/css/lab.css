@@ -22,12 +22,12 @@
 .lab-message { margin: 0; color: var(--ui-muted); font-size: 13px; overflow-wrap: anywhere; }
 .lab-message.lab-error { color: var(--ui-danger); }
 .lab-results-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
-.lab-results-title { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; }
-.lab-results-heading h3 { margin: 0; font-size: 18px; }
+.lab-results-heading h3 { margin: 0 auto 0 0; font-size: 18px; }
 .lab-auto-captcha, .lab-list-note { margin: 0; font-size: 13px; color: var(--ui-muted); }
 .lab-term { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; }
 .lab-term label { flex-shrink: 0; }
 .lab-term select { width: 240px; max-width: 100%; }
+.lab-term #lab-mode { width: auto; }
 .lab-list-note { line-height: 1.6; }
 .lab-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 20px; padding: 16px 0; border-top: 1px solid var(--ui-line); }
 .lab-item:last-child { padding-bottom: 0; }

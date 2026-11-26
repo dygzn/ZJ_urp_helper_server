@@ -6,6 +6,7 @@ const resources = pageResources('lab');
 let pending = null;
 let busy = false;
 let taskButtons = [];
+let currentListing = null;
 const el = id => document.getElementById(id);
 const headers = () => ({ 'X-Device-ID': getDeviceId() });
 
@@ -17,7 +18,7 @@ function message(value, error = false) {
 
 function setBusy(value) {
     busy = value;
-    ['lab-query', 'lab-semester', 'lab-refresh', 'lab-disconnect'].forEach(id => { el(id).disabled = value; });
+    ['lab-query', 'lab-semester', 'lab-mode', 'lab-course', 'lab-refresh', 'lab-disconnect'].forEach(id => { el(id).disabled = value; });
     el('lab-unbind').disabled = value || el('lab-disconnect').hidden;
     taskButtons.forEach(({ button, available }) => { button.disabled = value || !available; });
 }
@@ -40,8 +41,12 @@ async function api(url, options = {}) {
     return data;
 }
 
+function byCourse(data) {
+    return (data.modes?.find(option => option.value === data.mode)?.label || data.mode) === '按课程';
+}
+
 function resultSummary(data) {
-    const kind = data.mode === '按课程' ? '条课程实验任务（按课程）' : '项实验项目';
+    const kind = byCourse(data) ? '条课程实验任务（按课程）' : '项实验项目';
     return `已查询到 ${data.items.length} ${kind}`;
 }
 
@@ -52,29 +57,45 @@ function conversionFor(filename) {
     return null;
 }
 
-function render(data) {
-    el('lab-convert').hidden = true;
-    const byCourse = data.mode === '按课程';
-    el('lab-mode').textContent = byCourse ? '按课程展示实验任务' : '按实验项目展示';
-    const term = el('lab-semester');
-    term.replaceChildren();
-    data.semesters.forEach(item => {
+function fillSelect(select, options, value) {
+    select.replaceChildren();
+    options.forEach(item => {
         const option = document.createElement('option');
         option.value = item.value;
         option.textContent = item.label;
-        term.append(option);
+        select.append(option);
     });
-    term.value = data.semester || data.semesters[0]?.value || '';
+    select.value = value ?? options[0]?.value ?? '';
+}
+
+function listingQuery(semester, mode, course) {
+    let query = 'semester=' + encodeURIComponent(semester);
+    if (mode) query += '&mode=' + encodeURIComponent(mode);
+    if (course != null) query += '&course=' + encodeURIComponent(course);
+    return query;
+}
+
+function render(data) {
+    currentListing = data;
+    el('lab-convert').hidden = true;
+    fillSelect(el('lab-semester'), data.semesters, data.semester);
+    fillSelect(el('lab-mode'), data.modes || [], data.mode);
+    el('lab-mode-field').hidden = !data.modes?.length;
+    fillSelect(el('lab-course'), data.courses || [], data.course);
+    el('lab-course-field').hidden = !data.courses?.length;
     const list = el('lab-list');
     list.replaceChildren();
     taskButtons = [];
-    if (!data.items.length) list.textContent = byCourse ? '这个学期暂无课程实验任务' : '这个学期暂无实验项目';
+    if (!data.items.length) list.textContent = byCourse(data) ? '当前条件下暂无课程实验任务'
+        : (data.courses?.length && !data.course ? '请选择课程查看实验项目' : '当前条件下暂无实验项目');
     data.items.forEach(item => {
         const card = document.createElement('article');
         card.className = 'lab-item';
         const title = document.createElement('strong');
         const headers = data.headers || [];
-        const titleIndex = headers.findIndex(header => /课程|项目|实验名称/.test(header));
+        const preferred = byCourse(data) ? /课程名称|^课程$/ : /项目名称|实验项目|实验名称|^项目$/;
+        let titleIndex = headers.findIndex(header => preferred.test(header));
+        if (titleIndex < 0) titleIndex = headers.findIndex(header => /课程|项目|实验名称/.test(header));
         const fallbackIndex = item.cells.findIndex(value => value && !/^\d+$/.test(value));
         const nameIndex = titleIndex >= 0 && item.cells[titleIndex] ? titleIndex : fallbackIndex;
         title.textContent = item.cells[nameIndex] || '实验任务';
@@ -91,7 +112,8 @@ function render(data) {
             if (!item[kind]) button.title = '实验站未提供此报告入口';
             resources.listen(button, 'click', () => {
                 if (busy) return;
-                pending = { itemId: item.id, taskKey: item.task_key, semester: data.semester, kind };
+                pending = { itemId: item.id, taskKey: item.task_key, semester: data.semester,
+                    mode: data.mode, course: data.courses?.length ? data.course : null, kind };
                 el('lab-convert').hidden = true;
                 el('lab-file').click();
             });
@@ -134,7 +156,8 @@ async function displayTasks(data) {
     render(data);
     if (data.items.some(item => item.task_key)) {
         message('正在读取报告提交状态…');
-        const result = await api(`/api/lab/submission-status?semester=${encodeURIComponent(data.semester)}`);
+        const query = listingQuery(data.semester, data.mode, data.courses?.length ? data.course : null);
+        const result = await api(`/api/lab/submission-status?${query}`);
         render(result.data);
     }
 }
@@ -206,22 +229,35 @@ export function initializeLab() {
             message(error.message, true);
         } finally { if (operation.isActive()) setBusy(false); }
     });
-    const refreshTasks = async semester => {
+    const refreshTasks = async (semester, mode, course) => {
         if (busy) return;
-    const operation = resources.capture();
+        const operation = resources.capture();
         setBusy(true);
         pending = null;
-        message('正在读取学期实验…');
+        el('lab-convert').hidden = true;
+        el('lab-list').hidden = true;
+        message('正在查询实验任务…');
         try {
-            const result = await operation.wait(api(`/api/lab/experiments?semester=${encodeURIComponent(semester)}`));
+            const result = await operation.wait(api(`/api/lab/experiments?${listingQuery(semester, mode, course)}`));
             await operation.wait(displayTasks(result.data));
             message(resultSummary(result.data));
         } catch (error) {
-            if (error.name === 'AbortError') return; message(error.message, true);
-        } finally { if (operation.isActive()) setBusy(false); }
+            if (error.name === 'AbortError') return;
+            if (currentListing && !el('lab-results').hidden) render(currentListing);
+            message(error.message, true);
+        } finally {
+            if (operation.isActive()) {
+                el('lab-list').hidden = false;
+                setBusy(false);
+            }
+        }
     };
-    resources.listen(el('lab-semester'), 'change', event => refreshTasks(event.target.value));
-    resources.listen(el('lab-refresh'), 'click', () => refreshTasks(el('lab-semester').value));
+    resources.listen(el('lab-semester'), 'change', event => refreshTasks(event.target.value, currentListing?.mode));
+    resources.listen(el('lab-mode'), 'change', event => refreshTasks(el('lab-semester').value, event.target.value));
+    const refreshCourse = () => refreshTasks(el('lab-semester').value, currentListing?.mode,
+        currentListing?.courses?.length ? el('lab-course').value : null);
+    resources.listen(el('lab-course'), 'change', refreshCourse);
+    resources.listen(el('lab-refresh'), 'click', refreshCourse);
     resources.listen(el('lab-unbind'), 'click', async () => {
         if (busy) return;
     const operation = resources.capture();
@@ -264,6 +300,8 @@ export function initializeLab() {
         form.append('item_id', pending.itemId);
         form.append('kind', pending.kind);
         form.append('semester', pending.semester);
+        if (pending.mode) form.append('mode', pending.mode);
+        if (pending.course != null) form.append('course', pending.course);
         if (pending.taskKey) form.append('task_key', pending.taskKey);
         form.append('file', file);
         pending = null;
@@ -288,5 +326,7 @@ export function unmountLab() {
     resources.dispose();
     pending = null;
     taskButtons = [];
+    currentListing = null;
+    el('lab-list').hidden = false;
     busy = false;
 }

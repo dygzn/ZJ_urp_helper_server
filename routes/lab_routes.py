@@ -66,14 +66,15 @@ def query(user):
 @require_member('basic')
 def experiments(user):
     return _result(lambda: jsonify({'success': True, 'data': lab.change_semester(
-        _key(user), request.args.get('semester', ''))}))
+        _key(user), request.args.get('semester', ''), request.args.get('mode'), request.args.get('course'))}))
 
 
 @lab_bp.route('/api/lab/submission-status')
 @require_member('basic')
 def submission_status(user):
     return _result(lambda: jsonify({'success': True, 'data': lab.submission_statuses(
-        _key(user), request.args.get('semester', ''), request.args.get('task_key') or None)}))
+        _key(user), request.args.get('semester', ''), request.args.get('task_key') or None,
+        request.args.get('mode'), request.args.get('course'))}))
 
 
 @lab_bp.route('/api/lab/upload', methods=['POST'])
@@ -93,7 +94,8 @@ def upload(user):
             filename = request.form.get('filename') or filename
         result = lab.upload(_key(user), request.form.get('item_id'),
                             request.form.get('kind'), filename, data,
-                            semester=request.form.get('semester'), task_key=request.form.get('task_key'))
+                            semester=request.form.get('semester'), task_key=request.form.get('task_key'),
+                            **{k: request.form[k] for k in ('mode', 'course') if k in request.form})
         return jsonify({'success': True, 'data': result, 'message': result['message']})
     return _result(run)
 

@@ -447,7 +447,12 @@
                     </section>
                     <div id="lab-message" class="lab-message" role="status" aria-live="polite"></div>
                     <section id="lab-results" class="lab-card lab-results" hidden>
-                        <div class="lab-results-heading"><div class="lab-results-title"><h3>实验任务</h3><span id="lab-mode" class="lab-auto-captcha"></span></div><div class="lab-term"><label for="lab-semester">学期</label><select id="lab-semester"></select></div></div>
+                        <div class="lab-results-heading">
+                            <h3>实验任务</h3>
+                            <div class="lab-term"><label for="lab-semester">学期</label><select id="lab-semester"></select></div>
+                            <div class="lab-term" id="lab-mode-field"><label for="lab-mode">报告类型</label><select id="lab-mode"></select></div>
+                            <div class="lab-term" id="lab-course-field" hidden><label for="lab-course">课程</label><select id="lab-course"></select></div>
+                        </div>
                         <p class="lab-list-note">报告状态和文件名读取自实验站；已提交的报告仍可能允许重新提交。</p>
                         <div id="lab-list"></div>
                         <div class="lab-actions"><button id="lab-refresh" class="btn-secondary" type="button">刷新任务与状态</button><button id="lab-disconnect" class="btn-secondary" type="button" hidden>解除密码绑定</button></div>
