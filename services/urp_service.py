@@ -15,7 +15,7 @@ from database import get_db
 from services.config_service import get_config, get_current_urp_url, normalize_urp_url, urp_url_fingerprint
 from services.temporary_session_service import current_temporary_session, user_data_file
 from urp.session_store import VPN_COOKIE_PREFIX, delete_user_cookies, user_cookie_exists
-from urp.login import _is_vpn_url, _with_login_budget
+from urp.login import URPSessionExpiredError, _is_vpn_url, _with_login_budget
 
 # 登录状态按学号及 URL 隔离；临时会话不共享持久登录缓存。
 _login_cache = {}
@@ -80,6 +80,14 @@ def invalidate_login_cache(username, url=None):
                     cache.pop(key, None)
 
 
+def mark_login_verified(username, url=None):
+    target_url = normalize_urp_url(url or get_current_urp_url())
+    key = _status_key(username, target_url)
+    _remember_login(key, time.time())
+    with _login_locks_guard:
+        _login_failures.pop(key, None)
+
+
 def _remember_login(key, value, failure=False):
     now = time.time()
     with _login_locks_guard:
@@ -101,10 +109,12 @@ def _has_fresh_login_cache(username, url, now):
             and user_cookie_exists(username, url))
 
 
-def _login_failure(key, message, retryable=False):
+def _login_failure(key, message, retryable=False, probe_uncertain=False):
     details = {'message': message}
     if retryable:
         details['retryable'] = True
+    if probe_uncertain:
+        details['probe_uncertain'] = True
     _remember_login(key, (time.time(), details), failure=True)
     return False, details
 
@@ -173,7 +183,13 @@ def check_login_status(username, password, cookies=None, url=None):
 
         uncertain = getattr(urp, 'login_check_uncertain', False) is True
         if uncertain and (temporary or _is_vpn_url(target_url)):
-            return _login_failure(key, '教务连接暂不可用，请稍后重试。', retryable=True)
+            probe_uncertain = bool(temporary and getattr(urp, 'probe_uncertain', False))
+            return _login_failure(
+                key,
+                '教务连接暂不可用，请稍后重试。',
+                retryable=True,
+                probe_uncertain=probe_uncertain,
+            )
         if temporary:
             return False, {}
 
@@ -541,11 +557,17 @@ def update_daily_exams(user):
                 # 失败仅短暂退避，之后允许重试，不把失败记为今日成功。
                 save({'retry_at': now.timestamp() + 60})
                 url = normalize_urp_url(get_current_urp_url())
-                logged_in, _ = check_login_status(username, user.get('password'), {}, url=url)
-                if not logged_in:
+                logged_in, details = check_login_status(username, user.get('password'), {}, url=url)
+                if not logged_in and not (
+                    user.get('temporary')
+                    and isinstance(details, dict)
+                    and details.get('probe_uncertain')
+                ):
                     return
                 from urp import URP_query
                 URP_query(url, username).exam_cx()
+                if not logged_in:
+                    mark_login_verified(username, url)
                 save({'date': today, 'semester': semester})
     except Exception:
         logging.getLogger(__name__).warning('每日考试安排更新失败，保留已有缓存')
@@ -660,6 +682,13 @@ def _perform_auto_update(username, password, url=None):
         return False, f'自动更新失败: {str(e)}'
 
 
+def has_schedule_cache(username, config=None):
+    config = config if config is not None else get_config()
+    if is_calendar_cache_stale(username, 'schedule', config):
+        return False
+    return os.path.isfile(user_data_file(username, 'schedule.json'))
+
+
 def read_raw_schedule(username, config=None):
     config = config if config is not None else get_config()
     if is_calendar_cache_stale(username, 'schedule', config): return {}
@@ -675,7 +704,8 @@ def get_schedule(username, week=None, config=None):
     result = effective_schedule(context_user(username), read_raw_schedule(username,config), config, get_schedule_period_times(username))
     schedule = result['schedule']
     if week is not None: schedule = {str(week):schedule[str(week)]} if str(week) in schedule else {}
-    return {'week':week, 'schedule':schedule, 'semester_start':config.get('semester_start','2026-03-02'),
+    return {'week':week, 'schedule':schedule, 'schedule_cached':has_schedule_cache(username, config),
+        'semester_start':config.get('semester_start','2026-03-02'),
         'is_freshman':_is_freshman(username), 'revision':result['revision'], 'personal_schedule_notices':result['notices'], 'semester_key':result['semester_key'], 'owner_token':result['owner_token']}
 
 
@@ -998,6 +1028,8 @@ def get_latest_makeup_grade_summary(username, max_periods=6):
                     urp_query.score_resit(exam['jxzxjh'], exam['ksbh'], timeout=min(6, remaining)),
                     name,
                 ))
+            except URPSessionExpiredError:
+                raise
             except Exception:
                 group_errors.append({'session': name, 'message': '该场次查询失败，请稍后重试'})
         errors.extend(group_errors)
@@ -1042,6 +1074,8 @@ def get_unevaluated_courses(username):
         urp_url = get_current_urp_url()
         query = URP_query(urp_url, username)
         return query.check_evaluation()
+    except URPSessionExpiredError:
+        raise
     except Exception as e:
         print(f"获取未评估课程失败: {str(e)}")
         return None
@@ -1058,5 +1092,7 @@ def do_evaluation(username, courses_data):
             return True, f"成功评价 {len(courses_data)} 门课程"
         else:
             return False, message
+    except URPSessionExpiredError:
+        raise
     except Exception as e:
         return False, f"评价失败: {str(e)}"

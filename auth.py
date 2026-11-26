@@ -9,7 +9,7 @@ from flask import request, jsonify
 from database import get_db
 from services.config_service import get_admin_key, get_config, get_current_urp_url
 from services.user_service import get_device_id, get_user_by_device
-from services.urp_service import check_login_status, invalidate_login_cache
+from services.urp_service import check_login_status, invalidate_login_cache, mark_login_verified
 from services.wechat_auth_service import get_wechat_request_session
 
 
@@ -21,6 +21,48 @@ def _expired_login_response(user, details=None):
     if not user.get('temporary') and isinstance(details, dict) and details.get('message'):
         message = details['message']
     return jsonify({'success': False, 'message': message})
+
+
+def _run_with_urp_session(user, urp_url, action):
+    username = user['username']
+    password = user['password']
+    is_logged_in, login_details = check_login_status(
+        username,
+        password,
+        {},
+        url=urp_url,
+    )
+    probe_uncertain = bool(
+        not is_logged_in
+        and user.get('temporary')
+        and isinstance(login_details, dict)
+        and login_details.get('probe_uncertain')
+    )
+    if not is_logged_in and not probe_uncertain:
+        return _expired_login_response(user, login_details)
+
+    try:
+        result = action()
+        if probe_uncertain:
+            mark_login_verified(username, urp_url)
+        return result
+    except URPSessionExpiredError:
+        invalidate_login_cache(username, urp_url)
+        if user.get('temporary'):
+            return _expired_login_response(user)
+        is_logged_in, login_details = check_login_status(
+            username,
+            password,
+            {},
+            url=urp_url,
+        )
+        if not is_logged_in:
+            return _expired_login_response(user, login_details)
+        try:
+            return action()
+        except URPSessionExpiredError:
+            invalidate_login_cache(username, urp_url)
+            return _expired_login_response(user)
 
 def require_admin(f):
     """管理员权限装饰器"""
@@ -62,35 +104,12 @@ def require_login(f):
         if not user:
             return jsonify({'success': False, 'message': '未绑定账号'})
 
-        username = user['username']
-        password = user['password']
         urp_url = get_current_urp_url()
-
-        is_logged_in, login_details = check_login_status(
-            username,
-            password,
-            {},
-            url=urp_url,
+        return _run_with_urp_session(
+            user,
+            urp_url,
+            lambda: f(user=user, *args, **kwargs),
         )
-        if not is_logged_in:
-            return _expired_login_response(user, login_details)
-
-        try:
-            return f(user=user, *args, **kwargs)
-        except URPSessionExpiredError:
-            invalidate_login_cache(username, urp_url)
-            is_logged_in, login_details = check_login_status(
-                username,
-                password,
-                {},
-                url=urp_url,
-            )
-            if not is_logged_in:
-                return _expired_login_response(user, login_details)
-            try:
-                return f(user=user, *args, **kwargs)
-            except Exception:
-                raise
 
     return decorated_function
 
@@ -172,7 +191,6 @@ def require_grade_login(level='basic'):
                 return jsonify({'success': False, 'message': '请先绑定账号后使用此功能'})
 
             username = user['username']
-            password = user['password']
             urp_url = get_current_urp_url()
             config = get_config()
             if config.get('grades_require_member', True):
@@ -180,31 +198,11 @@ def require_grade_login(level='basic'):
                 if not ok:
                     return jsonify(error)
 
-            is_logged_in, login_details = check_login_status(
-                username,
-                password,
-                {},
-                url=urp_url,
+            return _run_with_urp_session(
+                user,
+                urp_url,
+                lambda: f(user=user, *args, **kwargs),
             )
-            if not is_logged_in:
-                return _expired_login_response(user, login_details)
-
-            try:
-                return f(user=user, *args, **kwargs)
-            except URPSessionExpiredError:
-                invalidate_login_cache(username, urp_url)
-                is_logged_in, login_details = check_login_status(
-                    username,
-                    password,
-                    {},
-                    url=urp_url,
-                )
-                if not is_logged_in:
-                    return _expired_login_response(user, login_details)
-                try:
-                    return f(user=user, *args, **kwargs)
-                except Exception:
-                    raise
 
         return decorated_function
     return decorator
@@ -220,37 +218,16 @@ def require_member_login(level='basic'):
                 return jsonify({'success': False, 'message': '请先绑定账号后使用此功能'})
 
             username = user['username']
-            password = user['password']
             urp_url = get_current_urp_url()
             ok, error = _check_member_access(username, level)
             if not ok:
                 return jsonify(error)
 
-            is_logged_in, login_details = check_login_status(
-                username,
-                password,
-                {},
-                url=urp_url,
+            return _run_with_urp_session(
+                user,
+                urp_url,
+                lambda: f(user=user, *args, **kwargs),
             )
-            if not is_logged_in:
-                return _expired_login_response(user, login_details)
-
-            try:
-                return f(user=user, *args, **kwargs)
-            except URPSessionExpiredError:
-                invalidate_login_cache(username, urp_url)
-                is_logged_in, login_details = check_login_status(
-                    username,
-                    password,
-                    {},
-                    url=urp_url,
-                )
-                if not is_logged_in:
-                    return _expired_login_response(user, login_details)
-                try:
-                    return f(user=user, *args, **kwargs)
-                except Exception:
-                    raise
 
         return decorated_function
     return decorator

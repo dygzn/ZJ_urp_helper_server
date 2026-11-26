@@ -392,11 +392,17 @@ export async function handleLogin(event) {
             apiClient.resetAuthState();
             apiClient.cancelRequest('login-status');
             state.loginStatusPromise = null;
+            state.loginStatusResult = null;
             const isBound = data.bound !== false;
             hideLoginModal();
 
             if (isBound || data.temporary) {
                 setTemporarySession(data.temporary ? data.expires_at : null);
+                if (data.temporary) {
+                    state.cachedSchedule = null;
+                    state.cachedExams = null;
+                    state.cachedScheduleExams = [];
+                }
                 state.currentUsername = data.username;
                 rememberBoundUsername(state.currentUsername);
                 state.isGuestMode = false;

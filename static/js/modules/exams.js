@@ -73,7 +73,8 @@ export async function loadExams(autoFetched = false) {
             state.currentUsername = data.account;
             rememberBoundUsername(state.currentUsername);
             generation = state.academicCacheGeneration;
-            document.getElementById('sidebar-username').textContent = state.currentUsername;
+            document.getElementById('sidebar-username').textContent = state.temporarySessionExpiresAt
+                ? `${state.currentUsername} · 临时` : state.currentUsername;
         }
         if (data.success && data.cache_stale) {
             state.cachedScheduleExams = [];

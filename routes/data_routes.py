@@ -5,6 +5,7 @@ import os
 import json
 from flask import Blueprint, request, jsonify
 from auth import require_login, require_binding, require_member, require_grade_login, require_member_login
+from urp.login import URPSessionExpiredError
 from database import get_db
 from services.config_service import get_config
 from services.urp_service import (
@@ -59,6 +60,8 @@ def api_update_schedule(user):
         schedule_data = urp.schedule_cx()
 
         return jsonify({'success': True, 'message': '课程表更新成功', 'data': schedule_data})
+    except URPSessionExpiredError:
+        raise
     except Exception as e:
         return jsonify({'success': False, 'message': f'更新失败: {str(e)}'})
 
@@ -75,6 +78,8 @@ def api_historical_schedule(user):
         urp = URP_query(current_url, user['username'])
         historical_data = urp.historical_schedule_cx(semester)
         return jsonify({'success': True, 'data': historical_data})
+    except URPSessionExpiredError:
+        raise
     except Exception as e:
         return jsonify({'success': False, 'message': f'历年课表查询失败: {str(e)}'})
 
@@ -108,6 +113,8 @@ def api_update_exams(user):
         exams_data = urp.exam_cx()
 
         return jsonify({'success': True, 'message': '考试安排更新成功', 'data': exams_data})
+    except URPSessionExpiredError:
+        raise
     except Exception as e:
         return jsonify({'success': False, 'message': f'更新失败: {str(e)}'})
 
@@ -118,6 +125,8 @@ def api_grades_current(user):
     try:
         grades = get_current_semester_grades(user['username'])
         return jsonify({'success': True, 'grades': grades})
+    except URPSessionExpiredError:
+        raise
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
@@ -127,6 +136,8 @@ def api_grades_latest_summary(user):
     try:
         result = get_latest_semester_grade_summary(user['username'])
         return jsonify({'success': True, **result})
+    except URPSessionExpiredError:
+        raise
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
@@ -136,6 +147,8 @@ def api_grade_semesters(user):
     try:
         semesters = get_semesters(user['username'])
         return jsonify({'success': True, 'semesters': semesters})
+    except URPSessionExpiredError:
+        raise
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
@@ -149,6 +162,8 @@ def api_grades_by_semester(user):
     try:
         grades = get_grades_by_semester(user['username'], semester)
         return jsonify({'success': True, 'grades': grades, 'semester': semester})
+    except URPSessionExpiredError:
+        raise
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
@@ -159,6 +174,8 @@ def api_grades_failed(user):
     try:
         result = get_failed_grades(user['username'])
         return jsonify({'success': True, 'current': result['current'], 'past': result['past']})
+    except URPSessionExpiredError:
+        raise
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
@@ -169,6 +186,8 @@ def api_grades_gpa(user):
     try:
         gpa = get_gpa(user['username'])
         return jsonify({'success': True, 'gpa': gpa})
+    except URPSessionExpiredError:
+        raise
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
@@ -179,6 +198,8 @@ def api_exam_sessions(user):
     try:
         sessions = get_exam_sessions(user['username'])
         return jsonify({'success': True, **sessions})
+    except URPSessionExpiredError:
+        raise
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
@@ -193,6 +214,8 @@ def api_exam_scores(user):
     try:
         grades = get_exam_scores(user['username'], jxzxjh, ksbh)
         return jsonify({'success': True, 'grades': grades})
+    except URPSessionExpiredError:
+        raise
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
@@ -202,6 +225,8 @@ def api_exam_scores(user):
 def api_latest_makeup_grades(user):
     try:
         return jsonify({'success': True, **get_latest_makeup_grade_summary(user['username'])})
+    except URPSessionExpiredError:
+        raise
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
@@ -221,6 +246,8 @@ def api_unevaluated_courses(user):
                 'courses': []
             })
         return jsonify({'success': True, 'has_courses': True, 'courses': courses})
+    except URPSessionExpiredError:
+        raise
     except Exception as e:
         return jsonify({'success': False, 'message': f'查询失败: {str(e)}'})
 
@@ -235,6 +262,8 @@ def api_evaluation(user):
             return jsonify({'success': False, 'message': '没有课程数据'})
         success, message = do_evaluation(user['username'], courses_data)
         return jsonify({'success': success, 'message': message})
+    except URPSessionExpiredError:
+        raise
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 

@@ -259,7 +259,8 @@ export async function loadSchedule(week = null, autoFetched = false) {
             state.currentUsername = data.account;
             rememberBoundUsername(state.currentUsername);
             generation = state.academicCacheGeneration;
-            document.getElementById('sidebar-username').textContent = state.currentUsername;
+            document.getElementById('sidebar-username').textContent = state.temporarySessionExpiresAt
+                ? `${state.currentUsername} · 临时` : state.currentUsername;
         }
         if (data.success && data.data?.owner_token) {
             if (state.scheduleOwnerToken && state.scheduleOwnerToken !== data.data.owner_token) resetScheduleEditor();
@@ -302,13 +303,16 @@ export async function loadSchedule(week = null, autoFetched = false) {
                 }
             }
 
-            if (hasData || state.cachedScheduleExams.length > 0 || autoFetched) {
+            const scheduleCached = data.data.schedule_cached;
+            const hasCachedSchedule = hasData
+                || scheduleCached === true
+                || (scheduleCached !== false && state.cachedScheduleExams.length > 0);
+            if (hasCachedSchedule || autoFetched) {
                 state.cachedSchedule = schedule;
                 renderFromCache(schedule, week);
             } else if (!autoFetched) {
                 // 没有缓存数据，自动从教务系统获取
                 resetScheduleDisplay();
-                state.cachedSchedule = {};
                 displaySchedule({});
                 showMessage('正在从教务系统获取课表...');
                 try {
@@ -319,15 +323,15 @@ export async function loadSchedule(week = null, autoFetched = false) {
                     if (!request.isCurrent() || generation !== state.academicCacheGeneration) return;
                     if (updateData.success) {
                         state.cachedSchedule = null;
-                        loadSchedule(week, true);
-                        return;
+                        return loadSchedule(week, true);
                     } else {
+                        state.cachedSchedule = null;
                         showMessage(updateData.message || '获取课表失败', true);
                     }
                 } catch (e) {
-        if (e?.name === 'AbortError') return;
+                    if (e?.name === 'AbortError') return;
                     if (!request.isCurrent() || generation !== state.academicCacheGeneration) return;
-                    if (e.name === 'AbortError') return;
+                    state.cachedSchedule = null;
                     showMessage(e.message || '获取课表失败，学校可能暂未开放查询', true);
                 }
             } else {

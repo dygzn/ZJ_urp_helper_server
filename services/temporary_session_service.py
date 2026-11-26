@@ -43,20 +43,28 @@ def _forget_runtime_state(device_id, username):
 
 def save_temporary_session(device_id, username, cookies, url=None):
     """只保存会话标识、学号、到期时间和教务 Cookie。"""
-    from services.config_service import get_current_urp_url, urp_url_fingerprint
-    from urp.session_store import _filter_user_cookies
+    from services.config_service import get_current_urp_url, normalize_urp_url, urp_url_fingerprint
+    from urp.session_store import _filter_user_cookies, save_user_cookies
 
     from services.user_service import invalidate_request_identity
     invalidate_request_identity()
-    origin = urp_url_fingerprint(url or get_current_urp_url())
+    target_url = normalize_urp_url(url or get_current_urp_url())
+    origin = urp_url_fingerprint(target_url)
     session_id = uuid.uuid4().hex
     directory = _session_directory(session_id)
     os.makedirs(directory, mode=0o700, exist_ok=False)
     try:
+        filtered_cookies = _filter_user_cookies(cookies)
         cookie_fd = os.open(os.path.join(directory, 'cookie.json'), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         with os.fdopen(cookie_fd, 'w', encoding='utf-8') as stream:
-            json.dump({'url_fingerprint': origin, 'cookies': _filter_user_cookies(cookies)},
+            json.dump({'url_fingerprint': origin, 'cookies': filtered_cookies},
                       stream, ensure_ascii=False)
+        save_user_cookies(
+            username,
+            target_url,
+            filtered_cookies,
+            cookie_path=os.path.join(directory, 'cookies', f'{origin}.json'),
+        )
         expires_at = int(time.time()) + TEMPORARY_SESSION_SECONDS
         with get_db() as conn:
             old = conn.execute(

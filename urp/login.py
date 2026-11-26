@@ -310,7 +310,7 @@ def clear_shared_vpn_cookies():
 
 def _looks_like_vpn_auth_page(resp):
     url = str(getattr(resp, 'url', '') or '')
-    text = getattr(resp, 'text', '') or ''
+    text = _response_text(resp)
     lowered = text.lower()
     return (
         '/vpn/theme/auth_home' in url
@@ -323,6 +323,14 @@ def _looks_like_vpn_auth_page(resp):
 
 
 def _response_text(resp):
+    content = getattr(resp, 'content', None)
+    encoding = (getattr(resp, 'encoding', None) or '').strip().lower()
+    if isinstance(content, (bytes, bytearray)) and encoding in ('', 'iso-8859-1', 'latin-1', 'latin1'):
+        for candidate in ('utf-8', 'gb18030'):
+            try:
+                return bytes(content).decode(candidate)
+            except UnicodeDecodeError:
+                continue
     return getattr(resp, 'text', '') or ''
 
 
@@ -548,6 +556,7 @@ class URP_login:
         self.cookie_path = cookie_path
         self._vpn_recovery_failure = None
         self.login_check_uncertain = False
+        self.probe_uncertain = False
         self.persist_cookies = persist_cookies
         self.x = requests.session()
         self.x.verify = False
@@ -739,6 +748,7 @@ class URP_login:
     def is_logined(self):
         # 保持 bool 接口；调用者可区分暂不可确认与已明确失效。
         self.login_check_uncertain = False
+        self.probe_uncertain = False
         cookies, source = load_user_cookies(self.account, self.url, cookie_path=self.cookie_path)
         if not cookies:
             return False
@@ -763,13 +773,18 @@ class URP_login:
                 # top.jsp 在会话过期时可能抛出 JSP 错误或只返回提示页。
                 # 通过首页确认登录表单，不能把这种状态永久归为网络不可用。
                 response = self.x.get(self._url(), timeout=_request_timeout(5), verify=False)
-                result = self._classify_login_probe(response)
+                result = self._classify_login_probe(response, allow_home_frameset=True)
+        except VPNUnavailableError:
+            self.login_check_uncertain = True
+            return False
         except Exception:
             self.login_check_uncertain = True
+            self.probe_uncertain = True
             return False
 
         if result is None:
             self.login_check_uncertain = True
+            self.probe_uncertain = not is_vpn_failure_response(response)
             return False
         if not result:
             return False
@@ -777,7 +792,7 @@ class URP_login:
             self._save_cookies()
         return True
 
-    def _classify_login_probe(self, response):
+    def _classify_login_probe(self, response, allow_home_frameset=False):
         """True 已登录，False 明确失效，None 需要进一步确认。"""
         if is_vpn_failure_response(response):
             return None
@@ -788,8 +803,8 @@ class URP_login:
             return None
         if _looks_like_urp_login_page(response):
             return False
-        if self.account in response.text:
+        if self.account in _response_text(response):
             return True
         if _looks_like_urp_home_page(response):
-            return False
+            return None if allow_home_frameset else False
         return None
