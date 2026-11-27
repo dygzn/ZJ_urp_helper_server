@@ -1,4 +1,11 @@
+import os
+import sys
+
 from gunicorn.glogging import Logger
+
+_ROOT = os.path.dirname(os.path.abspath(__file__))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
 
 from services.chat_access_log import chat_admin_log_path, skip_chat_poll
 

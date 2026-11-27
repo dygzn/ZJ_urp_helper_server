@@ -3,7 +3,13 @@
 import sqlite3
 
 from flask import Blueprint, current_app, jsonify, request
-from pymysql import MySQLError
+from werkzeug.exceptions import RequestEntityTooLarge
+
+try:
+    from pymysql import MySQLError
+except ImportError:
+    class MySQLError(Exception):
+        pass
 
 from auth import require_admin, require_binding
 from services import chat_service as chat
@@ -60,8 +66,17 @@ def _text_arg(name, default='', maximum=100):
 
 
 def _body(max_bytes=16000):
-    request.max_content_length = max_bytes
+    try:
+        request.max_content_length = max_bytes
+    except AttributeError:
+        pass
     if request.content_length is not None and request.content_length > max_bytes:
+        raise ChatError('INVALID_INPUT', '提交的内容过长。')
+    try:
+        raw = request.get_data(cache=True)
+    except RequestEntityTooLarge:
+        raise ChatError('INVALID_INPUT', '提交的内容过长。') from None
+    if len(raw) > max_bytes:
         raise ChatError('INVALID_INPUT', '提交的内容过长。')
     data = request.get_json(silent=True)
     if not isinstance(data, dict):

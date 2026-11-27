@@ -259,7 +259,8 @@ def _message_page(conn, username, before, after, limit):
     rows = conn.execute(PUBLIC_MESSAGES + f" WHERE {' AND '.join(conditions)} ORDER BY m.id {ordering} LIMIT ?",
                         (*params, limit + 1)).fetchall()
     more = len(rows) > limit
-    rows = rows[:limit]
+    # PyMySQL DictCursor returns an empty tuple () when 0 rows match; convert before reversing.
+    rows = list(rows[:limit])
     if after is None:
         rows.reverse()
     return {

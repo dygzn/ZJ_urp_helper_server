@@ -235,3 +235,48 @@ class ChatRoutesTest(unittest.TestCase):
         self.assertTrue(log_filter.filter(admin_query))
         self.assertNotIn('2315108133', admin_query.getMessage())
         self.assertIn('GET /api/admin/chat/messages HTTP/1.1', admin_query.getMessage())
+
+    def test_empty_room_bootstrap_and_pagination_handle_tuple_fetchall_from_pymysql(self):
+        from contextlib import contextmanager
+
+        self.enable()
+        real_get_db = get_db
+
+        class TupleCursor:
+            def __init__(self, cursor):
+                self._cursor = cursor
+
+            def fetchall(self):
+                rows = self._cursor.fetchall()
+                return () if not rows else tuple(rows)
+
+            def __getattr__(self, name):
+                return getattr(self._cursor, name)
+
+        class TupleConn:
+            def __init__(self, conn):
+                self._conn = conn
+
+            def execute(self, sql, params=()):
+                if sql in (
+                    'SET TRANSACTION ISOLATION LEVEL REPEATABLE READ',
+                    'START TRANSACTION WITH CONSISTENT SNAPSHOT',
+                ):
+                    return TupleCursor(self._conn.execute('SELECT 1'))
+                return TupleCursor(self._conn.execute(sql.replace(' FOR UPDATE', ''), params))
+
+            def __getattr__(self, name):
+                return getattr(self._conn, name)
+
+        @contextmanager
+        def mysql_like_db(*args, **kwargs):
+            with real_get_db(*args, **kwargs) as conn:
+                yield TupleConn(conn)
+
+        with patch('services.chat_service.get_db', side_effect=mysql_like_db):
+            headers, data = self.room()
+            self.assertEqual(data['messages'], [])
+            self.assertFalse(data['has_older'])
+            older = self.client.get('/api/chat/messages?before_id=10', headers=headers)
+            self.assertEqual(older.status_code, 200)
+            self.assertEqual(older.json['data']['messages'], [])
