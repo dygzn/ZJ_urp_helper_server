@@ -205,8 +205,11 @@ function restoreAnchor(room, anchor) {
 
 function updateNewButton(room) {
     const count = room.newIds.size;
-    room.newButton.hidden = count === 0;
-    room.newButton.textContent = count ? `有 ${count} 条新消息 ↓` : '';
+    const distanceFromBottom = room.feed.scrollHeight - room.feed.clientHeight - room.feed.scrollTop;
+    const showScrollDown = count === 0 && room.messages.size > 0 && distanceFromBottom > 220;
+    room.newButton.hidden = count === 0 && !showScrollDown;
+    room.newButton.classList.toggle('is-scroll-down', showScrollDown);
+    room.newButton.textContent = count ? `有 ${count} 条新消息 ↓` : (showScrollDown ? '回到底部 ↓' : '');
 }
 
 function canSend(room) {
@@ -225,7 +228,13 @@ function syncControls(room) {
     room.noticeToggle.textContent = room.noticeExpanded ? '折叠' : '展开';
     room.noticeHide.hidden = !room.noticeExpanded;
 
-    room.privacyOpen.textContent = `显示学号：${room.viewer?.show_student_id ? '开启' : '关闭'}`;
+    const showStudentId = Boolean(room.viewer?.show_student_id);
+    room.privacyOpen.classList.toggle('is-visible', showStudentId);
+    if (room.privacyLabel) room.privacyLabel.textContent = showStudentId ? '公开学号' : '隐藏学号';
+    else room.privacyOpen.textContent = showStudentId ? '公开学号' : '隐藏学号';
+    room.privacyOpen.setAttribute('aria-label', `显示学号：${showStudentId ? '开启' : '关闭'}，点击修改发言设置`);
+    const isCoarse = Boolean(window.matchMedia?.('(max-width: 768px), (pointer: coarse)').matches);
+    room.input.placeholder = isCoarse ? '输入消息…' : '输入消息，Enter 发送，Shift+Enter 换行';
     room.composer.hidden = !canSend(room);
     room.muteStatus.hidden = !room.ready || (!room.settings.readonly && !room.mute?.active);
     const restrictions = [];
@@ -264,7 +273,18 @@ function syncReply(room) {
     room.replySummary.textContent = !reply ? '' : reply.status === 'normal' ? reply.content : statusLabel(reply.status);
 }
 
-function renderMessage(room, message) {
+export function isGroupedMessage(previous, current) {
+    if (!previous || !current) return false;
+    if (previous.status !== 'normal' || current.status !== 'normal') return false;
+    if (Boolean(previous.is_own) !== Boolean(current.is_own)) return false;
+    if ((previous.author?.role || '') !== (current.author?.role || '')) return false;
+    if ((previous.author?.display_name || '') !== (current.author?.display_name || '')) return false;
+    const prevTime = Date.parse(previous.create_time);
+    const currTime = Date.parse(current.create_time);
+    return Number.isFinite(prevTime) && Number.isFinite(currTime) && currTime - prevTime < 120_000;
+}
+
+function renderMessage(room, message, { grouped = false, menuDown = false } = {}) {
     const row = create('li', 'chat-message');
     row.dataset.messageId = message.id;
     if (message.status !== 'normal') {
@@ -275,15 +295,18 @@ function renderMessage(room, message) {
     const own = Boolean(message.is_own);
     const official = message.author?.role === 'admin';
     if (own) row.classList.add('is-own');
+    if (official) row.classList.add('is-official-msg');
+    if (grouped) row.classList.add('is-grouped');
+    if (menuDown) row.classList.add('is-menu-down');
     if (!own) {
         const displayName = message.author?.display_name || '';
         const gradeMatch = displayName.match(/^([0-9]{2})级/) || displayName.match(/^([0-9]{2})[0-9]{5,}$/);
-        const avatar = create('span', 'chat-avatar', official ? '管' : gradeMatch?.[1] || '同');
+        const avatar = create('span', official ? 'chat-avatar is-official' : 'chat-avatar', official ? '管' : gradeMatch?.[1] || '同');
         avatar.setAttribute('aria-hidden', 'true');
         row.append(avatar);
     }
     const content = create('div', 'chat-message-content');
-    const header = create('div', 'chat-message-header');
+    const header = create('div', grouped ? 'chat-message-header chat-sr-only' : 'chat-message-header');
     header.append(create('strong', '', own ? '我' : message.author?.display_name || '同学'));
     if (own) header.append(create('small', '', room.viewer?.show_student_id ? '已公开学号' : '已隐藏学号'));
     if (official) {
@@ -292,6 +315,8 @@ function renderMessage(room, message) {
     }
 
     const bubble = create('div', 'chat-bubble');
+    const sentAt = Date.parse(message.create_time);
+    if (Number.isFinite(sentAt)) bubble.title = fullTimeFormat.format(sentAt);
     if (message.reply_to) {
         const quote = message.reply_to;
         const exists = room.messages.has(quote.id);
@@ -356,18 +381,22 @@ function renderFeed(room, anchor = captureAnchor(room)) {
     const oldMenu = active?.closest?.('details')?.open;
     const fragment = document.createDocumentFragment();
     let previous = null;
+    let previousMessage = null;
     const messages = Array.from(room.messages.values()).sort((a, b) => a.id - b.id);
-    for (const message of messages) {
-        if (needsChatDate(previous, message.create_time)) {
+    messages.forEach((message, index) => {
+        const showDate = needsChatDate(previous, message.create_time);
+        if (showDate) {
             const row = create('li', 'chat-date');
             const time = create('time', '', chatDateLabel(message.create_time, now(room)));
             time.dateTime = message.create_time;
             row.append(time);
             fragment.append(row);
         }
-        fragment.append(renderMessage(room, message));
+        const grouped = !showDate && isGroupedMessage(previousMessage, message);
+        fragment.append(renderMessage(room, message, { grouped, menuDown: index < 2 }));
         previous = message.create_time;
-    }
+        previousMessage = message;
+    });
     if (room.outgoing) fragment.append(renderOutgoing(room));
     room.list.replaceChildren(fragment);
     room.history.hidden = messages.length === 0;
@@ -824,21 +853,69 @@ function resetOutgoingPreview(room) {
     renderFeed(room);
 }
 
+export function computeMobileKeyboardState({
+    viewportHeight,
+    innerHeight,
+    baseHeight,
+    inputFocused,
+    hadHeightShrink,
+}) {
+    const currentHeight = Number.isFinite(viewportHeight) && viewportHeight > 0 ? viewportHeight : innerHeight;
+    const shrunkVsInner = Number.isFinite(viewportHeight) && viewportHeight < innerHeight - 100;
+    const shrunkVsBase = Number.isFinite(baseHeight) && baseHeight > 0 && currentHeight < baseHeight - 120;
+    const heightShrunk = Boolean(shrunkVsInner || shrunkVsBase);
+    // 若本次输入期间视口曾缩小且现已恢复（用户点了系统收起键盘键但未触发 blur），恢复底栏显示。
+    const dismissedBySystem = Boolean(hadHeightShrink && !heightShrunk);
+    const keyboardOpen = heightShrunk || Boolean(inputFocused && !dismissedBySystem);
+    return { keyboardOpen, heightShrunk, currentHeight };
+}
+
+function setKeyboardChrome(room, open) {
+    room.page.classList.toggle('is-keyboard-open', open);
+    document.body?.classList?.toggle('chat-keyboard-open', open);
+}
+
 function syncViewport(room) {
     const viewport = window.visualViewport;
     const nav = byId('mobile-bottom-nav');
-    if (!viewport || !nav || !window.matchMedia?.('(max-width: 768px)').matches) {
+    const isMobile = Boolean(window.matchMedia?.('(max-width: 768px)').matches);
+    if (!nav || !isMobile) {
         room.host.style.removeProperty('--chat-viewport-height');
         room.host.style.removeProperty('--chat-viewport-top');
-        room.page.classList.remove('is-keyboard-open');
+        room.hadHeightShrink = false;
+        setKeyboardChrome(room, false);
         return;
     }
     const follow = atBottom(room.feed);
-    const top = viewport.offsetTop;
-    const navTop = nav.getBoundingClientRect().top;
-    const visibleBottom = top + viewport.height;
-    const bottom = navTop > top && navTop < visibleBottom ? navTop : visibleBottom;
-    room.page.classList.toggle('is-keyboard-open', viewport.height < window.innerHeight - 120);
+    const width = Math.round(viewport?.width || window.innerWidth || 0);
+    const rawHeight = Math.max(window.innerHeight || 0, viewport?.height || 0);
+    if (width && room.baseViewportWidth !== width) {
+        room.baseViewportWidth = width;
+        room.baseViewportHeight = rawHeight;
+        room.hadHeightShrink = false;
+    } else if (!room.inputFocused && rawHeight > (room.baseViewportHeight || 0)) {
+        room.baseViewportHeight = rawHeight;
+    }
+
+    const { keyboardOpen, heightShrunk, currentHeight } = computeMobileKeyboardState({
+        viewportHeight: viewport?.height,
+        innerHeight: window.innerHeight,
+        baseHeight: room.baseViewportHeight,
+        inputFocused: room.inputFocused,
+        hadHeightShrink: room.hadHeightShrink,
+    });
+    if (heightShrunk) room.hadHeightShrink = true;
+    else if (!room.inputFocused) room.hadHeightShrink = false;
+
+    setKeyboardChrome(room, keyboardOpen);
+
+    const top = viewport?.offsetTop || 0;
+    const visibleBottom = top + currentHeight;
+    let bottom = visibleBottom;
+    if (!keyboardOpen) {
+        const navTop = nav.getBoundingClientRect().top;
+        if (navTop > top && navTop < visibleBottom) bottom = navTop;
+    }
     room.host.style.setProperty('--chat-viewport-height', `${Math.max(0, bottom - top)}px`);
     room.host.style.setProperty('--chat-viewport-top', `${top}px`);
     if (follow) room.feed.scrollTop = room.feed.scrollHeight;
@@ -851,14 +928,23 @@ function bindChat(room) {
     on('chat-retry', 'click', () => room.ready ? poll(room, { refresh: true }) : bootstrap(room));
     on('chat-older', 'click', () => loadOlder(room));
     on('chat-new', 'click', () => {
-        feed.scrollTop = feed.scrollHeight;
+        const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        feed.scrollTo({ top: feed.scrollHeight, behavior: reduce ? 'instant' : 'smooth' });
         rememberRead(room);
         focusUiElement(feed);
     });
     scope.listen(feed, 'scroll', () => {
         rememberRead(room);
+        updateNewButton(room);
         if (feed.scrollHeight > feed.clientHeight && feed.scrollTop < 20) loadOlder(room);
     }, { passive: true });
+    scope.listen(feed, 'click', event => {
+        if (!room.inputFocused || !window.matchMedia?.('(max-width: 768px)').matches) return;
+        if (event.target.closest('button, a, summary, details, input, textarea, select')) return;
+        const selection = window.getSelection?.();
+        if (selection && !selection.isCollapsed) return;
+        input.blur();
+    });
     scope.listen(list, 'click', event => handleMessageAction(room, event));
     scope.listen(document, 'click', event => closeMessageMenus(room, event.target.closest?.('.chat-message-actions')));
     scope.listen(list, 'keydown', event => {
@@ -897,6 +983,19 @@ function bindChat(room) {
         focusUiElement(input);
     });
     on('chat-composer', 'submit', event => { event.preventDefault(); sendMessage(room); });
+    scope.listen(input, 'focus', () => {
+        room.inputFocused = true;
+        room.hadHeightShrink = false;
+        syncViewport(room);
+        scope.setTimeout(() => syncViewport(room), 150);
+        scope.setTimeout(() => syncViewport(room), 350);
+    });
+    scope.listen(input, 'blur', () => {
+        room.inputFocused = false;
+        room.hadHeightShrink = false;
+        syncViewport(room);
+        scope.setTimeout(() => syncViewport(room), 150);
+    });
     scope.listen(input, 'input', () => {
         resetOutgoingPreview(room);
         syncDraft(room);
@@ -935,11 +1034,13 @@ export function mountChat(page) {
     const room = mounted = {
         page, host: page.closest('.main-content'), scope: resources.capture(), context: '', settings: {}, viewer: null, mute: null,
         clockOffset: 0, settingsVersion: 0, historyVersion: 0, historyFloor: 0, cursor: 0, hasOlder: false,
+        inputFocused: false, hadHeightShrink: false, baseViewportHeight: 0, baseViewportWidth: 0,
         messages: new Map(), newIds: new Set(), pollLevel: 0, noticeVisible: true, noticeExpanded: false,
         feed: byId('chat-feed'), list: byId('chat-messages'), history: byId('chat-history'), older: byId('chat-older'),
         status: byId('chat-status'), statusText: byId('chat-status-text'), retry: byId('chat-retry'),
         tools: byId('chat-tools'), rules: byId('chat-rules'), notice: byId('chat-notice'), noticeText: byId('chat-notice-text'),
-        noticeToggle: byId('chat-notice-toggle'), noticeHide: byId('chat-notice-hide'), privacyOpen: byId('chat-privacy-open'),
+        noticeToggle: byId('chat-notice-toggle'), noticeHide: byId('chat-notice-hide'),
+        privacyOpen: byId('chat-privacy-open'), privacyLabel: byId('chat-privacy-label'),
         input: byId('chat-content'), send: byId('chat-send'), sendStatus: byId('chat-send-status'),
         count: byId('chat-count'), reply: byId('chat-reply'), replyName: byId('chat-reply-name'), replySummary: byId('chat-reply-summary'),
         composer: byId('chat-composer'), muteStatus: byId('chat-mute'), live: byId('chat-live'), newButton: byId('chat-new'),
@@ -981,5 +1082,5 @@ export function unmountChat() {
     else if (modal?.id.startsWith('chat-')) closeUiModal(modal, { restoreFocus: false, animate: false });
     room.host.style.removeProperty('--chat-viewport-height');
     room.host.style.removeProperty('--chat-viewport-top');
-    room.page.classList.remove('is-keyboard-open');
+    setKeyboardChrome(room, false);
 }

@@ -47,3 +47,32 @@ test('toggleUiClass coerces explicit undefined force to false so first chat entr
     toggleUiClass(element, 'is-access-locked', false);
     assert.equal(classes.has('is-access-locked'), false);
 });
+
+test('mobile keyboard state hides bottom nav on focus/Android resize and restores when dismissed', async () => {
+    const { computeMobileKeyboardState, isGroupedMessage } = await import('../static/js/modules/chat.js');
+
+    // Focusing input immediately hides bottom nav even before viewport animation finishes
+    assert.equal(computeMobileKeyboardState({
+        viewportHeight: 844, innerHeight: 844, baseHeight: 844, inputFocused: true, hadHeightShrink: false,
+    }).keyboardOpen, true);
+
+    // Android Chrome / WeChat shrinks both innerHeight and visualViewport.height together
+    const androidOpen = computeMobileKeyboardState({
+        viewportHeight: 520, innerHeight: 520, baseHeight: 844, inputFocused: true, hadHeightShrink: false,
+    });
+    assert.equal(androidOpen.keyboardOpen, true);
+    assert.equal(androidOpen.heightShrunk, true);
+
+    // System back/hide keyboard restores height even if input remains focused
+    const dismissed = computeMobileKeyboardState({
+        viewportHeight: 844, innerHeight: 844, baseHeight: 844, inputFocused: true, hadHeightShrink: true,
+    });
+    assert.equal(dismissed.keyboardOpen, false);
+
+    // Consecutive messages by the same sender within 2 minutes are grouped
+    const a = { status: 'normal', is_own: false, author: { role: 'user', display_name: '24级 同学#1234' }, create_time: '2026-11-27T06:00:00Z' };
+    const b = { status: 'normal', is_own: false, author: { role: 'user', display_name: '24级 同学#1234' }, create_time: '2026-11-27T06:01:30Z' };
+    const c = { status: 'normal', is_own: false, author: { role: 'user', display_name: '24级 同学#1234' }, create_time: '2026-11-27T06:04:00Z' };
+    assert.equal(isGroupedMessage(a, b), true);
+    assert.equal(isGroupedMessage(b, c), false);
+});
