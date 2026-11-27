@@ -27,6 +27,7 @@ const initialState = {
     calendarExportData: null,
     calendarExportAccount: '',
     isGuestMode: false,
+    chatSessionStale: false,
     temporarySessionExpiresAt: null,
     temporarySessionTimer: null,
     temporaryReloginPromptShown: false,

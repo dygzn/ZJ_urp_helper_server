@@ -176,9 +176,10 @@ export function setPageAccessLock(pageName, locked) {
         : null;
     if (!page || !gate) return;
 
-    toggleUiClass(page, 'is-access-locked', locked);
-    gate.hidden = !locked;
-    if (locked) {
+    const isLocked = Boolean(locked);
+    toggleUiClass(page, 'is-access-locked', isLocked);
+    gate.hidden = !isLocked;
+    if (isLocked) {
         const copy = urpUi
             ? urpUi.getGuestAccessCopy(pageName)
             : {
@@ -201,7 +202,7 @@ export function setPageAccessLock(pageName, locked) {
 export function loadPageData(pageName, params = {}) {
     const gatedPages = ['schedule', 'exams', 'grades', 'evaluation', 'lab', 'feedback', 'member', 'chat'];
     if (gatedPages.includes(pageName)) {
-        const locked = state.isGuestMode || (pageName === 'chat' && (!state.currentUsername || state.chatSessionStale));
+        const locked = Boolean(state.isGuestMode || (pageName === 'chat' && (!state.currentUsername || state.chatSessionStale)));
         setPageAccessLock(pageName, locked);
         if (locked) return;
     }

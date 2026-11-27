@@ -277,6 +277,7 @@ export async function checkBindStatus() {
             setTemporarySession(data.temporary ? data.expires_at : null);
             state.currentUsername = data.username;
             rememberBoundUsername(state.currentUsername);
+            state.chatSessionStale = false;
             state.isGuestMode = false;
             document.getElementById('sidebar-username').textContent = data.temporary
                 ? `${state.currentUsername} · 临时` : state.currentUsername;

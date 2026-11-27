@@ -12,12 +12,14 @@ export function registerModalCleanup(id, cleanup) { modalCleanups.set(id, cleanu
 
 export function toggleUiClass(element, className, force) {
     if (!element || !element.classList) return false;
+    const hasForce = arguments.length >= 3;
+    const normalized = Boolean(force);
     if (typeof element.classList.toggle === 'function') {
-        return element.classList.toggle(className, force);
+        return hasForce ? element.classList.toggle(className, normalized) : element.classList.toggle(className);
     }
-    if (force) element.classList.add(className);
+    if (normalized) element.classList.add(className);
     else element.classList.remove(className);
-    return force;
+    return normalized;
 }
 
 export function syncUiOverlay() {

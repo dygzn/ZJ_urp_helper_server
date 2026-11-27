@@ -19,3 +19,31 @@ test('message separators use Beijing days and five-minute intervals', async () =
     assert.equal(needsChatDate('2026-11-26T16:01:00Z', '2026-11-26T16:05:00Z'), false);
     assert.equal(needsChatDate('2026-11-26T16:01:00Z', '2026-11-26T16:06:00Z'), true);
 });
+
+test('toggleUiClass coerces explicit undefined force to false so first chat entry never locks', async () => {
+    const { toggleUiClass } = await import('../static/js/modules/ui.js');
+    const { state } = await import('../static/js/modules/store.js');
+    assert.equal(state.chatSessionStale, false);
+
+    const classes = new Set();
+    const element = {
+        classList: {
+            toggle(name, force) {
+                if (force === undefined) {
+                    if (classes.has(name)) { classes.delete(name); return false; }
+                    classes.add(name);
+                    return true;
+                }
+                if (force) classes.add(name);
+                else classes.delete(name);
+                return Boolean(force);
+            },
+        },
+    };
+    toggleUiClass(element, 'is-access-locked', undefined);
+    assert.equal(classes.has('is-access-locked'), false);
+    toggleUiClass(element, 'is-access-locked', true);
+    assert.equal(classes.has('is-access-locked'), true);
+    toggleUiClass(element, 'is-access-locked', false);
+    assert.equal(classes.has('is-access-locked'), false);
+});
