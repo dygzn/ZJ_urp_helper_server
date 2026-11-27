@@ -40,6 +40,11 @@
             description: '登录后即可提交反馈、查看公开讨论与管理员回复。',
             button: '立即登录',
         },
+        chat: {
+            title: '公共聊天室需要登录教务账号',
+            description: '登录后即可查看消息并参与讨论。',
+            button: '立即登录',
+        },
         member: {
             title: '会员购买需要登录教务账号',
             description: '登录后即可查看当前会员状态、订单及邀请返佣。',

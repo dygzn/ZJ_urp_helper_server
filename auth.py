@@ -114,19 +114,20 @@ def require_login(f):
     return decorated_function
 
 
-def require_binding(f):
-    """账号绑定检查装饰器（不验证URP登录状态）"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        device_id = get_device_id()
-        user = get_user_by_device(device_id)
-
-        if not user:
-            return jsonify({'success': False, 'message': '请先绑定账号后使用此功能'})
-
-        return f(user=user, *args, **kwargs)
-
-    return decorated_function
+def require_binding(f=None, *, auth_error=False):
+    """账号绑定检查装饰器（不验证 URP 登录状态）。"""
+    def decorator(handler):
+        @wraps(handler)
+        def decorated_function(*args, **kwargs):
+            user = get_user_by_device(get_device_id())
+            if not user:
+                if auth_error:
+                    return jsonify(success=False, code='AUTH_EXPIRED',
+                                   message='请先登录教务账号。', data=None), 401
+                return jsonify({'success': False, 'message': '请先绑定账号后使用此功能'})
+            return handler(user=user, *args, **kwargs)
+        return decorated_function
+    return decorator if f is None else decorator(f)
 
 
 def require_member(level='basic'):

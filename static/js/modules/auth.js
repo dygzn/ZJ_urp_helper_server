@@ -11,6 +11,16 @@ const resources = pageResources('auth');
 export const pendingInvitationTokenKey = 'pending_invitation_token';
 
 export const ownInvitationTokenKey = 'own_invitation_token';
+export const chatSessionChangeKey = 'urp_chat_session_change';
+
+function announceChatSessionChange() {
+    try {
+        const nonce = window.crypto.getRandomValues(new Uint32Array(4)).join('.');
+        localStorage.setItem(chatSessionChangeKey, nonce);
+    } catch {
+        // The server still verifies the session context on subsequent chat requests.
+    }
+}
 
 export function capturePendingInvitationToken() {
     try {
@@ -142,10 +152,29 @@ export function setTemporarySession(expiresAt) {
             showUiToast('临时登录将在 1 分钟后到期，请注意保存内容。', 'info');
         }, remaining - 60000);
     }
-    state.temporarySessionTimer = setTimeout(() => window.location.reload(), remaining + 50);
+    state.temporarySessionTimer = setTimeout(expireTemporarySession, remaining + 50);
 }
 
-export function rememberBoundUsername(username) {
+function expireTemporarySession() {
+    if (state.currentPage === 'chat') expireChatSession();
+    else window.location.reload();
+}
+
+export function expireChatSession(message = '登录已失效，请重新输入学号和密码。') {
+    const returnToMore = document.getElementById('chat-back')?.hidden === false;
+    setTemporarySession(null);
+    state.isGuestMode = true;
+    state.currentUsername = null;
+    rememberBoundUsername(null, { syncStorage: false });
+    state.loginStatusResult = null;
+    state.temporaryReloginPromptShown = true;
+    document.getElementById('sidebar-username').textContent = '未登录';
+    switchPage('chat', { returnToMore });
+    document.getElementById('login-error').textContent = message;
+    showLoginModal();
+}
+
+export function rememberBoundUsername(username, { syncStorage = true } = {}) {
     const normalized = String(username || '').trim();
     if (state.academicCacheUsername !== normalized) {
         state.academicCacheGeneration++;
@@ -181,6 +210,7 @@ export function rememberBoundUsername(username) {
             if (examsContent) examsContent.innerHTML = '<div class="loading">加载中...</div>';
         }
     }
+    if (!syncStorage) return;
     try {
         if (normalized && !state.temporarySessionExpiresAt) {
             localStorage.setItem(boundUsernameStorageKey, normalized);
@@ -405,7 +435,9 @@ export async function handleLogin(event) {
                 }
                 state.currentUsername = data.username;
                 rememberBoundUsername(state.currentUsername);
+                state.chatSessionStale = false;
                 state.isGuestMode = false;
+                announceChatSessionChange();
                 if (isBound) {
                     clearPendingInvitationToken();
                     ensureOwnInvitationTokenInUrl();
@@ -502,8 +534,12 @@ export async function unbindForRebind() {
         state.currentUsername = null;
         rememberBoundUsername(null);
         state.isGuestMode = false;
+        announceChatSessionChange();
         document.getElementById('sidebar-username').textContent = '未绑定';
         closeRebindDialog();
+        if (state.currentPage === 'chat') {
+            switchPage('chat', { returnToMore: document.getElementById('chat-back')?.hidden === false });
+        }
         showLoginModal();
         showUiToast(data.message || '当前设备已解绑，请重新绑定新账号', 'success');
     } catch (error) {
@@ -519,11 +555,15 @@ document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible'
         && state.temporarySessionExpiresAt
         && Date.now() >= state.temporarySessionExpiresAt) {
-        window.location.reload();
+        expireTemporarySession();
     }
 });
 document.addEventListener('api:auth-expired', event => {
     state.loginStatusResult = null;
+    if (state.currentPage === 'chat' && event.detail.url?.startsWith('/api/chat/')) {
+        expireChatSession(event.detail.message);
+        return;
+    }
     if (state.temporaryReloginPromptShown) return;
     state.temporaryReloginPromptShown = true;
     document.getElementById('login-error').textContent = event.detail.message;

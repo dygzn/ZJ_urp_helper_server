@@ -33,7 +33,12 @@ Thumbs.db
 /AGENTS.md
 /docs/
 /scripts/
-/tests/
+/tests/*
+!/tests/test_chat_database.py
+!/tests/test_chat_routes.py
+!/tests/test_chat_ui.js
+!/tests/browser_chat.cjs
+!/tests/browser_admin_chat.cjs
 
 # Keep reports and development notes local; track deployment and design guides
 /*.md

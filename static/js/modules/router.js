@@ -83,6 +83,7 @@ export function switchPage(pageName, params = {}) {
         'service-status': '找我做事',
         'feedback': '反馈建议',
         'lab': '实验提交',
+        'chat': '公共聊天室',
         'member': '会员购买',
     };
     const pageTitle = titles[pageName] || '首页';
@@ -110,7 +111,7 @@ export function switchPage(pageName, params = {}) {
 
     const desktopMore = document.getElementById('desktop-nav-more');
     if (desktopMore) {
-        const isDesktopMorePage = ['service-status', 'feedback', 'member'].includes(selectedNavPage);
+        const isDesktopMorePage = ['chat', 'service-status', 'feedback', 'member'].includes(selectedNavPage);
         toggleUiClass(desktopMore, 'has-active-child', isDesktopMorePage);
     }
 
@@ -123,6 +124,8 @@ export function switchPage(pageName, params = {}) {
     }
 
     // 加载对应页面的数据
+    const chatBack = document.getElementById('chat-back');
+    if (chatBack) chatBack.hidden = pageName !== 'chat' || !params.returnToMore;
     const mounted = loadPageData(pageName, { ...params, scheduleWeek });
     Promise.resolve(mounted).catch(error => {
         if (error.name !== 'AbortError') console.error('页面加载失败:', error);
@@ -196,10 +199,11 @@ export function setPageAccessLock(pageName, locked) {
 }
 
 export function loadPageData(pageName, params = {}) {
-    const gatedPages = ['schedule', 'exams', 'grades', 'evaluation', 'lab', 'feedback', 'member'];
+    const gatedPages = ['schedule', 'exams', 'grades', 'evaluation', 'lab', 'feedback', 'member', 'chat'];
     if (gatedPages.includes(pageName)) {
-        setPageAccessLock(pageName, state.isGuestMode);
-        if (state.isGuestMode) return;
+        const locked = state.isGuestMode || (pageName === 'chat' && (!state.currentUsername || state.chatSessionStale));
+        setPageAccessLock(pageName, locked);
+        if (locked) return;
     }
     const hooks = registeredPages.get(pageName);
     if (!hooks) return;

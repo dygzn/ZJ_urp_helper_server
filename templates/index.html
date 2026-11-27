@@ -1,3 +1,6 @@
+{% macro chat_icon() -%}
+<svg class="nav-icon chat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="{{ static_versioned('icons/lucide.svg') }}#message-square"/></svg>
+{%- endmacro %}
 <!DOCTYPE html>
 <html lang="zh-CN" class="urp-root">
 <head>
@@ -14,6 +17,9 @@
     <link rel="stylesheet" href="{{ static_versioned('css/taste-theme.css') }}">
     <link rel="stylesheet" href="{{ static_versioned('css/ui-components.css') }}">
     <link rel="stylesheet" href="{{ static_versioned('css/nova-workspace.css') }}">
+    {% if chat_enabled | default(false) %}
+    <link rel="stylesheet" href="{{ static_versioned('css/chat.css') }}">
+    {% endif %}
     <link rel="stylesheet" href="{{ static_versioned('css/appearance.css') }}">
     <link rel="stylesheet" href="{{ static_versioned('css/liquid-glass.css') }}">
     <link rel="stylesheet" href="{{ static_versioned('css/natural-themes.css') }}">
@@ -46,6 +52,9 @@
             <a href="#" class="nav-item" data-page="lab"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true" focusable="false"><path d="M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2" />
   <path d="M6.453 15h11.094" />
   <path d="M8.5 2h7" /></svg><span>实验提交</span></a>
+            {% if chat_enabled | default(false) %}
+            <a href="#page-chat" class="nav-item" data-page="chat">{{ chat_icon() }}<span>公共聊天室</span></a>
+            {% endif %}
             <a href="#" class="nav-item" data-page="service-status"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true" focusable="false"><path d="M12 12h.01" />
   <path d="M16 6V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
   <path d="M22 13a18.15 18.15 0 0 1-20 0" />
@@ -131,6 +140,9 @@
                 <section class="more-section" aria-labelledby="more-messages-heading">
                     <h3 id="more-messages-heading">消息与反馈</h3>
                     <nav class="more-list" aria-label="消息与反馈">
+                        {% if chat_enabled | default(false) %}
+                        <a href="#page-chat" id="more-chat-entry" class="nav-item more-row chat-more-entry" data-page="chat">{{ chat_icon() }}<span>公共聊天室</span><span class="chat-entry-dot" aria-hidden="true" hidden></span><span class="more-row-detail">全校同学群聊</span><span class="more-arrow" aria-hidden="true">›</span></a>
+                        {% endif %}
                         <div id="mobile-announcement-slot" class="mobile-announcement-slot"></div>
                         <a href="#" class="nav-item more-row" data-page="feedback"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true" focusable="false"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z" /></svg><span>反馈建议</span><span class="more-row-detail">问题与建议</span><span class="more-arrow" aria-hidden="true">›</span></a>
                     </nav>
@@ -215,7 +227,54 @@
                     <div class="home-agenda-heading"><h2 id="home-agenda-title">今日安排</h2><button class="home-agenda-link" type="button" onclick="openHomeShortcut('schedule')">完整课表 <span aria-hidden="true">→</span></button></div>
                     <div id="home-agenda-content"><div class="loading">正在读取课程安排…</div></div>
                 </section>
+                {% if chat_enabled | default(false) %}
+                <a id="home-chat-entry" class="nav-item chat-home-entry" href="#page-chat" data-page="chat" hidden>{{ chat_icon() }}<span>公共聊天室</span><small>全校同学群聊</small><span aria-hidden="true">›</span></a>
+                {% endif %}
             </div>
+
+            {% if chat_enabled | default(false) %}
+            <div id="page-chat" class="page chat-page">
+                <button id="chat-back" class="btn-secondary chat-back" type="button" hidden><span aria-hidden="true">←</span> 返回更多</button>
+                <div class="page-access-gate" data-page-access-gate hidden></div>
+                <section class="chat-room" aria-labelledby="chat-title">
+                    <header class="chat-room-header">
+                        <div><h2 id="chat-title">公共聊天室</h2><p>全校同学公共交流群</p></div>
+                        <div id="chat-tools" class="chat-tools" hidden>
+                            <button id="chat-privacy-open" class="btn-secondary" type="button" aria-haspopup="dialog">显示学号：关闭</button>
+                            <button id="chat-refresh" class="btn-secondary" type="button">刷新</button>
+                            <button id="chat-rules" class="btn-secondary" type="button" aria-expanded="false" aria-controls="chat-notice" hidden>群规</button>
+                        </div>
+                    </header>
+                    <section id="chat-notice" class="chat-notice" aria-label="置顶群公告" hidden>
+                        <strong>群规</strong><p id="chat-notice-text"></p>
+                        <button id="chat-notice-toggle" class="btn-secondary" type="button" aria-expanded="false" aria-controls="chat-notice-text">展开</button>
+                        <button id="chat-notice-hide" class="btn-secondary" type="button" hidden>收起公告</button>
+                    </section>
+                    <div class="chat-feed-area">
+                        <div id="chat-feed" class="chat-feed" tabindex="0" aria-label="聊天记录" role="region">
+                            <div id="chat-history" class="chat-history" hidden><button id="chat-older" class="btn-secondary" type="button">加载更早消息</button></div>
+                            <div id="chat-status" class="chat-status" aria-live="polite"><p id="chat-status-text">正在读取消息…</p><button id="chat-retry" class="btn-secondary" type="button" hidden>重试</button></div>
+                            <ol id="chat-messages" class="chat-messages"></ol>
+                        </div>
+                        <button id="chat-new" class="btn-primary chat-new" type="button" hidden></button>
+                    </div>
+                    <p id="chat-live" class="chat-sr-only" role="status"></p>
+                    <p id="chat-mute" class="chat-mute" role="status" hidden></p>
+                    <form id="chat-composer" class="chat-composer" hidden>
+                        <div id="chat-reply" class="chat-reply" hidden><div><strong id="chat-reply-name"></strong><span id="chat-reply-summary"></span></div><button id="chat-reply-cancel" class="btn-secondary" type="button">取消</button></div>
+                        <div class="chat-compose-row">
+                            <label class="chat-sr-only" for="chat-content">输入消息</label>
+                            <textarea id="chat-content" rows="1" placeholder="输入消息" enterkeyhint="enter" aria-describedby="chat-send-status"></textarea>
+                            <button id="chat-send" class="btn-primary" type="submit" disabled>发送</button>
+                        </div>
+                        <div class="chat-compose-feedback">
+                            <p id="chat-send-status" role="status"></p>
+                            <p id="chat-count" hidden></p>
+                        </div>
+                    </form>
+                </section>
+            </div>
+            {% endif %}
 
             <div id="page-schedule" class="page">
                 <div class="page-access-gate" data-page-access-gate hidden></div>
@@ -693,6 +752,35 @@
         </div>
     </div>
 
+    {% if chat_enabled | default(false) %}
+    <div id="chat-privacy-dialog" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="chat-privacy-title">
+        <div class="modal-content chat-dialog">
+            <button id="chat-privacy-close" class="modal-close" type="button">关闭</button>
+            <h2 id="chat-privacy-title">发言设置</h2>
+            <p id="chat-privacy-preview" class="chat-privacy-preview"></p>
+            <form id="chat-privacy-form">
+                <label class="chat-setting-option"><input id="chat-privacy-choice" type="checkbox"> 显示我的学号</label>
+                <p class="modal-desc">设置会同步应用于历史消息及引用。</p>
+                <p id="chat-privacy-status" role="status"></p>
+                <div class="chat-dialog-actions"><button id="chat-privacy-cancel" class="btn-secondary" type="button">取消</button><button id="chat-privacy-save" class="btn-primary" type="submit">保存设置</button></div>
+            </form>
+        </div>
+    </div>
+    <div id="chat-report-dialog" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="chat-report-title">
+        <div class="modal-content chat-dialog">
+            <button id="chat-report-close" class="modal-close" type="button">关闭</button>
+            <h2 id="chat-report-title">举报消息</h2>
+            <form id="chat-report-form">
+                <label for="chat-report-reason">举报原因</label>
+                <select id="chat-report-reason" required><option value="">请选择</option><option value="spam">广告或刷屏</option><option value="abuse">辱骂或骚扰</option><option value="privacy">泄露隐私</option><option value="other">其他</option></select>
+                <label for="chat-report-detail">补充说明（可选）</label>
+                <textarea id="chat-report-detail" rows="3" maxlength="200"></textarea>
+                <p id="chat-report-status" role="status"></p>
+                <div class="chat-dialog-actions"><button id="chat-report-cancel" class="btn-secondary" type="button">取消</button><button id="chat-report-submit" class="btn-primary" type="submit">提交举报</button></div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
     <div id="overlay" class="overlay" onclick="handleOverlayClick(event)"></div>
 
     <script src="{{ static_versioned('js/schedule-layout.js') }}"></script>

@@ -19,6 +19,9 @@ from routes.member_routes import member_bp
 from routes.misc_routes import misc_bp
 from routes.wechat_routes import wechat_bp
 from routes.lab_routes import lab_bp
+from routes.chat_routes import chat_bp
+from services.chat_service import is_enabled as is_chat_enabled
+from services.chat_access_log import install_werkzeug_access_log_filter
 
 app = Flask(__name__)
 configure_app_security(app)
@@ -68,6 +71,7 @@ app.register_blueprint(member_bp)
 app.register_blueprint(misc_bp)
 app.register_blueprint(wechat_bp)
 app.register_blueprint(lab_bp)
+app.register_blueprint(chat_bp)
 
 @app.errorhandler(Exception)
 def handle_api_exception(error):
@@ -139,9 +143,15 @@ def index():
         response.headers['Cache-Control'] = 'no-store'
         return response
     config = get_config()
+    try:
+        chat_enabled = is_chat_enabled()
+    except Exception as error:
+        app.logger.warning('聊天室配置不可用 (%s)', type(error).__name__)
+        chat_enabled = False
     return render_template(
         'index.html',
         ad=get_ad_config(),
+        chat_enabled=chat_enabled,
         member_page_enabled=config.get('member_page_enabled', True) is not False,
     )
 
@@ -150,4 +160,5 @@ if __name__ == '__main__':
     debug = os.environ.get('FLASK_DEBUG', '').lower() in ('1', 'true', 'yes', 'on')
     host = '127.0.0.1' if debug else os.environ.get('HOST', '0.0.0.0')
     port = int(os.environ.get('PORT', '5050'))
+    install_werkzeug_access_log_filter()
     app.run(debug=debug, host=host, port=port, use_reloader=debug)

@@ -8,6 +8,7 @@ import json
 import os
 import re
 import sqlite3
+import time
 from contextlib import contextmanager
 from datetime import datetime
 from constants import DB_FILE
@@ -187,7 +188,68 @@ def _exec_ignore(conn, sql):
             raise
 
 
+def _create_chat_schema(conn, db_type):
+    mysql = db_type == 'mysql'
+    primary_id = 'BIGINT AUTO_INCREMENT PRIMARY KEY' if mysql else 'INTEGER PRIMARY KEY AUTOINCREMENT'
+    flag = 'TINYINT' if mysql else 'INTEGER'
+    suffix = ' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4' if mysql else ''
+    conn.execute(f'''CREATE TABLE IF NOT EXISTS chat_settings (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        enabled {flag} NOT NULL DEFAULT 0 CHECK (enabled IN (0, 1)),
+        readonly {flag} NOT NULL DEFAULT 0 CHECK (readonly IN (0, 1)),
+        pinned_notice TEXT NOT NULL,
+        max_length INTEGER NOT NULL DEFAULT 500,
+        cooldown_seconds INTEGER NOT NULL DEFAULT 3,
+        recall_seconds INTEGER NOT NULL DEFAULT 120,
+        sensitive_words TEXT NOT NULL,
+        settings_version BIGINT NOT NULL DEFAULT 1,
+        history_version BIGINT NOT NULL DEFAULT 1,
+        updated_at BIGINT NOT NULL
+    ){suffix}''')
+    conn.execute(f'''CREATE TABLE IF NOT EXISTS chat_user_settings (
+        username VARCHAR(64) NOT NULL PRIMARY KEY,
+        show_student_id {flag} NOT NULL DEFAULT 0 CHECK (show_student_id IN (0, 1)),
+        anon_code VARCHAR(16) NOT NULL UNIQUE,
+        updated_at BIGINT NOT NULL
+    ){suffix}''')
+    conn.execute(f'''CREATE TABLE IF NOT EXISTS chat_messages (
+        id {primary_id},
+        room_id VARCHAR(32) NOT NULL DEFAULT 'general',
+        username VARCHAR(64),
+        device_id VARCHAR(128),
+        sender_role VARCHAR(8) NOT NULL CHECK (sender_role IN ('user', 'admin')),
+        content TEXT NOT NULL,
+        reply_to_id BIGINT,
+        client_msg_id VARCHAR(36) NOT NULL UNIQUE,
+        status VARCHAR(8) NOT NULL DEFAULT 'normal' CHECK (status IN ('normal', 'recalled', 'deleted')),
+        deleted_by VARCHAR(8) CHECK (deleted_by IN ('user', 'admin')),
+        create_time BIGINT NOT NULL,
+        updated_at BIGINT NOT NULL,
+        CHECK ((sender_role = 'user' AND username IS NOT NULL AND device_id IS NOT NULL)
+            OR (sender_role = 'admin' AND username IS NULL AND device_id IS NULL))
+    ){suffix}''')
+    conn.execute(f'''CREATE TABLE IF NOT EXISTS chat_mutes (
+        username VARCHAR(64) NOT NULL PRIMARY KEY,
+        muted_until BIGINT,
+        reason VARCHAR(200) NOT NULL,
+        create_time BIGINT NOT NULL,
+        updated_at BIGINT NOT NULL
+    ){suffix}''')
+    conn.execute(f'''CREATE TABLE IF NOT EXISTS chat_reports (
+        id {primary_id},
+        message_id BIGINT NOT NULL,
+        reporter_username VARCHAR(64) NOT NULL,
+        reason VARCHAR(24) NOT NULL,
+        detail VARCHAR(200) NOT NULL,
+        status VARCHAR(8) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'resolved', 'ignored')),
+        create_time BIGINT NOT NULL,
+        handled_at BIGINT,
+        UNIQUE (message_id, reporter_username)
+    ){suffix}''')
+
+
 def _create_schema_sqlite(conn):
+    _create_chat_schema(conn, 'sqlite')
     conn.execute('''
         CREATE TABLE IF NOT EXISTS users (
             device_id TEXT PRIMARY KEY,
@@ -378,6 +440,7 @@ def _create_schema_sqlite(conn):
 
 
 def _create_schema_mysql(conn):
+    _create_chat_schema(conn, 'mysql')
     conn.execute('''
         CREATE TABLE IF NOT EXISTS users (
             device_id VARCHAR(128) PRIMARY KEY,
@@ -593,6 +656,10 @@ def _create_indexes(conn):
         'CREATE INDEX idx_milestone_rewards_username ON invitation_milestone_rewards(username)',
         'CREATE INDEX idx_withdrawals_username ON withdrawals(username)',
         'CREATE INDEX idx_withdrawals_status ON withdrawals(status)',
+        'CREATE INDEX idx_chat_message_room_id ON chat_messages(room_id, id)',
+        'CREATE INDEX idx_chat_message_author_time ON chat_messages(username, create_time)',
+        'CREATE INDEX idx_chat_message_status_id ON chat_messages(status, id)',
+        'CREATE INDEX idx_chat_report_status_id ON chat_reports(status, id)',
     ]
     for sql in indexes:
         _exec_ignore(conn, sql)
@@ -732,6 +799,8 @@ def init_db(config_override=None):
         create_personal_tables(conn, db_config['type'])
         _exec_ignore(conn, 'CREATE INDEX idx_temporary_sessions_session_id ON temporary_sessions(session_id)')
         # MySQL DDL 会隐式提交，凭据加密和账号提升必须放在所有 DDL 后。
+        conn.execute('INSERT OR IGNORE INTO chat_settings (id, pinned_notice, sensitive_words, updated_at) '
+                     "VALUES (1, '', '[]', ?)", (time.time_ns() // 1_000_000,))
         _migrate_urp_credentials(conn, db_config['type'])
         _migrate_plural_user_accounts(conn)
         _migrate_legacy_wechat_bindings(conn)
@@ -887,10 +956,68 @@ MIGRATION_TABLES = {
 }
 ACCOUNT_FIELDS = ('username', 'password', 'registered_at', 'last_bind_time', 'archived_at')
 
+CHAT_MIGRATION_TABLES = {
+    'chat_user_settings': ('username', 'show_student_id', 'anon_code', 'updated_at'),
+    'chat_messages': ('id', 'room_id', 'username', 'device_id', 'sender_role', 'content', 'reply_to_id',
+                      'client_msg_id', 'status', 'deleted_by', 'create_time', 'updated_at'),
+    'chat_mutes': ('username', 'muted_until', 'reason', 'create_time', 'updated_at'),
+    'chat_reports': ('id', 'message_id', 'reporter_username', 'reason', 'detail', 'status', 'create_time', 'handled_at'),
+}
+CHAT_SETTING_FIELDS = ('enabled', 'readonly', 'pinned_notice', 'max_length', 'cooldown_seconds',
+                       'recall_seconds', 'sensitive_words', 'settings_version', 'history_version', 'updated_at')
+CHAT_SETTINGS_DEFAULTS = (0, 0, '', 500, 3, 120, '[]', 1, 1)
+
 
 def _source_columns(source_conn, table):
     rows = source_conn.execute(f'PRAGMA table_info({table})').fetchall()
     return {row['name'] for row in rows}
+
+
+def _migrate_chat_tables(source, target, result):
+    if not _source_columns(source, 'chat_settings'):
+        if any(_source_columns(source, table) for table in CHAT_MIGRATION_TABLES):
+            raise ValueError('来源数据库聊天室结构不完整')
+        return
+
+    columns = ', '.join(CHAT_SETTING_FIELDS)
+    source_settings = source.execute(f'SELECT {columns} FROM chat_settings WHERE id = 1').fetchone()
+    source_has_data = False
+    for table, fields in CHAT_MIGRATION_TABLES.items():
+        if not set(fields) <= _source_columns(source, table):
+            raise ValueError('来源数据库聊天室结构不完整')
+        if source.execute(f'SELECT 1 FROM {table} LIMIT 1').fetchone():
+            source_has_data = True
+    if source_settings is None:
+        raise ValueError('来源数据库缺少聊天室设置')
+    if tuple(source_settings)[:-1] == CHAT_SETTINGS_DEFAULTS and not source_has_data:
+        return
+
+    # 与聊天室写操作使用同一把锁，避免空目标检查与导入提交之间有新消息写入。
+    locking = '' if isinstance(target, sqlite3.Connection) else ' FOR UPDATE'
+    target_settings = target.execute(f'SELECT {columns} FROM chat_settings WHERE id = 1' + locking).fetchone()
+    if target_settings is None or tuple(target_settings[field] for field in CHAT_SETTING_FIELDS[:-1]) != CHAT_SETTINGS_DEFAULTS:
+        raise ValueError('目标数据库已有聊天室数据或配置，已停止导入')
+    if any(target.execute(f'SELECT 1 FROM {table} LIMIT 1').fetchone() for table in CHAT_MIGRATION_TABLES):
+        raise ValueError('目标数据库已有聊天室数据，已停止导入')
+
+    try:
+        for table, fields in CHAT_MIGRATION_TABLES.items():
+            selected = ', '.join(fields)
+            values = ', '.join('?' for _ in fields)
+            cursor = source.execute(f'SELECT {selected} FROM {table}')
+            result[table] = 0
+            # 显式插入原 ID，InnoDB 与 SQLite 均会把自增序列推进至最大 ID 之后。
+            # 不使用 ALTER TABLE，以免 MySQL 在数据复制中途隐式提交。
+            while rows := cursor.fetchmany(500):
+                target.executemany(f'INSERT INTO {table} ({selected}) VALUES ({values})',
+                                   [tuple(row) for row in rows])
+                result[table] += len(rows)
+        assignments = ', '.join(f'{field} = ?' for field in CHAT_SETTING_FIELDS)
+        target.execute(f'UPDATE chat_settings SET {assignments} WHERE id = 1', tuple(source_settings))
+        result['chat_settings'] = 1
+    except Exception as exc:
+        # 驱动错误可能含有重复键值，例如真实学号。由外层回滚并报告通用错误。
+        raise ValueError('聊天室数据导入失败，请检查来源数据和目标数据库') from exc
 
 
 def _account_rows_from_legacy_users(rows, archived_at=None):
@@ -940,7 +1067,9 @@ def migrate_sqlite_to_current_database(sqlite_path=None):
         source = sqlite3.connect(sqlite_path)
         source.row_factory = sqlite3.Row
         try:
+            source.execute('BEGIN')
             with get_db() as target:
+                _migrate_chat_tables(source, target, result)
                 for table, columns in MIGRATION_TABLES.items():
                     try:
                         existing_columns = _source_columns(source, table)

@@ -5,6 +5,8 @@ import { closeUiModal, openUiModal } from './ui.js';
 const resources = pageResources('announcements');
 let initialized = false;
 let indicatorRequest = null;
+let announcementUnreadCount = 0;
+let chatHasUnread = false;
 
 export const locallyReadAnnouncementIds = new Set();
 
@@ -25,21 +27,30 @@ export function initializeAnnouncements() {
 
 export function updateAnnouncementIndicator(items = state.announcementItems) {
     const trigger = document.getElementById('announcement-trigger');
-    if (!trigger) return;
     const unreadCount = items.filter(item => !item.is_read).length;
-    trigger.classList.toggle('has-unread', unreadCount > 0);
-    trigger.setAttribute('aria-label', unreadCount > 0
+    trigger?.classList.toggle('has-unread', unreadCount > 0);
+    trigger?.setAttribute('aria-label', unreadCount > 0
         ? `系统公告，${unreadCount} 条未读`
         : '系统公告，无未读公告');
-    const more = document.getElementById('mobile-nav-more');
-    if (more) {
-        more.classList.toggle('has-unread', unreadCount > 0);
-        more.setAttribute('aria-label', unreadCount > 0
-            ? `更多功能与账号，${unreadCount} 条未读公告`
-            : '更多功能与账号');
-    }
+    announcementUnreadCount = unreadCount;
+    updateMoreIndicator();
     const count = document.getElementById('mobile-announcement-count');
     if (count) count.textContent = unreadCount > 0 ? `${unreadCount} 条未读` : '';
+}
+
+export function setChatUnreadIndicator(unread) {
+    chatHasUnread = unread;
+    updateMoreIndicator();
+}
+
+function updateMoreIndicator() {
+    const more = document.getElementById('mobile-nav-more');
+    if (!more) return;
+    const parts = ['更多功能与账号'];
+    if (announcementUnreadCount) parts.push(`${announcementUnreadCount} 条未读公告`);
+    if (chatHasUnread) parts.push('聊天室有新消息');
+    more.classList.toggle('has-unread', announcementUnreadCount > 0 || chatHasUnread);
+    more.setAttribute('aria-label', parts.join('，'));
 }
 
 export function rememberAnnouncements(items) {

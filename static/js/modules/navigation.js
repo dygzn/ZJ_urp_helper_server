@@ -89,7 +89,11 @@ export function createDesktopWorkspaceLayout(scope = resources) {
         menus.forEach(menu => { menu.open = false; });
         if (desktop) {
             host.append(nav);
-            links.slice(5).forEach(link => navMore.querySelector('.desktop-menu-items').append(link));
+            const menuItems = navMore.querySelector('.desktop-menu-items');
+            links.slice(5).forEach(link => {
+                if (link.dataset?.page === 'chat') menuItems.prepend(link);
+                else menuItems.append(link);
+            });
             buttons.forEach(button => more.querySelector('.desktop-menu-items').append(button));
         } else {
             links.forEach(link => nav.append(link));
@@ -137,6 +141,12 @@ export function initializeNavigation() {
     const sync = () => syncDesktopWorkspaceLayout(Boolean(desktopQuery?.matches));
     resources.listen(desktopQuery, 'change', sync);
     sync();
+    resources.listen(document.getElementById('chat-back'), 'click', () => {
+        switchPage('more');
+        const entry = document.getElementById('more-chat-entry');
+        if (entry && !entry.hidden && entry.getClientRects().length) focusUiElement(entry);
+        else focusCurrentPage('more');
+    });
     document.querySelectorAll('.nav-item').forEach(item => {
         item.addEventListener('click', function(event) {
             event.preventDefault();
@@ -146,7 +156,7 @@ export function initializeNavigation() {
                 window.ScheduleActionsMenu.toggle();
                 return;
             }
-            switchPage(pageName);
+            switchPage(pageName, { returnToMore: this.id === 'more-chat-entry' });
             closeSidebar({ restoreFocus: false });
             focusCurrentPage(pageName);
         });

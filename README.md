@@ -177,7 +177,7 @@ Group=urp-helper
 WorkingDirectory=/opt/urp-helper
 EnvironmentFile=/etc/urp-helper.env
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/opt/urp-helper/.venv/bin/gunicorn --workers 1 --worker-class gthread --threads 8 --bind 127.0.0.1:5050 --timeout 120 --access-logfile - --error-logfile - app:app
+ExecStart=/opt/urp-helper/.venv/bin/gunicorn --config /opt/urp-helper/gunicorn.conf.py --workers 1 --worker-class gthread --threads 8 --bind 127.0.0.1:5050 --timeout 120 --access-logfile - --error-logfile - app:app
 Restart=on-failure
 RestartSec=5
 UMask=0077
@@ -226,6 +226,24 @@ server {
 ```bash
 sudo nginx -t
 sudo systemctl reload nginx
+```
+
+聊天室启用前，在 Nginx 的 `http` 层定义访问日志规则，并在该站点的 `server` 中使用 `access_log /var/log/nginx/urp-access.log urp if=$urp_log_access;`。成功轮询不写访问日志，管理员聊天室请求的查询参数和解禁路径中的学号会被过滤。Gunicorn 配置使用同样的规则。
+
+```nginx
+map "$request_method:$uri:$status" $urp_log_access {
+    ~^GET:/api/chat/(messages|unread):2[0-9][0-9]$ 0;
+    default 1;
+}
+
+map $uri $urp_log_uri {
+    ~^/api/admin/chat/mutes/ /api/admin/chat/mutes/hidden;
+    ~^/api/admin/chat/ $uri;
+    default $request_uri;
+}
+
+log_format urp '$remote_addr [$time_local] "$request_method $urp_log_uri $server_protocol" '
+               '$status $body_bytes_sent $request_time';
 ```
 
 这是初始 HTTP 代理配置。正式向用户开放前，通过服务器面板或证书工具配置有效 HTTPS 证书，并将 HTTP 跳转到 HTTPS。应用只监听本机 `5050`，外部流量由 Nginx 的 `80/443` 端口进入。不要将整个项目目录配置为静态站点根目录。

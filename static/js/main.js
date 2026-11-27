@@ -19,6 +19,7 @@ import * as evaluation from './modules/evaluation.js';
 import * as service from './modules/service.js';
 import * as lab from './modules/lab.js';
 import * as ad from './modules/ad.js';
+import { initializeChatIndicators, mountChat, unmountChat } from './modules/chat.js';
 
 const domains = { auth, router, schedule: { ...scheduleGestures, ...schedule, ...scheduleEditor }, grades, home, exams, calendar, ui, navigation,
     announcements, miniapp, feedback, member, evaluation, service, lab, ad };
@@ -46,6 +47,7 @@ router.registerPage('service-status', { mount: service.mountService, unmount: se
 router.registerPage('feedback', { mount: feedback.mountFeedback, unmount: feedback.unmountFeedback });
 router.registerPage('member', { mount: member.mountMember, unmount: member.unmountMember });
 router.registerPage('lab', { mount: lab.mountLab, unmount: lab.unmountLab });
+router.registerPage('chat', { mount: mountChat, unmount: unmountChat });
 
 ui.registerModalCleanup('exams-modal', exams.unmountExams);
 ui.registerModalCleanup('calendar-export-modal', calendar.unmountCalendar);
@@ -60,6 +62,7 @@ function start() {
     auth.sanitizeIndexUrl();
     state.isGuestMode = true;
     announcements.initializeAnnouncements();
+    initializeChatIndicators();
     auth.checkBindStatus().finally(() => miniapp.initializeMiniAppPromo());
 }
 

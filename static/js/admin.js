@@ -158,7 +158,8 @@ async function handleAdminLogin(event) {
             adminKey = key;
             sessionStorage.setItem('admin_key', key);
             showAdminPanel();
-            loadUsers();
+            if (document.getElementById('tab-chat')?.classList.contains('active')) switchTab('chat');
+            else loadUsers();
         } else {
             errorDiv.textContent = data.message || '密钥错误';
         }
@@ -180,6 +181,7 @@ function showAdminPanel() {
 
 function adminLogout() {
     stopUserGrowthRefresh();
+    if (typeof AdminChat !== 'undefined') AdminChat.unmount();
     adminKey = null;
     sessionStorage.removeItem('admin_key');
     document.getElementById('admin-login').style.display = 'flex';
@@ -189,6 +191,7 @@ function adminLogout() {
 // ==================== 标签页切换 ====================
 function switchTab(tabName) {
     if (tabName !== 'users') stopUserGrowthRefresh();
+    if (tabName !== 'chat' && typeof AdminChat !== 'undefined') AdminChat.unmount();
     const tabBtns = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
     if (adminUi && typeof adminUi.syncTabAriaState === 'function') {
@@ -215,6 +218,8 @@ function switchTab(tabName) {
         loadAdStats();
     } else if (tabName === 'announcements') {
         loadAnnouncements();
+    } else if (tabName === 'chat' && typeof AdminChat !== 'undefined') {
+        AdminChat.mount();
     } else if (tabName === 'service-status') {
         loadAdminServiceStatus();
     } else if (tabName === 'feedback') {
