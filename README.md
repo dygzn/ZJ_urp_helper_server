@@ -209,16 +209,21 @@ server {
     server_name urp-helper.example.com;
 
     client_max_body_size 25m;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_read_timeout 150s;
+    proxy_buffering off;
+
+    location = /api/lab/upload {
+        client_max_body_size 41m;
+        proxy_pass http://127.0.0.1:5050;
+    }
 
     location / {
         proxy_pass http://127.0.0.1:5050;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_read_timeout 150s;
-        proxy_buffering off;
     }
 }
 ```
@@ -227,6 +232,8 @@ server {
 sudo nginx -t
 sudo systemctl reload nginx
 ```
+
+网页 `/api/lab/upload` 的 `41m` 限额容纳各 20 MB 的报告和附件及 multipart 表单开销。
 
 聊天室启用前，在 Nginx 的 `http` 层定义访问日志规则，并在该站点的 `server` 中使用 `access_log /var/log/nginx/urp-access.log urp if=$urp_log_access;`。成功轮询不写访问日志，管理员聊天室请求的查询参数和解禁路径中的学号会被过滤。Gunicorn 配置使用同样的规则。
 

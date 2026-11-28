@@ -39,6 +39,14 @@ Thumbs.db
 !/tests/test_chat_ui.js
 !/tests/browser_chat.cjs
 !/tests/browser_admin_chat.cjs
+!/tests/test_lab_service.py
+!/tests/test_lab_submission_status.py
+!/tests/test_lab_recovery.py
+!/tests/test_lab_ui.js
+!/tests/browser_lab_submission.cjs
+!/tests/helpers/
+/tests/helpers/*
+!/tests/helpers/app-source.js
 
 # Keep reports and development notes local; track deployment and design guides
 /*.md

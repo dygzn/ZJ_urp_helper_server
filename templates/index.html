@@ -495,7 +495,7 @@
             <div id="page-lab" class="page">
                 <div class="page-access-gate" data-page-access-gate hidden></div>
                 <div class="lab-wrap">
-                    <div class="lab-heading"><h2>实验提交</h2><span class="lab-format-hint">PDF · 最大 20MB</span></div>
+                    <div class="lab-heading"><h2>实验提交</h2><span class="lab-format-hint">PDF 报告 · 支持时可附文件</span></div>
                     <section id="lab-connection" class="lab-card lab-connection" hidden aria-label="实验站账号与查询">
                         <div class="lab-connection-meta"><div class="lab-account">学号 <strong id="lab-student">待获取</strong></div><span id="lab-bound">未绑定实验站密码</span></div>
                         <div class="lab-query-row">
@@ -516,11 +516,6 @@
                         <div id="lab-list"></div>
                         <div class="lab-actions"><button id="lab-refresh" class="btn-secondary" type="button">刷新任务与状态</button><button id="lab-disconnect" class="btn-secondary" type="button" hidden>解除密码绑定</button></div>
                     </section>
-                    <input id="lab-file" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" hidden>
-                    <aside id="lab-convert" class="lab-card" hidden>
-                        <p id="lab-convert-text" class="lab-auto-captcha"></p>
-                        <div class="lab-actions"><a id="lab-convert-link" class="btn-secondary" href="#" target="_blank" rel="noopener noreferrer">前往转换为 PDF</a><button id="lab-convert-reselect" class="btn-secondary" type="button">重新选择 PDF</button></div>
-                    </aside>
                 </div>
             </div>
 
@@ -738,6 +733,62 @@
 
 
     <div id="historical-schedule-modal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="historical-schedule-modal-title"><div class="modal-content historical-schedule-modal-content"><button class="modal-close" type="button" onclick="closeHistoricalSchedule()" aria-label="关闭">关闭</button><h2 id="historical-schedule-modal-title">历年课表查询</h2><p class="modal-desc">选择学期后展示该学期全部课程</p><label class="historical-schedule-select-wrap" for="historical-semester-select"><span>学年学期</span><select id="historical-semester-select" onchange="loadHistoricalSchedule(this.value)"></select></label><div id="historical-schedule-body" class="historical-schedule-body"><div class="loading">加载中...</div></div></div></div>
+
+    <div id="lab-upload-modal" class="modal lab-upload-modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="lab-upload-title" aria-describedby="lab-upload-context">
+        <form id="lab-upload-form" class="modal-content lab-upload-dialog">
+            <header class="lab-upload-header">
+                <h2 id="lab-upload-title" tabindex="-1"></h2>
+                <button id="lab-upload-close" class="modal-close" type="button">关闭</button>
+                <p id="lab-upload-context"></p>
+            </header>
+            <div class="lab-upload-body">
+                <div id="lab-upload-existing" class="lab-upload-existing" hidden>
+                    <p id="lab-upload-old-report" hidden></p>
+                    <p id="lab-upload-old-attachment" hidden></p>
+                </div>
+                {% for key, title, choose, hint in [
+                    ('file', '主报告 · 必填', '选择 PDF 报告', 'PDF · 最大 20 MB'),
+                    ('attachment', '其他附件 · 可选', '+ 添加其他附件', '最大 20 MB · 格式由实验站判定')
+                ] %}
+                <section id="lab-{{ key }}-slot" class="lab-upload-slot" data-field="{{ key }}" aria-labelledby="lab-{{ key }}-label"{% if key == 'attachment' %} hidden{% endif %}>
+                    <h3 id="lab-{{ key }}-label">{{ title }}</h3>
+                    <input id="lab-{{ key }}" type="file"{% if key == 'file' %} accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"{% endif %} hidden>
+                    <div id="lab-{{ key }}-drop" class="lab-upload-drop">
+                        <button id="lab-{{ key }}-choose" type="button" class="btn-secondary lab-upload-choose" aria-describedby="lab-{{ key }}-hint lab-{{ key }}-error">
+                            <span>{{ choose }}</span><span class="lab-upload-drag-copy" aria-hidden="true">或拖拽文件到此处</span>
+                        </button>
+                        <div id="lab-{{ key }}-selection" class="lab-upload-selection" hidden>
+                            <div class="lab-upload-file-info"><strong id="lab-{{ key }}-name"></strong><span id="lab-{{ key }}-size"></span></div>
+                            <div class="lab-upload-file-actions">
+                                <button id="lab-{{ key }}-replace" type="button" class="btn-secondary" aria-label="更换{{ '主报告' if key == 'file' else '附件' }}">更换</button>
+                                <button id="lab-{{ key }}-remove" type="button" class="btn-secondary" aria-label="移除{{ '主报告' if key == 'file' else '附件' }}">移除</button>
+                            </div>
+                        </div>
+                    </div>
+                    <p id="lab-{{ key }}-hint" class="lab-upload-hint">{{ hint }}</p>
+                    <p id="lab-{{ key }}-error" class="lab-upload-error" role="status"></p>
+                    {% if key == 'file' %}
+                    <aside id="lab-convert" class="lab-upload-convert" hidden>
+                        <p id="lab-convert-text"></p>
+                        <a id="lab-convert-link" class="btn-secondary" href="#" target="_blank" rel="noopener noreferrer">前往 iLovePDF 转换</a>
+                    </aside>
+                    {% endif %}
+                </section>
+                {% endfor %}
+                <p id="lab-upload-existing-hint" class="lab-upload-warning" hidden></p>
+            </div>
+            <footer class="lab-upload-footer">
+                <div class="lab-upload-feedback">
+                    <progress id="lab-upload-progress" max="100" aria-label="文件上传进度" hidden></progress>
+                    <p id="lab-upload-status" role="status" aria-live="polite"></p>
+                </div>
+                <div class="lab-upload-actions">
+                    <button id="lab-upload-cancel" class="btn-secondary" type="button">取消</button>
+                    <button id="lab-upload-submit" class="btn-primary" type="submit" disabled>提交报告</button>
+                </div>
+            </footer>
+        </form>
+    </div>
 
     <div id="ui-toast-region" class="ui-toast-region" aria-live="polite" aria-atomic="true"></div>
 

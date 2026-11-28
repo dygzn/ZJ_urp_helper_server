@@ -17,7 +17,7 @@ import * as feedback from './modules/feedback.js';
 import * as member from './modules/member.js';
 import * as evaluation from './modules/evaluation.js';
 import * as service from './modules/service.js';
-import * as lab from './modules/lab.js';
+import * as lab from './modules/lab.js?v=3';
 import * as ad from './modules/ad.js';
 import { initializeChatIndicators, mountChat, unmountChat } from './modules/chat.js';
 

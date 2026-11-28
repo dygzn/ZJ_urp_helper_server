@@ -20,6 +20,9 @@ BASE = 'http://192.168.16.235'
 LOGIN = '/gzc_index/index.aspx'
 CAPTCHA = '/gzc_index/GenerateIdentifyingCode.aspx'
 MAX_PDF = 20 * 1024 * 1024
+MAX_ATTACHMENT = 20 * 1024 * 1024
+WEB_UPLOAD_TIMEOUT = (5, 90)
+UNVERIFIED_UPLOAD = '未能确认文件上传结果，请先刷新任务或到实验站核对，勿重复提交'
 SESSION_TTL = 30 * 60
 _states = {}
 _states_lock = threading.RLock()
@@ -52,6 +55,16 @@ class LabError(Exception):
 
 
 class LabSessionExpired(LabError):
+    pass
+
+
+class LabUploadValidation(LabError):
+    def __init__(self, field, message):
+        super().__init__(message)
+        self.field = field
+
+
+class LabUploadUnverified(LabError):
     pass
 
 
@@ -126,11 +139,11 @@ def _safe_url(url):
     return absolute
 
 
-def _request(session, method, url, _hops=0, **kwargs):
+def _request(session, method, url, _hops=0, timeout=(5, 20), **kwargs):
     if _hops > 5:
         raise LabError('实验站跳转次数过多')
     try:
-        response = session.request(method, _safe_url(url), timeout=(5, 20), allow_redirects=False, **kwargs)
+        response = session.request(method, _safe_url(url), timeout=timeout, allow_redirects=False, **kwargs)
     except requests.RequestException as exc:
         raise LabError('无法连接实验站，请确认服务器 VPN 已连接') from exc
     if response.status_code in (301, 302, 303, 307, 308):
@@ -418,20 +431,40 @@ def change_semester(key, semester, mode=None, course=None):
     return _with_relogin(key, lambda: _select_listing(_get(key), semester, mode, course, refresh=True))
 
 
+def _attachment_status(soup):
+    control = soup.select_one('input[type=file][name=UpFile2]')
+    row = control.find_parent('tr') if control else None
+    if row is None:
+        row = next((item for item in soup.select('tr')
+                    if (cell := item.find('td', recursive=False)) and cell.get_text(strip=True) == '其他附件'), None)
+    name = hint = ''
+    if row is not None:
+        link = row.find('a', href=True)
+        name = link.get_text(' ', strip=True) if link else ''
+        hint = next((part.strip() for part in row.strings
+                     if not part.find_parent('a') and re.search(r'文件大小|附件格式', part)), '')
+    return row, {'supports_attachment': control is not None, 'attachment_name': name, 'attachment_hint': hint}
+
+
 def parse_report_status(page):
     _check_session(page)
     soup = BeautifulSoup(page.text, 'html.parser')
     file_input = soup.select_one('input[type=file][name=UpFile]')
+    form = file_input.find_parent('form') if file_input else None
+    attachment_row, attachment_info = _attachment_status(form or soup)
     row = file_input.find_parent('tr') if file_input else None
     if not row:
         row = next((row for row in soup.select('tr')
                     if row.find('td') and row.find('td').get_text(strip=True) in ('实验报告', '预习报告')), None)
     file_link = next((a for a in row.select('a[href]')
                       if re.search(r'\.pdf(?:[?#]|$)', a['href'], re.I)
-                      or a.get_text(strip=True).lower().endswith('.pdf')), None) if row else None
+                      or a.get_text(strip=True).lower().endswith('.pdf')), None) if row and row is not attachment_row else None
     file_name = file_link.get_text(' ', strip=True) if file_link else ''
     site_status = ''
-    for text in soup.stripped_strings:
+    for value in soup.strings:
+        if attachment_row is not None and attachment_row in value.parents:
+            continue
+        text = value.strip()
         match = re.fullmatch(r'状态\s*[:：]\s*(.{1,80})', text)
         if match:
             site_status = match.group(1).strip()
@@ -446,11 +479,11 @@ def parse_report_status(page):
     elif file_name or re.search(r'待评阅|待批阅|已提交|已上传|已评阅|已批阅', site_status):
         status = 'submitted'
     label = site_status or ('已上传文件' if file_name else '未见已上传文件')
-    return {'status': status, 'label': label, 'site_status': site_status, 'file_name': file_name}
+    return {'status': status, 'label': label, 'site_status': site_status, 'file_name': file_name, **attachment_info}
 
 
 @_serialized
-def submission_statuses(key, semester, task_key=None, mode=None, course=None):
+def submission_statuses(key, semester, task_key=None, mode=None, course=None, *, include_attachment=False):
     """仅打开报告查看表单；无文件上传，不下载已上传的报告。"""
     def run():
         state = _get(key)
@@ -473,19 +506,66 @@ def submission_statuses(key, semester, task_key=None, mode=None, course=None):
                 except LabError:
                     reports[kind] = {'status': 'unknown', 'label': '状态读取失败，请刷新重试',
                                      'file_name': '', 'site_status': ''}
+            for report in reports.values():
+                if include_attachment:
+                    report['status_read'] = 'supports_attachment' in report
+                    report.setdefault('supports_attachment', False)
+                    report.setdefault('attachment_name', '')
+                    report.setdefault('attachment_hint', '')
+                else:
+                    for field in ('supports_attachment', 'attachment_name', 'attachment_hint'):
+                        report.pop(field, None)
             state.setdefault('report_statuses', {})[(semester, item['task_key'])] = reports
         return parse_list(state)
     return _with_relogin(key, run)
 
 
+def _upload_rejection_message(soup):
+    error = soup.select_one('.validation-summary-errors, .field-validation-error')
+    if error:
+        text = error.get_text(' ', strip=True)
+        if text:
+            return text[:150]
+    for script in soup.select('script'):
+        content = script.get_text()
+        for match in re.finditer(r"alert\s*\(\s*(['\"])((?:\\.|(?!\1).){1,300})\1\s*\)", content):
+            text = re.sub(r'\\(.)', r'\1', match.group(2)).strip()
+            if not text or re.search(r'(?:上传|提交|保存)\s*成功', text):
+                continue
+            if re.search(r'失败|错误|不允许|不支持|格式|扩展名|后缀|类型|超过|过大|不能大于|大小|不能为空|请选择|无效|禁止|非法|无法上传|不能上传', text):
+                return text[:150]
+    return ''
+
+
+def _clean_upload_name(filename, field):
+    basename = (filename or '').replace('\\', '/').rsplit('/', 1)[-1]
+    name = ''.join(character for character in basename if character.isprintable()).strip()
+    if not name or name in ('.', '..') or len(name.encode('utf-8')) > 255:
+        label = '附件' if field == 'attachment' else '报告'
+        raise LabUploadValidation(field, f'{label}文件名无效或过长，请重命名后重新选择')
+    return name
+
+
 @_serialized
-def upload(key, item_id, kind, filename, data, semester=None, task_key=None, mode=None, course=None):
+def upload(key, item_id, kind, filename, data, semester=None, task_key=None, mode=None, course=None, *,
+           attachment=None, web=False):
     if kind not in ('pre', 'report'):
         raise LabError('无效的报告类型')
     if (mode is not None or course is not None) and not (task_key and semester):
         raise LabError('缺少实验任务信息，请重新查询后选择报告')
+    if web:
+        filename = _clean_upload_name(filename, 'file')
     if not filename or not filename.lower().endswith('.pdf') or len(data) > MAX_PDF or len(data) < 8 or not data.startswith(b'%PDF-'):
+        if web:
+            raise LabUploadValidation('file', '请选择有效的 PDF 报告，文件大小不超过 20 MB')
         raise LabError('仅支持 20MB 以内的 PDF 文件')
+    if attachment is not None:
+        raw_name, attachment_data = attachment
+        attachment_name = _clean_upload_name(raw_name, 'attachment')
+        if not attachment_data:
+            raise LabUploadValidation('attachment', '附件是空文件，请重新选择')
+        if len(attachment_data) > MAX_ATTACHMENT:
+            raise LabUploadValidation('attachment', '附件大小不能超过 20 MB')
     with _states_lock:
         old = _states.get(key)
         previous = old.get('listing') if old else None
@@ -518,35 +598,56 @@ def upload(key, item_id, kind, filename, data, semester=None, task_key=None, mod
     state, page = _with_relogin(key, prepare)
     soup = BeautifulSoup(page.text, 'html.parser')
     file_input = soup.select_one('input[type=file][name=UpFile]')
-    submit = soup.select_one('input[name=btnSubmit]')
+    form = (file_input.find_parent('form') or soup) if (file_input and (web or attachment is not None)) else soup
+    attachment_input = form.select_one('input[type=file][name=UpFile2]')
+    if attachment is not None and not attachment_input:
+        raise LabUploadValidation('attachment', '实验站当前表单不支持附件，本次未提交文件')
+    submit = form.select_one('input[name=btnSubmit]')
     if not file_input or not submit:
         raise LabError('实验站上传表单发生变化，未提交文件')
-    fields = _fields(soup)
+    fields = _fields(form)
     fields['btnSubmit'] = submit.get('value', '')
     files = {'UpFile': (os.path.basename(filename), io.BytesIO(data), 'application/pdf')}
-    if soup.select_one('input[type=file][name=UpFile2]'):
+    if attachment is not None:
+        files['UpFile2'] = (attachment_name, io.BytesIO(attachment_data), 'application/octet-stream')
+    elif attachment_input:
         files['UpFile2'] = ('', b'')
     try:
-        result = _request(state['session'], 'POST', page.url, data=fields, files=files)
+        options = {'timeout': WEB_UPLOAD_TIMEOUT} if web else {}
+        result = _request(state['session'], 'POST', page.url, data=fields, files=files, **options)
     except LabError as exc:
-        raise LabError('未能确认文件上传结果，请先刷新任务或到实验站核对，勿重复提交') from exc
+        error = LabUploadUnverified if web else LabError
+        raise error(UNVERIFIED_UPLOAD) from exc
     result_soup = BeautifulSoup(result.text, 'html.parser')
     # WebForms 错误页与登录页不能被当作上传成功。
     try:
         _check_session(result)
-    except LabSessionExpired:
+    except LabSessionExpired as exc:
         forget_temporary_lab_session(*key)
+        if web:
+            raise LabUploadUnverified(UNVERIFIED_UPLOAD) from exc
         raise LabSessionExpired('实验站登录已过期，未确认上传成功，请重新登录查询')
-    error = result_soup.select_one('.validation-summary-errors, .field-validation-error')
-    if error:
-        raise LabError(f"实验站拒绝上传：{error.get_text(' ', strip=True)[:150]}")
+    rejection = _upload_rejection_message(result_soup)
+    if rejection:
+        raise LabError(f'实验站拒绝上传：{rejection}')
     # 未观察到目标站成功响应时，明确保留“待核实”，避免虚报成功。
-    answer = {'confirmed': False, 'message': '文件已发送至实验站，请在实验站核对提交状态'}
+    answer = {'confirmed': False, 'message': UNVERIFIED_UPLOAD if web else '文件已发送至实验站，请在实验站核对提交状态'}
+    if web:
+        answer['status_refreshed'] = False
     if state.get('list_url'):
         try:
             state['page'] = _request(state['session'], 'GET', state['list_url'])
             if task_key and semester:
-                current = submission_statuses(key, semester, task_key, mode, course)
+                options = {'include_attachment': True} if web else {}
+                current = submission_statuses(key, semester, task_key, mode, course, **options)
+                if web:
+                    matched = next((item for item in current.get('items', []) if item.get('task_key') == task_key), None)
+                    refreshed = bool(matched and matched.get('reports', {}).get(kind, {}).get('status_read'))
+                    answer['status_refreshed'] = refreshed
+                    if refreshed:
+                        answer['message'] = '文件已发送并已刷新状态，请核对下方文件名与原站状态'
+                    else:
+                        answer['message'] = '文件已发送，但提交状态未能核实，请刷新任务或到实验站核对，勿重复提交'
             elif semester:
                 current = _select_listing(state, semester, mode, course)
             else:

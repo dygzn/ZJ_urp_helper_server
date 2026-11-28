@@ -31,6 +31,10 @@ def _result(action):
         return jsonify({'success': False, 'message': '上传请求超过 20MB 限制'}), 400
     except lab.LabSessionExpired as exc:
         return jsonify({'success': False, 'code': 'LAB_SESSION_EXPIRED', 'message': str(exc)}), 400
+    except lab.LabUploadValidation as exc:
+        return jsonify(success=False, field=exc.field, message=str(exc)), 400
+    except lab.LabUploadUnverified as exc:
+        return jsonify(success=False, code='LAB_UPLOAD_UNVERIFIED', message=str(exc)), 400
     except lab.LabError as exc:
         return jsonify({'success': False, 'message': str(exc)}), 400
 
@@ -72,14 +76,40 @@ def experiments(user):
 @lab_bp.route('/api/lab/submission-status')
 @require_member('basic')
 def submission_status(user):
+    options = {'include_attachment': True} if request.path == '/api/lab/submission-status' else {}
     return _result(lambda: jsonify({'success': True, 'data': lab.submission_statuses(
         _key(user), request.args.get('semester', ''), request.args.get('task_key') or None,
-        request.args.get('mode'), request.args.get('course'))}))
+        request.args.get('mode'), request.args.get('course'), **options)}))
+
+
+def _web_upload(user):
+    request.max_content_length = lab.MAX_PDF + lab.MAX_ATTACHMENT + 1024 * 1024
+    try:
+        files = request.files
+    except RequestEntityTooLarge as exc:
+        raise lab.LabUploadValidation('request', '上传请求过大，请确认报告与附件分别不超过 20 MB') from exc
+    for field, label in (('file', '报告'), ('attachment', '附件')):
+        if len(files.getlist(field)) > 1:
+            raise lab.LabUploadValidation(field, f'每次只能选择一份{label}')
+    report = files.get('file')
+    if not report:
+        raise lab.LabUploadValidation('file', '请选择 PDF 报告')
+    attachment = files.get('attachment')
+    result = lab.upload(_key(user), request.form.get('item_id'), request.form.get('kind'),
+                        report.filename, report.stream.read(lab.MAX_PDF + 1),
+                        semester=request.form.get('semester'), task_key=request.form.get('task_key'),
+                        web=True, attachment=None if attachment is None else (
+                            attachment.filename, attachment.stream.read(lab.MAX_ATTACHMENT + 1)),
+                        **{key: request.form[key] for key in ('mode', 'course') if key in request.form})
+    return jsonify(success=True, data=result, message=result['message'])
 
 
 @lab_bp.route('/api/lab/upload', methods=['POST'])
 @require_member('basic')
 def upload(user):
+    if request.path == '/api/lab/upload':
+        return _result(lambda: _web_upload(user))
+
     def run():
         request.max_content_length = lab.MAX_PDF + 1024 * 1024
         if request.content_length and request.content_length > lab.MAX_PDF + 1024 * 1024:

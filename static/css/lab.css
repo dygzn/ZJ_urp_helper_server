@@ -36,9 +36,122 @@
 .lab-report-statuses { display: grid; gap: 4px; width: 100%; }
 .lab-report-state { line-height: 1.6; }
 .lab-report-state.lab-submitted { color: var(--ui-ink); font-weight: 600; }
+.lab-report-attachment { color: var(--ui-muted); padding-inline-start: 12px; overflow-wrap: anywhere; }
+.lab-report-unverified { color: var(--ui-warning); overflow-wrap: anywhere; }
 .lab-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .lab-item .lab-actions { grid-column: 2; grid-row: 1 / 3; align-self: center; }
 .lab-item button:disabled { opacity: .55; cursor: not-allowed; }
+
+.lab-upload-modal.modal { align-items: center; padding: 16px; }
+.lab-upload-modal .lab-upload-dialog {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    width: min(540px, calc(100vw - 32px));
+    max-width: 100%;
+    max-height: calc(100dvh - 32px);
+    padding: 0;
+    overflow: hidden;
+    color: var(--ui-ink);
+    animation: none;
+}
+.lab-upload-header, .lab-upload-body, .lab-upload-footer { min-width: 0; padding: 16px 20px; }
+.lab-upload-header { position: relative; border-bottom: 1px solid var(--ui-line); }
+.lab-upload-header h2 { margin: 0 84px 4px 0; font-size: 20px; }
+.lab-upload-header .modal-close { top: 12px; right: 16px; width: 72px; height: 44px; }
+.lab-upload-header p, .lab-upload-body p, .lab-upload-footer p { margin: 0; overflow-wrap: anywhere; }
+.lab-upload-header p, .lab-upload-hint, .lab-upload-existing, .lab-upload-file-info span {
+    color: var(--ui-muted);
+    font-size: 13px;
+    line-height: 1.5;
+}
+.lab-upload-existing {
+    display: grid;
+    gap: 2px;
+    padding: 8px 12px;
+    border: 1px solid var(--ui-line);
+    border-radius: var(--ui-radius-sm);
+    background: var(--ui-surface-soft);
+}
+.lab-upload-body {
+    display: grid;
+    align-content: start;
+    gap: 16px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+.lab-upload-slot { min-width: 0; display: grid; gap: 4px; }
+.lab-upload-slot h3 { margin: 0; font-size: 16px; }
+.lab-upload-drop { min-width: 0; border-radius: var(--ui-radius-sm); }
+.lab-upload-dialog :is(button, a) { min-width: 44px; min-height: 44px; }
+.lab-upload-dialog .lab-upload-choose {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    width: 100%;
+    min-height: 48px;
+    padding: 8px 12px;
+    text-align: start;
+    font-size: 16px;
+}
+.lab-upload-slot[data-field="file"] .lab-upload-choose {
+    border-style: dashed;
+    border-color: var(--ui-control-line);
+    background: var(--ui-surface-soft);
+}
+.lab-upload-drag-copy { color: var(--ui-muted); font-size: 13px; font-weight: 400; }
+.lab-upload-drop.is-dragging :is(.lab-upload-choose, .lab-upload-selection) {
+    border-color: var(--ui-accent);
+    background: var(--ui-accent-soft);
+}
+.lab-upload-selection {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px 8px;
+    padding: 6px 8px 6px 12px;
+    border: 1px solid var(--ui-line);
+    border-radius: var(--ui-radius-sm);
+    background: var(--ui-surface-soft);
+}
+.lab-upload-file-info { display: grid; flex: 1 1 160px; min-width: 0; overflow-wrap: anywhere; }
+.lab-upload-file-info strong { font-size: 14px; }
+.lab-upload-file-info span { font-variant-numeric: tabular-nums; }
+.lab-upload-file-actions, .lab-upload-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.lab-upload-file-actions button { padding-inline: 8px; font-size: 16px; }
+.lab-upload-convert, .lab-upload-warning { background: var(--ui-surface-soft); border-radius: var(--ui-radius-sm); }
+.lab-upload-convert { display: grid; justify-items: start; gap: 4px; padding: 8px 12px; color: var(--ui-muted); font-size: 13px; }
+.lab-upload-body .lab-upload-warning { padding: 8px 12px; color: var(--ui-warning); font-size: 13px; }
+.lab-upload-error { color: var(--ui-danger); font-size: 14px; }
+.lab-upload-footer { display: grid; gap: 8px; border-top: 1px solid var(--ui-line); }
+.lab-upload-actions button { font-size: 16px; }
+.lab-upload-feedback { display: grid; gap: 4px; font-size: 13px; }
+.lab-upload-feedback progress { width: 100%; height: 8px; accent-color: var(--ui-accent); }
+.lab-upload-dialog :is(button:disabled) { opacity: .55; cursor: not-allowed; }
+
+@media (max-width: 768px) {
+    .lab-upload-modal.modal { align-items: flex-end; padding: 0; }
+    .lab-upload-modal .lab-upload-dialog {
+        width: 100%;
+        max-height: calc(100dvh - max(12px, env(safe-area-inset-top)));
+        border-radius: var(--ui-radius) var(--ui-radius) 0 0;
+    }
+    .lab-upload-header, .lab-upload-body, .lab-upload-footer { padding: 12px 16px; }
+    .lab-upload-header .modal-close { right: 12px; }
+    .lab-upload-header > p { padding-inline-end: 76px; }
+    .lab-upload-footer { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
+    .lab-upload-drag-copy { display: none; }
+    .lab-upload-actions { display: grid; grid-template-columns: minmax(72px, 1fr) minmax(0, 2fr); }
+    @media (prefers-reduced-motion: no-preference) {
+        .lab-upload-modal.modal.active > .lab-upload-dialog { animation: lab-sheet-in 160ms var(--ui-ease); }
+        @keyframes lab-sheet-in { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    }
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+    .lab-upload-modal .lab-upload-dialog { background: var(--ui-solid-surface); backdrop-filter: none; }
+}
 @media (max-width: 600px) {
     .lab-wrap { gap: 12px; }
     .lab-wrap .lab-connection, .lab-wrap .lab-results { padding: 12px; }
@@ -54,6 +167,18 @@
     .lab-item .lab-actions button { flex: 1; padding-inline: 8px; }
 }
 }
+@layer components.appearance {
+:where(html[data-ui-template="glass"]) .lab-upload-slot[data-field="file"] .lab-upload-choose {
+    border-style: dashed;
+    border-color: var(--ui-control-line);
+}
+:where(html[data-ui-template="glass"]) .lab-upload-dialog .modal-close:disabled {
+    opacity: .72;
+    color: var(--ui-muted);
+}
+}
 @layer utilities {
 .lab-card[hidden], .lab-card [hidden], .lab-message:empty { display: none; }
+.lab-upload-dialog [hidden], .lab-upload-dialog :is(.lab-upload-error, .lab-upload-feedback):empty,
+.lab-upload-feedback:has(progress[hidden] + p:empty) { display: none; }
 }
